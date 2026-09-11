@@ -64,14 +64,13 @@ input:focus, textarea:focus, select:focus {
   to { opacity: 1; }
 }
 
-/* Consumer-app feel: cleaner surfaces and softer depth instead of dashboard boxes. */
 main > * { animation: bw-fade .24s ease both; }
 main .shadow-sm { box-shadow: 0 10px 30px rgba(24, 31, 26, .055); }
 main img { background: #ece9e2; }
 
-/* Mobile navigation: reuse the existing desktop nav as a real app dock. */
+/* Tablet/mobile: the desktop tab strip becomes the app dock. */
 @media (max-width: 1279px) {
-  body { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+  body { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   header nav.hidden {
     display: flex !important;
     position: fixed;
@@ -81,39 +80,171 @@ main img { background: #ece9e2; }
     bottom: calc(10px + env(safe-area-inset-bottom));
     gap: 3px;
     padding: 7px;
-    overflow-x: auto;
+    overflow: hidden;
     border: 1px solid rgba(255,255,255,.76);
-    border-radius: 24px;
-    background: rgba(255,255,255,.88);
+    border-radius: 25px;
+    background: rgba(255,255,255,.90);
     box-shadow: 0 18px 55px rgba(21, 29, 23, .18);
-    backdrop-filter: blur(22px) saturate(1.35);
-    -webkit-backdrop-filter: blur(22px) saturate(1.35);
-    scrollbar-width: none;
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
   }
-  header nav.hidden::-webkit-scrollbar { display: none; }
   header nav.hidden button {
-    flex: 1 0 auto;
-    min-width: 68px;
-    padding: 10px 12px;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 10px 5px 9px;
     border-radius: 18px;
-    font-size: 11px;
+    font-size: 10px;
+    line-height: 1.1;
     letter-spacing: -.01em;
+    text-align: center;
   }
-  header { border-bottom-color: transparent !important; background: rgba(246,244,239,.80) !important; }
+  header { border-bottom-color: transparent !important; background: rgba(246,244,239,.78) !important; }
   header > div { padding-top: calc(10px + env(safe-area-inset-top)); }
   main { padding-top: 10px !important; }
 }
 
-/* Sheets instead of generic centered ChatGPT-style popups on phones. */
-.fixed.inset-0 {
-  animation: bw-fade .18s ease both;
-  background: rgba(12, 18, 14, .52) !important;
-  backdrop-filter: blur(14px) saturate(1.15) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
-}
-.fixed.inset-0 > div { animation: bw-rise .24s cubic-bezier(.2,.8,.2,1) both; }
-
+/* Phone: 5-tab app navigation. Extras stays reachable from Basket. */
 @media (max-width: 767px) {
+  body { background: #f7f6f2; }
+
+  header {
+    position: sticky !important;
+    top: 0;
+    backdrop-filter: blur(22px) saturate(1.35);
+    -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  }
+  header > div {
+    min-height: 58px;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+    padding-bottom: 9px !important;
+  }
+  header button:first-child span {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 12px !important;
+  }
+  header button:first-child > div > div:first-child { font-size: 15px; letter-spacing: -.025em; }
+  header button:first-child > div > div:last-child { display: none; }
+  header > div > div:last-child button {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: rgba(255,255,255,.82) !important;
+    border: 1px solid rgba(23,25,22,.06);
+  }
+
+  main {
+    width: 100%;
+    padding: 6px 12px 8px !important;
+    overflow-x: hidden;
+  }
+
+  /* Remove the sixth dock item (Extras) so the bottom bar behaves like a native 5-tab app. */
+  header nav.hidden button:nth-child(6) { display: none !important; }
+  header nav.hidden button::before {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 17px;
+    line-height: 1;
+    font-weight: 400;
+  }
+  header nav.hidden button:nth-child(1)::before { content: "✦"; }
+  header nav.hidden button:nth-child(2)::before { content: "♥"; }
+  header nav.hidden button:nth-child(3)::before { content: "▦"; }
+  header nav.hidden button:nth-child(4)::before { content: "◉"; }
+  header nav.hidden button:nth-child(5)::before { content: "⌑"; }
+
+  /* Discovery hero becomes a compact consumer-app intro instead of a dashboard banner. */
+  main > .grid:first-child {
+    margin: 0 -2px;
+    padding: 20px !important;
+    border-radius: 28px !important;
+    box-shadow: 0 20px 44px rgba(23, 48, 36, .15);
+  }
+  main > .grid:first-child h1 {
+    max-width: 290px;
+    font-size: clamp(26px, 8vw, 34px) !important;
+    line-height: .98;
+    letter-spacing: -.045em;
+  }
+  main > .grid:first-child p {
+    max-width: 330px;
+    font-size: 13px !important;
+    line-height: 1.45;
+  }
+
+  /* Horizontal option rails feel touch-native. */
+  main .overflow-x-auto {
+    margin-left: -12px;
+    margin-right: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+  main .overflow-x-auto::-webkit-scrollbar { display: none; }
+  main .overflow-x-auto > * { scroll-snap-align: start; }
+
+  /* Recipe discovery cards: image-led, larger and closer to Picsart/consumer media apps. */
+  main article.group {
+    position: relative;
+    overflow: hidden;
+    border-radius: 30px !important;
+    background: #fff;
+    box-shadow: 0 18px 44px rgba(29, 35, 31, .10) !important;
+  }
+  main article.group > button:first-child > div:first-child {
+    aspect-ratio: 1 / 1.03 !important;
+  }
+  main article.group > button:first-child > div:first-child img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  main article.group > button:first-child > div:nth-child(2) {
+    padding: 16px 16px 8px !important;
+  }
+  main article.group h3 {
+    font-size: 19px;
+    line-height: 1.04;
+    letter-spacing: -.035em;
+  }
+  main article.group > div:last-child {
+    padding: 6px 14px 14px !important;
+    gap: 8px !important;
+  }
+  main article.group > div:last-child button {
+    min-height: 46px;
+    border-radius: 15px !important;
+  }
+  main article.group > div:last-child button:first-child { width: 48px; }
+
+  /* Inputs and primary actions use thumb-friendly sizing. */
+  main input, main textarea, main select { min-height: 46px; }
+  main button { min-height: 42px; }
+
+  /* Make generic content cards read like app surfaces rather than admin widgets. */
+  main .rounded-\[22px\],
+  main .rounded-\[24px\],
+  main .rounded-\[26px\],
+  main .rounded-\[28px\] {
+    border-radius: 24px !important;
+  }
+  main .shadow-sm {
+    box-shadow: 0 12px 34px rgba(24, 31, 26, .065) !important;
+  }
+
+  /* Calendar/stat cards get horizontal breathing room and less boxy density. */
+  main .sm\:grid-cols-3 > div,
+  main .md\:grid-cols-2 > div {
+    min-width: 0;
+  }
+
+  /* Bottom sheets instead of generic centered modals. */
   .fixed.inset-0 {
     display: flex;
     align-items: flex-end;
@@ -127,6 +258,7 @@ main img { background: #ece9e2; }
     overflow-y: auto;
     border-radius: 30px 30px 0 0 !important;
     box-shadow: 0 -18px 70px rgba(14, 21, 16, .24) !important;
+    overscroll-behavior: contain;
   }
   .fixed.inset-0 > div::before {
     content: "";
@@ -140,12 +272,26 @@ main img { background: #ece9e2; }
     border-radius: 999px;
     background: rgba(23, 25, 22, .18);
   }
+  .fixed.inset-0 img.h-64 { height: 34dvh !important; min-height: 220px; }
+  .fixed.inset-0 .p-6 { padding: 20px !important; }
+  .fixed.inset-0 h2 { font-size: 28px !important; line-height: 1; letter-spacing: -.04em; }
 }
 
-/* More tactile cards on pointer devices without adding visual noise on mobile. */
+.fixed.inset-0 {
+  animation: bw-fade .18s ease both;
+  background: rgba(12, 18, 14, .52) !important;
+  backdrop-filter: blur(14px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+}
+.fixed.inset-0 > div { animation: bw-rise .24s cubic-bezier(.2,.8,.2,1) both; }
+
 @media (hover: hover) {
   main button:hover { transform: translateY(-1px); }
   main .shadow-sm:hover { box-shadow: 0 16px 44px rgba(24, 31, 26, .085); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
 ::selection { background: #171916; color: white; }
