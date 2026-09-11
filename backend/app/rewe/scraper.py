@@ -1,9 +1,4 @@
-"""REWE catalog ingestion with a lightweight HTTP path and a Playwright fallback.
-
-The browser path mirrors the normal REWE shop flow: enter a German postcode,
-select Lieferservice (delivery), then read the localized catalog snapshot.
-No login, cart mutation or checkout automation is performed.
-"""
+"""REWE catalog ingestion with HTTP fast path and resilient Playwright delivery fallback."""
 from __future__ import annotations
 
 import hashlib
@@ -11,6 +6,7 @@ import json
 import os
 import re
 import time
+from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
@@ -37,6 +33,7 @@ REWE_CATEGORY_URLS = [
 ]
 
 SHOP_DELIVERY_URL = "https://www.rewe.de/shop/?serviceTypes=delivery"
+STATE_FILE = Path(__file__).resolve().parents[2] / "data" / "rewe_storage_state.json"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
@@ -58,21 +55,14 @@ def package(text: str):
         return None, None
     amount = float(match.group(1).replace(",", "."))
     unit = match.group(2).lower()
-    if unit == "kg":
-        return amount * 1000, "g"
-    if unit == "l":
-        return amount * 1000, "ml"
-    if unit in ("stk", "st.", "stück"):
-        return amount, "unit"
+    if unit == "kg": return amount * 1000, "g"
+    if unit == "l": return amount * 1000, "ml"
+    if unit in ("stk", "st.", "stück"): return amount, "unit"
     return amount, unit
 
 
 def price(text: str):
-    patterns = [
-        r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})",
-        r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
-    ]
-    for pattern in patterns:
+    for pattern in (r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})", r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)"):
         match = re.search(pattern, text, re.I)
         if match:
             return float(match.group(1).replace(",", "."))
@@ -83,65 +73,57 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
     rows = []
     for script in soup.select('script[type="application/ld+json"]'):
         raw = script.string or script.get_text(" ", strip=True)
-        if not raw:
-            continue
-        try:
-            payload = json.loads(raw)
-        except Exception:
-            continue
+        if not raw: continue
+        try: payload = json.loads(raw)
+        except Exception: continue
         queue = payload if isinstance(payload, list) else [payload]
         for node in queue:
-            if not isinstance(node, dict):
-                continue
+            if not isinstance(node, dict): continue
             items = node.get("itemListElement") or []
             for item in items:
                 candidate = item.get("item", item) if isinstance(item, dict) else None
-                if not isinstance(candidate, dict) or candidate.get("@type") != "Product":
-                    continue
+                if not isinstance(candidate, dict) or candidate.get("@type") != "Product": continue
                 name = candidate.get("name") or ""
                 url = candidate.get("url") or ""
                 offers = candidate.get("offers") or {}
-                if isinstance(offers, list):
-                    offers = offers[0] if offers else {}
+                if isinstance(offers, list): offers = offers[0] if offers else {}
                 offer_price = offers.get("price") if isinstance(offers, dict) else None
-                try:
-                    offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
-                except ValueError:
-                    offer_price = None
+                try: offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
+                except Exception: offer_price = None
                 size, unit = package(f"{name} {candidate.get('description') or ''}")
                 external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
-                if not external_id:
-                    external_id = hashlib.sha256(f"{name}|{url}".encode()).hexdigest()[:20]
-                rows.append(
-                    {
-                        "external_id": external_id,
-                        "name_original": name[:300],
-                        "name_normalized": normalize(name),
-                        "ingredient": normalize(name),
-                        "brand": (candidate.get("brand") or {}).get("name") if isinstance(candidate.get("brand"), dict) else candidate.get("brand"),
-                        "category": category,
-                        "package_size": size or 1,
-                        "package_unit": unit or "unit",
-                        "price": offer_price,
-                        "price_per_unit": (offer_price / size) if offer_price is not None and size else None,
-                        "product_url": urljoin(base_url, url),
-                        "availability": "available" if offers else "unknown",
-                    }
-                )
+                if not external_id: external_id = hashlib.sha256(f"{name}|{url}".encode()).hexdigest()[:20]
+                brand = candidate.get("brand")
+                if isinstance(brand, dict): brand = brand.get("name")
+                rows.append({
+                    "external_id": external_id,
+                    "name_original": name[:300],
+                    "name_normalized": normalize(name),
+                    "ingredient": normalize(name),
+                    "brand": brand,
+                    "category": category,
+                    "package_size": size or 1,
+                    "package_unit": unit or "unit",
+                    "price": offer_price,
+                    "price_per_unit": (offer_price / size) if offer_price is not None and size else None,
+                    "product_url": urljoin(base_url, url),
+                    "availability": "available" if offers else "unknown",
+                })
     return rows
 
 
-def _click_first(page, patterns, timeout=1500):
+def _click_first(scope, patterns, timeout=1600):
     for pattern in patterns:
+        for role in ("button", "link", "radio"):
+            try:
+                locator = scope.get_by_role(role, name=re.compile(pattern, re.I)).first
+                if locator.count() and locator.is_visible():
+                    locator.click(timeout=timeout)
+                    return True
+            except Exception:
+                pass
         try:
-            locator = page.get_by_role("button", name=re.compile(pattern, re.I)).first
-            if locator.count() and locator.is_visible():
-                locator.click(timeout=timeout)
-                return True
-        except Exception:
-            pass
-        try:
-            locator = page.get_by_role("link", name=re.compile(pattern, re.I)).first
+            locator = scope.get_by_text(re.compile(pattern, re.I), exact=False).first
             if locator.count() and locator.is_visible():
                 locator.click(timeout=timeout)
                 return True
@@ -150,23 +132,46 @@ def _click_first(page, patterns, timeout=1500):
     return False
 
 
+def _visible_postcode_input(scope):
+    selectors = [
+        'input[autocomplete="postal-code"]',
+        'input[inputmode="numeric"]',
+        'input[placeholder*="Postleitzahl" i]',
+        'input[placeholder*="PLZ" i]',
+        'input[name*="postal" i]',
+        'input[name*="postcode" i]',
+        'input[name*="zip" i]',
+        'input[id*="postal" i]',
+        'input[id*="postcode" i]',
+    ]
+    try:
+        labelled = scope.get_by_label(re.compile(r"Postleitzahl|PLZ", re.I)).first
+        if labelled.count() and labelled.is_visible(): return labelled
+    except Exception:
+        pass
+    for selector in selectors:
+        try:
+            locator = scope.locator(selector).first
+            if locator.count() and locator.is_visible(): return locator
+        except Exception:
+            pass
+    return None
+
+
 class ReweCatalogScraper:
     def __init__(self, delay=0.35, session=None, browser_enabled=None):
         self.delay = delay
         self.session = session or requests.Session()
         self.browser_enabled = (
             os.getenv("REWE_BROWSER_ENABLED", "true").lower() not in {"0", "false", "no"}
-            if browser_enabled is None
-            else browser_enabled
+            if browser_enabled is None else browser_enabled
         )
 
     def pages(self, start):
-        seen = set()
-        pending = [start]
+        seen, pending = set(), [start]
         while pending:
             url = pending.pop(0).split("#")[0]
-            if url in seen:
-                continue
+            if url in seen: continue
             seen.add(url)
             response = self.session.get(url, headers=HEADERS, timeout=20)
             response.raise_for_status()
@@ -186,229 +191,191 @@ class ReweCatalogScraper:
             box = anchor.find_parent(["article", "li"]) or anchor.find_parent("div") or anchor
             raw = " ".join(box.stripped_strings)
             visible = " ".join(anchor.stripped_strings)
-            if len(raw) < 4:
-                continue
+            if len(raw) < 4: continue
             product_name = visible or raw
             size, unit = package(raw)
             cost = price(raw)
-            external_id = href.rstrip("/").rsplit("/", 1)[-1].split("?")[0]
-            if not external_id:
-                external_id = hashlib.sha256((product_name + href).encode()).hexdigest()[:20]
-            found.append(
-                {
-                    "external_id": external_id,
-                    "name_original": product_name[:300],
-                    "name_normalized": normalize(product_name),
-                    "ingredient": normalize(product_name),
-                    "brand": None,
-                    "category": category,
-                    "package_size": size or 1,
-                    "package_unit": unit or "unit",
-                    "price": cost,
-                    "price_per_unit": (cost / size) if cost is not None and size else None,
-                    "product_url": href,
-                    "availability": "unknown",
-                }
-            )
+            external_id = href.rstrip("/").rsplit("/", 1)[-1].split("?")[0] or hashlib.sha256((product_name + href).encode()).hexdigest()[:20]
+            found.append({
+                "external_id": external_id,
+                "name_original": product_name[:300],
+                "name_normalized": normalize(product_name),
+                "ingredient": normalize(product_name),
+                "brand": None,
+                "category": category,
+                "package_size": size or 1,
+                "package_unit": unit or "unit",
+                "price": cost,
+                "price_per_unit": (cost / size) if cost is not None and size else None,
+                "product_url": href,
+                "availability": "unknown",
+            })
         unique = {}
         for product in found:
             current = unique.get(product["external_id"])
-            if current is None or (current.get("price") is None and product.get("price") is not None):
-                unique[product["external_id"]] = product
+            if current is None or (current.get("price") is None and product.get("price") is not None): unique[product["external_id"]] = product
         return list(unique.values())
 
+    def _location_scopes(self, page):
+        yield page
+        for frame in page.frames:
+            if frame != page.main_frame:
+                yield frame
+
     def _set_delivery_location(self, page, postcode):
-        page.goto(SHOP_DELIVERY_URL, wait_until="domcontentloaded", timeout=45000)
+        response = page.goto(SHOP_DELIVERY_URL, wait_until="domcontentloaded", timeout=45000)
+        if response and response.status >= 400:
+            raise RuntimeError(f"REWE blocked browser request with HTTP {response.status}")
+        page.wait_for_timeout(1200)
         _click_first(page, [r"Alle akzeptieren", r"Akzeptieren", r"Zustimmen"], timeout=1200)
 
-        # REWE changes markup periodically, so prefer semantic inputs and keep
-        # several conservative fallbacks. We only fill a visible postcode field.
-        candidates = [
-            page.get_by_label(re.compile(r"Postleitzahl|PLZ", re.I)),
-            page.locator('input[placeholder*="Postleitzahl" i]'),
-            page.locator('input[placeholder*="PLZ" i]'),
-            page.locator('input[name*="postal" i]'),
-            page.locator('input[name*="zip" i]'),
-        ]
+        body = page.locator("body").inner_text(timeout=8000)
+        if postcode in body and re.search(r"Lieferservice|Lieferung", body, re.I):
+            return
+
+        # REWE sometimes hides PLZ behind a service/location chooser.
+        for scope in list(self._location_scopes(page)):
+            _click_first(scope, [r"Lieferservice", r"Lieferung", r"Liefern lassen", r"Standort", r"Lieferadresse", r"PLZ"], timeout=1200)
+        page.wait_for_timeout(800)
+
         postcode_input = None
-        for locator in candidates:
-            try:
-                first = locator.first
-                if first.count() and first.is_visible():
-                    postcode_input = first
-                    break
-            except Exception:
-                continue
+        for _ in range(4):
+            for scope in self._location_scopes(page):
+                postcode_input = _visible_postcode_input(scope)
+                if postcode_input is not None: break
+            if postcode_input is not None: break
+            _click_first(page, [r"Standort ändern", r"Lieferadresse", r"Lieferservice", r"Lieferung"], timeout=1200)
+            page.wait_for_timeout(700)
         if postcode_input is None:
-            # If a previous persistent/session context already has a location,
-            # REWE may not show the postcode prompt. Confirm that delivery is active.
-            body = page.locator("body").inner_text(timeout=5000)
-            if postcode in body and re.search(r"Lieferservice|Lieferung", body, re.I):
-                return
-            raise RuntimeError("REWE postcode input was not found")
+            title = page.title()
+            body = page.locator("body").inner_text(timeout=5000)[:800]
+            raise RuntimeError(f"REWE postcode input was not found; title={title!r}; page={body!r}")
 
         postcode_input.fill(postcode)
-        try:
-            postcode_input.press("Enter")
-        except Exception:
-            pass
-        page.wait_for_timeout(800)
-        _click_first(page, [r"Weiter", r"Suchen", r"Standort.*wählen", r"Übernehmen", r"Bestätigen"], timeout=1800)
-        page.wait_for_timeout(1000)
-
-        # The product requirement is delivery only. Never select pickup.
-        selected = _click_first(page, [r"Lieferservice", r"Lieferung", r"Liefern lassen"], timeout=2500)
-        if selected:
-            page.wait_for_timeout(1200)
-        # Some versions show a second confirmation after choosing delivery.
-        _click_first(page, [r"Weiter", r"Auswählen", r"Übernehmen", r"Bestätigen"], timeout=1800)
+        try: postcode_input.press("Enter")
+        except Exception: pass
+        page.wait_for_timeout(900)
+        for scope in self._location_scopes(page):
+            _click_first(scope, [r"Suchen", r"Weiter", r"Übernehmen", r"Bestätigen", r"Standort.*wählen"], timeout=1800)
         page.wait_for_timeout(1200)
 
-        text = page.locator("body").inner_text(timeout=5000)
+        delivery_selected = False
+        for scope in self._location_scopes(page):
+            delivery_selected = _click_first(scope, [r"Lieferservice", r"Lieferung", r"Liefern lassen"], timeout=2500) or delivery_selected
+        if delivery_selected: page.wait_for_timeout(1200)
+        for scope in self._location_scopes(page):
+            _click_first(scope, [r"Auswählen", r"Weiter", r"Übernehmen", r"Bestätigen"], timeout=1800)
+        page.wait_for_timeout(1500)
+
+        text = page.locator("body").inner_text(timeout=8000)
         if re.search(r"Abholservice|Abholung", text, re.I) and not re.search(r"Lieferservice|Lieferung", text, re.I):
             raise RuntimeError("REWE resolved to pickup instead of delivery")
+        # Persist cookies/local storage so future refreshes usually skip location setup.
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        page.context.storage_state(path=str(STATE_FILE))
 
     def _browser_category_html(self, page, url):
-        page.goto(url, wait_until="domcontentloaded", timeout=45000)
-        try:
-            page.wait_for_load_state("networkidle", timeout=8000)
-        except Exception:
-            pass
-        # Trigger lazy-loaded product cards and any simple 'load more' control.
+        response = page.goto(url, wait_until="domcontentloaded", timeout=45000)
+        if response and response.status >= 400:
+            raise RuntimeError(f"REWE category returned HTTP {response.status}")
+        try: page.wait_for_load_state("networkidle", timeout=7000)
+        except Exception: pass
         previous_height = 0
-        for _ in range(8):
-            try:
-                _click_first(page, [r"Mehr laden", r"Mehr anzeigen", r"Weitere Produkte"], timeout=700)
-            except Exception:
-                pass
+        for _ in range(10):
+            _click_first(page, [r"Mehr laden", r"Mehr anzeigen", r"Weitere Produkte"], timeout=600)
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(450)
             height = page.evaluate("document.body.scrollHeight")
-            if height == previous_height:
-                break
+            if height == previous_height: break
             previous_height = height
         return page.content()
 
-    def _run_browser(self, upsert, postcode, urls):
-        try:
-            from playwright.sync_api import sync_playwright
-        except ImportError as exc:
-            raise RuntimeError("Playwright browser fallback is not installed") from exc
+    def _base_report(self, postcode, mode):
+        return {"categories_processed": 0, "categories_successful": 0, "categories_failed": 0, "products_found": 0,
+                "products_with_price": 0, "products_created": 0, "products_updated": 0, "errors": [],
+                "fetch_mode": mode, "service_type": "delivery", "postcode": postcode}
 
-        report = {
-            "categories_processed": 0,
-            "categories_successful": 0,
-            "categories_failed": 0,
-            "products_found": 0,
-            "products_with_price": 0,
-            "products_created": 0,
-            "products_updated": 0,
-            "errors": [],
-            "fetch_mode": "playwright",
-            "service_type": "delivery",
-            "postcode": postcode,
-        }
+    def _ingest_products(self, report, products, upsert, postcode):
+        priced = 0
+        for product in products:
+            if product.get("price") is not None: priced += 1
+            created = upsert(product, postcode)
+            report["products_created" if created else "products_updated"] += 1
+        report["products_found"] += len(products)
+        report["products_with_price"] += priced
+
+    def _run_browser(self, upsert, postcode, urls):
+        try: from playwright.sync_api import sync_playwright
+        except ImportError as exc: raise RuntimeError("Playwright browser fallback is not installed") from exc
+        report = self._base_report(postcode, "playwright")
+        headless = os.getenv("REWE_BROWSER_HEADLESS", "true").lower() not in {"0", "false", "no"}
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True, args=["--no-sandbox"])
-            context = browser.new_context(
-                locale="de-DE",
-                user_agent=HEADERS["User-Agent"],
-                viewport={"width": 1440, "height": 1000},
-            )
+            launch_args = {"headless": headless, "args": ["--no-sandbox", "--disable-blink-features=AutomationControlled"]}
+            channel = os.getenv("REWE_BROWSER_CHANNEL", "").strip()
+            if channel: launch_args["channel"] = channel
+            try: browser = pw.chromium.launch(**launch_args)
+            except Exception:
+                launch_args.pop("channel", None)
+                browser = pw.chromium.launch(**launch_args)
+            context_args = {"locale": "de-DE", "user_agent": HEADERS["User-Agent"], "viewport": {"width": 1440, "height": 1000}}
+            if STATE_FILE.exists(): context_args["storage_state"] = str(STATE_FILE)
+            context = browser.new_context(**context_args)
             page = context.new_page()
             try:
-                self._set_delivery_location(page, postcode)
+                try:
+                    self._set_delivery_location(page, postcode)
+                except Exception:
+                    # Cached state may be stale for a changed postcode. Retry once clean.
+                    if STATE_FILE.exists(): STATE_FILE.unlink(missing_ok=True)
+                    context.close(); browser.close()
+                    browser = pw.chromium.launch(**launch_args)
+                    context = browser.new_context(locale="de-DE", user_agent=HEADERS["User-Agent"], viewport={"width": 1440, "height": 1000})
+                    page = context.new_page()
+                    self._set_delivery_location(page, postcode)
                 for start in urls:
                     report["categories_processed"] += 1
                     category = start.rstrip("/").split("/")[-1] or "bonus"
                     try:
-                        html = self._browser_category_html(page, start)
-                        products = self.extract(html, start, category)
-                        priced = 0
-                        for product in products:
-                            if product.get("price") is not None:
-                                priced += 1
-                            created = upsert(product, postcode)
-                            report["products_created" if created else "products_updated"] += 1
-                        report["products_found"] += len(products)
-                        report["products_with_price"] += priced
-                        if not products:
-                            raise RuntimeError("No products found after localized delivery page load")
+                        products = self.extract(self._browser_category_html(page, start), start, category)
+                        if not products: raise RuntimeError("No products found after localized delivery page load")
+                        self._ingest_products(report, products, upsert, postcode)
                         report["categories_successful"] += 1
                     except Exception as exc:
                         report["categories_failed"] += 1
-                        report["errors"].append({"category": category, "error": str(exc)[:180]})
+                        report["errors"].append({"category": category, "error": str(exc)[:300]})
             finally:
-                context.close()
-                browser.close()
-
-        report["status"] = (
-            "failed"
-            if not report["categories_successful"]
-            else ("partial" if report["categories_failed"] else "healthy")
-        )
+                try: context.close()
+                except Exception: pass
+                try: browser.close()
+                except Exception: pass
+        report["status"] = "failed" if not report["categories_successful"] else ("partial" if report["categories_failed"] else "healthy")
         return report
 
     def _run_http(self, upsert, postcode, urls):
-        report = {
-            "categories_processed": 0,
-            "categories_successful": 0,
-            "categories_failed": 0,
-            "products_found": 0,
-            "products_with_price": 0,
-            "products_created": 0,
-            "products_updated": 0,
-            "errors": [],
-            "fetch_mode": "http",
-            "service_type": "delivery",
-            "postcode": postcode,
-        }
+        report = self._base_report(postcode, "http")
         for start in urls:
             report["categories_processed"] += 1
             category = start.rstrip("/").split("/")[-1] or "bonus"
             try:
-                count = 0
-                priced = 0
-                for url, html in self.pages(start):
-                    for product in self.extract(html, url, category):
-                        if product.get("price") is not None:
-                            priced += 1
-                        created = upsert(product, postcode)
-                        report["products_created" if created else "products_updated"] += 1
-                        count += 1
-                if not count:
-                    raise RuntimeError("No products found")
-                report["products_found"] += count
-                report["products_with_price"] += priced
+                products = []
+                for url, html in self.pages(start): products.extend(self.extract(html, url, category))
+                if not products: raise RuntimeError("No products found")
+                self._ingest_products(report, products, upsert, postcode)
                 report["categories_successful"] += 1
             except Exception as exc:
                 report["categories_failed"] += 1
-                report["errors"].append({"category": category, "error": str(exc)[:180]})
-        report["status"] = (
-            "failed"
-            if not report["categories_successful"]
-            else ("partial" if report["categories_failed"] else "healthy")
-        )
+                report["errors"].append({"category": category, "error": str(exc)[:300]})
+        report["status"] = "failed" if not report["categories_successful"] else ("partial" if report["categories_failed"] else "healthy")
         return report
 
     def run(self, upsert, postcode, urls=REWE_CATEGORY_URLS):
-        # First try the cheap HTTP path. If REWE blocks it or it returns no
-        # localized prices, fall back to the normal browser delivery flow.
         http_report = self._run_http(upsert, postcode, urls)
-        price_ratio = (
-            http_report["products_with_price"] / http_report["products_found"]
-            if http_report["products_found"]
-            else 0
-        )
-        if http_report["status"] != "failed" and price_ratio >= 0.25:
-            return http_report
-        if not self.browser_enabled:
-            return http_report
+        ratio = http_report["products_with_price"] / http_report["products_found"] if http_report["products_found"] else 0
+        if http_report["status"] != "failed" and ratio >= 0.25: return http_report
+        if not self.browser_enabled: return http_report
         browser_report = self._run_browser(upsert, postcode, urls)
         browser_report["http_fallback_reason"] = {
-            "status": http_report["status"],
-            "products_found": http_report["products_found"],
-            "products_with_price": http_report["products_with_price"],
-            "errors": http_report["errors"][:3],
+            "status": http_report["status"], "products_found": http_report["products_found"],
+            "products_with_price": http_report["products_with_price"], "errors": http_report["errors"][:3],
         }
         return browser_report
