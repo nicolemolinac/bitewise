@@ -1,6 +1,7 @@
 name: Bitewise CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -21,7 +22,29 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
       - run: python -m compileall app
-      - run: python -c "from app.main import app; print(app.title)"
+      - name: Import API and verify critical routes
+        run: |
+          python - <<'PY'
+          from app.main import app
+          paths = {route.path for route in app.routes}
+          required = {
+              '/api/health',
+              '/api/meals',
+              '/api/events',
+              '/api/events/dislikes',
+              '/api/pantry',
+              '/api/shopping',
+              '/api/shopping/purchase',
+              '/api/products/replace',
+              '/api/rewe/refresh',
+              '/api/plans',
+              '/api/today',
+              '/api/brain-dump',
+          }
+          missing = sorted(required - paths)
+          assert not missing, f'Missing critical routes: {missing}'
+          print(f'{app.title}: {len(paths)} routes; critical contracts OK')
+          PY
 
   frontend:
     runs-on: ubuntu-latest
