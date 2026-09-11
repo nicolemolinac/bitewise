@@ -1,0 +1,2 @@
+@import "tailwindcss";
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#f8f7f4;color:#191817}body{margin:0}button{cursor:pointer}.hide-scroll::-webkit-scrollbar{display:none}.hide-scroll{scrollbar-width:none}.card-shadow{box-shadow:0 18px 50px rgba(31,27,22,.09)}
