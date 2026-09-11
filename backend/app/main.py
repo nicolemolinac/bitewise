@@ -840,7 +840,6 @@ def create_plan(payload: PlanCreateIn):
         db.flush()
         total_days = payload.weeks * 7
         for day_index in range(total_days):
-            # rotate through the candidate pool to enforce variety before repeating
             meal = candidates[day_index % len(candidates)]
             db.add(
                 PlannedMeal(
@@ -1026,4 +1025,8 @@ def today(plan_id: int | None = Query(default=None)):
 
 @app.post("/api/ai/meals")
 def ai_meals(payload: BrainDumpIn):
-    return {"meals": GeminiService().generate_meals(payload.prompt) or []}
+    try:
+        meals = GeminiService().generate_meals(payload.prompt)
+        return {"meals": meals}
+    except Exception as exc:
+        raise HTTPException(502, f"Gemini generation failed: {str(exc)[:300]}")
