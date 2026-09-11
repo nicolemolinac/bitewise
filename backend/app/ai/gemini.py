@@ -48,16 +48,22 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
         return None
     ingredients = []
     for item in raw.get("ingredients") or []:
-        if not isinstance(item, (list, tuple)) or len(item) < 3:
+        if isinstance(item, dict):
+            ingredient = str(item.get("ingredient") or item.get("name") or "").strip().lower()
+            quantity = item.get("quantity")
+            unit = str(item.get("unit") or "unit").strip().lower() or "unit"
+        elif isinstance(item, (list, tuple)) and len(item) >= 3:
+            ingredient = str(item[0]).strip().lower()
+            quantity = item[1]
+            unit = str(item[2] or "unit").strip().lower() or "unit"
+        else:
             continue
-        ingredient = str(item[0]).strip().lower()
         if not ingredient:
             continue
         try:
-            quantity = float(item[1])
+            quantity = float(quantity)
         except Exception:
             continue
-        unit = str(item[2] or "unit").strip().lower() or "unit"
         ingredients.append([ingredient, quantity, unit])
     if not ingredients:
         return None
@@ -165,6 +171,33 @@ def _shopping_context():
         db.close()
 
 
+def _parse_json_array(text: str):
+    """Parse the first valid JSON array from Gemini text, tolerating fences/explanatory text."""
+    raw = (text or "").strip()
+    if not raw:
+        raise ValueError("Gemini returned an empty text response")
+    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.I)
+    raw = re.sub(r"\s*```$", "", raw)
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return parsed
+    except Exception:
+        pass
+
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(raw):
+        if char != "[":
+            continue
+        try:
+            parsed, _ = decoder.raw_decode(raw[index:])
+        except Exception:
+            continue
+        if isinstance(parsed, list):
+            return parsed
+    raise ValueError(f"Gemini response did not contain a valid JSON array. Preview: {raw[:240]}")
+
+
 _load_persisted()
 
 
@@ -175,8 +208,13 @@ class GeminiService:
         self.client = genai.Client(api_key=self.key) if self.key and genai else None
 
     def generate_meals(self, prompt):
+        if not self.key:
+            raise RuntimeError("GEMINI_API_KEY is missing from backend/.env")
+        if genai is None:
+            raise RuntimeError("google-genai is not installed in the backend environment")
         if not self.client:
-            return None
+            raise RuntimeError("Gemini client could not be initialized")
+
         pantry, catalog = _shopping_context()
         instruction = f"""
 You are Bitewise, a premium food decision engine for a person in Berlin who wants attractive food with minimum cooking effort.
@@ -204,12 +242,10 @@ Rules:
 - image must be a plausible public HTTPS food-image URL when known; otherwise use an empty string.
 - Make meals visually appealing and meaningfully different from each other.
 """.strip()
-        try:
-            response = self.client.models.generate_content(model=self.model, contents=instruction)
-            raw = response.text.strip().removeprefix("```json").removesuffix("```").strip()
-            generated = json.loads(raw)
-            if not isinstance(generated, list):
-                return None
-            return _persist_generated(generated)
-        except Exception:
-            return None
+
+        response = self.client.models.generate_content(model=self.model, contents=instruction)
+        generated = _parse_json_array(response.text or "")
+        clean = _persist_generated(generated)
+        if not clean:
+            raise RuntimeError("Gemini returned meals, but none passed Bitewise validation. Check the backend log for the response shape.")
+        return clean
