@@ -1,99 +1,151 @@
 @import "tailwindcss";
 
 :root {
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-
-  color: #191817;
-  background: #f7f6f2;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  color: #171916;
+  background: #f6f4ef;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  --bw-ink: #171916;
+  --bw-green: #203d2f;
+  --bw-surface: #ffffff;
+  --bw-soft: #f3f0e9;
+  --bw-line: rgba(23, 25, 22, 0.08);
+  --bw-shadow: 0 20px 60px rgba(21, 28, 23, 0.10);
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  margin: 0;
-  min-width: 320px;
-  background: #f7f6f2;
-}
-
+* { box-sizing: border-box; }
+html { margin: 0; min-width: 320px; background: #f6f4ef; }
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f7f6f2;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 10% -10%, rgba(220, 238, 224, 0.72), transparent 28rem),
+    radial-gradient(circle at 110% 12%, rgba(242, 225, 209, 0.55), transparent 24rem),
+    #f6f4ef;
+  overscroll-behavior-y: none;
+}
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; border: 0; -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; }
+img { display: block; max-width: 100%; }
+#root { min-height: 100vh; min-height: 100dvh; }
+
+button, a, input, textarea, select { transition: 160ms ease; }
+button:active { transform: scale(.98); }
+input, textarea, select { border: 1px solid transparent; }
+input:focus, textarea:focus, select:focus {
+  border-color: rgba(32, 61, 47, .24);
+  box-shadow: 0 0 0 4px rgba(32, 61, 47, .07);
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
-  border: 0;
-}
-
-button:disabled {
-  cursor: not-allowed;
-}
-
-img {
-  display: block;
-  max-width: 100%;
-}
-
-#root {
-  min-height: 100vh;
-}
-
-.hide-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.hide-scroll {
-  scrollbar-width: none;
-}
-
-.card-shadow {
-  box-shadow: 0 18px 50px rgba(31, 27, 22, 0.09);
-}
+.hide-scroll::-webkit-scrollbar { display: none; }
+.hide-scroll { scrollbar-width: none; }
+.card-shadow { box-shadow: var(--bw-shadow); }
 
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    #ece9e2 25%,
-    #f5f3ee 50%,
-    #ece9e2 75%
-  );
+  background: linear-gradient(90deg, #ece9e2 25%, #f7f5f0 50%, #ece9e2 75%);
   background-size: 200% 100%;
   animation: skeleton-loading 1.4s ease-in-out infinite;
 }
+@keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-@keyframes skeleton-loading {
-  0% {
-    background-position: 200% 0;
+@keyframes bw-rise {
+  from { opacity: 0; transform: translateY(18px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bw-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Consumer-app feel: cleaner surfaces and softer depth instead of dashboard boxes. */
+main > * { animation: bw-fade .24s ease both; }
+main .shadow-sm { box-shadow: 0 10px 30px rgba(24, 31, 26, .055); }
+main img { background: #ece9e2; }
+
+/* Mobile navigation: reuse the existing desktop nav as a real app dock. */
+@media (max-width: 1279px) {
+  body { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+  header nav.hidden {
+    display: flex !important;
+    position: fixed;
+    z-index: 80;
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    gap: 3px;
+    padding: 7px;
+    overflow-x: auto;
+    border: 1px solid rgba(255,255,255,.76);
+    border-radius: 24px;
+    background: rgba(255,255,255,.88);
+    box-shadow: 0 18px 55px rgba(21, 29, 23, .18);
+    backdrop-filter: blur(22px) saturate(1.35);
+    -webkit-backdrop-filter: blur(22px) saturate(1.35);
+    scrollbar-width: none;
   }
+  header nav.hidden::-webkit-scrollbar { display: none; }
+  header nav.hidden button {
+    flex: 1 0 auto;
+    min-width: 68px;
+    padding: 10px 12px;
+    border-radius: 18px;
+    font-size: 11px;
+    letter-spacing: -.01em;
+  }
+  header { border-bottom-color: transparent !important; background: rgba(246,244,239,.80) !important; }
+  header > div { padding-top: calc(10px + env(safe-area-inset-top)); }
+  main { padding-top: 10px !important; }
+}
 
-  100% {
-    background-position: -200% 0;
+/* Sheets instead of generic centered ChatGPT-style popups on phones. */
+.fixed.inset-0 {
+  animation: bw-fade .18s ease both;
+  background: rgba(12, 18, 14, .52) !important;
+  backdrop-filter: blur(14px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+}
+.fixed.inset-0 > div { animation: bw-rise .24s cubic-bezier(.2,.8,.2,1) both; }
+
+@media (max-width: 767px) {
+  .fixed.inset-0 {
+    display: flex;
+    align-items: flex-end;
+    padding: 0 !important;
+  }
+  .fixed.inset-0 > div {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 92dvh;
+    margin: 0 !important;
+    overflow-y: auto;
+    border-radius: 30px 30px 0 0 !important;
+    box-shadow: 0 -18px 70px rgba(14, 21, 16, .24) !important;
+  }
+  .fixed.inset-0 > div::before {
+    content: "";
+    position: sticky;
+    top: 8px;
+    z-index: 20;
+    display: block;
+    width: 42px;
+    height: 5px;
+    margin: 8px auto -13px;
+    border-radius: 999px;
+    background: rgba(23, 25, 22, .18);
   }
 }
 
-::selection {
-  background: #191817;
-  color: white;
+/* More tactile cards on pointer devices without adding visual noise on mobile. */
+@media (hover: hover) {
+  main button:hover { transform: translateY(-1px); }
+  main .shadow-sm:hover { box-shadow: 0 16px 44px rgba(24, 31, 26, .085); }
 }
+
+::selection { background: #171916; color: white; }
