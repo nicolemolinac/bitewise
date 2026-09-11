@@ -7,7 +7,7 @@ import os
 import re
 import time
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, urljoin, urlsplit, urlunsplit
 
 import requests
 from bs4 import BeautifulSoup
@@ -34,6 +34,7 @@ REWE_CATEGORY_URLS = [
 
 SHOP_DELIVERY_URL = "https://www.rewe.de/shop/?serviceTypes=delivery"
 STATE_FILE = Path(__file__).resolve().parents[2] / "data" / "rewe_storage_state.json"
+MAX_CATEGORY_PAGES = 50
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
@@ -55,9 +56,12 @@ def package(text: str):
         return None, None
     amount = float(match.group(1).replace(",", "."))
     unit = match.group(2).lower()
-    if unit == "kg": return amount * 1000, "g"
-    if unit == "l": return amount * 1000, "ml"
-    if unit in ("stk", "st.", "stück"): return amount, "unit"
+    if unit == "kg":
+        return amount * 1000, "g"
+    if unit == "l":
+        return amount * 1000, "ml"
+    if unit in ("stk", "st.", "stück"):
+        return amount, "unit"
     return amount, unit
 
 
@@ -69,32 +73,54 @@ def price(text: str):
     return None
 
 
+def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
+    """Return only exact REWE product-detail URLs, never category/shop landing pages."""
+    if not value:
+        return None
+    absolute = urljoin(base_url, value)
+    parts = urlsplit(absolute)
+    if parts.netloc not in {"www.rewe.de", "rewe.de"} or "/shop/p/" not in parts.path:
+        return None
+    return urlunsplit((parts.scheme or "https", parts.netloc, parts.path, parts.query, ""))
+
+
 def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
     rows = []
     for script in soup.select('script[type="application/ld+json"]'):
         raw = script.string or script.get_text(" ", strip=True)
-        if not raw: continue
-        try: payload = json.loads(raw)
-        except Exception: continue
+        if not raw:
+            continue
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            continue
         queue = payload if isinstance(payload, list) else [payload]
         for node in queue:
-            if not isinstance(node, dict): continue
+            if not isinstance(node, dict):
+                continue
             items = node.get("itemListElement") or []
             for item in items:
                 candidate = item.get("item", item) if isinstance(item, dict) else None
-                if not isinstance(candidate, dict) or candidate.get("@type") != "Product": continue
+                if not isinstance(candidate, dict) or candidate.get("@type") != "Product":
+                    continue
                 name = candidate.get("name") or ""
-                url = candidate.get("url") or ""
+                raw_url = candidate.get("url") or ""
+                product_url = _canonical_product_url(raw_url, base_url)
                 offers = candidate.get("offers") or {}
-                if isinstance(offers, list): offers = offers[0] if offers else {}
+                if isinstance(offers, list):
+                    offers = offers[0] if offers else {}
                 offer_price = offers.get("price") if isinstance(offers, dict) else None
-                try: offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
-                except Exception: offer_price = None
+                try:
+                    offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
+                except Exception:
+                    offer_price = None
                 size, unit = package(f"{name} {candidate.get('description') or ''}")
                 external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
-                if not external_id: external_id = hashlib.sha256(f"{name}|{url}".encode()).hexdigest()[:20]
+                if not external_id:
+                    external_id = hashlib.sha256(f"{name}|{product_url or raw_url}".encode()).hexdigest()[:20]
                 brand = candidate.get("brand")
-                if isinstance(brand, dict): brand = brand.get("name")
+                if isinstance(brand, dict):
+                    brand = brand.get("name")
                 rows.append({
                     "external_id": external_id,
                     "name_original": name[:300],
@@ -106,7 +132,7 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     "package_unit": unit or "unit",
                     "price": offer_price,
                     "price_per_unit": (offer_price / size) if offer_price is not None and size else None,
-                    "product_url": urljoin(base_url, url),
+                    "product_url": product_url,
                     "availability": "available" if offers else "unknown",
                 })
     return rows
@@ -146,13 +172,15 @@ def _visible_postcode_input(scope):
     ]
     try:
         labelled = scope.get_by_label(re.compile(r"Postleitzahl|PLZ", re.I)).first
-        if labelled.count() and labelled.is_visible(): return labelled
+        if labelled.count() and labelled.is_visible():
+            return labelled
     except Exception:
         pass
     for selector in selectors:
         try:
             locator = scope.locator(selector).first
-            if locator.count() and locator.is_visible(): return locator
+            if locator.count() and locator.is_visible():
+                return locator
         except Exception:
             pass
     return None
@@ -167,40 +195,74 @@ class ReweCatalogScraper:
             if browser_enabled is None else browser_enabled
         )
 
+    @staticmethod
+    def _same_category(candidate: str, start: str) -> bool:
+        candidate_path = urlsplit(candidate).path.rstrip("/")
+        start_path = urlsplit(start).path.rstrip("/")
+        return candidate_path == start_path
+
+    def _pagination_links(self, html: str, current_url: str, start_url: str):
+        """Discover however many pages a category actually has instead of assuming a fixed count."""
+        soup = BeautifulSoup(html, "html.parser")
+        links = []
+        for anchor in soup.select("a[href]"):
+            href = urljoin(current_url, anchor.get("href", "")).split("#")[0]
+            if not self._same_category(href, start_url):
+                continue
+            query = parse_qs(urlsplit(href).query)
+            rel = " ".join(anchor.get("rel", [])) if anchor.get("rel") else ""
+            label = " ".join(anchor.stripped_strings)
+            aria = anchor.get("aria-label", "")
+            is_pagination = (
+                "page" in query
+                or "seite" in query
+                or re.search(r"\b(next|weiter|nächste|naechste)\b", f"{rel} {label} {aria}", re.I)
+            )
+            if is_pagination and href not in links:
+                links.append(href)
+        return links
+
     def pages(self, start):
         seen, pending = set(), [start]
-        while pending:
+        while pending and len(seen) < MAX_CATEGORY_PAGES:
             url = pending.pop(0).split("#")[0]
-            if url in seen: continue
+            if url in seen:
+                continue
             seen.add(url)
             response = self.session.get(url, headers=HEADERS, timeout=20)
             response.raise_for_status()
             yield url, response.text
-            soup = BeautifulSoup(response.text, "html.parser")
-            for anchor in soup.select("a[href]"):
-                href = urljoin(url, anchor["href"])
-                if "/shop/c/" in href and ("page=" in href or "seite=" in href) and href not in seen:
+            for href in self._pagination_links(response.text, url, start):
+                if href not in seen and href not in pending:
                     pending.append(href)
             time.sleep(self.delay)
 
     def extract(self, html, url, category):
         soup = BeautifulSoup(html, "html.parser")
         found = _json_ld_products(soup, url, category)
+        pdp_by_name = {}
+        anchor_products = []
         for anchor in soup.select('a[href*="/shop/p/"]'):
-            href = urljoin(url, anchor.get("href", ""))
+            href = _canonical_product_url(anchor.get("href", ""), url)
+            if not href:
+                continue
             box = anchor.find_parent(["article", "li"]) or anchor.find_parent("div") or anchor
             raw = " ".join(box.stripped_strings)
             visible = " ".join(anchor.stripped_strings)
-            if len(raw) < 4: continue
+            if len(raw) < 4:
+                continue
             product_name = visible or raw
+            name_key = normalize(product_name)
+            if name_key:
+                pdp_by_name[name_key] = href
             size, unit = package(raw)
             cost = price(raw)
             external_id = href.rstrip("/").rsplit("/", 1)[-1].split("?")[0] or hashlib.sha256((product_name + href).encode()).hexdigest()[:20]
-            found.append({
+            anchor_products.append({
                 "external_id": external_id,
                 "name_original": product_name[:300],
-                "name_normalized": normalize(product_name),
-                "ingredient": normalize(product_name),
+                "name_normalized": name_key,
+                "ingredient": name_key,
                 "brand": None,
                 "category": category,
                 "package_size": size or 1,
@@ -210,10 +272,32 @@ class ReweCatalogScraper:
                 "product_url": href,
                 "availability": "unknown",
             })
+
+        # JSON-LD often contains a generic shop/category URL. Replace it with the exact
+        # product-card href whenever the visible product name lets us match the two.
+        for product in found:
+            if product.get("product_url"):
+                continue
+            key = normalize(product.get("name_original", ""))
+            exact = pdp_by_name.get(key)
+            if not exact and key:
+                exact = next((link for name, link in pdp_by_name.items() if key in name or name in key), None)
+            product["product_url"] = exact
+        found.extend(anchor_products)
+
         unique = {}
         for product in found:
             current = unique.get(product["external_id"])
-            if current is None or (current.get("price") is None and product.get("price") is not None): unique[product["external_id"]] = product
+            if current is None:
+                unique[product["external_id"]] = product
+                continue
+            candidate_is_better = (
+                (not current.get("product_url") and product.get("product_url"))
+                or (current.get("price") is None and product.get("price") is not None)
+            )
+            if candidate_is_better:
+                merged = {**current, **{k: v for k, v in product.items() if v is not None}}
+                unique[product["external_id"]] = merged
         return list(unique.values())
 
     def _location_scopes(self, page):
@@ -233,7 +317,6 @@ class ReweCatalogScraper:
         if postcode in body and re.search(r"Lieferservice|Lieferung", body, re.I):
             return
 
-        # REWE sometimes hides PLZ behind a service/location chooser.
         for scope in list(self._location_scopes(page)):
             _click_first(scope, [r"Lieferservice", r"Lieferung", r"Liefern lassen", r"Standort", r"Lieferadresse", r"PLZ"], timeout=1200)
         page.wait_for_timeout(800)
@@ -242,8 +325,10 @@ class ReweCatalogScraper:
         for _ in range(4):
             for scope in self._location_scopes(page):
                 postcode_input = _visible_postcode_input(scope)
-                if postcode_input is not None: break
-            if postcode_input is not None: break
+                if postcode_input is not None:
+                    break
+            if postcode_input is not None:
+                break
             _click_first(page, [r"Standort ändern", r"Lieferadresse", r"Lieferservice", r"Lieferung"], timeout=1200)
             page.wait_for_timeout(700)
         if postcode_input is None:
@@ -252,8 +337,10 @@ class ReweCatalogScraper:
             raise RuntimeError(f"REWE postcode input was not found; title={title!r}; page={body!r}")
 
         postcode_input.fill(postcode)
-        try: postcode_input.press("Enter")
-        except Exception: pass
+        try:
+            postcode_input.press("Enter")
+        except Exception:
+            pass
         page.wait_for_timeout(900)
         for scope in self._location_scopes(page):
             _click_first(scope, [r"Suchen", r"Weiter", r"Übernehmen", r"Bestätigen", r"Standort.*wählen"], timeout=1800)
@@ -262,7 +349,8 @@ class ReweCatalogScraper:
         delivery_selected = False
         for scope in self._location_scopes(page):
             delivery_selected = _click_first(scope, [r"Lieferservice", r"Lieferung", r"Liefern lassen"], timeout=2500) or delivery_selected
-        if delivery_selected: page.wait_for_timeout(1200)
+        if delivery_selected:
+            page.wait_for_timeout(1200)
         for scope in self._location_scopes(page):
             _click_first(scope, [r"Auswählen", r"Weiter", r"Übernehmen", r"Bestätigen"], timeout=1800)
         page.wait_for_timeout(1500)
@@ -270,7 +358,6 @@ class ReweCatalogScraper:
         text = page.locator("body").inner_text(timeout=8000)
         if re.search(r"Abholservice|Abholung", text, re.I) and not re.search(r"Lieferservice|Lieferung", text, re.I):
             raise RuntimeError("REWE resolved to pickup instead of delivery")
-        # Persist cookies/local storage so future refreshes usually skip location setup.
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         page.context.storage_state(path=str(STATE_FILE))
 
@@ -278,56 +365,90 @@ class ReweCatalogScraper:
         response = page.goto(url, wait_until="domcontentloaded", timeout=45000)
         if response and response.status >= 400:
             raise RuntimeError(f"REWE category returned HTTP {response.status}")
-        try: page.wait_for_load_state("networkidle", timeout=7000)
-        except Exception: pass
+        try:
+            page.wait_for_load_state("networkidle", timeout=7000)
+        except Exception:
+            pass
         previous_height = 0
         for _ in range(10):
             _click_first(page, [r"Mehr laden", r"Mehr anzeigen", r"Weitere Produkte"], timeout=600)
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             page.wait_for_timeout(450)
             height = page.evaluate("document.body.scrollHeight")
-            if height == previous_height: break
+            if height == previous_height:
+                break
             previous_height = height
         return page.content()
 
+    def _browser_category_pages(self, page, start):
+        seen, pending = set(), [start]
+        while pending and len(seen) < MAX_CATEGORY_PAGES:
+            current = pending.pop(0).split("#")[0]
+            if current in seen:
+                continue
+            seen.add(current)
+            html = self._browser_category_html(page, current)
+            yield current, html
+            for href in self._pagination_links(html, current, start):
+                if href not in seen and href not in pending:
+                    pending.append(href)
+
     def _base_report(self, postcode, mode):
-        return {"categories_processed": 0, "categories_successful": 0, "categories_failed": 0, "products_found": 0,
-                "products_with_price": 0, "products_created": 0, "products_updated": 0, "errors": [],
-                "fetch_mode": mode, "service_type": "delivery", "postcode": postcode}
+        return {
+            "categories_processed": 0,
+            "categories_successful": 0,
+            "categories_failed": 0,
+            "pages_processed": 0,
+            "products_found": 0,
+            "products_with_price": 0,
+            "products_created": 0,
+            "products_updated": 0,
+            "errors": [],
+            "fetch_mode": mode,
+            "service_type": "delivery",
+            "postcode": postcode,
+        }
 
     def _ingest_products(self, report, products, upsert, postcode):
         priced = 0
         for product in products:
-            if product.get("price") is not None: priced += 1
+            if product.get("price") is not None:
+                priced += 1
             created = upsert(product, postcode)
             report["products_created" if created else "products_updated"] += 1
         report["products_found"] += len(products)
         report["products_with_price"] += priced
 
     def _run_browser(self, upsert, postcode, urls):
-        try: from playwright.sync_api import sync_playwright
-        except ImportError as exc: raise RuntimeError("Playwright browser fallback is not installed") from exc
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as exc:
+            raise RuntimeError("Playwright browser fallback is not installed") from exc
         report = self._base_report(postcode, "playwright")
         headless = os.getenv("REWE_BROWSER_HEADLESS", "true").lower() not in {"0", "false", "no"}
         with sync_playwright() as pw:
             launch_args = {"headless": headless, "args": ["--no-sandbox", "--disable-blink-features=AutomationControlled"]}
             channel = os.getenv("REWE_BROWSER_CHANNEL", "").strip()
-            if channel: launch_args["channel"] = channel
-            try: browser = pw.chromium.launch(**launch_args)
+            if channel:
+                launch_args["channel"] = channel
+            try:
+                browser = pw.chromium.launch(**launch_args)
             except Exception:
                 launch_args.pop("channel", None)
                 browser = pw.chromium.launch(**launch_args)
             context_args = {"locale": "de-DE", "user_agent": HEADERS["User-Agent"], "viewport": {"width": 1440, "height": 1000}}
-            if STATE_FILE.exists(): context_args["storage_state"] = str(STATE_FILE)
+            if STATE_FILE.exists():
+                context_args["storage_state"] = str(STATE_FILE)
             context = browser.new_context(**context_args)
             page = context.new_page()
             try:
                 try:
                     self._set_delivery_location(page, postcode)
                 except Exception:
-                    # Cached state may be stale for a changed postcode. Retry once clean.
-                    if STATE_FILE.exists(): STATE_FILE.unlink(missing_ok=True)
-                    context.close(); browser.close()
+                    if STATE_FILE.exists():
+                        STATE_FILE.unlink(missing_ok=True)
+                    context.close()
+                    browser.close()
                     browser = pw.chromium.launch(**launch_args)
                     context = browser.new_context(locale="de-DE", user_agent=HEADERS["User-Agent"], viewport={"width": 1440, "height": 1000})
                     page = context.new_page()
@@ -336,18 +457,30 @@ class ReweCatalogScraper:
                     report["categories_processed"] += 1
                     category = start.rstrip("/").split("/")[-1] or "bonus"
                     try:
-                        products = self.extract(self._browser_category_html(page, start), start, category)
-                        if not products: raise RuntimeError("No products found after localized delivery page load")
+                        by_id = {}
+                        for page_url, html in self._browser_category_pages(page, start):
+                            report["pages_processed"] += 1
+                            for product in self.extract(html, page_url, category):
+                                current = by_id.get(product["external_id"])
+                                if current is None or (not current.get("product_url") and product.get("product_url")):
+                                    by_id[product["external_id"]] = product
+                        products = list(by_id.values())
+                        if not products:
+                            raise RuntimeError("No products found after localized delivery page load")
                         self._ingest_products(report, products, upsert, postcode)
                         report["categories_successful"] += 1
                     except Exception as exc:
                         report["categories_failed"] += 1
                         report["errors"].append({"category": category, "error": str(exc)[:300]})
             finally:
-                try: context.close()
-                except Exception: pass
-                try: browser.close()
-                except Exception: pass
+                try:
+                    context.close()
+                except Exception:
+                    pass
+                try:
+                    browser.close()
+                except Exception:
+                    pass
         report["status"] = "failed" if not report["categories_successful"] else ("partial" if report["categories_failed"] else "healthy")
         return report
 
@@ -357,9 +490,16 @@ class ReweCatalogScraper:
             report["categories_processed"] += 1
             category = start.rstrip("/").split("/")[-1] or "bonus"
             try:
-                products = []
-                for url, html in self.pages(start): products.extend(self.extract(html, url, category))
-                if not products: raise RuntimeError("No products found")
+                by_id = {}
+                for url, html in self.pages(start):
+                    report["pages_processed"] += 1
+                    for product in self.extract(html, url, category):
+                        current = by_id.get(product["external_id"])
+                        if current is None or (not current.get("product_url") and product.get("product_url")):
+                            by_id[product["external_id"]] = product
+                products = list(by_id.values())
+                if not products:
+                    raise RuntimeError("No products found")
                 self._ingest_products(report, products, upsert, postcode)
                 report["categories_successful"] += 1
             except Exception as exc:
@@ -371,11 +511,15 @@ class ReweCatalogScraper:
     def run(self, upsert, postcode, urls=REWE_CATEGORY_URLS):
         http_report = self._run_http(upsert, postcode, urls)
         ratio = http_report["products_with_price"] / http_report["products_found"] if http_report["products_found"] else 0
-        if http_report["status"] != "failed" and ratio >= 0.25: return http_report
-        if not self.browser_enabled: return http_report
+        if http_report["status"] != "failed" and ratio >= 0.25:
+            return http_report
+        if not self.browser_enabled:
+            return http_report
         browser_report = self._run_browser(upsert, postcode, urls)
         browser_report["http_fallback_reason"] = {
-            "status": http_report["status"], "products_found": http_report["products_found"],
-            "products_with_price": http_report["products_with_price"], "errors": http_report["errors"][:3],
+            "status": http_report["status"],
+            "products_found": http_report["products_found"],
+            "products_with_price": http_report["products_with_price"],
+            "errors": http_report["errors"][:3],
         }
         return browser_report
