@@ -14,5 +14,9 @@
     "tailwindcss": "latest",
     "typescript": "latest",
     "vite": "6.3.5"
+  },
+  "devDependencies": {
+    "@types/react": "latest",
+    "@types/react-dom": "latest"
   }
 }
