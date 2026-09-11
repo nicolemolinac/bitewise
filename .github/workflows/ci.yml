@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - chatgpt/complete-bitewise-mvp
+      - chatgpt/qa-bitewise
   pull_request:
 
 jobs:
@@ -45,6 +46,10 @@ jobs:
           assert not missing, f'Missing critical routes: {missing}'
           print(f'{app.title}: {len(paths)} routes; critical contracts OK')
           PY
+      - name: End-to-end API smoke QA
+        run: python qa_smoke.py
+      - name: Live REWE catalog QA
+        run: python qa_rewe_live.py
 
   frontend:
     runs-on: ubuntu-latest
