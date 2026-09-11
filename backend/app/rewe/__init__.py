@@ -58,6 +58,50 @@ def _editable_postcode_input(scope):
     return None
 
 
+def _stored_state_has_postcode(postcode: str) -> bool:
+    """Return True only when the persisted REWE browser state mentions this postcode.
+
+    This lets refreshes reuse a confirmed delivery session when REWE decides not
+    to render its location form. We deliberately require the exact requested
+    postcode so a user changing postcode never silently reuses an old location.
+    """
+    try:
+        if not _scraper.STATE_FILE.exists():
+            return False
+        raw = _scraper.STATE_FILE.read_text(encoding="utf-8", errors="ignore")
+        return str(postcode) in raw
+    except Exception:
+        return False
+
+
+def _safe_set_delivery_location(self, page, postcode):
+    """Set REWE delivery location, but reuse a matching confirmed browser session.
+
+    REWE intermittently opens the shop already localized and then does not render
+    an editable postcode field at all. The original scraper treated that as a
+    fatal error and deleted a perfectly good storage state. If the persisted
+    state already contains the exact requested postcode, continue instead.
+    """
+    try:
+        return _original_set_delivery_location(self, page, postcode)
+    except RuntimeError as exc:
+        message = str(exc)
+        if "postcode input was not found" not in message.lower():
+            raise
+        if not _stored_state_has_postcode(str(postcode)):
+            raise
+
+        # Keep the valid session alive and refresh its storage snapshot. Category
+        # pages are the real verification step: if localization is unusable they
+        # will simply fail/no-product and be reported normally.
+        try:
+            _scraper.STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            page.context.storage_state(path=str(_scraper.STATE_FILE))
+        except Exception:
+            pass
+        return None
+
+
 def _load_current_category_html(page):
     """Finish lazy-loading the currently open REWE category without navigating away."""
     try:
@@ -117,13 +161,7 @@ def _current_page_number(page, fallback: int) -> int:
 
 
 def _click_next_pagination(page, current_number: int) -> bool:
-    """Click REWE's real pagination control, independent of vertical position.
-
-    REWE can render pagination as JS buttons rather than hrefs. First try semantic
-    next controls, then fall back to clicking the visible numeric control for the
-    next page. scroll_into_view_if_needed() means the pager can sit anywhere in
-    the document; it does not need to be at the bottom.
-    """
+    """Click REWE's real pagination control, independent of vertical position."""
     semantic_selectors = [
         'a[rel="next"]',
         'button[aria-label*="nächste" i]',
@@ -168,7 +206,6 @@ def _click_next_pagination(page, current_number: int) -> bool:
         except Exception:
             continue
 
-    # Prefer a candidate living in something that looks like pagination.
     ordered = []
     for item in numeric:
         try:
@@ -231,8 +268,6 @@ def _interactive_browser_category_pages(self, page, start):
         except Exception:
             pass
 
-        # Wait briefly for either URL or product content to change. This also
-        # supports SPA pagination where the URL remains exactly the same.
         changed = False
         for _ in range(12):
             page.wait_for_timeout(250)
@@ -248,5 +283,7 @@ def _interactive_browser_category_pages(self, page, start):
         expected_page = current_number + 1
 
 
+_original_set_delivery_location = _scraper.ReweCatalogScraper._set_delivery_location
 _scraper._visible_postcode_input = _editable_postcode_input
+_scraper.ReweCatalogScraper._set_delivery_location = _safe_set_delivery_location
 _scraper.ReweCatalogScraper._browser_category_pages = _interactive_browser_category_pages
