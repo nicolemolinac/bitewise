@@ -1,0 +1,19 @@
+# Python
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS / transferred metadata
+*:Zone.Identifier
+.DS_Store
+
+# Local data / secrets
+*.log
+.env
+.env.*
+!.env.example
