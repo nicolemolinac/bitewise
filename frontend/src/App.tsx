@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const STORAGE_PREFIX = 'bitewise.v1.';
 
 type Meal = {
   id: string;
@@ -132,6 +133,35 @@ async function api(path: string, options?: RequestInit) {
   return response.json();
 }
 
+function readStored<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_PREFIX + key);
+    return raw == null ? fallback : JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStored(key: string, value: unknown) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+  } catch {
+    // Persistence is best-effort; the API-backed state still keeps plans/pantry/settings.
+  }
+}
+
+function isExactReweProductUrl(value?: string | null) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return (url.hostname === 'www.rewe.de' || url.hostname === 'rewe.de') && url.pathname.includes('/shop/p/');
+  } catch {
+    return false;
+  }
+}
+
 function money(value?: number | null) {
   return `€${Number(value || 0).toFixed(2)}`;
 }
@@ -141,18 +171,19 @@ function classNames(...values: (string | false | null | undefined)[]) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('discover');
+  const [tab, setTab] = useState<Tab>(() => readStored<Tab>('tab', 'discover'));
   const [meals, setMeals] = useState<Meal[]>([]);
-  const [likedMeals, setLikedMeals] = useState<Meal[]>([]);
-  const [skipped, setSkipped] = useState<string[]>([]);
-  const [mode, setMode] = useState('random');
-  const [brainDump, setBrainDump] = useState('');
-  const [brainResult, setBrainResult] = useState<any>(null);
-  const [servings, setServings] = useState(2);
+  const [likedMeals, setLikedMeals] = useState<Meal[]>(() => readStored<Meal[]>('likedMeals', []));
+  const [skipped, setSkipped] = useState<string[]>(() => readStored<string[]>('skipped', []));
+  const [mode, setMode] = useState(() => readStored<string>('mode', 'random'));
+  const [brainDump, setBrainDump] = useState(() => readStored<string>('brainDump', ''));
+  const [brainResult, setBrainResult] = useState<any>(() => readStored<any>('brainResult', null));
+  const [servings, setServings] = useState(() => readStored<number>('servings', 2));
   const [strategy, setStrategy] = useState<Strategy>('best-value');
-  const [basket, setBasket] = useState<BasketItem[]>([]);
-  const [basketSummary, setBasketSummary] = useState<any>(null);
-  const [owned, setOwned] = useState<string[]>([]);
+  const [basket, setBasket] = useState<BasketItem[]>(() => readStored<BasketItem[]>('basket', []));
+  const [basketSummary, setBasketSummary] = useState<any>(() => readStored<any>('basketSummary', null));
+  const [basketMealIds, setBasketMealIds] = useState<string[]>(() => readStored<string[]>('basketMealIds', []));
+  const [owned, setOwned] = useState<string[]>(() => readStored<string[]>('owned', []));
   const [pantry, setPantry] = useState<PantryItem[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [activePlan, setActivePlan] = useState<Plan | null>(null);
@@ -164,8 +195,21 @@ export default function App() {
   const [productModal, setProductModal] = useState<BasketItem | null>(null);
 
   useEffect(() => {
-    Promise.all([loadMeals('random'), loadPantry(), loadPlans(), loadSettings(), loadReweStatus()]).catch(() => undefined);
+    Promise.all([loadMeals(mode), loadPantry(), loadPlans(), loadSettings(), loadReweStatus(), loadShoppingState()]).catch(() => undefined);
   }, []);
+
+  useEffect(() => { writeStored('tab', tab); }, [tab]);
+  useEffect(() => { writeStored('likedMeals', likedMeals); }, [likedMeals]);
+  useEffect(() => { writeStored('skipped', skipped); }, [skipped]);
+  useEffect(() => { writeStored('mode', mode); }, [mode]);
+  useEffect(() => { writeStored('brainDump', brainDump); }, [brainDump]);
+  useEffect(() => { writeStored('brainResult', brainResult); }, [brainResult]);
+  useEffect(() => { writeStored('servings', servings); }, [servings]);
+  useEffect(() => { writeStored('basket', basket); }, [basket]);
+  useEffect(() => { writeStored('basketSummary', basketSummary); }, [basketSummary]);
+  useEffect(() => { writeStored('basketMealIds', basketMealIds); }, [basketMealIds]);
+  useEffect(() => { writeStored('owned', owned); }, [owned]);
+  useEffect(() => { writeStored('activePlanId', activePlan?.id || null); }, [activePlan?.id]);
 
   async function run<T>(fn: () => Promise<T>): Promise<T | undefined> {
     setLoading(true);
@@ -183,7 +227,9 @@ export default function App() {
   async function loadMeals(nextMode = mode) {
     const data = await api(`/meals?mode=${encodeURIComponent(nextMode)}`);
     const incoming: Meal[] = data.meals || data || [];
-    setMeals(incoming.filter(m => !likedMeals.some(x => x.id === m.id) && !skipped.includes(m.id)));
+    const savedLiked = readStored<Meal[]>('likedMeals', likedMeals);
+    const savedSkipped = readStored<string[]>('skipped', skipped);
+    setMeals(incoming.filter(m => !savedLiked.some(x => x.id === m.id) && !savedSkipped.includes(m.id)));
   }
 
   async function loadPantry() {
@@ -194,8 +240,18 @@ export default function App() {
   async function loadPlans() {
     const data = await api('/plans');
     const next = data.plans || [];
+    const savedPlanId = readStored<number | null>('activePlanId', null);
     setPlans(next);
-    setActivePlan((current: Plan | null) => current ? next.find((p: Plan) => p.id === current.id) || next[0] || null : next[0] || null);
+    setActivePlan((current: Plan | null) => {
+      const preferredId = current?.id || savedPlanId;
+      return (preferredId ? next.find((p: Plan) => p.id === preferredId) : null) || next[0] || null;
+    });
+  }
+
+  async function loadShoppingState() {
+    const data = await api('/shopping/state');
+    const apiOwned = (data.items || []).filter((x: any) => x.state === 'owned').map((x: any) => x.ingredient);
+    if (apiOwned.length) setOwned(Array.from(new Set([...readStored<string[]>('owned', []), ...apiOwned])));
   }
 
   async function loadToday(planId?: number) {
@@ -217,8 +273,8 @@ export default function App() {
   async function reactToMeal(meal: Meal, action: 'like' | 'skip' | 'dislike') {
     await run(async () => {
       await api('/events', { method: 'POST', body: JSON.stringify({ meal_id: meal.id, action }) });
-      if (action === 'like') setLikedMeals(current => [...current, meal]);
-      else setSkipped(current => [...current, meal.id]);
+      if (action === 'like') setLikedMeals(current => current.some(x => x.id === meal.id) ? current : [...current, meal]);
+      else setSkipped(current => current.includes(meal.id) ? current : [...current, meal.id]);
       setMeals(current => current.filter(x => x.id !== meal.id));
     });
   }
@@ -233,18 +289,32 @@ export default function App() {
     });
   }
 
-  async function generateBasket(mealSource = likedMeals, nextStrategy = strategy) {
+  async function generateBasket(mealSource = likedMeals, nextStrategy = strategy, ownedItems = owned) {
     if (!mealSource.length) return;
     await run(async () => {
       const map = Object.fromEntries(mealSource.map(meal => [meal.id, servings]));
       const data = await api('/shopping', {
         method: 'POST',
-        body: JSON.stringify({ meal_ids: mealSource.map(m => m.id), servings: map, owned, mode: nextStrategy }),
+        body: JSON.stringify({ meal_ids: mealSource.map(m => m.id), servings: map, owned: ownedItems, mode: nextStrategy }),
       });
+      setBasketMealIds(mealSource.map(m => m.id));
       setBasket(data.items || data.basket || []);
       setBasketSummary(data);
       setTab('shopping');
     });
+  }
+
+  function currentBasketMeals() {
+    const candidates = [
+      ...likedMeals,
+      ...(activePlan?.meals || []).map(x => x.meal).filter(Boolean),
+      ...meals,
+    ];
+    const unique = new Map(candidates.map(meal => [meal.id, meal]));
+    const restored = basketMealIds.map(id => unique.get(id)).filter(Boolean) as Meal[];
+    if (restored.length) return restored;
+    if (likedMeals.length) return likedMeals;
+    return (activePlan?.meals || []).filter(x => x.status === 'planned').map(x => x.meal);
   }
 
   async function generateBasketFromPlan(plan = activePlan, nextStrategy = strategy) {
@@ -256,7 +326,7 @@ export default function App() {
   async function selectStrategy(next: Strategy) {
     setStrategy(next);
     await api('/settings', { method: 'PATCH', body: JSON.stringify({ shopping_strategy: next }) });
-    if (basket.length) await generateBasket(likedMeals.length ? likedMeals : activePlan?.meals.map(x => x.meal) || [], next);
+    if (basket.length) await generateBasket(currentBasketMeals(), next, owned);
   }
 
   async function toggleOwned(ingredient: string) {
@@ -266,6 +336,8 @@ export default function App() {
       method: 'PUT',
       body: JSON.stringify({ ingredient, state: next.includes(ingredient) ? 'owned' : 'needed' }),
     });
+    const source = currentBasketMeals();
+    if (source.length) await generateBasket(source, strategy, next);
   }
 
   async function purchase(item: BasketItem) {
@@ -437,7 +509,7 @@ export default function App() {
           close={() => setProductModal(null)}
           changed={async () => {
             setProductModal(null);
-            await generateBasket(likedMeals.length ? likedMeals : activePlan?.meals.map(x => x.meal) || []);
+            await generateBasket(currentBasketMeals());
           }}
         />
       )}
@@ -556,7 +628,10 @@ function TodayPage({ today, refresh, swap, status, goPlan }: any) {
 function ShoppingPage({ basket, summary, strategy, setStrategy, owned, toggleOwned, purchase, changeProduct }: any) {
   return <section><PageTitle eyebrow="Step 3" title="Optimized basket" description="Real products when the catalog supports them, pantry deductions, user overrides and plan-level value scoring." />
     <StrategyPicker value={strategy} onChange={setStrategy}/>
-    {basket.length === 0 ? <Empty icon={<ShoppingBasket size={38}/>} title="Basket is empty" text="Generate it from Picks or your weekly plan."/> : <div className="mt-7 grid gap-7 lg:grid-cols-[1fr_330px]"><div className="space-y-3">{basket.map((item: BasketItem) => <div key={item.ingredient} className="rounded-[24px] bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><button onClick={() => toggleOwned(item.ingredient)} className={classNames('mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border', owned.includes(item.ingredient)?'border-black bg-black text-white':'border-black/15')}>{owned.includes(item.ingredient)&&<Check size={13}/>}</button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black capitalize">{item.ingredient}</h3>{item.badge && <span className="rounded-full bg-[#f3f1eb] px-2.5 py-1 text-[10px] font-black">{item.badge}</span>}</div><div className="mt-1 text-xs text-black/40">Need {item.needed_quantity ?? item.quantity} {item.unit}{item.pantry_used ? ` · pantry covers ${item.pantry_used} ${item.unit}`:''}</div>{item.product ? <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl bg-[#f6f4ef] p-4 sm:flex-row sm:items-center"><div><div className="text-sm font-black">{item.product.name_original}</div><div className="mt-1 text-xs text-black/45">{item.product.brand || 'REWE'} · {item.product.package_size} {item.product.package_unit} · {item.packs} pack{item.packs===1?'':'s'}</div>{item.why && <div className="mt-1 text-[11px] text-black/35">{item.why}</div>}</div><div className="flex items-center gap-2"><b>{money(item.total)}</b>{item.product.id && <button onClick={() => changeProduct(item)} className="rounded-xl bg-white px-3 py-2 text-xs font-black shadow-sm">Change product</button>}{item.product.product_url && <a href={item.product.product_url} target="_blank" rel="noreferrer" className="rounded-xl bg-white p-2"><ExternalLink size={14}/></a>}</div></div> : <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">No compatible catalog product yet.</div>}<div className="mt-3 flex gap-2">{item.product?.id && <button onClick={() => purchase(item)} className="flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-xs font-black text-white"><PackageCheck size={14}/>Purchased → pantry</button>}</div></div></div></div>)}</div>
+    {basket.length === 0 ? <Empty icon={<ShoppingBasket size={38}/>} title="Basket is empty" text="Generate it from Picks or your weekly plan."/> : <div className="mt-7 grid gap-7 lg:grid-cols-[1fr_330px]"><div className="space-y-3">{basket.map((item: BasketItem) => {
+      const markedOwned = owned.includes(item.ingredient);
+      return <div key={item.ingredient} className="rounded-[24px] bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><button onClick={() => toggleOwned(item.ingredient)} title={markedOwned ? 'Need to buy this instead' : 'I already have this'} className={classNames('mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border', markedOwned?'border-black bg-black text-white':'border-black/15')}>{markedOwned&&<Check size={13}/>}</button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black capitalize">{item.ingredient}</h3>{item.badge && <span className="rounded-full bg-[#f3f1eb] px-2.5 py-1 text-[10px] font-black">{item.badge}</span>}</div><div className="mt-1 text-xs text-black/40">Need {item.needed_quantity ?? item.quantity} {item.unit}{item.pantry_used ? ` · pantry covers ${item.pantry_used} ${item.unit}`:''}</div>{markedOwned ? <div className="mt-4 rounded-2xl bg-[#f6f4ef] p-4"><div className="text-sm font-black">Marked as already at home</div><div className="mt-1 text-xs text-black/45">Bitewise will not add a REWE product while this is marked as owned.</div><button onClick={() => toggleOwned(item.ingredient)} className="mt-3 rounded-xl bg-black px-3 py-2 text-xs font-black text-white">Need to buy instead</button></div> : item.product ? <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl bg-[#f6f4ef] p-4 sm:flex-row sm:items-center"><div><div className="text-sm font-black">{item.product.name_original}</div><div className="mt-1 text-xs text-black/45">{item.product.brand || 'REWE'} · {item.product.package_size} {item.product.package_unit} · {item.packs} pack{item.packs===1?'':'s'}</div>{item.why && <div className="mt-1 text-[11px] text-black/35">{item.why}</div>}</div><div className="flex items-center gap-2"><b>{money(item.total)}</b>{item.product.id && <button onClick={() => changeProduct(item)} className="rounded-xl bg-white px-3 py-2 text-xs font-black shadow-sm">Change product</button>}{isExactReweProductUrl(item.product.product_url) && <a href={item.product.product_url!} target="_blank" rel="noreferrer" className="rounded-xl bg-white p-2" title="Open exact product on REWE"><ExternalLink size={14}/></a>}</div></div> : <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{item.badge === '🏠 Uses Pantry' ? 'Fully covered by your Pantry inventory.' : 'No compatible catalog product yet.'}</div>}<div className="mt-3 flex gap-2">{!markedOwned && item.product?.id && <button onClick={() => purchase(item)} className="flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-xs font-black text-white"><PackageCheck size={14}/>Purchased → pantry</button>}</div></div></div></div>;
+    })}</div>
       <aside className="h-fit rounded-[28px] bg-black p-6 text-white lg:sticky lg:top-24"><div className="text-xs font-black uppercase tracking-[.18em] text-white/40">Basket summary</div><div className="mt-3 text-4xl font-black">{money(summary?.total)}</div><div className="mt-2 text-sm text-white/50">{money(summary?.cost_per_serving)} / serving</div><div className="mt-6 space-y-3 border-t border-white/10 pt-5 text-sm"><Summary label="Items" value={basket.length}/><Summary label="Waste estimate" value={`${summary?.waste || 0}`}/><Summary label="Pantry-assisted" value={summary?.pantry_savings_items || 0}/><Summary label="Strategy" value={summary?.strategy || strategy}/></div></aside></div>}
   </section>;
 }
@@ -571,7 +646,7 @@ function ProductModal({ item, close, changed }: { item: BasketItem; close: () =>
   async function search() { if (!query.trim()) return; const data = await api(`/products/search?q=${encodeURIComponent(query)}`); setRows(data.products || []); }
   async function use(product: Product) { if (!product.id) return; setBusy(true); try { await api('/products/replace',{method:'POST',body:JSON.stringify({ingredient:item.ingredient,product_id:product.id})}); await changed(); } finally { setBusy(false); } }
   async function restore() { setBusy(true); try { await api(`/products/replace/${encodeURIComponent(item.ingredient)}`,{method:'DELETE'}); await changed(); } finally { setBusy(false); } }
-  return <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4"><div className="mx-auto mt-8 max-w-2xl rounded-[30px] bg-white p-6 shadow-2xl"><div className="flex items-start justify-between"><div><div className="text-xs font-black uppercase tracking-[.18em] text-black/35">{item.ingredient}</div><h2 className="mt-1 text-2xl font-black">Change product</h2><p className="mt-1 text-sm text-black/45">Your choice persists and Bitewise will not silently replace it.</p></div><button onClick={close} className="rounded-full bg-[#f3f1eb] p-2"><X size={17}/></button></div><div className="mt-5 flex gap-2"><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()} placeholder="Search REWE catalog or brand" className="min-w-0 flex-1 rounded-xl bg-[#f3f1eb] px-3 py-2.5 text-sm outline-none"/><button onClick={search} className="rounded-xl bg-black px-4 text-white"><Search size={16}/></button></div><button onClick={restore} disabled={busy} className="mt-3 text-xs font-black underline">Restore Bitewise recommendation</button><div className="mt-5 max-h-[58vh] space-y-2 overflow-y-auto">{rows.map(product => <div key={product.id || product.name_original} className="rounded-2xl border border-black/7 p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-black">{product.name_original}</div><div className="mt-1 text-xs text-black/40">{product.brand || 'REWE'} · {product.package_size} {product.package_unit}{product.availability ? ` · ${product.availability}`:''}</div></div><b>{money(product.price)}</b></div><div className="mt-3 flex gap-2"><button onClick={() => use(product)} disabled={busy || !product.id} className="rounded-xl bg-black px-3 py-2 text-xs font-black text-white disabled:opacity-30">Use this instead</button>{product.product_url && <a href={product.product_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-xl bg-[#f3f1eb] px-3 py-2 text-xs font-black">Open REWE <ExternalLink size={12}/></a>}</div></div>)}{!rows.length && <div className="py-8 text-center text-sm text-black/40">No alternatives loaded yet.</div>}</div></div></div>;
+  return <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4"><div className="mx-auto mt-8 max-w-2xl rounded-[30px] bg-white p-6 shadow-2xl"><div className="flex items-start justify-between"><div><div className="text-xs font-black uppercase tracking-[.18em] text-black/35">{item.ingredient}</div><h2 className="mt-1 text-2xl font-black">Change product</h2><p className="mt-1 text-sm text-black/45">Your choice persists and Bitewise will not silently replace it.</p></div><button onClick={close} className="rounded-full bg-[#f3f1eb] p-2"><X size={17}/></button></div><div className="mt-5 flex gap-2"><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()} placeholder="Search REWE catalog or brand" className="min-w-0 flex-1 rounded-xl bg-[#f3f1eb] px-3 py-2.5 text-sm outline-none"/><button onClick={search} className="rounded-xl bg-black px-4 text-white"><Search size={16}/></button></div><button onClick={restore} disabled={busy} className="mt-3 text-xs font-black underline">Restore Bitewise recommendation</button><div className="mt-5 max-h-[58vh] space-y-2 overflow-y-auto">{rows.map(product => <div key={product.id || product.name_original} className="rounded-2xl border border-black/7 p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-black">{product.name_original}</div><div className="mt-1 text-xs text-black/40">{product.brand || 'REWE'} · {product.package_size} {product.package_unit}{product.availability ? ` · ${product.availability}`:''}</div></div><b>{money(product.price)}</b></div><div className="mt-3 flex gap-2"><button onClick={() => use(product)} disabled={busy || !product.id} className="rounded-xl bg-black px-3 py-2 text-xs font-black text-white disabled:opacity-30">Use this instead</button>{isExactReweProductUrl(product.product_url) && <a href={product.product_url!} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-xl bg-[#f3f1eb] px-3 py-2 text-xs font-black">Open exact REWE product <ExternalLink size={12}/></a>}</div></div>)}{!rows.length && <div className="py-8 text-center text-sm text-black/40">No alternatives loaded yet.</div>}</div></div></div>;
 }
 
 function PantryPage({ items, reload, run }: any) {
@@ -585,7 +660,7 @@ function PantryPage({ items, reload, run }: any) {
 }
 
 function RewePage({ status, refresh, loading }: any) {
-  return <section><PageTitle eyebrow="Catalog" title="REWE data" description="Manual public-category snapshot. Bitewise never claims these prices are live checkout prices."/><div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Stat label="Products" value={status?.products || 0}/><Stat label="Status" value={status?.status || '—'}/><Stat label="Postcode" value={status?.postcode || '13353'}/><Stat label="Successful categories" value={`${status?.categories_successful || 0}/${status?.categories_processed || 0}`}/></div><div className="mt-5 rounded-[28px] bg-white p-6 shadow-sm"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><div className="font-black">Catalog snapshot</div><div className="mt-1 text-sm text-black/45">Last updated: {status?.last_updated ? new Date(status.last_updated).toLocaleString() : 'Never'} · Errors: {status?.errors || 0}</div></div><button onClick={refresh} disabled={loading} className="flex items-center justify-center gap-2 rounded-2xl bg-black px-5 py-3 text-sm font-black text-white disabled:opacity-40"><RefreshCw size={15} className={loading?'animate-spin':''}/>Refresh 17 categories</button></div></div></section>;
+  return <section><PageTitle eyebrow="Catalog" title="REWE data" description="Manual public-category snapshot. Bitewise never claims these prices are live checkout prices."/><div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Stat label="Products" value={status?.products || 0}/><Stat label="Status" value={status?.status || '—'}/><Stat label="Postcode" value={status?.postcode || '13353'}/><Stat label="Successful categories" value={`${status?.categories_successful || 0}/${status?.categories_processed || 0}`}/></div><div className="mt-5 rounded-[28px] bg-white p-6 shadow-sm"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><div className="font-black">Catalog snapshot</div><div className="mt-1 text-sm text-black/45">Last updated: {status?.last_updated ? new Date(status.last_updated).toLocaleString() : 'Never'} · Errors: {status?.errors || 0}</div></div><button onClick={refresh} disabled={loading} className="flex items-center justify-center gap-2 rounded-2xl bg-black px-5 py-3 text-sm font-black text-white disabled:opacity-40"><RefreshCw size={15} className={loading?'animate-spin':''}/>Refresh full catalog</button></div></div></section>;
 }
 
 function SettingsPage({ postcode, setPostcode, savePostcode, strategy, setStrategy }: any) {
