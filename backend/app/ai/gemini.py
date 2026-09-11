@@ -8,6 +8,7 @@ try:
 except Exception:
     genai = None
 
+from ..database import PantryItem, Product, SessionLocal
 from ..recipes.seed import MEALS
 
 DATA_FILE = Path(__file__).resolve().parents[2] / "data" / "ai_meals.json"
@@ -18,6 +19,25 @@ FALLBACK_IMAGE = "https://images.unsplash.com/photo-1547592180-85f173990554?auto
 def _slug(value: str) -> str:
     value = re.sub(r"[^a-z0-9]+", "-", (value or "").lower()).strip("-")
     return value or "ai-meal"
+
+
+def _sanitize_steps(value):
+    steps = []
+    for raw in value or []:
+        if isinstance(raw, str):
+            text = raw.strip()
+            minutes = None
+        elif isinstance(raw, dict):
+            text = str(raw.get("text") or raw.get("step") or "").strip()
+            try:
+                minutes = int(raw.get("minutes")) if raw.get("minutes") is not None else None
+            except Exception:
+                minutes = None
+        else:
+            continue
+        if text:
+            steps.append({"text": text[:240], "minutes": minutes})
+    return steps[:10]
 
 
 def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
@@ -49,6 +69,13 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
         cost = max(0.5, min(50, float(raw.get("cost") or 3.5)))
     except Exception:
         cost = 3.5
+    try:
+        calories = max(50, min(1800, int(float(raw.get("calories") or 500))))
+    except Exception:
+        calories = 500
+    meal_type = str(raw.get("meal_type") or "dinner").strip().lower()
+    if meal_type not in {"breakfast", "lunch", "dinner", "dessert", "snack"}:
+        meal_type = "dinner"
     meal_id = _slug(str(raw.get("id") or name))
     if not meal_id.startswith("ai-"):
         meal_id = f"ai-{meal_id}"
@@ -59,9 +86,12 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
         "time": minutes,
         "difficulty": str(raw.get("difficulty") or "Easy")[:30],
         "cost": round(cost, 2),
+        "calories": calories,
+        "meal_type": meal_type,
         "cuisine": str(raw.get("cuisine") or "International")[:60],
         "tags": [str(tag)[:40] for tag in (raw.get("tags") or ["AI Generated"])][:8],
         "ingredients": ingredients[:20],
+        "steps": _sanitize_steps(raw.get("steps")),
         "image": str(raw.get("image") or FALLBACK_IMAGE),
         "source": "gemini",
     }
@@ -108,6 +138,33 @@ def _persist_generated(generated: list[dict]) -> list[dict]:
     return clean
 
 
+def _shopping_context():
+    db = SessionLocal()
+    try:
+        pantry = [f"{p.ingredient} ({p.quantity:g} {p.unit})" for p in db.query(PantryItem).filter(PantryItem.quantity > 0).limit(60).all()]
+        products = (
+            db.query(Product)
+            .filter(Product.price.isnot(None))
+            .order_by(Product.price.asc())
+            .limit(180)
+            .all()
+        )
+        catalog = []
+        seen = set()
+        for p in products:
+            key = (p.ingredient or p.name_normalized or "").strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            label = p.name_original or p.ingredient
+            catalog.append(f"{label} €{p.price:.2f}")
+            if len(catalog) >= 100:
+                break
+        return pantry, catalog
+    finally:
+        db.close()
+
+
 _load_persisted()
 
 
@@ -120,13 +177,33 @@ class GeminiService:
     def generate_meals(self, prompt):
         if not self.client:
             return None
-        instruction = (
-            "Return ONLY a valid JSON array of 6 distinct meals. "
-            "Each meal must have id,name,description,time,difficulty,cost,cuisine,tags,ingredients,image. "
-            "ingredients must be arrays [normalized_english_ingredient,quantity,unit] using g, ml, unit or cloves. "
-            "cost is estimated EUR per serving. Prefer realistic supermarket ingredients and visual, varied meals. "
-            f"User request: {prompt}"
-        )
+        pantry, catalog = _shopping_context()
+        instruction = f"""
+You are Bitewise, a premium food decision engine for a person in Berlin who wants attractive food with minimum cooking effort.
+Return ONLY a valid JSON array of 8 distinct meal ideas.
+
+User request: {prompt}
+
+PANTRY AVAILABLE NOW:
+{', '.join(pantry) if pantry else 'No confirmed pantry items.'}
+
+LOW-PRICE / AVAILABLE REWE CATALOG EXAMPLES:
+{'; '.join(catalog) if catalog else 'Catalog unavailable; use normal German-supermarket ingredients.'}
+
+Rules:
+- Respect the request literally: cuisine, meal type, cheap/quick/fancy/healthy/high-protein constraints must actually match.
+- Prefer ingredients that appear in pantry or REWE context when sensible; never create bizarre combinations just to use them.
+- Optimize for low effort and few dishes. If the request names appliances (air fryer, oven, microwave, stovetop), choose the easiest suitable method.
+- Include breakfast/lunch/dinner/dessert/snack only when appropriate to the request.
+- Each meal object MUST contain: id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredients,steps,image.
+- meal_type is exactly one of breakfast,lunch,dinner,dessert,snack.
+- calories is a realistic approximate kcal per serving.
+- ingredients is an array of [normalized_english_ingredient, quantity, unit] using g, ml, unit or cloves.
+- steps is 3-7 very short objects like {{"text":"Boil pasta in salted water","minutes":10}}. Make instructions idiot-proof, concrete, and concise.
+- cost is estimated EUR per serving.
+- image must be a plausible public HTTPS food-image URL when known; otherwise use an empty string.
+- Make meals visually appealing and meaningfully different from each other.
+""".strip()
         try:
             response = self.client.models.generate_content(model=self.model, contents=instruction)
             raw = response.text.strip().removeprefix("```json").removesuffix("```").strip()
