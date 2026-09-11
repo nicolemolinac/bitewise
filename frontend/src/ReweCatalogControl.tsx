@@ -86,16 +86,17 @@ export default function ReweCatalogControl() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-[#18392b] px-4 py-3 text-xs font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:shadow-2xl"
+        className="fixed bottom-36 right-5 z-[70] flex items-center gap-2 rounded-full bg-[#2f6b4f] px-4 py-3 text-xs font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:shadow-2xl md:bottom-20"
         title="REWE catalog"
+        aria-label="Open REWE catalog controls"
       >
         <Database size={15} />
-        REWE
+        REWE catalog
         {status?.products ? <span className="rounded-full bg-white/15 px-2 py-0.5">{status.products}</span> : null}
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/50 p-4" onClick={() => setOpen(false)}>
           <div
             className="mx-auto mt-10 max-w-2xl rounded-[30px] bg-[#f7f4ee] p-6 shadow-2xl"
             onClick={event => event.stopPropagation()}
