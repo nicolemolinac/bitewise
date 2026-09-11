@@ -11,8 +11,12 @@ frontend/dist/
 # OS / transferred metadata
 *:Zone.Identifier
 .DS_Store
+*.save
 
-# Local data / secrets
+# Local runtime data / secrets
+backend/data/*.db
+backend/data/ai_meals.json
+backend/data/rewe_storage_state.json
 *.log
 .env
 .env.*
