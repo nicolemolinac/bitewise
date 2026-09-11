@@ -52,6 +52,7 @@ export default function MvpControls() {
   const [catalogMeals, setCatalogMeals] = useState<Meal[]>([]);
   const [leftovers, setLeftovers] = useState<Leftover[]>([]);
   const [budget, setBudget] = useState('60');
+  const [aiPrompt, setAiPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -113,6 +114,32 @@ export default function MvpControls() {
     if (!plan) return 0;
     return plan.meals.reduce((sum, row) => sum + Number(row.meal?.cost || 0) * Math.max(1, row.servings / 2), 0);
   }, [plan]);
+
+  async function generateAiMeals() {
+    if (!aiPrompt.trim()) {
+      setMessage('Describe what kind of food you want first.');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    try {
+      const data = await api('/ai/meals', {
+        method: 'POST',
+        body: JSON.stringify({ prompt: aiPrompt.trim() }),
+      });
+      const generated: Meal[] = data.meals || [];
+      if (!generated.length) {
+        setMessage('No AI meals were generated. Check GEMINI_API_KEY in backend/.env.');
+        return;
+      }
+      setMessage(`Added ${generated.length} new meals to Bitewise. Reloading Discover…`);
+      setTimeout(() => window.location.reload(), 700);
+    } catch (err: any) {
+      setMessage(err?.message || 'Could not generate AI meals');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function rebuildForBudget() {
     if (!plan) return;
@@ -205,6 +232,13 @@ export default function MvpControls() {
 
             <div className="flex-1 space-y-5 overflow-y-auto p-5">
               {message && <div className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold shadow-sm">{message}</div>}
+
+              <section className="rounded-[24px] bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-2"><Sparkles size={17} /><h3 className="font-black">Generate fresh meals</h3></div>
+                <p className="mt-2 text-xs leading-5 text-black/45">Create new Gemini meal ideas and permanently add them to the same catalog used by Discover, planning and shopping.</p>
+                <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} placeholder="Cheap aesthetic Asian dinners · quick high-protein lunches · fancy meals for guests…" className="mt-4 min-h-24 w-full resize-none rounded-2xl bg-[#f3f1eb] px-4 py-3 text-sm outline-none" />
+                <button disabled={busy || !aiPrompt.trim()} onClick={generateAiMeals} className="mt-3 w-full rounded-2xl bg-black px-4 py-3 text-sm font-black text-white disabled:opacity-40">Generate 6 new meals</button>
+              </section>
 
               <section className="rounded-[24px] bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-2"><WalletCards size={17} /><h3 className="font-black">Budget guardrail</h3></div>
