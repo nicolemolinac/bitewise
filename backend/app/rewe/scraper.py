@@ -28,10 +28,16 @@ REWE_CATEGORY_URLS = [
     "https://www.rewe.de/shop/c/haus-freizeit/",
 ]
 
+# Keep the HTTP path lightweight, but present as a normal browser. REWE may
+# reject bot-identifying or cloud-origin requests; callers should treat 403 as
+# a signal to use the browser fallback rather than retry aggressively.
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; BitewiseCatalog/1.0; manual local refresh)",
-    "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
-    "Accept-Language": "de-DE,de;q=0.9,en;q=0.7",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.7,en;q=0.6",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "Upgrade-Insecure-Requests": "1",
 }
 
 
