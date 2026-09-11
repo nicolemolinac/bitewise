@@ -1,289 +1,116 @@
-"""REWE package bootstrap patches for resilient location selection and pagination."""
+"""REWE package bootstrap patches for direct category pagination."""
 from __future__ import annotations
 
-import hashlib
-import re
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from . import scraper as _scraper
 
 
-def _editable_postcode_input(scope):
-    """Return only a visible, editable postcode field.
+def _page_url(start: str, page_number: int) -> str:
+    parts = urlsplit(start)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query["page"] = str(page_number)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), ""))
 
-    REWE renders a visible readonly postcode summary before the actual location
-    editor opens. Skip readonly/disabled fields so Playwright can open the real
-    editor and only call fill() on an editable control.
+
+def _direct_browser_category_pages(self, page, start):
+    """Open REWE category URLs directly as ?page=N until a page has no products.
+
+    This deliberately avoids clicking REWE pagination controls and avoids opening
+    the generic /shop/ landing page first. Page 1 uses ?page=1 as well, so every
+    request follows the same deterministic URL pattern.
     """
-    selectors = [
-        'input[autocomplete="postal-code"]',
-        'input[inputmode="numeric"]',
-        'input[placeholder*="Postleitzahl" i]',
-        'input[placeholder*="PLZ" i]',
-        'input[name*="postal" i]',
-        'input[name*="postcode" i]',
-        'input[name*="zip" i]',
-        'input[id*="postal" i]',
-        'input[id*="postcode" i]',
-    ]
+    previous_ids = set()
+    for page_number in range(1, _scraper.MAX_CATEGORY_PAGES + 1):
+        current = _page_url(start, page_number)
+        html = self._browser_category_html(page, current)
+        category = start.rstrip("/").split("/")[-1] or "bonus"
+        products = self.extract(html, current, category)
+        ids = {p.get("external_id") for p in products if p.get("external_id")}
 
-    candidates = []
-    try:
-        labelled = scope.get_by_label(re.compile(r"Postleitzahl|PLZ", re.I)).first
-        if labelled.count():
-            candidates.append(labelled)
-    except Exception:
-        pass
-
-    for selector in selectors:
-        try:
-            locator = scope.locator(selector).first
-            if locator.count():
-                candidates.append(locator)
-        except Exception:
-            pass
-
-    for locator in candidates:
-        try:
-            if not locator.is_visible():
-                continue
-            if locator.get_attribute("readonly") is not None:
-                continue
-            if locator.get_attribute("disabled") is not None:
-                continue
-            if not locator.is_editable(timeout=500):
-                continue
-            return locator
-        except Exception:
-            continue
-    return None
-
-
-def _stored_state_has_postcode(postcode: str) -> bool:
-    """Return True only when the persisted REWE browser state mentions this postcode.
-
-    This lets refreshes reuse a confirmed delivery session when REWE decides not
-    to render its location form. We deliberately require the exact requested
-    postcode so a user changing postcode never silently reuses an old location.
-    """
-    try:
-        if not _scraper.STATE_FILE.exists():
-            return False
-        raw = _scraper.STATE_FILE.read_text(encoding="utf-8", errors="ignore")
-        return str(postcode) in raw
-    except Exception:
-        return False
-
-
-def _safe_set_delivery_location(self, page, postcode):
-    """Set REWE delivery location, but reuse a matching confirmed browser session.
-
-    REWE intermittently opens the shop already localized and then does not render
-    an editable postcode field at all. The original scraper treated that as a
-    fatal error and deleted a perfectly good storage state. If the persisted
-    state already contains the exact requested postcode, continue instead.
-    """
-    try:
-        return _original_set_delivery_location(self, page, postcode)
-    except RuntimeError as exc:
-        message = str(exc)
-        if "postcode input was not found" not in message.lower():
-            raise
-        if not _stored_state_has_postcode(str(postcode)):
-            raise
-
-        # Keep the valid session alive and refresh its storage snapshot. Category
-        # pages are the real verification step: if localization is unusable they
-        # will simply fail/no-product and be reported normally.
-        try:
-            _scraper.STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            page.context.storage_state(path=str(_scraper.STATE_FILE))
-        except Exception:
-            pass
-        return None
-
-
-def _load_current_category_html(page):
-    """Finish lazy-loading the currently open REWE category without navigating away."""
-    try:
-        page.wait_for_load_state("domcontentloaded", timeout=5000)
-    except Exception:
-        pass
-    try:
-        page.wait_for_load_state("networkidle", timeout=5000)
-    except Exception:
-        pass
-
-    previous_height = 0
-    for _ in range(10):
-        _scraper._click_first(page, [r"Mehr laden", r"Mehr anzeigen", r"Weitere Produkte"], timeout=600)
-        try:
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            page.wait_for_timeout(400)
-            height = page.evaluate("document.body.scrollHeight")
-        except Exception:
+        # REWE can redirect an out-of-range page back to a previous page. Treat a
+        # page with no products OR no new product ids as the end of pagination.
+        if not products or (previous_ids and ids and ids.issubset(previous_ids)):
             break
-        if height == previous_height:
-            break
-        previous_height = height
-    return page.content()
+        previous_ids.update(ids)
+        yield current, html
 
 
-def _page_fingerprint(html: str) -> str:
-    """Use product-detail links to tell whether pagination actually changed products."""
-    links = re.findall(r'href=["\']([^"\']*/shop/p/[^"\']+)["\']', html, flags=re.I)
-    stable = "\n".join(sorted(set(links))[:200])
-    if not stable:
-        stable = re.sub(r"\s+", " ", html)[:12000]
-    return hashlib.sha256(stable.encode("utf-8", errors="ignore")).hexdigest()
-
-
-def _current_page_number(page, fallback: int) -> int:
-    selectors = [
-        '[aria-current="page"]',
-        '[aria-current="true"]',
-        '[data-current="true"]',
-        '[class*="active" i][class*="page" i]',
-    ]
-    for selector in selectors:
-        try:
-            locator = page.locator(selector)
-            for i in range(min(locator.count(), 8)):
-                item = locator.nth(i)
-                if not item.is_visible():
-                    continue
-                text = (item.inner_text(timeout=400) or "").strip()
-                match = re.fullmatch(r"\D*(\d+)\D*", text)
-                if match:
-                    return int(match.group(1))
-        except Exception:
-            pass
-    return fallback
-
-
-def _click_next_pagination(page, current_number: int) -> bool:
-    """Click REWE's real pagination control, independent of vertical position."""
-    semantic_selectors = [
-        'a[rel="next"]',
-        'button[aria-label*="nächste" i]',
-        'a[aria-label*="nächste" i]',
-        'button[aria-label*="naechste" i]',
-        'a[aria-label*="naechste" i]',
-        'button[aria-label*="weiter" i]',
-        'a[aria-label*="weiter" i]',
-        'button[title*="nächste" i]',
-        'a[title*="nächste" i]',
-        'button[title*="weiter" i]',
-        'a[title*="weiter" i]',
-    ]
-    for selector in semantic_selectors:
-        try:
-            locator = page.locator(selector)
-            for i in range(min(locator.count(), 8)):
-                item = locator.nth(i)
-                if not item.is_visible() or not item.is_enabled():
-                    continue
-                item.scroll_into_view_if_needed(timeout=1500)
-                item.click(timeout=2500)
-                return True
-        except Exception:
-            continue
-
-    wanted = str(current_number + 1)
-    candidates = page.locator("button, a")
-    numeric = []
+def _run_browser_direct(self, upsert, postcode, urls):
     try:
-        count = min(candidates.count(), 1000)
-    except Exception:
-        count = 0
-    for i in range(count):
-        item = candidates.nth(i)
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise RuntimeError("Playwright browser fallback is not installed") from exc
+
+    report = self._base_report(postcode, "playwright-direct-pages")
+    headless = _scraper.os.getenv("REWE_BROWSER_HEADLESS", "true").lower() not in {"0", "false", "no"}
+    with sync_playwright() as pw:
+        launch_args = {
+            "headless": headless,
+            "args": ["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+        }
+        channel = _scraper.os.getenv("REWE_BROWSER_CHANNEL", "").strip()
+        if channel:
+            launch_args["channel"] = channel
         try:
-            if not item.is_visible() or not item.is_enabled():
-                continue
-            text = (item.inner_text(timeout=250) or "").strip()
-            if text == wanted:
-                numeric.append(item)
+            browser = pw.chromium.launch(**launch_args)
         except Exception:
-            continue
+            launch_args.pop("channel", None)
+            browser = pw.chromium.launch(**launch_args)
 
-    ordered = []
-    for item in numeric:
+        context_args = {
+            "locale": "de-DE",
+            "user_agent": _scraper.HEADERS["User-Agent"],
+            "viewport": {"width": 1440, "height": 1000},
+        }
+        # Reuse the last valid REWE browser state when available, but do not
+        # navigate to the generic shop landing page just to set location.
+        if _scraper.STATE_FILE.exists():
+            context_args["storage_state"] = str(_scraper.STATE_FILE)
+
+        context = browser.new_context(**context_args)
+        page = context.new_page()
         try:
-            looks_like_pager = item.evaluate(
-                """el => {
-                    let n = el;
-                    for (let i = 0; i < 6 && n; i++, n = n.parentElement) {
-                        const meta = [n.tagName, n.className, n.id,
-                          n.getAttribute && n.getAttribute('aria-label'),
-                          n.getAttribute && n.getAttribute('data-testid')]
-                          .filter(Boolean).join(' ').toLowerCase();
-                        if (/pagin|seite|page/.test(meta) || n.tagName === 'NAV') return true;
-                    }
-                    return false;
-                }"""
-            )
-            if looks_like_pager:
-                ordered.insert(0, item)
-            else:
-                ordered.append(item)
-        except Exception:
-            ordered.append(item)
+            for start in urls:
+                report["categories_processed"] += 1
+                category = start.rstrip("/").split("/")[-1] or "bonus"
+                try:
+                    by_id = {}
+                    for page_url, html in self._browser_category_pages(page, start):
+                        report["pages_processed"] += 1
+                        page_products = self.extract(html, page_url, category)
+                        if not page_products:
+                            break
+                        for product in page_products:
+                            current = by_id.get(product["external_id"])
+                            if current is None or (not current.get("product_url") and product.get("product_url")):
+                                by_id[product["external_id"]] = product
 
-    for item in ordered:
-        try:
-            item.scroll_into_view_if_needed(timeout=1500)
-            item.click(timeout=2500)
-            return True
-        except Exception:
-            continue
-    return False
-
-
-def _interactive_browser_category_pages(self, page, start):
-    """Traverse every category page by clicking the UI pager instead of guessing URLs."""
-    response = page.goto(start, wait_until="domcontentloaded", timeout=45000)
-    if response and response.status >= 400:
-        raise RuntimeError(f"REWE category returned HTTP {response.status}")
-
-    seen_fingerprints = set()
-    expected_page = 1
-
-    for _ in range(_scraper.MAX_CATEGORY_PAGES):
-        html = _load_current_category_html(page)
-        fingerprint = _page_fingerprint(html)
-        if fingerprint in seen_fingerprints:
-            break
-        seen_fingerprints.add(fingerprint)
-
-        current_number = _current_page_number(page, expected_page)
-        yield page.url or f"{start}#page-{current_number}", html
-
-        if not _click_next_pagination(page, current_number):
-            break
-
-        previous_url = page.url
-        page.wait_for_timeout(900)
-        try:
-            page.wait_for_load_state("domcontentloaded", timeout=5000)
-        except Exception:
-            pass
-
-        changed = False
-        for _ in range(12):
-            page.wait_for_timeout(250)
+                    products = list(by_id.values())
+                    if not products:
+                        raise RuntimeError("No products found on direct REWE category pages")
+                    self._ingest_products(report, products, upsert, postcode)
+                    report["categories_successful"] += 1
+                except Exception as exc:
+                    report["categories_failed"] += 1
+                    report["errors"].append({"category": category, "error": str(exc)[:300]})
+        finally:
             try:
-                probe_html = page.content()
-                if page.url != previous_url or _page_fingerprint(probe_html) != fingerprint:
-                    changed = True
-                    break
+                context.storage_state(path=str(_scraper.STATE_FILE))
             except Exception:
                 pass
-        if not changed:
-            break
-        expected_page = current_number + 1
+            try:
+                context.close()
+            except Exception:
+                pass
+            try:
+                browser.close()
+            except Exception:
+                pass
+
+    report["status"] = "failed" if not report["categories_successful"] else ("partial" if report["categories_failed"] else "healthy")
+    return report
 
 
-_original_set_delivery_location = _scraper.ReweCatalogScraper._set_delivery_location
-_scraper._visible_postcode_input = _editable_postcode_input
-_scraper.ReweCatalogScraper._set_delivery_location = _safe_set_delivery_location
-_scraper.ReweCatalogScraper._browser_category_pages = _interactive_browser_category_pages
+_scraper.ReweCatalogScraper._browser_category_pages = _direct_browser_category_pages
+_scraper.ReweCatalogScraper._run_browser = _run_browser_direct
