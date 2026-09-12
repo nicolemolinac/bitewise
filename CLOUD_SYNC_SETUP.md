@@ -43,6 +43,7 @@ DATABASE_URL=YOUR_SUPABASE_POSTGRES_CONNECTION_STRING
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
 ALLOWED_USER_EMAIL=YOUR_GOOGLE_EMAIL
+REWE_REFRESH_INTERVAL_DAYS=90
 ```
 
 Keep the existing `GEMINI_API_KEY`, REWE settings and CORS settings.
@@ -62,7 +63,29 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 6. Run the authenticated backend
+## 6. Preserve the existing REWE snapshot permanently
+
+The REWE catalog should not be re-scraped on every deploy or device. Once `DATABASE_URL` points at Supabase/Postgres, run this one time from the laptop:
+
+```bash
+cd backend
+source .venv/bin/activate
+python migrate_rewe_snapshot.py
+```
+
+This copies the existing REWE products from `backend/data/grocery.db` into the persistent Postgres database, together with metadata for the latest successful snapshot.
+
+After that:
+
+- laptop and phone use the same persisted REWE catalog;
+- Render restarts/redeploys do not erase it;
+- there is no automatic REWE refresh schedule;
+- the existing snapshot remains valid until a future manual refresh;
+- `REWE_REFRESH_INTERVAL_DAYS=90` records the intended roughly quarterly cadence.
+
+A later manual `/api/rewe/refresh` writes into the same persistent Postgres catalog. Existing product rows are not tied to Render's ephemeral disk.
+
+## 7. Run the authenticated backend
 
 Use the cloud entrypoint, not `app.main`:
 
@@ -87,7 +110,7 @@ Open `http://localhost:5173` and choose **Continue with Google**.
 - If cloud state already exists, Bitewise downloads it before the app mounts.
 - Subsequent changes are saved automatically with a short debounce.
 
-This includes current V3 local state such as picks, skips, plan-related preferences, profile, appliances, basket, extras, strategy and owned state. Backend data such as pantry, events, plans and REWE catalog already lives in the shared backend database.
+This includes current V3 local state such as picks, skips, plan-related preferences, profile, appliances, basket, extras, strategy and owned state. Backend data such as pantry, events, plans and the persistent REWE catalog lives in the shared backend database.
 
 ## Phone
 
