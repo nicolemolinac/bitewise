@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint, create_engine, text
@@ -5,7 +6,14 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 DB_PATH = Path(__file__).resolve().parents[1] / "data" / "grocery.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+IS_SQLITE = not DATABASE_URL
+if IS_SQLITE:
+    engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+else:
+    # Supabase/managed Postgres connection string. pool_pre_ping recovers cleanly
+    # after a free-tier database or network connection has been idle.
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=3, max_overflow=2)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
@@ -74,6 +82,13 @@ class AppSetting(Base):
     value: Mapped[str] = mapped_column(Text)
 
 
+class UserState(Base):
+    __tablename__ = "user_state"
+    user_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    state_json: Mapped[str] = mapped_column(Text, default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class CatalogRun(Base):
     __tablename__ = "catalog_runs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -118,7 +133,7 @@ class PlannedMeal(Base):
     meal_id: Mapped[str] = mapped_column(String(80), index=True)
     day_index: Mapped[int] = mapped_column(Integer)
     meal_type: Mapped[str] = mapped_column(String(30), default="dinner")
-    servings: Mapped[int] = mapped_column(Integer, default=2)
+    servings: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(30), default="planned")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -127,6 +142,8 @@ Base.metadata.create_all(engine)
 
 
 def _migrate_sqlite() -> None:
+    if not IS_SQLITE:
+        return
     wanted = {
         "catalog_runs": [
             ("categories_processed", "INTEGER DEFAULT 0"),
