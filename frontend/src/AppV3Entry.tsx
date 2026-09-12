@@ -1,5 +1,6 @@
 import AppV3 from './AppV3';
 import AuthGate from './AuthGate';
+import CustomProductPlanner from './CustomProductPlanner';
 import { authConfigured, getAccessToken } from './auth';
 import { isCloudStateKey, queueCloudSync } from './cloudSync';
 
@@ -57,6 +58,9 @@ if (typeof window !== 'undefined') {
     const originalSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key: string, value: string) {
       originalSetItem.call(this, key, value);
+      if (this === window.localStorage && key.startsWith(V3)) {
+        window.dispatchEvent(new CustomEvent('bitewise:statechange', { detail: { key, value } }));
+      }
       if (this === window.localStorage && isCloudStateKey(key)) queueCloudSync();
     };
     w[syncMarker] = true;
@@ -64,5 +68,5 @@ if (typeof window !== 'undefined') {
 }
 
 export default function AppV3Entry() {
-  return <AuthGate><AppV3 /></AuthGate>;
+  return <AuthGate><><AppV3 /><CustomProductPlanner /></></AuthGate>;
 }
