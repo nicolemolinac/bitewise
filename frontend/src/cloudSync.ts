@@ -23,6 +23,8 @@ export const CLOUD_STATE_KEYS = new Set([
   'summary',
   'strategy',
   'owned',
+  'customProducts',
+  'customProductSchedule',
 ]);
 
 let syncTimer: number | null = null;
