@@ -10,6 +10,19 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from .cloud_sync import auth_enabled, authenticate_request, router as cloud_router
 from .main import app
+from .rewe_refresh import router as rewe_refresh_router
+
+# Replace the legacy REWE refresh route with the safe merge/reconciliation version.
+# Other routes from main.py remain unchanged.
+app.router.routes = [
+    route
+    for route in app.router.routes
+    if not (
+        getattr(route, "path", None) == "/api/rewe/refresh"
+        and "POST" in (getattr(route, "methods", None) or set())
+    )
+]
+app.include_router(rewe_refresh_router)
 
 # Cloud-only routes live beside the existing API to keep local development backwards compatible.
 app.include_router(cloud_router)
