@@ -103,9 +103,9 @@ export default function ReweCatalogControl() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-xs font-black uppercase tracking-[.18em] text-[#18392b]/35">Catalog</div>
+                <div className="text-xs font-black uppercase tracking-[.18em] text-[#18392b]/35">Laptop maintenance</div>
                 <h2 className="mt-1 text-3xl font-black text-[#17211b]">REWE data</h2>
-                <p className="mt-1 text-sm text-[#18392b]/50">Refresh the local REWE snapshot used by meals, basket alternatives, drinks and extras.</p>
+                <p className="mt-1 text-sm text-[#18392b]/50">Manage the durable REWE snapshot stored by the backend. Phones only consume the results they need and never download the full catalog.</p>
               </div>
               <button onClick={() => setOpen(false)} className="rounded-full bg-white p-2 shadow-sm"><X size={17} /></button>
             </div>
@@ -119,7 +119,7 @@ export default function ReweCatalogControl() {
 
             <div className="mt-5 rounded-[22px] bg-white p-5 shadow-sm">
               <div className="font-black">Delivery postcode</div>
-              <div className="mt-1 text-xs text-[#18392b]/45">Changing postcode updates catalog context. Refresh afterwards to fetch products for that location.</div>
+              <div className="mt-1 text-xs text-[#18392b]/45">Changing postcode updates catalog context. Refresh afterwards only when you intentionally want a new snapshot.</div>
               <div className="mt-3 flex gap-2">
                 <input
                   value={postcode}
@@ -135,12 +135,13 @@ export default function ReweCatalogControl() {
             <div className="mt-4 rounded-[22px] bg-white p-5 shadow-sm">
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div>
-                  <div className="font-black">Catalog snapshot</div>
+                  <div className="font-black">Permanent catalog snapshot</div>
                   <div className="mt-1 text-xs text-[#18392b]/45">
                     Last updated: {status?.last_updated ? new Date(status.last_updated).toLocaleString() : 'Never'}
                     {' · '}Errors: {status?.errors || 0}
                     {status?.fetch_mode ? ` · ${status.fetch_mode}` : ''}
                   </div>
+                  <div className="mt-1 text-xs text-[#18392b]/45">No automatic refresh is required. Reuse this snapshot for months and refresh manually when you want newer REWE data.</div>
                 </div>
                 <button
                   onClick={refreshCatalog}
