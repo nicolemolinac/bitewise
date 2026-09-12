@@ -2,18 +2,41 @@ import { getAccessToken } from './auth';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const PREFIX = 'bitewise.v3.';
+
+// Only personal/UI state is allowed to travel between devices. The REWE product
+// catalog remains server-side in Postgres and is queried on demand by the app.
+// This explicit allowlist prevents a future catalog/cache key from accidentally
+// copying thousands of products into phone localStorage.
+export const CLOUD_STATE_KEYS = new Set([
+  'tab',
+  'liked',
+  'skipped',
+  'mealType',
+  'filter',
+  'brain',
+  'appliances',
+  'profile',
+  'dayContexts',
+  'calendarView',
+  'extras',
+  'basket',
+  'summary',
+  'strategy',
+  'owned',
+]);
+
 let syncTimer: number | null = null;
 let syncing = false;
 
 function localSnapshot() {
   const state: Record<string, unknown> = {};
-  for (let i = 0; i < window.localStorage.length; i++) {
-    const key = window.localStorage.key(i);
-    if (!key || !key.startsWith(PREFIX)) continue;
+  for (const key of CLOUD_STATE_KEYS) {
+    const raw = window.localStorage.getItem(PREFIX + key);
+    if (raw == null) continue;
     try {
-      state[key.slice(PREFIX.length)] = JSON.parse(window.localStorage.getItem(key) || 'null');
+      state[key] = JSON.parse(raw);
     } catch {
-      state[key.slice(PREFIX.length)] = window.localStorage.getItem(key);
+      state[key] = raw;
     }
   }
   return state;
@@ -21,8 +44,14 @@ function localSnapshot() {
 
 function applySnapshot(state: Record<string, unknown>) {
   for (const [key, value] of Object.entries(state || {})) {
+    if (!CLOUD_STATE_KEYS.has(key)) continue;
     window.localStorage.setItem(PREFIX + key, JSON.stringify(value));
   }
+}
+
+export function isCloudStateKey(storageKey: string) {
+  if (!storageKey.startsWith(PREFIX)) return false;
+  return CLOUD_STATE_KEYS.has(storageKey.slice(PREFIX.length));
 }
 
 async function authed(path: string, options?: RequestInit) {
