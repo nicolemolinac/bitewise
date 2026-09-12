@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from pathlib import Path
 
 try:
@@ -198,14 +199,57 @@ def _parse_json_array(text: str):
     raise ValueError(f"Gemini response did not contain a valid JSON array. Preview: {raw[:240]}")
 
 
+def _retryable_gemini_error(exc: Exception) -> bool:
+    """Only retry transient capacity/rate-limit failures, never bad prompts/keys/model IDs."""
+    code = getattr(exc, "code", None)
+    status_code = getattr(exc, "status_code", None)
+    text = str(exc).lower()
+    return (
+        code in {429, 500, 503, 504}
+        or status_code in {429, 500, 503, 504}
+        or "unavailable" in text
+        or "high demand" in text
+        or "resource_exhausted" in text
+        or "too many requests" in text
+    )
+
+
 _load_persisted()
 
 
 class GeminiService:
     def __init__(self):
         self.key = os.getenv("GEMINI_API_KEY")
-        self.model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        self.model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+        configured_fallbacks = os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.7-flash,gemini-3.6-flash")
+        self.models = []
+        for model in [self.model, *configured_fallbacks.split(",")]:
+            model = model.strip()
+            if model and model not in self.models:
+                self.models.append(model)
         self.client = genai.Client(api_key=self.key) if self.key and genai else None
+
+    def _generate_with_resilience(self, instruction: str):
+        attempts_per_model = max(1, min(4, int(os.getenv("GEMINI_RETRIES_PER_MODEL", "2") or 2)))
+        last_error = None
+        for model_index, model in enumerate(self.models):
+            for attempt in range(attempts_per_model):
+                try:
+                    return self.client.models.generate_content(model=model, contents=instruction), model
+                except Exception as exc:
+                    last_error = exc
+                    if not _retryable_gemini_error(exc):
+                        raise
+                    final_attempt_for_model = attempt == attempts_per_model - 1
+                    if not final_attempt_for_model:
+                        time.sleep(min(4.0, 1.0 * (2 ** attempt)))
+            # A transiently overloaded model should not block Bitewise: immediately
+            # continue to the next stable Flash model after its short retry window.
+            if model_index < len(self.models) - 1:
+                continue
+        raise RuntimeError(
+            f"All Gemini models are temporarily unavailable after retries. Last error: {str(last_error)[:240]}"
+        )
 
     def generate_meals(self, prompt):
         if not self.key:
@@ -243,9 +287,11 @@ Rules:
 - Make meals visually appealing and meaningfully different from each other.
 """.strip()
 
-        response = self.client.models.generate_content(model=self.model, contents=instruction)
+        response, used_model = self._generate_with_resilience(instruction)
         generated = _parse_json_array(response.text or "")
         clean = _persist_generated(generated)
         if not clean:
             raise RuntimeError("Gemini returned meals, but none passed Bitewise validation. Check the backend log for the response shape.")
+        for meal in clean:
+            meal["generation_model"] = used_model
         return clean
