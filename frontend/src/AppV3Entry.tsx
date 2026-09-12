@@ -1,9 +1,11 @@
 import AppV3 from './AppV3';
 import AuthGate from './AuthGate';
+import { authConfigured, getAccessToken } from './auth';
 import { queueCloudSync } from './cloudSync';
 
 const V2 = 'bitewise.v2.';
 const V3 = 'bitewise.v3.';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 // Preserve the user's existing V2 choices the first time V3 opens.
 if (typeof window !== 'undefined') {
@@ -14,9 +16,8 @@ if (typeof window !== 'undefined') {
     if (next == null && previous != null) window.localStorage.setItem(V3 + key, previous);
   }
 
-  // The existing FastAPI BasketIn model accepts integer servings. V3 calculates
-  // adaptive portion units from body-size preference + guests, so normalize only
-  // shopping payloads at the network boundary until the backend schema is widened.
+  // Keep the existing network contract while also attaching the Supabase session to
+  // every Bitewise API call when cloud auth is enabled.
   const marker = '__bitewiseAdaptiveFetchPatched__';
   const w = window as typeof window & Record<string, unknown>;
   if (!w[marker]) {
@@ -31,6 +32,14 @@ if (typeof window !== 'undefined') {
               Object.entries(payload.servings).map(([id, value]) => [id, Math.max(1, Math.round(Number(value) || 1))]),
             );
             init = { ...init, body: JSON.stringify(payload) };
+          }
+        }
+        if (authConfigured && url.startsWith(API)) {
+          const token = await getAccessToken();
+          if (token) {
+            const headers = new Headers(init?.headers || {});
+            headers.set('Authorization', `Bearer ${token}`);
+            init = { ...init, headers };
           }
         }
       } catch {
