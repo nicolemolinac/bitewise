@@ -2,7 +2,7 @@ import html
 import json
 import re
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import quote_plus, urljoin
 
 import requests
 
@@ -151,19 +151,18 @@ def _urls_from_text(text: str) -> list[str]:
         value = html.unescape(value.rstrip(".,;:"))
         if value not in clean:
             clean.append(value)
-    return clean[:12]
+    return clean[:20]
 
 
 def _gemini_direct_image(meal: dict, client, model: str) -> str:
-    """Ask grounded Gemini for real candidate image URLs, then verify them ourselves."""
     if not client or types is None:
         return ""
     query = _meal_query(meal)
     prompt = (
         "Use Google Search to find an accurate appetizing photo for this exact dish: "
         f"{query}. Return up to 5 DIRECT HTTPS IMAGE URLs only, one URL per line. "
-        "The URL must point to the actual image file (jpg/jpeg/png/webp), not a webpage. "
-        "Prefer established recipe sites or Wikimedia. Never invent URLs."
+        "Each URL must point to an actual jpg/jpeg/png/webp image, not a webpage. "
+        "Prefer recipe sites or Wikimedia. Never invent a URL."
     )
     try:
         response = client.models.generate_content(
@@ -177,12 +176,10 @@ def _gemini_direct_image(meal: dict, client, model: str) -> str:
     except Exception:
         return ""
 
-    # First: direct URLs Gemini returned. These are always validated before use.
     for candidate in _urls_from_text(getattr(response, "text", "") or ""):
         if _valid_image_url(candidate):
             return candidate
 
-    # Second: grounded source pages. Extract their real og:image and validate it.
     page_urls = []
     try:
         candidates = getattr(response, "candidates", None) or []
@@ -200,6 +197,43 @@ def _gemini_direct_image(meal: dict, client, model: str) -> str:
         image = _extract_page_image(page_url)
         if image:
             return image
+    return ""
+
+
+def _google_images_image(meal: dict) -> str:
+    """Zero-token fallback: search Google Images HTML and validate real image URLs."""
+    query = _meal_query(meal) + " recipe food"
+    url = f"https://www.google.com/search?tbm=isch&safe=active&q={quote_plus(query)}"
+    try:
+        response = requests.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+        text = html.unescape(response.text)
+        # Google image result payloads commonly embed original image URLs directly.
+        candidates = re.findall(
+            r'https://[^"\\\s<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^"\\\s<>]*)?',
+            text,
+            flags=re.I,
+        )
+        seen = set()
+        for candidate in candidates[:50]:
+            candidate = candidate.replace("\\u003d", "=").replace("\\u0026", "&")
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            lower = candidate.lower()
+            if any(host in lower for host in ("gstatic.com", "googleusercontent.com/images/branding", "google.com/images")):
+                continue
+            if _valid_image_url(candidate):
+                return candidate
+    except Exception:
+        return ""
     return ""
 
 
@@ -232,7 +266,6 @@ def _wikimedia_image(meal: dict) -> str:
                 continue
             candidates.append((_candidate_score(title, meal), url))
         candidates.sort(key=lambda row: row[0], reverse=True)
-        # Allow a weaker but still related Wikimedia match; direct Gemini validation is the next fallback.
         if candidates and candidates[0][0] >= 2 and _valid_image_url(candidates[0][1]):
             return candidates[0][1]
     except Exception:
@@ -247,20 +280,17 @@ def resolve_meal_image(
     gemini_client=None,
     gemini_model: str = "gemini-3.8-flash",
 ) -> str:
-    """Return a real, validated image URL and cache it permanently.
-
-    Broken/blank cached URLs are retried. No fake placeholder URL is cached anymore.
-    """
     key = _cache_key(meal)
     cache = _load_cache()
     cached = str(cache.get(key) or "").strip()
     if not force and cached and _valid_image_url(cached):
         return cached
 
-    # Gemini Search first when available because accuracy matters more than Wikimedia coverage.
     chosen = ""
     if gemini_client:
         chosen = _gemini_direct_image(meal, gemini_client, gemini_model)
+    if not chosen:
+        chosen = _google_images_image(meal)
     if not chosen:
         chosen = _wikimedia_image(meal)
 
