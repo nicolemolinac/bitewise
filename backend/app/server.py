@@ -1,5 +1,12 @@
+from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+# Load backend/.env before database.py is imported so DATABASE_URL and auth settings
+# are available both locally and in the deployed cloud entrypoint.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from .cloud_sync import auth_enabled, authenticate_request, router as cloud_router
 from .main import app
