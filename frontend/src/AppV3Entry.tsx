@@ -1,4 +1,6 @@
 import AppV3 from './AppV3';
+import AuthGate from './AuthGate';
+import { queueCloudSync } from './cloudSync';
 
 const V2 = 'bitewise.v2.';
 const V3 = 'bitewise.v3.';
@@ -38,6 +40,21 @@ if (typeof window !== 'undefined') {
     };
     w[marker] = true;
   }
+
+  // AppV3 persists user choices through localStorage. Patch localStorage writes once
+  // so every existing save automatically schedules a cloud snapshot without rewriting
+  // the whole app state layer.
+  const syncMarker = '__bitewiseCloudStoragePatched__';
+  if (!w[syncMarker]) {
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key: string, value: string) {
+      originalSetItem.call(this, key, value);
+      if (this === window.localStorage && key.startsWith(V3)) queueCloudSync();
+    };
+    w[syncMarker] = true;
+  }
 }
 
-export default AppV3;
+export default function AppV3Entry() {
+  return <AuthGate><AppV3 /></AuthGate>;
+}
