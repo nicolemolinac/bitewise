@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import AppV3 from './AppV3Entry';
+import MvpControls from './MvpControls';
 import ReweCatalogControl from './ReweCatalogControl';
 import './index.css';
 
@@ -10,8 +11,10 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   });
 }
 
-function DesktopMaintenanceControls() {
-  const query = '(min-width: 900px) and (pointer: fine)';
+function DesktopTools() {
+  // Detect laptop/desktop by precise pointer capability, not viewport width.
+  // This keeps the tools visible even when the browser window is narrow.
+  const query = '(pointer: fine)';
   const [desktop, setDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
 
   useEffect(() => {
@@ -22,12 +25,18 @@ function DesktopMaintenanceControls() {
     return () => media.removeEventListener?.('change', update);
   }, []);
 
-  return desktop ? <ReweCatalogControl /> : null;
+  if (!desktop) return null;
+  return (
+    <>
+      <MvpControls />
+      <ReweCatalogControl />
+    </>
+  );
 }
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AppV3 />
-    <DesktopMaintenanceControls />
+    <DesktopTools />
   </React.StrictMode>,
 );
