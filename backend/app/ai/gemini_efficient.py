@@ -10,9 +10,11 @@ from .gemini import (
 )
 from .image_resolver import is_untrusted_generated_image, resolve_meal_image
 
+_REPAIR_DONE = False
 
-def repair_persisted_ai_images() -> int:
-    """Replace old unverified Gemini/Unsplash images without regenerating recipes."""
+
+def repair_persisted_ai_images(gemini_client=None, gemini_model: str = "gemini-3.8-flash") -> int:
+    """Repair old missing/untrusted meal images once a grounded Gemini client is available."""
     if not DATA_FILE.exists():
         return 0
     try:
@@ -29,15 +31,19 @@ def repair_persisted_ai_images() -> int:
             continue
         meal_id = str(raw.get("id") or "")
         if is_untrusted_generated_image(str(raw.get("image") or "")):
-            raw["image"] = resolve_meal_image(raw)
-            changed += 1
+            resolved = resolve_meal_image(
+                raw,
+                gemini_client=gemini_client,
+                gemini_model=gemini_model,
+            )
+            if resolved and resolved != raw.get("image"):
+                raw["image"] = resolved
+                changed += 1
         if meal_id:
             by_id[meal_id] = raw
 
     if changed:
         DATA_FILE.write_text(json.dumps(stored, ensure_ascii=False, indent=2), encoding="utf-8")
-        # The legacy loader has already copied persisted recipes into the in-memory catalog.
-        # Keep those objects aligned so the fix is visible immediately after backend restart.
         for meal in MEALS:
             if meal.get("source") != "gemini":
                 continue
@@ -48,7 +54,16 @@ def repair_persisted_ai_images() -> int:
 
 
 class GeminiService(BaseGeminiService):
-    """Token-lean meal generation with image search handled outside the LLM."""
+    """Token-lean meal generation; grounded Gemini search is used only for unresolved photos."""
+
+    def __init__(self):
+        global _REPAIR_DONE
+        super().__init__()
+        # Repair legacy AI images only once per backend process, after the Gemini client exists.
+        # Existing valid image-cache hits are free; Gemini Search is only used for unresolved meals.
+        if not _REPAIR_DONE and self.client:
+            repair_persisted_ai_images(self.client, self.model)
+            _REPAIR_DONE = True
 
     def generate_meals(self, prompt):
         if not self.key:
@@ -57,7 +72,6 @@ class GeminiService(BaseGeminiService):
             raise RuntimeError("Gemini client could not be initialized")
 
         pantry, catalog = _shopping_context()
-        # Keep model context deliberately small. Images are resolved separately for zero LLM tokens.
         pantry_context = ", ".join(pantry[:30]) if pantry else "none"
         catalog_context = "; ".join(catalog[:25]) if catalog else "none"
         instruction = f"""You are Bitewise. Create 8 distinct, attractive, low-effort meal ideas for this request:
@@ -74,16 +88,21 @@ Rules:
 - steps: 3-6 concise objects {{"text":"...","minutes":N}}
 - Respect the request literally; prefer pantry/REWE items when sensible.
 - Keep descriptions and tags short.
-- DO NOT return image URLs, image prompts, or image descriptions. Bitewise resolves photos separately.
+- DO NOT return image URLs or image descriptions in this recipe-generation call.
 """.strip()
 
         response, used_model = self._generate_with_resilience(instruction)
         generated = _parse_json_array(response.text or "")
 
-        # Resolve real photos outside Gemini: no extra model tokens and permanently cached.
+        # Image resolution is separate so the recipe response stays small. Free lookup/cache is
+        # tried first; only unresolved meals trigger one tiny grounded Gemini Search request.
         for raw in generated:
             if isinstance(raw, dict):
-                raw["image"] = resolve_meal_image(raw)
+                raw["image"] = resolve_meal_image(
+                    raw,
+                    gemini_client=self.client,
+                    gemini_model=used_model,
+                )
 
         clean = _persist_generated(generated)
         if not clean:
@@ -91,8 +110,3 @@ Rules:
         for meal in clean:
             meal["generation_model"] = used_model
         return clean
-
-
-# Repair old AI recipes once at backend import/restart. The image resolver caches results,
-# so subsequent restarts do not repeat successful searches.
-repair_persisted_ai_images()
