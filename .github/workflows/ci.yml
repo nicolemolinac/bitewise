@@ -28,7 +28,7 @@ jobs:
       - name: Import API and verify critical routes
         run: |
           python - <<'PY'
-          from app.main import app
+          from app.server import app
           paths = {route.path for route in app.routes}
           required = {
               '/api/health',
@@ -43,6 +43,7 @@ jobs:
               '/api/plans',
               '/api/today',
               '/api/brain-dump',
+              '/api/user-state',
           }
           missing = sorted(required - paths)
           assert not missing, f'Missing critical routes: {missing}'
