@@ -9,8 +9,14 @@ from fastapi.responses import JSONResponse
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from .cloud_sync import auth_enabled, authenticate_request, router as cloud_router
-from .main import app
+from . import main as main_module
+from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .rewe_refresh import router as rewe_refresh_router
+
+# main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
+# Swap in the token-efficient implementation without duplicating the route.
+main_module.GeminiService = EfficientGeminiService
+app = main_module.app
 
 # Replace the legacy REWE refresh route with the safe merge/reconciliation version.
 # Other routes from main.py remain unchanged.
