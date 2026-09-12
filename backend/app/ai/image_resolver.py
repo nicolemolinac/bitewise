@@ -14,7 +14,7 @@ except Exception:
 CACHE_FILE = Path(__file__).resolve().parents[2] / "data" / "meal_image_cache.json"
 CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php"
-PLACEHOLDER = "https://placehold.co/1200x800/f4efe7/6b5f52?text=Bitewise+meal"
+PLACEHOLDER = ""
 
 _STOPWORDS = {
     "and", "with", "the", "a", "an", "of", "in", "on", "style", "inspired",
@@ -62,7 +62,7 @@ def _meal_query(meal: dict) -> str:
             ingredient = ""
         if ingredient and ingredient.lower() not in name.lower():
             ingredients.append(ingredient)
-        if len(ingredients) >= 2:
+        if len(ingredients) >= 3:
             break
     parts = [name, *ingredients]
     if cuisine and cuisine.lower() not in name.lower():
@@ -88,31 +88,35 @@ def _candidate_score(title: str, meal: dict) -> int:
 
 
 def _valid_image_url(url: str) -> bool:
-    if not str(url).startswith("https://"):
+    url = str(url or "").strip()
+    if not url.startswith("https://"):
         return False
     try:
         response = requests.get(
             url,
-            headers={"User-Agent": "Mozilla/5.0 Bitewise/1.0"},
-            timeout=7,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            },
+            timeout=8,
             stream=True,
             allow_redirects=True,
         )
         content_type = (response.headers.get("content-type") or "").lower()
+        ok = response.ok and content_type.startswith("image/")
         response.close()
-        return response.ok and content_type.startswith("image/")
+        return ok
     except Exception:
         return False
 
 
 def _extract_page_image(page_url: str) -> str:
-    """Fetch a grounded source page and extract its social/hero image URL."""
     if not str(page_url).startswith("https://"):
         return ""
     try:
         response = requests.get(
             page_url,
-            headers={"User-Agent": "Mozilla/5.0 Bitewise/1.0"},
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124 Safari/537.36"},
             timeout=8,
             allow_redirects=True,
         )
@@ -120,12 +124,12 @@ def _extract_page_image(page_url: str) -> str:
         content_type = (response.headers.get("content-type") or "").lower()
         if content_type.startswith("image/"):
             return response.url if _valid_image_url(response.url) else ""
-        text = response.text[:600000]
+        text = response.text[:800000]
         patterns = [
-            r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
-            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
-            r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)',
-            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image["\']',
+            r'<meta[^>]+property=["\']og:image(?::url)?["\'][^>]+content=["\']([^"\']+)',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image(?::url)?["\']',
+            r'<meta[^>]+name=["\']twitter:image(?::src)?["\'][^>]+content=["\']([^"\']+)',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image(?::src)?["\']',
         ]
         for pattern in patterns:
             match = re.search(pattern, text, flags=re.I)
@@ -144,25 +148,22 @@ def _urls_from_text(text: str) -> list[str]:
     urls = re.findall(r"https://[^\s<>\]\[\)\}\"']+", text or "")
     clean = []
     for value in urls:
-        value = value.rstrip(".,;:")
+        value = html.unescape(value.rstrip(".,;:"))
         if value not in clean:
             clean.append(value)
-    return clean[:5]
+    return clean[:12]
 
 
-def _gemini_grounded_image(meal: dict, client, model: str) -> str:
-    """Use one tiny grounded search only when free lookup failed.
-
-    Gemini finds an accurate page for the dish; Bitewise extracts and validates the real
-    page image itself. The chosen URL is then cached permanently, so this usually costs
-    model/search tokens only once per unique recipe.
-    """
+def _gemini_direct_image(meal: dict, client, model: str) -> str:
+    """Ask grounded Gemini for real candidate image URLs, then verify them ourselves."""
     if not client or types is None:
         return ""
     query = _meal_query(meal)
     prompt = (
-        "Find the single best public recipe/food page whose photo visually matches this dish: "
-        f"{query}. Return ONLY the page URL. Do not invent a URL."
+        "Use Google Search to find an accurate appetizing photo for this exact dish: "
+        f"{query}. Return up to 5 DIRECT HTTPS IMAGE URLs only, one URL per line. "
+        "The URL must point to the actual image file (jpg/jpeg/png/webp), not a webpage. "
+        "Prefer established recipe sites or Wikimedia. Never invent URLs."
     )
     try:
         response = client.models.generate_content(
@@ -176,7 +177,13 @@ def _gemini_grounded_image(meal: dict, client, model: str) -> str:
     except Exception:
         return ""
 
-    page_urls = _urls_from_text(getattr(response, "text", "") or "")
+    # First: direct URLs Gemini returned. These are always validated before use.
+    for candidate in _urls_from_text(getattr(response, "text", "") or ""):
+        if _valid_image_url(candidate):
+            return candidate
+
+    # Second: grounded source pages. Extract their real og:image and validate it.
+    page_urls = []
     try:
         candidates = getattr(response, "candidates", None) or []
         metadata = getattr(candidates[0], "grounding_metadata", None) if candidates else None
@@ -189,7 +196,7 @@ def _gemini_grounded_image(meal: dict, client, model: str) -> str:
     except Exception:
         pass
 
-    for page_url in page_urls[:5]:
+    for page_url in page_urls[:8]:
         image = _extract_page_image(page_url)
         if image:
             return image
@@ -197,17 +204,17 @@ def _gemini_grounded_image(meal: dict, client, model: str) -> str:
 
 
 def _wikimedia_image(meal: dict) -> str:
-    query = _meal_query(meal) + " food dish"
+    query = _meal_query(meal) + " food"
     params = {
         "action": "query",
         "format": "json",
         "generator": "search",
         "gsrsearch": query,
         "gsrnamespace": 6,
-        "gsrlimit": 8,
+        "gsrlimit": 12,
         "prop": "imageinfo",
         "iiprop": "url|mime",
-        "iiurlwidth": 1000,
+        "iiurlwidth": 1200,
         "origin": "*",
     }
     headers = {"User-Agent": "Bitewise/1.0 meal-image-resolver"}
@@ -225,7 +232,8 @@ def _wikimedia_image(meal: dict) -> str:
                 continue
             candidates.append((_candidate_score(title, meal), url))
         candidates.sort(key=lambda row: row[0], reverse=True)
-        if candidates and candidates[0][0] >= 4:
+        # Allow a weaker but still related Wikimedia match; direct Gemini validation is the next fallback.
+        if candidates and candidates[0][0] >= 2 and _valid_image_url(candidates[0][1]):
             return candidates[0][1]
     except Exception:
         pass
@@ -239,29 +247,33 @@ def resolve_meal_image(
     gemini_client=None,
     gemini_model: str = "gemini-3.8-flash",
 ) -> str:
-    """Resolve and permanently cache a relevant meal photo.
+    """Return a real, validated image URL and cache it permanently.
 
-    Order: valid cache -> free Wikimedia -> tiny grounded Gemini web search -> placeholder.
-    Cached placeholders are intentionally retried when Gemini is available.
+    Broken/blank cached URLs are retried. No fake placeholder URL is cached anymore.
     """
     key = _cache_key(meal)
     cache = _load_cache()
-    cached = str(cache.get(key) or "")
-    if not force and cached and cached != PLACEHOLDER:
+    cached = str(cache.get(key) or "").strip()
+    if not force and cached and _valid_image_url(cached):
         return cached
 
-    chosen = _wikimedia_image(meal)
-    if not chosen and gemini_client:
-        chosen = _gemini_grounded_image(meal, gemini_client, gemini_model)
+    # Gemini Search first when available because accuracy matters more than Wikimedia coverage.
+    chosen = ""
+    if gemini_client:
+        chosen = _gemini_direct_image(meal, gemini_client, gemini_model)
+    if not chosen:
+        chosen = _wikimedia_image(meal)
 
-    result = chosen or PLACEHOLDER
-    cache[key] = result
+    if chosen:
+        cache[key] = chosen
+    else:
+        cache.pop(key, None)
     _save_cache(cache)
-    return result
+    return chosen
 
 
 def is_untrusted_generated_image(url: str) -> bool:
     value = (url or "").lower().strip()
-    if not value or value == PLACEHOLDER.lower():
+    if not value:
         return True
-    return any(host in value for host in ("images.unsplash.com", "source.unsplash.com"))
+    return any(host in value for host in ("images.unsplash.com", "source.unsplash.com", "placehold.co"))
