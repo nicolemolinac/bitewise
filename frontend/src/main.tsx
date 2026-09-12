@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import AppV3 from './AppV3Entry';
 import ReweCatalogControl from './ReweCatalogControl';
@@ -10,9 +10,24 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   });
 }
 
+function DesktopMaintenanceControls() {
+  const query = '(min-width: 900px) and (pointer: fine)';
+  const [desktop, setDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setDesktop(media.matches);
+    update();
+    media.addEventListener?.('change', update);
+    return () => media.removeEventListener?.('change', update);
+  }, []);
+
+  return desktop ? <ReweCatalogControl /> : null;
+}
+
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AppV3 />
-    <ReweCatalogControl />
+    <DesktopMaintenanceControls />
   </React.StrictMode>,
 );
