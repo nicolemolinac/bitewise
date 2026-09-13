@@ -1,10 +1,12 @@
 import os
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
-DB_PATH = Path(__file__).resolve().parents[1] / "data" / "grocery.db"
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+DB_PATH = Path(os.getenv("BITEWISE_LOCAL_DB_PATH", str(BACKEND_DIR / "data" / "grocery.db"))).expanduser().resolve()
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 IS_SQLITE = not DATABASE_URL
@@ -174,4 +176,115 @@ def _migrate_sqlite() -> None:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
 
 
+def _parse_snapshot_dt(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value))
+    except Exception:
+        return None
+
+
+def _auto_restore_local_rewe_snapshot() -> None:
+    """Restore a previously-scraped local REWE catalog when cloud DB is empty.
+
+    Bitewise historically stored the REWE snapshot in backend/data/grocery.db. When
+    DATABASE_URL was later enabled, the app started reading Postgres instead, which
+    can make a healthy local catalog look as if it vanished. This migration is
+    deliberately conservative: it runs only when Postgres has zero REWE products,
+    the local SQLite file exists, and AUTO_RESTORE_LOCAL_REWE is not disabled.
+    """
+    if IS_SQLITE or os.getenv("AUTO_RESTORE_LOCAL_REWE", "true").strip().lower() in {"0", "false", "no", "off"}:
+        return
+    if not DB_PATH.exists() or DB_PATH.stat().st_size < 1024:
+        return
+
+    source = None
+    target = None
+    try:
+        target = SessionLocal()
+        cloud_count = target.query(Product).filter(Product.supermarket == "REWE").count()
+        if cloud_count > 0:
+            return
+
+        source = sqlite3.connect(DB_PATH)
+        source.row_factory = sqlite3.Row
+        tables = {row[0] for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if "products" not in tables:
+            return
+        rows = source.execute("SELECT * FROM products WHERE supermarket='REWE'").fetchall()
+        if not rows:
+            return
+        source_columns = {row[1] for row in source.execute("PRAGMA table_info(products)")}
+        fields = [
+            "ingredient", "name_original", "name_normalized", "translated_name", "brand", "category",
+            "package_size", "package_unit", "price", "price_per_unit", "currency", "product_url",
+            "availability", "postcode_context", "first_seen_at", "last_seen_at", "last_checked_at", "last_price",
+        ]
+        restored = 0
+        for src in rows:
+            external_id = str(src["external_id"] or "").strip() if "external_id" in source_columns else ""
+            if not external_id:
+                continue
+            product = Product(
+                supermarket="REWE",
+                external_id=external_id,
+                ingredient=str(src["ingredient"] or "") if "ingredient" in source_columns else "",
+                name_original=str(src["name_original"] or "") if "name_original" in source_columns else "",
+                name_normalized=str(src["name_normalized"] or "") if "name_normalized" in source_columns else "",
+                package_size=float(src["package_size"] or 1) if "package_size" in source_columns else 1,
+                package_unit=str(src["package_unit"] or "unit") if "package_unit" in source_columns else "unit",
+            )
+            for field in fields:
+                if field not in source_columns or field in {"ingredient", "name_original", "name_normalized", "package_size", "package_unit"}:
+                    continue
+                value = src[field]
+                if field in {"first_seen_at", "last_seen_at", "last_checked_at"}:
+                    value = _parse_snapshot_dt(value)
+                if value is not None:
+                    setattr(product, field, value)
+            target.add(product)
+            restored += 1
+
+        now = datetime.utcnow()
+        target.add(CatalogRun(
+            provider="REWE",
+            status="healthy",
+            products_seen=restored,
+            errors=0,
+            categories_processed=0,
+            categories_successful=0,
+            categories_failed=0,
+            started_at=now,
+            finished_at=now,
+        ))
+        settings = {
+            "rewe_snapshot_persistent": "true",
+            "rewe_snapshot_source": "auto-restored-local-sqlite",
+            "rewe_snapshot_product_count": str(restored),
+            "rewe_snapshot_last_success_at": now.isoformat(),
+            "rewe_snapshot_auto_restored_at": now.isoformat(),
+        }
+        for key, value in settings.items():
+            row = target.get(AppSetting, key)
+            if row:
+                row.value = value
+            else:
+                target.add(AppSetting(key=key, value=value))
+        target.commit()
+        print(f"Bitewise restored {restored} REWE products from {DB_PATH} into the cloud database.")
+    except Exception as exc:
+        if target:
+            target.rollback()
+        print(f"Bitewise could not auto-restore the local REWE snapshot: {exc}")
+    finally:
+        if source:
+            source.close()
+        if target:
+            target.close()
+
+
 _migrate_sqlite()
+_auto_restore_local_rewe_snapshot()
