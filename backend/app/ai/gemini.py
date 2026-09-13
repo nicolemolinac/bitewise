@@ -14,6 +14,7 @@ from ..recipes.seed import MEALS
 DATA_FILE = Path(__file__).resolve().parents[2] / "data" / "ai_meals.json"
 DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 FALLBACK_IMAGE = ""
+FREE_GEMINI_MODEL = "gemini-3.1-flash-lite"
 
 
 def _slug(value: str) -> str:
@@ -124,8 +125,9 @@ _load_persisted()
 class GeminiService:
     def __init__(self):
         self.key = os.getenv("GEMINI_API_KEY")
-        # Free-first default. Override only if you intentionally want another model.
-        self.model = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite").strip()
+        # Hard-locked to the currently free-tier text/multimodal model so an old local .env
+        # cannot accidentally switch Bitewise back to a paid model.
+        self.model = FREE_GEMINI_MODEL
         self.client = genai.Client(api_key=self.key) if self.key and genai else None
 
     def _generate_once(self, instruction: str):
