@@ -85,7 +85,7 @@ def _meal_query(meal: dict) -> str:
 
 
 def _query_variants(meal: dict) -> list[str]:
-    """Build precise, zero-Gemini Google Images queries."""
+    """Build precise, zero-Gemini image-search queries."""
     name = str(meal.get("name") or "").strip()
     low = _visual_context(meal).lower()
     ingredients = _ingredients(meal, 2)
@@ -156,12 +156,6 @@ def _decode_google_url(value: str) -> str:
 
 
 def _google_image_candidates(query: str) -> list[str]:
-    """Extract both original image URLs and Google thumbnail URLs from current Images HTML.
-
-    Google frequently hides original URLs in JS blobs and serves thumbnails without file
-    extensions. The old resolver only accepted URLs ending in .jpg/.png/.webp, which meant
-    a perfectly healthy Google Images page could yield zero candidates and blank cards.
-    """
     search_url = f"https://www.google.com/search?tbm=isch&safe=active&hl=en&q={quote_plus(query)}"
     try:
         response = requests.get(search_url, headers=_HEADERS, timeout=10)
@@ -171,26 +165,14 @@ def _google_image_candidates(query: str) -> list[str]:
         return []
 
     raw: list[str] = []
-
-    # Modern/legacy JS payloads containing original image URLs.
     for pattern in (
         r'"ou"\s*:\s*"(https?:\\?/\\?/[^"\\]+(?:\\.[^"\\]+)*)"',
         r'\["(https?:\\?/\\?/[^"\\]+?\.(?:jpg|jpeg|png|webp)(?:\\?[^"\\]*)?)"',
         r'(https://[^"\\\s<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^"\\\s<>]*)?)',
     ):
         raw.extend(re.findall(pattern, text, flags=re.I))
-
-    # Crucial fallback: Google result thumbnails usually have NO filename extension.
-    raw.extend(re.findall(
-        r'https://encrypted-tbn\d+\.gstatic\.com/images\?[^"\'<>\\\s]+',
-        text,
-        flags=re.I,
-    ))
-    raw.extend(re.findall(
-        r'(?:src|data-src)=["\'](https://[^"\']+)["\']',
-        text,
-        flags=re.I,
-    ))
+    raw.extend(re.findall(r'https://encrypted-tbn\d+\.gstatic\.com/images\?[^"\'<>\\\s]+', text, flags=re.I))
+    raw.extend(re.findall(r'(?:src|data-src)=["\'](https://[^"\']+)["\']', text, flags=re.I))
 
     clean: list[str] = []
     for candidate in raw:
@@ -200,22 +182,55 @@ def _google_image_candidates(query: str) -> list[str]:
             continue
         if "google.com/images/branding" in lower or "gstatic.com/og/_/ss" in lower:
             continue
-        # Keep encrypted-tbn*.gstatic.com thumbnails: they are the most reliable hotlink-safe
-        # fallback when publisher sites block direct image embedding.
         if candidate not in clean:
             clean.append(candidate)
     return clean[:120]
 
 
 def _google_images_image(meal: dict) -> str:
-    """Find a displayable image without consuming Gemini quota."""
     for query in _query_variants(meal):
         candidates = _google_image_candidates(query)
         if not candidates:
             continue
-
-        # Prefer Google thumbnails because publisher/CDN links often block browser hotlinking.
         thumbnails = [u for u in candidates if "encrypted-tbn" in u and "gstatic.com" in u]
+        originals = [u for u in candidates if u not in thumbnails]
+        for candidate in [*thumbnails[:12], *originals[:12]]:
+            if _valid_image_url(candidate):
+                return candidate
+    return ""
+
+
+def _bing_image_candidates(query: str) -> list[str]:
+    """Parse Bing Images as a second free search source when Google blocks/changes markup."""
+    search_url = f"https://www.bing.com/images/search?q={quote_plus(query)}&form=HDRSC3&first=1"
+    try:
+        response = requests.get(search_url, headers=_HEADERS, timeout=10)
+        response.raise_for_status()
+        text = html.unescape(response.text)
+    except Exception:
+        return []
+
+    raw: list[str] = []
+    # Bing stores result metadata in `m` JSON blobs. `turl` is usually hotlink-safe;
+    # `murl` is the publisher original and is kept as a fallback.
+    raw.extend(re.findall(r'"turl"\s*:\s*"(https://[^"<>]+)"', text, flags=re.I))
+    raw.extend(re.findall(r'"murl"\s*:\s*"(https://[^"<>]+)"', text, flags=re.I))
+    raw.extend(re.findall(r'https://tse\d+\.mm\.bing\.net/th\?[^"\'<>\\\s]+', text, flags=re.I))
+
+    clean: list[str] = []
+    for candidate in raw:
+        candidate = html.unescape(candidate).replace("\\/", "/")
+        if candidate.startswith("https://") and candidate not in clean:
+            clean.append(candidate)
+    return clean[:120]
+
+
+def _bing_images_image(meal: dict) -> str:
+    for query in _query_variants(meal):
+        candidates = _bing_image_candidates(query)
+        if not candidates:
+            continue
+        thumbnails = [u for u in candidates if "mm.bing.net/th" in u]
         originals = [u for u in candidates if u not in thumbnails]
         for candidate in [*thumbnails[:12], *originals[:12]]:
             if _valid_image_url(candidate):
@@ -234,7 +249,6 @@ def _candidate_score(title: str, meal: dict) -> int:
 
 def _wikimedia_image(meal: dict) -> str:
     name = str(meal.get("name") or "").strip()
-    # Try the exact dish first, then a simpler ingredient fallback so cards do not stay blank.
     queries = [
         f"{name} food".strip(),
         f"{' '.join(_ingredients(meal, 2))} food".strip(),
@@ -267,8 +281,6 @@ def _wikimedia_image(meal: dict) -> str:
                 if url.startswith("https://") and mime.startswith("image/"):
                     ranked.append((_candidate_score(title, meal), url))
             ranked.sort(key=lambda row: row[0], reverse=True)
-            # Exact dish query should be semantically related; ingredient fallback may score low,
-            # but a related food photo is better than a permanent blank card.
             for score, candidate in ranked[:6]:
                 if (score >= 1 or query != queries[0]) and _valid_image_url(candidate):
                     return candidate
@@ -285,7 +297,8 @@ def resolve_meal_image(meal: dict, *, force: bool = False, gemini_client=None, g
     if not force and cached and _valid_image_url(cached):
         return cached
 
-    chosen = _google_images_image(meal) or _wikimedia_image(meal)
+    # Multi-engine free fallback. One blocked search engine must never blank every meal card.
+    chosen = _google_images_image(meal) or _bing_images_image(meal) or _wikimedia_image(meal)
     if chosen:
         cache[key] = chosen
     else:
