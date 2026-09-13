@@ -15,6 +15,25 @@ _HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
+_STOPWORDS = {
+    "the", "and", "with", "for", "from", "into", "your", "you", "this", "that", "recipe",
+    "recipes", "easy", "quick", "simple", "classic", "fresh", "homemade", "food", "dish",
+    "breakfast", "lunch", "dinner", "dessert", "snack", "bowl", "plate", "style",
+}
+
+_BAD_PAGE_HINTS = {
+    "orthopedic", "orthopaedic", "anatomy", "clinic", "hospital", "vlog", "youtube", "fuel",
+    "petrol", "gas station", "astronomy", "sun", "government", "map", "travel", "real estate",
+}
+
+
+def _tokens(value: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", (value or "").lower())
+        if len(token) >= 3 and token not in _STOPWORDS
+    }
+
 
 def _load_cache() -> dict:
     if not CACHE_FILE.exists():
@@ -74,15 +93,8 @@ def _valid_image_url(url: str) -> bool:
 
 
 def _search_result_pages(query: str) -> list[str]:
-    """Return ordinary web result pages, not image-search thumbnails.
-
-    This avoids the failure mode where image-search scraping returns logos, anatomy charts,
-    memes or unrelated thumbnails. We fetch relevant recipe/article pages, then use their
-    OpenGraph/Twitter image metadata, which is much more likely to represent the dish itself.
-    """
     urls: list[str] = []
 
-    # Bing web search is currently easier to parse reliably than Google result markup.
     try:
         r = requests.get(f"https://www.bing.com/search?q={quote_plus(query)}&count=10", headers=_HEADERS, timeout=10)
         r.raise_for_status()
@@ -96,7 +108,6 @@ def _search_result_pages(query: str) -> list[str]:
     except Exception:
         pass
 
-    # Lightweight Google web-search fallback.
     if len(urls) < 4:
         try:
             r = requests.get(f"https://www.google.com/search?q={quote_plus(query)}&num=10&hl=en", headers=_HEADERS, timeout=10)
@@ -114,36 +125,78 @@ def _search_result_pages(query: str) -> list[str]:
     return urls[:10]
 
 
-def _page_image(page_url: str) -> str:
+def _page_metadata(page_url: str) -> tuple[str, str, str, str]:
     try:
         r = requests.get(page_url, headers=_HEADERS, timeout=8, allow_redirects=True)
         r.raise_for_status()
         ctype = (r.headers.get("content-type") or "").lower()
         if "text/html" not in ctype:
-            return ""
+            return "", "", "", ""
         text = html.unescape(r.text[:800000])
     except Exception:
+        return "", "", "", ""
+
+    def first(patterns: list[str]) -> str:
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.I | re.S)
+            if match:
+                return re.sub(r"\s+", " ", html.unescape(match.group(1))).strip()
         return ""
 
+    title = first([
+        r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']',
+        r'<title[^>]*>(.*?)</title>',
+    ])
+    description = first([
+        r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)',
+        r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)',
+    ])
+
     candidates: list[str] = []
-    patterns = [
+    for pattern in [
         r'<meta[^>]+property=["\']og:image(?::secure_url)?["\'][^>]+content=["\']([^"\']+)',
         r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image(?::secure_url)?["\']',
         r'<meta[^>]+name=["\']twitter:image(?::src)?["\'][^>]+content=["\']([^"\']+)',
         r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image(?::src)?["\']',
-    ]
-    for pattern in patterns:
+        r'"image"\s*:\s*"(https://[^"\\]+)"',
+    ]:
         candidates.extend(re.findall(pattern, text, flags=re.I))
-
-    # Schema.org Recipe image fallback.
-    candidates.extend(re.findall(r'"image"\s*:\s*"(https://[^"\\]+)"', text, flags=re.I))
 
     for candidate in candidates:
         candidate = html.unescape(candidate).replace("\\/", "/")
         candidate = urljoin(page_url, candidate)
         if _valid_image_url(candidate):
-            return candidate
-    return ""
+            return candidate, title, description, text[:120000]
+    return "", title, description, text[:120000]
+
+
+def _page_relevance_score(meal: dict, page_url: str, title: str, description: str, body_preview: str) -> int:
+    name_tokens = _tokens(str(meal.get("name") or ""))
+    ingredient_tokens = set()
+    for ingredient in _ingredients(meal, 4):
+        ingredient_tokens |= _tokens(ingredient)
+
+    page_text = f"{urlparse(page_url).path} {title} {description} {body_preview[:20000]}".lower()
+    page_tokens = _tokens(page_text)
+
+    if any(hint in page_text for hint in _BAD_PAGE_HINTS):
+        return -100
+
+    score = 0
+    score += 5 * len(page_tokens & name_tokens)
+    score += 3 * len(page_tokens & ingredient_tokens)
+
+    if "recipe" in page_text:
+        score += 3
+    if any(marker in page_text for marker in ('"@type":"recipe"', '"@type": "recipe"', "schema.org/recipe")):
+        score += 5
+
+    # Require actual semantic overlap. This is the key guard against accepting a gas station,
+    # anatomy chart, vlog, etc. merely because the page exposed a valid og:image.
+    if not (page_tokens & name_tokens) and not (page_tokens & ingredient_tokens):
+        return -50
+    return score
 
 
 def _source_page_image(meal: dict) -> str:
@@ -159,12 +212,18 @@ def _source_page_image(meal: dict) -> str:
     elif "romantic" in low:
         queries.insert(0, f"romantic {name} recipe")
 
+    best: tuple[int, str] = (-999, "")
     for query in queries:
         for page in _search_result_pages(query):
-            image = _page_image(page)
-            if image:
-                return image
-    return ""
+            image, title, description, body_preview = _page_metadata(page)
+            if not image:
+                continue
+            score = _page_relevance_score(meal, page, title, description, body_preview)
+            if score > best[0]:
+                best = (score, image)
+
+    # A small positive threshold prevents low-confidence pages from slipping through.
+    return best[1] if best[0] >= 5 else ""
 
 
 def resolve_meal_image(meal: dict, *, force: bool = False, gemini_client=None, gemini_model: str = "") -> str:
