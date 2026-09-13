@@ -1,8 +1,9 @@
 from pathlib import Path
 
+import requests
 from dotenv import load_dotenv
 from fastapi import Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import or_
 
 # Load backend/.env before database.py is imported so DATABASE_URL and auth settings
@@ -12,6 +13,7 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 from .cloud_sync import auth_enabled, authenticate_request, router as cloud_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
+from .ai.image_resolver import resolve_meal_image
 from .ingredient_aliases import ingredient_aliases
 from .rewe_refresh import router as rewe_refresh_router
 
@@ -41,7 +43,6 @@ def _multilingual_catalog_search(self, ingredient):
 
     rows = self.db.query(Product).filter(or_(*clauses)).limit(120).all()
     if rows:
-        # Rank exact/strong alias matches ahead of accidental substring matches.
         alias_set = {x.lower() for x in aliases}
 
         def score(row):
@@ -60,7 +61,6 @@ def _multilingual_catalog_search(self, ingredient):
                         best = max(best, 80)
                     elif alias in field:
                         best = max(best, 60 if len(alias) >= 4 else 40)
-            # Prefer available products with a real price.
             if row.price is not None:
                 best += 10
             if str(row.availability or "").lower() == "available":
@@ -70,7 +70,6 @@ def _multilingual_catalog_search(self, ingredient):
         rows.sort(key=score, reverse=True)
         return [main_module.product_dict(row) for row in rows[:40]]
 
-    # Preserve existing offline fixture fallback for ingredients not represented in REWE yet.
     needle = main_module.normalize_ingredient(ingredient)
     exact = [p for p in main_module.PRODUCTS if p["ingredient"] == needle]
     fallback = exact or [
@@ -96,15 +95,12 @@ def _multilingual_catalog_search(self, ingredient):
     ]
 
 
-# The basket optimizer instantiates this adapter at request time, so patching the method here
-# fixes every /api/shopping build without changing persisted REWE rows or spending Gemini tokens.
 main_module.CatalogAdapter.search = _multilingual_catalog_search
 app = main_module.app
 
 
 @app.post("/api/ai/recipe")
 async def expand_ai_recipe(request: Request):
-    """Expand one lightweight discovery concept into a full persisted recipe on selection."""
     try:
         payload = await request.json()
     except Exception:
@@ -120,8 +116,46 @@ async def expand_ai_recipe(request: Request):
         raise HTTPException(502, f"Recipe expansion failed: {str(exc)[:300]}")
 
 
-# Replace the legacy REWE refresh route with the safe merge/reconciliation version.
-# Other routes from main.py remain unchanged.
+@app.get("/api/meal-image")
+def meal_image(name: str, description: str = "", tags: str = ""):
+    """Resolve a Google Images result and stream the bytes from Bitewise itself.
+
+    The frontend points <img> at this endpoint. That avoids publisher hotlink/referrer issues and
+    means Google CDN thumbnails can be used even when the browser would otherwise refuse them.
+    """
+    meal = {
+        "name": name,
+        "description": description,
+        "tags": [x.strip() for x in tags.split(",") if x.strip()],
+        "ingredients": [],
+    }
+    url = resolve_meal_image(meal)
+    if not url:
+        raise HTTPException(404, "No matching meal image found")
+    try:
+        upstream = requests.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/144 Safari/537.36",
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                "Referer": "https://www.google.com/",
+            },
+            timeout=10,
+            allow_redirects=True,
+        )
+        upstream.raise_for_status()
+        ctype = (upstream.headers.get("content-type") or "").lower()
+        if not ctype.startswith("image/"):
+            raise ValueError("Upstream response was not an image")
+    except Exception as exc:
+        raise HTTPException(502, f"Image fetch failed: {str(exc)[:160]}")
+    return Response(
+        content=upstream.content,
+        media_type=ctype.split(";")[0],
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 app.router.routes = [
     route
     for route in app.router.routes
@@ -131,14 +165,11 @@ app.router.routes = [
     )
 ]
 app.include_router(rewe_refresh_router)
-
-# Cloud-only routes live beside the existing API to keep local development backwards compatible.
 app.include_router(cloud_router)
 
 
 @app.middleware("http")
 async def private_bitewise(request: Request, call_next):
-    """When Supabase is configured, protect every Bitewise API route with the user's session."""
     path = request.url.path
     if auth_enabled() and path.startswith("/api/") and path != "/api/health" and request.method != "OPTIONS":
         try:
