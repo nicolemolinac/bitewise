@@ -5,10 +5,10 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 import requests
+from playwright.sync_api import sync_playwright
 
 CACHE_FILE = Path(__file__).resolve().parents[2] / "data" / "meal_image_cache.json"
 CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-PLACEHOLDER = ""
 
 _HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/144 Safari/537.36",
@@ -66,7 +66,7 @@ def _meal_context(meal: dict) -> str:
 
 
 def _cache_key(meal: dict) -> str:
-    raw = f"v5-google-image-proxy {_meal_context(meal)}"
+    raw = f"v6-playwright-google-images {_meal_context(meal)}"
     return re.sub(r"[^a-z0-9]+", "-", raw).strip("-")[:240]
 
 
@@ -86,49 +86,71 @@ def _query_variants(meal: dict) -> list[str]:
         add(f"romantic {name or 'breakfast'} recipe food")
     if name:
         add(f"{name} recipe food")
-        add(f'"{name}" food recipe')
+        add(f'"{name}" recipe food')
     return variants[:4]
 
 
-def _decode(value: str) -> str:
-    return (
-        html.unescape(value or "")
-        .replace("\\u003d", "=")
-        .replace("\\u0026", "&")
-        .replace("\\u002F", "/")
-        .replace("\\/", "/")
-    )
+def _clean_candidate(value: str) -> str:
+    value = html.unescape(value or "").strip()
+    value = value.replace("\\u003d", "=").replace("\\u0026", "&").replace("\\/", "/")
+    return value
 
 
-def _google_image_candidates(query: str) -> list[str]:
-    """Return image URLs from Google Images HTML.
+def _playwright_image_candidates(query: str) -> list[str]:
+    search_url = f"https://www.google.com/search?tbm=isch&safe=active&hl=en&gl=de&q={quote_plus(query)}"
+    candidates: list[str] = []
 
-    We intentionally accept Google CDN thumbnails because they are far more reliable in the
-    browser than publisher hotlinks. Bitewise serves the chosen image through its own proxy,
-    so the frontend never depends on third-party CORS/referrer behaviour.
-    """
-    url = f"https://www.google.com/search?tbm=isch&safe=active&hl=en&gl=de&q={quote_plus(query)}"
     try:
-        r = requests.get(url, headers=_HEADERS, timeout=12)
-        r.raise_for_status()
-        text = r.text
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(
+                user_agent=_HEADERS["User-Agent"],
+                locale="en-US",
+                viewport={"width": 1440, "height": 1100},
+            )
+            page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
+
+            # Consent screens occasionally appear in Germany. Try common accept buttons but
+            # don't fail if Google changes the wording.
+            for label in ("Accept all", "I agree", "Alle akzeptieren", "Accept"): 
+                try:
+                    button = page.get_by_role("button", name=label)
+                    if button.count():
+                        button.first.click(timeout=1500)
+                        page.wait_for_timeout(800)
+                        break
+                except Exception:
+                    pass
+
+            page.wait_for_timeout(1800)
+            imgs = page.locator("img")
+            count = min(imgs.count(), 120)
+            for i in range(count):
+                img = imgs.nth(i)
+                for attr in ("src", "data-src"):
+                    try:
+                        src = img.get_attribute(attr)
+                    except Exception:
+                        src = None
+                    if src:
+                        candidates.append(src)
+
+                # Google result images sometimes expose a larger URL in srcset.
+                try:
+                    srcset = img.get_attribute("srcset")
+                except Exception:
+                    srcset = None
+                if srcset:
+                    for part in srcset.split(","):
+                        candidates.append(part.strip().split(" ")[0])
+
+            browser.close()
     except Exception:
         return []
 
-    raw: list[str] = []
-    # Google thumbnails are the most stable thing to extract from current result HTML.
-    raw.extend(re.findall(r'https://encrypted-tbn\d+\.gstatic\.com/images\?[^"\'<>\\\s]+', text, flags=re.I))
-    # Keep direct originals as a secondary source when present.
-    for pattern in (
-        r'"ou"\s*:\s*"(https?:\\?/\\?/[^"\\]+)"',
-        r'"murl"\s*:\s*"(https?:\\?/\\?/[^"\\]+)"',
-        r'(https://[^"\\\s<>]+?\.(?:jpg|jpeg|png|webp|avif)(?:\?[^"\\\s<>]*)?)',
-    ):
-        raw.extend(re.findall(pattern, text, flags=re.I))
-
     clean: list[str] = []
-    for candidate in raw:
-        candidate = _decode(candidate).strip()
+    for candidate in candidates:
+        candidate = _clean_candidate(candidate)
         low = candidate.lower()
         if not candidate.startswith("https://"):
             continue
@@ -138,7 +160,7 @@ def _google_image_candidates(query: str) -> list[str]:
             continue
         if candidate not in clean:
             clean.append(candidate)
-    return clean[:80]
+    return clean
 
 
 def _valid_image_url(url: str) -> bool:
@@ -147,7 +169,7 @@ def _valid_image_url(url: str) -> bool:
     try:
         r = requests.get(
             url,
-            headers={**_HEADERS, "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"},
+            headers={**_HEADERS, "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8", "Referer": "https://www.google.com/"},
             timeout=8,
             stream=True,
             allow_redirects=True,
@@ -162,7 +184,7 @@ def _valid_image_url(url: str) -> bool:
 
 def _google_images_image(meal: dict) -> str:
     for query in _query_variants(meal):
-        for candidate in _google_image_candidates(query):
+        for candidate in _playwright_image_candidates(query):
             if _valid_image_url(candidate):
                 return candidate
     return ""
