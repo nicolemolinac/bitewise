@@ -2,40 +2,18 @@ import html
 import json
 import re
 from pathlib import Path
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urljoin, urlparse
 
 import requests
 
 CACHE_FILE = Path(__file__).resolve().parents[2] / "data" / "meal_image_cache.json"
 CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php"
 PLACEHOLDER = ""
-
-_STOPWORDS = {
-    "and", "with", "the", "a", "an", "of", "in", "on", "style", "inspired",
-    "warm", "quick", "easy", "fresh", "creamy", "crispy", "spicy", "sweet",
-    "italian", "asian", "mexican", "mediterranean", "german", "french",
-    "breakfast", "lunch", "dinner", "snack", "dessert", "dish", "food",
-    "recipe", "recipes", "photo", "image", "homemade",
-}
-
-_VISUAL_WORDS = {
-    "heart", "heart-shaped", "romantic", "cute", "flower", "rose", "star", "bunny",
-    "bear", "smiley", "rainbow", "pink", "red", "layered", "swirl", "spiral", "bow",
-    "christmas", "halloween", "valentine", "birthday", "elegant", "aesthetic",
-}
 
 _HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
     "Accept-Language": "en-US,en;q=0.9",
 }
-
-
-def _tokens(value: str) -> set[str]:
-    return {
-        token for token in re.findall(r"[a-z0-9]+", (value or "").lower())
-        if len(token) >= 3 and token not in _STOPWORDS
-    }
 
 
 def _load_cache() -> dict:
@@ -56,7 +34,7 @@ def _save_cache(cache: dict) -> None:
 
 
 def _ingredients(meal: dict, limit: int = 3) -> list[str]:
-    values: list[str] = []
+    out: list[str] = []
     for item in meal.get("ingredients") or []:
         if isinstance(item, (list, tuple)) and item:
             value = str(item[0]).strip()
@@ -64,71 +42,21 @@ def _ingredients(meal: dict, limit: int = 3) -> list[str]:
             value = str(item.get("ingredient") or item.get("name") or "").strip()
         else:
             value = ""
-        if value and value.lower() not in {x.lower() for x in values}:
-            values.append(value)
-        if len(values) >= limit:
+        if value and value.lower() not in {x.lower() for x in out}:
+            out.append(value)
+        if len(out) >= limit:
             break
-    return values
-
-
-def _visual_context(meal: dict) -> str:
-    name = str(meal.get("name") or "")
-    description = str(meal.get("description") or "")
-    tags = " ".join(str(x) for x in (meal.get("tags") or []))
-    return f"{name} {description} {tags}".strip()
+    return out
 
 
 def _meal_query(meal: dict) -> str:
     name = str(meal.get("name") or "").strip()
-    ingredients = [x for x in _ingredients(meal, 2) if x.lower() not in name.lower()]
-    return " ".join([name, *ingredients]).strip()
-
-
-def _query_variants(meal: dict) -> list[str]:
-    """Build precise, zero-Gemini image-search queries."""
-    name = str(meal.get("name") or "").strip()
-    low = _visual_context(meal).lower()
     ingredients = _ingredients(meal, 2)
-    variants: list[str] = []
-
-    def add(query: str) -> None:
-        query = re.sub(r"\s+", " ", query).strip()
-        if query and query.lower() not in {x.lower() for x in variants}:
-            variants.append(query)
-
-    if name:
-        add(name)
-        add(f"{name} recipe")
-
-    if "heart" in low or "heart-shaped" in low:
-        if any(word in low for word in ("egg", "huevo", "oeuf")):
-            add("heart shaped fried egg")
-            add("fried egg heart mold breakfast")
-            add("romantic breakfast heart shaped egg")
-        else:
-            add(f"heart shaped {ingredients[0] if ingredients else name}")
-
-    if "romantic" in low or "valentine" in low:
-        add(f"romantic {name} breakfast food")
-        add(f"valentines {name}")
-    if "cute" in low:
-        add(f"cute {name} food presentation")
-    if "flower" in low or "rose" in low:
-        add(f"flower shaped {name}")
-    if "star" in low:
-        add(f"star shaped {name}")
-
-    visual = [word for word in _VISUAL_WORDS if word in low]
-    if visual:
-        add(f"{' '.join(visual[:3])} {name}")
-    if ingredients:
-        add(f"{name} {' '.join(ingredients)}")
-
-    return variants[:7]
+    return " ".join([name, *ingredients, "recipe"]).strip()
 
 
 def _cache_key(meal: dict) -> str:
-    raw = f"{_meal_query(meal)} {_visual_context(meal)}".lower()
+    raw = f"{meal.get('name','')} {meal.get('description','')} {' '.join(map(str, meal.get('tags') or []))} {_meal_query(meal)}".lower()
     return re.sub(r"[^a-z0-9]+", "-", raw).strip("-")[:240]
 
 
@@ -137,168 +65,117 @@ def _valid_image_url(url: str) -> bool:
     if not url.startswith("https://"):
         return False
     try:
-        response = requests.get(
-            url,
-            headers={**_HEADERS, "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"},
-            timeout=6,
-            stream=True,
-            allow_redirects=True,
-        )
-        ok = response.ok and (response.headers.get("content-type") or "").lower().startswith("image/")
-        response.close()
+        r = requests.get(url, headers={**_HEADERS, "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"}, timeout=6, stream=True, allow_redirects=True)
+        ok = r.ok and (r.headers.get("content-type") or "").lower().startswith("image/")
+        r.close()
         return ok
     except Exception:
         return False
 
 
-def _decode_google_url(value: str) -> str:
-    return html.unescape(value or "").replace("\\u003d", "=").replace("\\u0026", "&").replace("\\/", "/")
+def _search_result_pages(query: str) -> list[str]:
+    """Return ordinary web result pages, not image-search thumbnails.
 
+    This avoids the failure mode where image-search scraping returns logos, anatomy charts,
+    memes or unrelated thumbnails. We fetch relevant recipe/article pages, then use their
+    OpenGraph/Twitter image metadata, which is much more likely to represent the dish itself.
+    """
+    urls: list[str] = []
 
-def _google_image_candidates(query: str) -> list[str]:
-    search_url = f"https://www.google.com/search?tbm=isch&safe=active&hl=en&q={quote_plus(query)}"
+    # Bing web search is currently easier to parse reliably than Google result markup.
     try:
-        response = requests.get(search_url, headers=_HEADERS, timeout=10)
-        response.raise_for_status()
-        text = response.text
+        r = requests.get(f"https://www.bing.com/search?q={quote_plus(query)}&count=10", headers=_HEADERS, timeout=10)
+        r.raise_for_status()
+        text = html.unescape(r.text)
+        for href in re.findall(r'<a[^>]+href=["\'](https://[^"\']+)["\']', text, flags=re.I):
+            host = urlparse(href).netloc.lower()
+            if any(x in host for x in ("bing.com", "microsoft.com", "go.microsoft.com")):
+                continue
+            if href not in urls:
+                urls.append(href)
     except Exception:
-        return []
+        pass
 
-    raw: list[str] = []
-    for pattern in (
-        r'"ou"\s*:\s*"(https?:\\?/\\?/[^"\\]+(?:\\.[^"\\]+)*)"',
-        r'\["(https?:\\?/\\?/[^"\\]+?\.(?:jpg|jpeg|png|webp)(?:\\?[^"\\]*)?)"',
-        r'(https://[^"\\\s<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^"\\\s<>]*)?)',
-    ):
-        raw.extend(re.findall(pattern, text, flags=re.I))
-    raw.extend(re.findall(r'https://encrypted-tbn\d+\.gstatic\.com/images\?[^"\'<>\\\s]+', text, flags=re.I))
-    raw.extend(re.findall(r'(?:src|data-src)=["\'](https://[^"\']+)["\']', text, flags=re.I))
-
-    clean: list[str] = []
-    for candidate in raw:
-        candidate = _decode_google_url(candidate)
-        lower = candidate.lower()
-        if not candidate.startswith("https://"):
-            continue
-        if "google.com/images/branding" in lower or "gstatic.com/og/_/ss" in lower:
-            continue
-        if candidate not in clean:
-            clean.append(candidate)
-    return clean[:120]
-
-
-def _google_images_image(meal: dict) -> str:
-    for query in _query_variants(meal):
-        candidates = _google_image_candidates(query)
-        if not candidates:
-            continue
-        thumbnails = [u for u in candidates if "encrypted-tbn" in u and "gstatic.com" in u]
-        originals = [u for u in candidates if u not in thumbnails]
-        for candidate in [*thumbnails[:12], *originals[:12]]:
-            if _valid_image_url(candidate):
-                return candidate
-    return ""
-
-
-def _bing_image_candidates(query: str) -> list[str]:
-    """Parse Bing Images as a second free search source when Google blocks/changes markup."""
-    search_url = f"https://www.bing.com/images/search?q={quote_plus(query)}&form=HDRSC3&first=1"
-    try:
-        response = requests.get(search_url, headers=_HEADERS, timeout=10)
-        response.raise_for_status()
-        text = html.unescape(response.text)
-    except Exception:
-        return []
-
-    raw: list[str] = []
-    # Bing stores result metadata in `m` JSON blobs. `turl` is usually hotlink-safe;
-    # `murl` is the publisher original and is kept as a fallback.
-    raw.extend(re.findall(r'"turl"\s*:\s*"(https://[^"<>]+)"', text, flags=re.I))
-    raw.extend(re.findall(r'"murl"\s*:\s*"(https://[^"<>]+)"', text, flags=re.I))
-    raw.extend(re.findall(r'https://tse\d+\.mm\.bing\.net/th\?[^"\'<>\\\s]+', text, flags=re.I))
-
-    clean: list[str] = []
-    for candidate in raw:
-        candidate = html.unescape(candidate).replace("\\/", "/")
-        if candidate.startswith("https://") and candidate not in clean:
-            clean.append(candidate)
-    return clean[:120]
-
-
-def _bing_images_image(meal: dict) -> str:
-    for query in _query_variants(meal):
-        candidates = _bing_image_candidates(query)
-        if not candidates:
-            continue
-        thumbnails = [u for u in candidates if "mm.bing.net/th" in u]
-        originals = [u for u in candidates if u not in thumbnails]
-        for candidate in [*thumbnails[:12], *originals[:12]]:
-            if _valid_image_url(candidate):
-                return candidate
-    return ""
-
-
-def _candidate_score(title: str, meal: dict) -> int:
-    candidate_tokens = _tokens(title)
-    name_tokens = _tokens(str(meal.get("name") or ""))
-    ingredient_tokens = set()
-    for ingredient in _ingredients(meal, 4):
-        ingredient_tokens |= _tokens(ingredient)
-    return 4 * len(candidate_tokens & name_tokens) + len(candidate_tokens & ingredient_tokens)
-
-
-def _wikimedia_image(meal: dict) -> str:
-    name = str(meal.get("name") or "").strip()
-    queries = [
-        f"{name} food".strip(),
-        f"{' '.join(_ingredients(meal, 2))} food".strip(),
-    ]
-    for query in queries:
-        if not query or query == "food":
-            continue
-        params = {
-            "action": "query",
-            "format": "json",
-            "generator": "search",
-            "gsrsearch": query,
-            "gsrnamespace": 6,
-            "gsrlimit": 20,
-            "prop": "imageinfo",
-            "iiprop": "url|mime",
-            "iiurlwidth": 1200,
-            "origin": "*",
-        }
+    # Lightweight Google web-search fallback.
+    if len(urls) < 4:
         try:
-            response = requests.get(WIKIMEDIA_API, params=params, headers={"User-Agent": "Bitewise/1.0 meal-image-resolver"}, timeout=8)
-            response.raise_for_status()
-            pages = list((response.json().get("query") or {}).get("pages", {}).values())
-            ranked = []
-            for page in pages:
-                title = str(page.get("title") or "")
-                info = (page.get("imageinfo") or [{}])[0]
-                mime = str(info.get("mime") or "")
-                url = str(info.get("thumburl") or info.get("url") or "")
-                if url.startswith("https://") and mime.startswith("image/"):
-                    ranked.append((_candidate_score(title, meal), url))
-            ranked.sort(key=lambda row: row[0], reverse=True)
-            for score, candidate in ranked[:6]:
-                if (score >= 1 or query != queries[0]) and _valid_image_url(candidate):
-                    return candidate
+            r = requests.get(f"https://www.google.com/search?q={quote_plus(query)}&num=10&hl=en", headers=_HEADERS, timeout=10)
+            r.raise_for_status()
+            text = html.unescape(r.text)
+            for href in re.findall(r'href=["\']/url\?q=(https://[^&"\']+)', text, flags=re.I):
+                host = urlparse(href).netloc.lower()
+                if "google." in host:
+                    continue
+                if href not in urls:
+                    urls.append(href)
         except Exception:
-            continue
+            pass
+
+    return urls[:10]
+
+
+def _page_image(page_url: str) -> str:
+    try:
+        r = requests.get(page_url, headers=_HEADERS, timeout=8, allow_redirects=True)
+        r.raise_for_status()
+        ctype = (r.headers.get("content-type") or "").lower()
+        if "text/html" not in ctype:
+            return ""
+        text = html.unescape(r.text[:800000])
+    except Exception:
+        return ""
+
+    candidates: list[str] = []
+    patterns = [
+        r'<meta[^>]+property=["\']og:image(?::secure_url)?["\'][^>]+content=["\']([^"\']+)',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image(?::secure_url)?["\']',
+        r'<meta[^>]+name=["\']twitter:image(?::src)?["\'][^>]+content=["\']([^"\']+)',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image(?::src)?["\']',
+    ]
+    for pattern in patterns:
+        candidates.extend(re.findall(pattern, text, flags=re.I))
+
+    # Schema.org Recipe image fallback.
+    candidates.extend(re.findall(r'"image"\s*:\s*"(https://[^"\\]+)"', text, flags=re.I))
+
+    for candidate in candidates:
+        candidate = html.unescape(candidate).replace("\\/", "/")
+        candidate = urljoin(page_url, candidate)
+        if _valid_image_url(candidate):
+            return candidate
+    return ""
+
+
+def _source_page_image(meal: dict) -> str:
+    name = str(meal.get("name") or "").strip()
+    ingredients = _ingredients(meal, 2)
+    queries = [
+        f'"{name}" recipe',
+        f"{name} {' '.join(ingredients)} recipe",
+    ]
+    low = f"{name} {meal.get('description','')} {' '.join(map(str, meal.get('tags') or []))}".lower()
+    if "heart" in low and any(x in low for x in ("egg", "huevo")):
+        queries.insert(0, '"heart shaped fried egg" recipe')
+    elif "romantic" in low:
+        queries.insert(0, f"romantic {name} recipe")
+
+    for query in queries:
+        for page in _search_result_pages(query):
+            image = _page_image(page)
+            if image:
+                return image
     return ""
 
 
 def resolve_meal_image(meal: dict, *, force: bool = False, gemini_client=None, gemini_model: str = "") -> str:
-    # gemini_client/model are kept only for backward compatibility and intentionally ignored.
+    # No Gemini is used for images. Keep legacy args only so older callers do not break.
     key = _cache_key(meal)
     cache = _load_cache()
     cached = str(cache.get(key) or "").strip()
     if not force and cached and _valid_image_url(cached):
         return cached
 
-    # Multi-engine free fallback. One blocked search engine must never blank every meal card.
-    chosen = _google_images_image(meal) or _bing_images_image(meal) or _wikimedia_image(meal)
+    chosen = _source_page_image(meal)
     if chosen:
         cache[key] = chosen
     else:
@@ -311,4 +188,4 @@ def is_untrusted_generated_image(url: str) -> bool:
     value = (url or "").lower().strip()
     if not value:
         return True
-    return any(host in value for host in ("images.unsplash.com", "source.unsplash.com", "placehold.co"))
+    return any(host in value for host in ("images.unsplash.com", "source.unsplash.com", "placehold.co", "encrypted-tbn", "mm.bing.net"))
