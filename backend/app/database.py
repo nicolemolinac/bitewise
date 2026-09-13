@@ -6,7 +6,8 @@ from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint,
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-DB_PATH = Path(os.getenv("BITEWISE_LOCAL_DB_PATH", str(BACKEND_DIR / "data" / "grocery.db"))).expanduser().resolve()
+_configured_local_db = os.getenv("BITEWISE_LOCAL_DB_PATH", "").strip()
+DB_PATH = Path(_configured_local_db or str(BACKEND_DIR / "data" / "grocery.db")).expanduser().resolve()
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 IS_SQLITE = not DATABASE_URL
@@ -198,7 +199,7 @@ def _auto_restore_local_rewe_snapshot() -> None:
     """
     if IS_SQLITE or os.getenv("AUTO_RESTORE_LOCAL_REWE", "true").strip().lower() in {"0", "false", "no", "off"}:
         return
-    if not DB_PATH.exists() or DB_PATH.stat().st_size < 1024:
+    if not DB_PATH.exists() or not DB_PATH.is_file() or DB_PATH.stat().st_size < 1024:
         return
 
     source = None
