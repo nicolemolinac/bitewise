@@ -16,7 +16,7 @@ _HEADERS = {
 }
 
 _BAD_IMAGE_HINTS = (
-    "logo", "icon", "avatar", "sprite", "favicon", "emoji", "banner", "thumbnail",
+    "logo", "icon", "avatar", "sprite", "favicon", "emoji", "banner",
     "youtube", "facebook", "instagram", "tiktok", "pinterest",
 )
 
@@ -66,13 +66,12 @@ def _meal_context(meal: dict) -> str:
 
 
 def _cache_key(meal: dict) -> str:
-    raw = f"v4-google-images {_meal_context(meal)}"
+    raw = f"v5-google-image-proxy {_meal_context(meal)}"
     return re.sub(r"[^a-z0-9]+", "-", raw).strip("-")[:240]
 
 
 def _query_variants(meal: dict) -> list[str]:
     name = str(meal.get("name") or "").strip()
-    ingredients = _ingredients(meal, 3)
     context = _meal_context(meal)
     variants: list[str] = []
 
@@ -81,23 +80,14 @@ def _query_variants(meal: dict) -> list[str]:
         if query and query.lower() not in {x.lower() for x in variants}:
             variants.append(query)
 
+    if "heart" in context and "egg" in context:
+        add("heart shaped fried egg breakfast recipe")
+    if "romantic" in context:
+        add(f"romantic {name or 'breakfast'} recipe food")
     if name:
         add(f"{name} recipe food")
-        add(f'"{name}" recipe')
-
-    if "heart" in context and any(x in context for x in ("egg", "huevo")):
-        add("heart shaped fried egg breakfast")
-    if "romantic" in context:
-        add(f"romantic {name or 'breakfast'} food")
-    if "rose" in context or "flower" in context:
-        add(f"{name} flower shaped food")
-    if "cute" in context:
-        add(f"cute {name} food presentation")
-
-    if ingredients:
-        add(f"{name} {' '.join(ingredients[:2])} recipe")
-
-    return variants[:5]
+        add(f'"{name}" food recipe')
+    return variants[:4]
 
 
 def _decode(value: str) -> str:
@@ -111,10 +101,11 @@ def _decode(value: str) -> str:
 
 
 def _google_image_candidates(query: str) -> list[str]:
-    """Scrape Google Images result HTML and return actual image URLs.
+    """Return image URLs from Google Images HTML.
 
-    Prefer publisher/original image URLs (`ou`) and only then Google CDN thumbnails.
-    This mirrors the user experience of searching Google Images and choosing a food photo.
+    We intentionally accept Google CDN thumbnails because they are far more reliable in the
+    browser than publisher hotlinks. Bitewise serves the chosen image through its own proxy,
+    so the frontend never depends on third-party CORS/referrer behaviour.
     """
     url = f"https://www.google.com/search?tbm=isch&safe=active&hl=en&gl=de&q={quote_plus(query)}"
     try:
@@ -125,19 +116,15 @@ def _google_image_candidates(query: str) -> list[str]:
         return []
 
     raw: list[str] = []
-
-    # Older/newer Google image metadata embeds originals as ou/murl-like JSON fields.
-    patterns = [
-        r'"ou"\s*:\s*"(https?:\\?/\\?/[^"\\]+(?:\\.[^"\\]+)*)"',
-        r'"murl"\s*:\s*"(https?:\\?/\\?/[^"\\]+)"',
-        r'\["(https?:\\?/\\?/[^"\\]+?\.(?:jpg|jpeg|png|webp|avif)(?:\\?[^"\\]*)?)"',
-        r'(https://[^"\\\s<>]+?\.(?:jpg|jpeg|png|webp|avif)(?:\?[^"\\\s<>]*)?)',
-    ]
-    for pattern in patterns:
-        raw.extend(re.findall(pattern, text, flags=re.I))
-
-    # Google CDN image thumbnails are allowed only after original URLs.
+    # Google thumbnails are the most stable thing to extract from current result HTML.
     raw.extend(re.findall(r'https://encrypted-tbn\d+\.gstatic\.com/images\?[^"\'<>\\\s]+', text, flags=re.I))
+    # Keep direct originals as a secondary source when present.
+    for pattern in (
+        r'"ou"\s*:\s*"(https?:\\?/\\?/[^"\\]+)"',
+        r'"murl"\s*:\s*"(https?:\\?/\\?/[^"\\]+)"',
+        r'(https://[^"\\\s<>]+?\.(?:jpg|jpeg|png|webp|avif)(?:\?[^"\\\s<>]*)?)',
+    ):
+        raw.extend(re.findall(pattern, text, flags=re.I))
 
     clean: list[str] = []
     for candidate in raw:
@@ -151,10 +138,7 @@ def _google_image_candidates(query: str) -> list[str]:
             continue
         if candidate not in clean:
             clean.append(candidate)
-
-    originals = [u for u in clean if "encrypted-tbn" not in u and "gstatic.com" not in u]
-    thumbnails = [u for u in clean if u not in originals]
-    return [*originals[:40], *thumbnails[:40]]
+    return clean[:80]
 
 
 def _valid_image_url(url: str) -> bool:
@@ -164,13 +148,12 @@ def _valid_image_url(url: str) -> bool:
         r = requests.get(
             url,
             headers={**_HEADERS, "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"},
-            timeout=7,
+            timeout=8,
             stream=True,
             allow_redirects=True,
         )
         ctype = (r.headers.get("content-type") or "").lower()
-        length = int(r.headers.get("content-length") or 0)
-        ok = r.ok and ctype.startswith("image/") and (length == 0 or length >= 5000)
+        ok = r.ok and ctype.startswith("image/")
         r.close()
         return ok
     except Exception:
@@ -179,15 +162,13 @@ def _valid_image_url(url: str) -> bool:
 
 def _google_images_image(meal: dict) -> str:
     for query in _query_variants(meal):
-        candidates = _google_image_candidates(query)
-        for candidate in candidates:
+        for candidate in _google_image_candidates(query):
             if _valid_image_url(candidate):
                 return candidate
     return ""
 
 
 def resolve_meal_image(meal: dict, *, force: bool = False, gemini_client=None, gemini_model: str = "") -> str:
-    # No Gemini usage: images come directly from Google Images search results.
     key = _cache_key(meal)
     cache = _load_cache()
     cached = str(cache.get(key) or "").strip()
@@ -207,13 +188,4 @@ def is_untrusted_generated_image(url: str) -> bool:
     value = (url or "").lower().strip()
     if not value:
         return True
-    # Old fixed/fallback images must be repaired after this resolver upgrade.
-    return any(
-        host in value
-        for host in (
-            "images.unsplash.com",
-            "source.unsplash.com",
-            "placehold.co",
-            "mm.bing.net",
-        )
-    )
+    return any(host in value for host in ("images.unsplash.com", "source.unsplash.com", "placehold.co", "mm.bing.net"))
