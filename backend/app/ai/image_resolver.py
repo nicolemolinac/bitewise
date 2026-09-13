@@ -2,7 +2,7 @@ import html
 import json
 import re
 from pathlib import Path
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus
 
 import requests
 
@@ -25,11 +25,15 @@ _VISUAL_WORDS = {
     "christmas", "halloween", "valentine", "birthday", "elegant", "aesthetic",
 }
 
+_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
 
 def _tokens(value: str) -> set[str]:
     return {
-        token
-        for token in re.findall(r"[a-z0-9]+", (value or "").lower())
+        token for token in re.findall(r"[a-z0-9]+", (value or "").lower())
         if len(token) >= 3 and token not in _STOPWORDS
     }
 
@@ -52,7 +56,7 @@ def _save_cache(cache: dict) -> None:
 
 
 def _ingredients(meal: dict, limit: int = 3) -> list[str]:
-    values = []
+    values: list[str] = []
     for item in meal.get("ingredients") or []:
         if isinstance(item, (list, tuple)) and item:
             value = str(item[0]).strip()
@@ -67,16 +71,6 @@ def _ingredients(meal: dict, limit: int = 3) -> list[str]:
     return values
 
 
-def _meal_query(meal: dict) -> str:
-    name = str(meal.get("name") or "").strip()
-    cuisine = str(meal.get("cuisine") or "").strip()
-    ingredients = [x for x in _ingredients(meal) if x.lower() not in name.lower()]
-    parts = [name, *ingredients]
-    if cuisine and cuisine.lower() not in name.lower():
-        parts.append(cuisine)
-    return " ".join(part for part in parts if part).strip()
-
-
 def _visual_context(meal: dict) -> str:
     name = str(meal.get("name") or "")
     description = str(meal.get("description") or "")
@@ -84,44 +78,38 @@ def _visual_context(meal: dict) -> str:
     return f"{name} {description} {tags}".strip()
 
 
-def _query_variants(meal: dict) -> list[str]:
-    """Build precise zero-token search variants for visually specific dishes."""
+def _meal_query(meal: dict) -> str:
     name = str(meal.get("name") or "").strip()
-    context = _visual_context(meal)
-    low = context.lower()
+    ingredients = [x for x in _ingredients(meal, 2) if x.lower() not in name.lower()]
+    return " ".join([name, *ingredients]).strip()
+
+
+def _query_variants(meal: dict) -> list[str]:
+    """Build precise, zero-Gemini Google Images queries."""
+    name = str(meal.get("name") or "").strip()
+    low = _visual_context(meal).lower()
     ingredients = _ingredients(meal, 2)
-    visual = [w for w in _VISUAL_WORDS if w in low]
     variants: list[str] = []
 
-    def add(q: str) -> None:
-        q = re.sub(r"\s+", " ", q).strip()
-        if q and q.lower() not in {x.lower() for x in variants}:
-            variants.append(q)
+    def add(query: str) -> None:
+        query = re.sub(r"\s+", " ", query).strip()
+        if query and query.lower() not in {x.lower() for x in variants}:
+            variants.append(query)
 
-    # Exact generated dish name first. This is intentionally not diluted with extra ingredients.
     if name:
-        add(f'"{name}"')
         add(name)
+        add(f"{name} recipe")
 
-    # Explicit presentation words are hard search constraints.
-    if visual:
-        visual_phrase = " ".join(visual[:3])
-        add(f"{name} {visual_phrase}")
-        if ingredients:
-            add(f"{visual_phrase} {' '.join(ingredients)}")
-
-    # High-value semantic rewrites for common aesthetic recipes.
     if "heart" in low or "heart-shaped" in low:
-        if any(word in low for word in ("egg", "huevo", "oeuf", "ei ")):
+        if any(word in low for word in ("egg", "huevo", "oeuf")):
             add("heart shaped fried egg")
-            add("fried egg heart mold")
+            add("fried egg heart mold breakfast")
             add("romantic breakfast heart shaped egg")
-            add("heart egg breakfast")
         else:
             add(f"heart shaped {ingredients[0] if ingredients else name}")
-            add(f"romantic {name} heart shaped")
+
     if "romantic" in low or "valentine" in low:
-        add(f"romantic {name}")
+        add(f"romantic {name} breakfast food")
         add(f"valentines {name}")
     if "cute" in low:
         add(f"cute {name} food presentation")
@@ -130,45 +118,28 @@ def _query_variants(meal: dict) -> list[str]:
     if "star" in low:
         add(f"star shaped {name}")
 
-    # Last precise fallback before generic food imagery.
+    visual = [word for word in _VISUAL_WORDS if word in low]
+    if visual:
+        add(f"{' '.join(visual[:3])} {name}")
     if ingredients:
         add(f"{name} {' '.join(ingredients)}")
-    add(f"{name} plated recipe")
-    return variants[:8]
+
+    return variants[:7]
 
 
 def _cache_key(meal: dict) -> str:
-    context = f"{_meal_query(meal)} {_visual_context(meal)}".lower()
-    return re.sub(r"[^a-z0-9]+", "-", context).strip("-")[:240]
-
-
-def _candidate_score(text: str, meal: dict, query: str = "") -> int:
-    candidate_tokens = _tokens(text)
-    name_tokens = _tokens(str(meal.get("name") or ""))
-    visual_tokens = _tokens(_visual_context(meal)) & _VISUAL_WORDS
-    query_tokens = _tokens(query)
-    ingredient_tokens = set()
-    for ingredient in _ingredients(meal, 4):
-        ingredient_tokens |= _tokens(ingredient)
-    return (
-        5 * len(candidate_tokens & name_tokens)
-        + 5 * len(candidate_tokens & visual_tokens)
-        + 2 * len(candidate_tokens & query_tokens)
-        + len(candidate_tokens & ingredient_tokens)
-    )
+    raw = f"{_meal_query(meal)} {_visual_context(meal)}".lower()
+    return re.sub(r"[^a-z0-9]+", "-", raw).strip("-")[:240]
 
 
 def _valid_image_url(url: str) -> bool:
-    url = str(url or "").strip()
+    url = html.unescape(str(url or "").strip())
     if not url.startswith("https://"):
         return False
     try:
         response = requests.get(
             url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
-                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-            },
+            headers={**_HEADERS, "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"},
             timeout=6,
             stream=True,
             allow_redirects=True,
@@ -180,111 +151,134 @@ def _valid_image_url(url: str) -> bool:
         return False
 
 
-def _url_text(url: str) -> str:
-    try:
-        parsed = urlparse(url)
-        return html.unescape(f"{parsed.netloc} {parsed.path} {parsed.query}").replace("-", " ").replace("_", " ")
-    except Exception:
-        return url
+def _decode_google_url(value: str) -> str:
+    return html.unescape(value or "").replace("\\u003d", "=").replace("\\u0026", "&").replace("\\/", "/")
 
 
 def _google_image_candidates(query: str) -> list[str]:
-    url = f"https://www.google.com/search?tbm=isch&safe=active&q={quote_plus(query)}"
+    """Extract both original image URLs and Google thumbnail URLs from current Images HTML.
+
+    Google frequently hides original URLs in JS blobs and serves thumbnails without file
+    extensions. The old resolver only accepted URLs ending in .jpg/.png/.webp, which meant
+    a perfectly healthy Google Images page could yield zero candidates and blank cards.
+    """
+    search_url = f"https://www.google.com/search?tbm=isch&safe=active&hl=en&q={quote_plus(query)}"
     try:
-        response = requests.get(
-            url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
-                "Accept-Language": "en-US,en;q=0.9",
-            },
-            timeout=10,
-        )
+        response = requests.get(search_url, headers=_HEADERS, timeout=10)
         response.raise_for_status()
-        text = html.unescape(response.text)
-        candidates = re.findall(
-            r'https://[^"\\\s<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^"\\\s<>]*)?',
-            text,
-            flags=re.I,
-        )
-        clean = []
-        for candidate in candidates[:100]:
-            candidate = candidate.replace("\\u003d", "=").replace("\\u0026", "&")
-            lower = candidate.lower()
-            if any(host in lower for host in ("gstatic.com", "googleusercontent.com/images/branding", "google.com/images")):
-                continue
-            if candidate not in clean:
-                clean.append(candidate)
-        return clean
+        text = response.text
     except Exception:
         return []
 
+    raw: list[str] = []
+
+    # Modern/legacy JS payloads containing original image URLs.
+    for pattern in (
+        r'"ou"\s*:\s*"(https?:\\?/\\?/[^"\\]+(?:\\.[^"\\]+)*)"',
+        r'\["(https?:\\?/\\?/[^"\\]+?\.(?:jpg|jpeg|png|webp)(?:\\?[^"\\]*)?)"',
+        r'(https://[^"\\\s<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^"\\\s<>]*)?)',
+    ):
+        raw.extend(re.findall(pattern, text, flags=re.I))
+
+    # Crucial fallback: Google result thumbnails usually have NO filename extension.
+    raw.extend(re.findall(
+        r'https://encrypted-tbn\d+\.gstatic\.com/images\?[^"\'<>\\\s]+',
+        text,
+        flags=re.I,
+    ))
+    raw.extend(re.findall(
+        r'(?:src|data-src)=["\'](https://[^"\']+)["\']',
+        text,
+        flags=re.I,
+    ))
+
+    clean: list[str] = []
+    for candidate in raw:
+        candidate = _decode_google_url(candidate)
+        lower = candidate.lower()
+        if not candidate.startswith("https://"):
+            continue
+        if "google.com/images/branding" in lower or "gstatic.com/og/_/ss" in lower:
+            continue
+        # Keep encrypted-tbn*.gstatic.com thumbnails: they are the most reliable hotlink-safe
+        # fallback when publisher sites block direct image embedding.
+        if candidate not in clean:
+            clean.append(candidate)
+    return clean[:120]
+
 
 def _google_images_image(meal: dict) -> str:
-    """Zero-Gemini lookup with semantic query expansion for visually specific dishes."""
-    visual_tokens = _tokens(_visual_context(meal)) & _VISUAL_WORDS
-    for query_index, query in enumerate(_query_variants(meal)):
+    """Find a displayable image without consuming Gemini quota."""
+    for query in _query_variants(meal):
         candidates = _google_image_candidates(query)
         if not candidates:
             continue
-        ranked = sorted(
-            candidates,
-            key=lambda url: _candidate_score(_url_text(url), meal, query),
-            reverse=True,
-        )
-        # For visually specific dishes prefer a URL that contains some semantic evidence.
-        # If Google strips descriptive filenames, trust top result only after trying several precise queries.
-        for candidate in ranked[:8]:
-            score = _candidate_score(_url_text(candidate), meal, query)
-            if visual_tokens and query_index < 4 and score == 0:
-                continue
+
+        # Prefer Google thumbnails because publisher/CDN links often block browser hotlinking.
+        thumbnails = [u for u in candidates if "encrypted-tbn" in u and "gstatic.com" in u]
+        originals = [u for u in candidates if u not in thumbnails]
+        for candidate in [*thumbnails[:12], *originals[:12]]:
             if _valid_image_url(candidate):
                 return candidate
     return ""
 
 
+def _candidate_score(title: str, meal: dict) -> int:
+    candidate_tokens = _tokens(title)
+    name_tokens = _tokens(str(meal.get("name") or ""))
+    ingredient_tokens = set()
+    for ingredient in _ingredients(meal, 4):
+        ingredient_tokens |= _tokens(ingredient)
+    return 4 * len(candidate_tokens & name_tokens) + len(candidate_tokens & ingredient_tokens)
+
+
 def _wikimedia_image(meal: dict) -> str:
-    # Wikimedia is a final fallback; use the simplest dish concept because its coverage of aesthetic food is limited.
     name = str(meal.get("name") or "").strip()
-    query = f"{name} {' '.join(_ingredients(meal, 2))} food".strip()
-    params = {
-        "action": "query",
-        "format": "json",
-        "generator": "search",
-        "gsrsearch": query,
-        "gsrnamespace": 6,
-        "gsrlimit": 16,
-        "prop": "imageinfo",
-        "iiprop": "url|mime",
-        "iiurlwidth": 1200,
-        "origin": "*",
-    }
-    try:
-        response = requests.get(
-            WIKIMEDIA_API,
-            params=params,
-            headers={"User-Agent": "Bitewise/1.0 meal-image-resolver"},
-            timeout=8,
-        )
-        response.raise_for_status()
-        pages = list((response.json().get("query") or {}).get("pages", {}).values())
-        candidates = []
-        for page in pages:
-            title = str(page.get("title") or "")
-            info = (page.get("imageinfo") or [{}])[0]
-            mime = str(info.get("mime") or "")
-            url = str(info.get("thumburl") or info.get("url") or "")
-            if url.startswith("https://") and mime.startswith("image/"):
-                candidates.append((_candidate_score(title, meal, query), url))
-        candidates.sort(key=lambda row: row[0], reverse=True)
-        if candidates and candidates[0][0] >= 2 and _valid_image_url(candidates[0][1]):
-            return candidates[0][1]
-    except Exception:
-        pass
+    # Try the exact dish first, then a simpler ingredient fallback so cards do not stay blank.
+    queries = [
+        f"{name} food".strip(),
+        f"{' '.join(_ingredients(meal, 2))} food".strip(),
+    ]
+    for query in queries:
+        if not query or query == "food":
+            continue
+        params = {
+            "action": "query",
+            "format": "json",
+            "generator": "search",
+            "gsrsearch": query,
+            "gsrnamespace": 6,
+            "gsrlimit": 20,
+            "prop": "imageinfo",
+            "iiprop": "url|mime",
+            "iiurlwidth": 1200,
+            "origin": "*",
+        }
+        try:
+            response = requests.get(WIKIMEDIA_API, params=params, headers={"User-Agent": "Bitewise/1.0 meal-image-resolver"}, timeout=8)
+            response.raise_for_status()
+            pages = list((response.json().get("query") or {}).get("pages", {}).values())
+            ranked = []
+            for page in pages:
+                title = str(page.get("title") or "")
+                info = (page.get("imageinfo") or [{}])[0]
+                mime = str(info.get("mime") or "")
+                url = str(info.get("thumburl") or info.get("url") or "")
+                if url.startswith("https://") and mime.startswith("image/"):
+                    ranked.append((_candidate_score(title, meal), url))
+            ranked.sort(key=lambda row: row[0], reverse=True)
+            # Exact dish query should be semantically related; ingredient fallback may score low,
+            # but a related food photo is better than a permanent blank card.
+            for score, candidate in ranked[:6]:
+                if (score >= 1 or query != queries[0]) and _valid_image_url(candidate):
+                    return candidate
+        except Exception:
+            continue
     return ""
 
 
 def resolve_meal_image(meal: dict, *, force: bool = False, gemini_client=None, gemini_model: str = "") -> str:
-    # gemini_client/model remain only for backward compatibility and are intentionally ignored.
+    # gemini_client/model are kept only for backward compatibility and intentionally ignored.
     key = _cache_key(meal)
     cache = _load_cache()
     cached = str(cache.get(key) or "").strip()
