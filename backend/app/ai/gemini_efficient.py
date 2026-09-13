@@ -74,11 +74,32 @@ class GeminiService(BaseGeminiService):
         pantry, catalog = _shopping_context()
         pantry_context = ", ".join(pantry[:30]) if pantry else "none"
         catalog_context = "; ".join(catalog[:25]) if catalog else "none"
-        instruction = f"""You are Bitewise. Create 8 distinct, attractive, low-effort meal ideas for this request:
+        instruction = f"""You are Bitewise, a premium visual food ideation engine. Create 8 distinct meal ideas for the user's exact request.
+
+USER REQUEST — HIGHEST PRIORITY:
 {prompt}
 
 Pantry: {pantry_context}
 Cheap REWE examples: {catalog_context}
+
+Interpret the request semantically, not as a loose category search.
+Before choosing dishes, silently identify all explicit and implicit intent dimensions in the request, including:
+- meal type and cuisine
+- occasion or mood (for example romantic, date-night, cozy, birthday, picnic, brunch)
+- visual/aesthetic intent (for example cute, heart-shaped, elegant, colorful, restaurant-like)
+- effort level and simplicity
+- budget, health, protein or speed constraints
+- named ingredients or appliances
+
+CRITICAL RELEVANCE RULES:
+- Every returned idea must visibly and meaningfully satisfy the specific intent, not merely belong to the same meal category.
+- Occasion/aesthetic words are hard constraints, not optional flavor text.
+- Example: for "romantic breakfast simple", do NOT fill the list with generic croissants or ordinary toast. Prefer ideas such as heart-shaped eggs/toast, strawberry-heart pancakes, berry yogurt arranged for two, heart-cut French toast, rose/berry breakfast plates, or similarly obvious romantic presentation that is still simple.
+- If the user asks for something "simple", keep execution genuinely easy while preserving the requested concept.
+- Do not use generic filler just to reach eight results. If necessary, vary presentation, base ingredient, cooking method, or sweet/savory direction while staying on-theme.
+- Give each meal a concrete, searchable name that describes what the user would actually see on the plate. This name is later used to find a matching real food photo.
+- The description must state the visual hook or why it matches the requested occasion/mood.
+- Prefer pantry/REWE items when sensible, but relevance to the user's request outranks forcing catalog ingredients.
 
 Return ONLY a compact JSON array. Each object needs exactly:
 id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredients,steps
@@ -86,16 +107,17 @@ Rules:
 - meal_type: breakfast|lunch|dinner|dessert|snack
 - ingredients: [[english_name,quantity,unit]], units only g|ml|unit|cloves
 - steps: 3-6 concise objects {{"text":"...","minutes":N}}
-- Respect the request literally; prefer pantry/REWE items when sensible.
-- Keep descriptions and tags short.
+- tags should include the important intent words when relevant, e.g. Romantic, Cute, Date Breakfast, Quick.
+- Keep descriptions concise but specific.
 - DO NOT return image URLs or image descriptions in this recipe-generation call.
 """.strip()
 
         response, used_model = self._generate_with_resilience(instruction)
         generated = _parse_json_array(response.text or "")
 
-        # Image resolution is separate so the recipe response stays small. Free lookup/cache is
-        # tried first; only unresolved meals trigger one tiny grounded Gemini Search request.
+        # Image resolution is separate so the recipe response stays small. The resolver uses the
+        # specific generated dish name/ingredients, which keeps the photo aligned with the user's
+        # request instead of falling back to generic breakfast/dinner imagery.
         for raw in generated:
             if isinstance(raw, dict):
                 raw["image"] = resolve_meal_image(
@@ -109,4 +131,5 @@ Rules:
             raise RuntimeError("Gemini returned meals, but none passed Bitewise validation.")
         for meal in clean:
             meal["generation_model"] = used_model
+            meal["generation_prompt"] = str(prompt)[:500]
         return clean
