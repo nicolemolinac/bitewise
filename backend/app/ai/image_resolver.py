@@ -66,7 +66,7 @@ def _meal_context(meal: dict) -> str:
 
 
 def _cache_key(meal: dict) -> str:
-    raw = f"v6-playwright-google-images {_meal_context(meal)}"
+    raw = f"v7-playwright-response-images {_meal_context(meal)}"
     return re.sub(r"[^a-z0-9]+", "-", raw).strip("-")[:240]
 
 
@@ -92,39 +92,72 @@ def _query_variants(meal: dict) -> list[str]:
 
 def _clean_candidate(value: str) -> str:
     value = html.unescape(value or "").strip()
-    value = value.replace("\\u003d", "=").replace("\\u0026", "&").replace("\\/", "/")
-    return value
+    return value.replace("\\u003d", "=").replace("\\u0026", "&").replace("\\/", "/")
+
+
+def _usable_url(url: str) -> bool:
+    low = (url or "").lower()
+    if not url.startswith("https://"):
+        return False
+    if any(bad in low for bad in _BAD_IMAGE_HINTS):
+        return False
+    if "google.com/images/branding" in low or "gstatic.com/og/_/ss" in low:
+        return False
+    return True
 
 
 def _playwright_image_candidates(query: str) -> list[str]:
+    """Use Chromium and capture image network responses, not only DOM attributes.
+
+    Current Google Images frequently renders result thumbnails as blob/data-backed elements, so
+    reading <img src> alone can yield zero usable URLs. Capturing actual image responses from the
+    browser is much more reliable and still mirrors what the user sees in Google Images.
+    """
     search_url = f"https://www.google.com/search?tbm=isch&safe=active&hl=en&gl=de&q={quote_plus(query)}"
     candidates: list[str] = []
 
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            page = browser.new_page(
+            context = browser.new_context(
                 user_agent=_HEADERS["User-Agent"],
                 locale="en-US",
                 viewport={"width": 1440, "height": 1100},
             )
+            page = context.new_page()
+
+            def on_response(response):
+                try:
+                    ctype = (response.headers.get("content-type") or "").lower()
+                    url = response.url
+                    if response.ok and ctype.startswith("image/") and _usable_url(url):
+                        candidates.append(url)
+                except Exception:
+                    pass
+
+            page.on("response", on_response)
             page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
 
-            # Consent screens occasionally appear in Germany. Try common accept buttons but
-            # don't fail if Google changes the wording.
-            for label in ("Accept all", "I agree", "Alle akzeptieren", "Accept"): 
+            for label in ("Accept all", "I agree", "Alle akzeptieren", "Accept"):
                 try:
                     button = page.get_by_role("button", name=label)
                     if button.count():
                         button.first.click(timeout=1500)
-                        page.wait_for_timeout(800)
+                        page.wait_for_timeout(700)
                         break
                 except Exception:
                     pass
 
-            page.wait_for_timeout(1800)
+            page.wait_for_timeout(2200)
+
+            # Scroll to trigger lazy-loaded Google Images result thumbnails.
+            for _ in range(3):
+                page.mouse.wheel(0, 1200)
+                page.wait_for_timeout(700)
+
+            # DOM URLs remain a secondary source.
             imgs = page.locator("img")
-            count = min(imgs.count(), 120)
+            count = min(imgs.count(), 140)
             for i in range(count):
                 img = imgs.nth(i)
                 for attr in ("src", "data-src"):
@@ -134,8 +167,6 @@ def _playwright_image_candidates(query: str) -> list[str]:
                         src = None
                     if src:
                         candidates.append(src)
-
-                # Google result images sometimes expose a larger URL in srcset.
                 try:
                     srcset = img.get_attribute("srcset")
                 except Exception:
@@ -144,6 +175,7 @@ def _playwright_image_candidates(query: str) -> list[str]:
                     for part in srcset.split(","):
                         candidates.append(part.strip().split(" ")[0])
 
+            context.close()
             browser.close()
     except Exception:
         return []
@@ -151,20 +183,13 @@ def _playwright_image_candidates(query: str) -> list[str]:
     clean: list[str] = []
     for candidate in candidates:
         candidate = _clean_candidate(candidate)
-        low = candidate.lower()
-        if not candidate.startswith("https://"):
-            continue
-        if any(bad in low for bad in _BAD_IMAGE_HINTS):
-            continue
-        if "google.com/images/branding" in low or "gstatic.com/og/_/ss" in low:
-            continue
-        if candidate not in clean:
+        if _usable_url(candidate) and candidate not in clean:
             clean.append(candidate)
-    return clean
+    return clean[:120]
 
 
 def _valid_image_url(url: str) -> bool:
-    if not str(url or "").startswith("https://"):
+    if not _usable_url(str(url or "")):
         return False
     try:
         r = requests.get(
