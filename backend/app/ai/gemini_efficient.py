@@ -14,11 +14,7 @@ _REPAIR_DONE = False
 
 
 def repair_persisted_ai_images(gemini_client=None, gemini_model: str = "") -> int:
-    """Image repair is intentionally disabled during startup.
-
-    Meal discovery must stay instant and must never block on external image providers.
-    Images are resolved lazily by the frontend/backend image endpoint after concepts render.
-    """
+    """Startup image repair stays disabled so discovery never blocks."""
     return 0
 
 
@@ -27,8 +23,15 @@ def _slug(value: str) -> str:
     return value or "meal"
 
 
+def _clean_image_url(value: str) -> str:
+    value = str(value or "").strip()
+    if value.startswith("https://"):
+        return value
+    return ""
+
+
 class GeminiService(BaseGeminiService):
-    """Two-stage free-first flow: cheap concepts first, full recipe only after selection."""
+    """One free-tier Gemini call returns meal concepts plus image URLs."""
 
     def __init__(self):
         global _REPAIR_DONE
@@ -36,7 +39,6 @@ class GeminiService(BaseGeminiService):
         _REPAIR_DONE = True
 
     def generate_meals(self, prompt):
-        """Generate lightweight discovery concepts only. Never wait for external image lookup."""
         if not self.key:
             raise RuntimeError("GEMINI_API_KEY is missing from backend/.env")
         if not self.client:
@@ -45,8 +47,8 @@ class GeminiService(BaseGeminiService):
         pantry, catalog = _shopping_context()
         pantry_context = ", ".join(pantry[:12]) if pantry else "none"
         catalog_context = "; ".join(catalog[:10]) if catalog else "none"
-        instruction = f"""You are Bitewise, a visual meal discovery engine.
-Create 12 distinct meal CONCEPTS for the user's exact request. This is browsing only: DO NOT generate a recipe, ingredient quantities, or cooking steps.
+        instruction = f"""You are Bitewise, a premium visual meal discovery engine.
+Create 12 distinct meal concepts for the user's exact request.
 
 USER REQUEST — HIGHEST PRIORITY:
 {prompt}
@@ -55,17 +57,19 @@ Pantry hints: {pantry_context}
 Cheap REWE hints: {catalog_context}
 
 Return ONLY a compact JSON array. Each object needs exactly:
-id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags
+id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,image
 
 Rules:
-- Occasion/aesthetic words are hard constraints.
-- Keep description under 12 words.
+- The user's request is a hard constraint. Every concept must clearly satisfy it.
+- Occasion/aesthetic words such as romantic, cozy, fancy, cute, simple, quick, healthy, cheap are mandatory, not optional.
+- Do not invent unrelated pantry novelty dishes merely because pantry hints exist.
+- Keep descriptions under 14 words.
 - time is estimated total minutes; cost is estimated EUR per serving.
 - meal_type: breakfast|lunch|dinner|dessert|snack.
 - tags: max 4 short strings.
-- No image URLs.
+- image: return a direct HTTPS URL for a representative food photo only if you are confident the URL is valid and visually matches the exact concept; otherwise return an empty string.
 - No ingredients. No steps. No method. No recipe text.
-- Make all 12 ideas meaningfully different.
+- Make all 12 ideas visually and conceptually different.
 """.strip()
 
         response, used_model = self._generate_once(instruction)
@@ -93,7 +97,7 @@ Rules:
                 "meal_type": str(raw.get("meal_type") or "dinner").lower(),
                 "cuisine": str(raw.get("cuisine") or "International")[:60],
                 "tags": [str(x)[:40] for x in (raw.get("tags") or [])][:4],
-                "image": "",
+                "image": _clean_image_url(raw.get("image")),
                 "ingredients": [],
                 "steps": [],
                 "is_concept": True,
@@ -105,7 +109,6 @@ Rules:
         return concepts
 
     def expand_concept(self, concept: dict, context: str = ""):
-        """Generate and persist one complete recipe only after the user selects a concept."""
         if not self.key:
             raise RuntimeError("GEMINI_API_KEY is missing from backend/.env")
         if not self.client:
@@ -117,6 +120,7 @@ Rules:
             raise ValueError("Concept name is required")
         description = str(concept.get("description") or "").strip()
         meal_type = str(concept.get("meal_type") or "dinner")
+        image = _clean_image_url(concept.get("image"))
 
         instruction = f"""Create ONE complete Bitewise recipe for the meal concept the user selected.
 
@@ -128,14 +132,14 @@ PANTRY: {', '.join(pantry[:30]) if pantry else 'none'}
 CHEAP REWE EXAMPLES: {'; '.join(catalog[:25]) if catalog else 'none'}
 
 Return ONLY a JSON array containing exactly one object with:
-id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredients,steps
+id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredients,steps,image
 
 Rules:
 - Keep the selected concept recognizable; do not replace it with another dish.
 - ingredients: [[english_name,quantity,unit]], units only g|ml|unit|cloves.
 - steps: 3-6 concise objects {{"text":"...","minutes":N}}.
 - Optimize for low effort and minimal cleanup.
-- Do not return an image URL.
+- image must be exactly this existing URL if non-empty: {image}
 """.strip()
 
         response, used_model = self._generate_once(instruction)
@@ -143,7 +147,7 @@ Rules:
         if not generated:
             raise RuntimeError("Gemini returned no recipe for the selected concept.")
         raw = generated[0]
-        raw["image"] = ""
+        raw["image"] = image or _clean_image_url(raw.get("image"))
         clean = _persist_generated([raw])
         if not clean:
             existing = next((m for m in MEALS if str(m.get("name", "")).lower() == name.lower()), None)
