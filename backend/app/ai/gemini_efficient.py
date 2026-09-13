@@ -14,7 +14,7 @@ _REPAIR_DONE = False
 
 
 def repair_persisted_ai_images(gemini_client=None, gemini_model: str = "") -> int:
-    """Repair old missing/untrusted meal images with zero Gemini calls."""
+    """Repair old missing/untrusted meal images without spending extra Gemini calls."""
     if not DATA_FILE.exists():
         return 0
     try:
@@ -50,7 +50,7 @@ def repair_persisted_ai_images(gemini_client=None, gemini_model: str = "") -> in
 
 
 class GeminiService(BaseGeminiService):
-    """Free-tier-first: one Gemini recipe call; image lookup uses ordinary web requests only."""
+    """Single-call recipe generation. Gemini may return an image URL; resolver is fallback only."""
 
     def __init__(self):
         global _REPAIR_DONE
@@ -84,22 +84,32 @@ Give each meal a concrete, searchable name describing what appears on the plate.
 Prefer pantry/REWE items when sensible, but relevance outranks forcing catalog ingredients.
 
 Return ONLY a compact JSON array. Each object needs exactly:
-id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredients,steps
-Rules:
+id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredients,steps,image
+
+IMAGE RULES:
+- image should be a direct HTTPS image URL that visually matches THAT exact dish.
+- Prefer stable public recipe/food publisher image URLs.
+- Do not return a generic food image, logo, thumbnail page, social-media profile, or unrelated image.
+- If you are not confident the URL points to the exact dish, return image as an empty string.
+
+Other rules:
 - meal_type: breakfast|lunch|dinner|dessert|snack
 - ingredients: [[english_name,quantity,unit]], units only g|ml|unit|cloves
 - steps: 3-6 concise objects {{"text":"...","minutes":N}}
 - Keep descriptions concise but specific.
-- DO NOT return image URLs or image descriptions.
 """.strip()
 
         # Exactly one Gemini request per recipe-generation action.
         response, used_model = self._generate_once(instruction)
         generated = _parse_json_array(response.text or "")
 
-        # Zero-token image resolution: cached Google Images scrape, then Wikimedia fallback.
+        # Prefer Gemini's own image URL. Only fall back to web lookup when Gemini left it blank
+        # or returned one of our known untrusted/fallback URLs.
         for raw in generated:
-            if isinstance(raw, dict):
+            if not isinstance(raw, dict):
+                continue
+            image = str(raw.get("image") or "").strip()
+            if not image or is_untrusted_generated_image(image):
                 raw["image"] = resolve_meal_image(raw)
 
         clean = _persist_generated(generated)
