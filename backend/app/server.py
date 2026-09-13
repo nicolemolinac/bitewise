@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import Request
+from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import or_
 
@@ -100,6 +100,25 @@ def _multilingual_catalog_search(self, ingredient):
 # fixes every /api/shopping build without changing persisted REWE rows or spending Gemini tokens.
 main_module.CatalogAdapter.search = _multilingual_catalog_search
 app = main_module.app
+
+
+@app.post("/api/ai/recipe")
+async def expand_ai_recipe(request: Request):
+    """Expand one lightweight discovery concept into a full persisted recipe on selection."""
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON payload")
+    concept = payload.get("concept") if isinstance(payload, dict) else None
+    context = payload.get("context", "") if isinstance(payload, dict) else ""
+    if not isinstance(concept, dict) or not str(concept.get("name") or "").strip():
+        raise HTTPException(422, "A meal concept with a name is required")
+    try:
+        recipe = EfficientGeminiService().expand_concept(concept, str(context or ""))
+        return {"meal": recipe}
+    except Exception as exc:
+        raise HTTPException(502, f"Recipe expansion failed: {str(exc)[:300]}")
+
 
 # Replace the legacy REWE refresh route with the safe merge/reconciliation version.
 # Other routes from main.py remain unchanged.
