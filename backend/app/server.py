@@ -1,9 +1,8 @@
 from pathlib import Path
 
-import requests
 from dotenv import load_dotenv
 from fastapi import Request, HTTPException
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import or_
 
 # Load backend/.env before database.py is imported so DATABASE_URL and auth settings
@@ -13,7 +12,7 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 from .cloud_sync import auth_enabled, authenticate_request, router as cloud_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
-from .ai.image_resolver import resolve_meal_image
+from .ai.pexels_images import search_pexels_image
 from .ingredient_aliases import ingredient_aliases
 from .rewe_refresh import router as rewe_refresh_router
 
@@ -116,44 +115,21 @@ async def expand_ai_recipe(request: Request):
         raise HTTPException(502, f"Recipe expansion failed: {str(exc)[:300]}")
 
 
-@app.get("/api/meal-image")
-def meal_image(name: str, description: str = "", tags: str = ""):
-    """Resolve a Google Images result and stream the bytes from Bitewise itself.
+@app.get("/api/meal-photo")
+def meal_photo(name: str, meal_type: str = "", tags: str = ""):
+    """Return one free Pexels photo for a meal concept.
 
-    The frontend points <img> at this endpoint. That avoids publisher hotlink/referrer issues and
-    means Google CDN thumbnails can be used even when the browser would otherwise refuse them.
+    This endpoint is deliberately separate from Gemini so discovery stays one LLM call and
+    image lookup remains free-first. If PEXELS_API_KEY is missing, return an empty result.
     """
-    meal = {
-        "name": name,
-        "description": description,
-        "tags": [x.strip() for x in tags.split(",") if x.strip()],
-        "ingredients": [],
-    }
-    url = resolve_meal_image(meal)
-    if not url:
-        raise HTTPException(404, "No matching meal image found")
-    try:
-        upstream = requests.get(
-            url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/144 Safari/537.36",
-                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-                "Referer": "https://www.google.com/",
-            },
-            timeout=10,
-            allow_redirects=True,
-        )
-        upstream.raise_for_status()
-        ctype = (upstream.headers.get("content-type") or "").lower()
-        if not ctype.startswith("image/"):
-            raise ValueError("Upstream response was not an image")
-    except Exception as exc:
-        raise HTTPException(502, f"Image fetch failed: {str(exc)[:160]}")
-    return Response(
-        content=upstream.content,
-        media_type=ctype.split(";")[0],
-        headers={"Cache-Control": "public, max-age=86400"},
+    result = search_pexels_image(
+        {
+            "name": name,
+            "meal_type": meal_type,
+            "tags": [x.strip() for x in tags.split(",") if x.strip()],
+        }
     )
+    return result
 
 
 app.router.routes = [
