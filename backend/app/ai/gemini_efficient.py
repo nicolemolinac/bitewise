@@ -25,13 +25,25 @@ def _slug(value: str) -> str:
 
 def _clean_image_url(value: str) -> str:
     value = str(value or "").strip()
-    if value.startswith("https://"):
-        return value
-    return ""
+    return value if value.startswith("https://") else ""
+
+
+def _base_user_request(prompt: str) -> str:
+    """Strip frontend implementation hints so Gemini ranks the actual human request first."""
+    text = str(prompt or "").strip()
+    for marker in (
+        ". Meal type:",
+        ". Available appliances:",
+        ". User portion factor",
+        ". Prefer the easiest method",
+    ):
+        if marker in text:
+            text = text.split(marker, 1)[0].strip()
+    return text or str(prompt or "").strip()
 
 
 class GeminiService(BaseGeminiService):
-    """One free-tier Gemini call returns meal concepts plus image URLs."""
+    """One free-tier Gemini call returns browseable, mainstream meal concepts."""
 
     def __init__(self):
         global _REPAIR_DONE
@@ -44,48 +56,58 @@ class GeminiService(BaseGeminiService):
         if not self.client:
             raise RuntimeError("Gemini client could not be initialized")
 
+        user_request = _base_user_request(prompt)
         pantry, catalog = _shopping_context()
-        pantry_context = ", ".join(pantry[:12]) if pantry else "none"
-        catalog_context = "; ".join(catalog[:10]) if catalog else "none"
-        instruction = f"""You are Bitewise, a premium visual meal discovery engine.
-Create 12 distinct meal concepts for the user's exact request.
+        pantry_context = ", ".join(pantry[:8]) if pantry else "none"
+        catalog_context = "; ".join(catalog[:6]) if catalog else "none"
 
-USER REQUEST — HIGHEST PRIORITY:
-{prompt}
+        instruction = f"""You are Bitewise's visual discovery editor. Think like a strong Pinterest board curator, not a novelty recipe generator.
 
+PRIMARY USER SEARCH (this controls the result set):
+{user_request}
+
+SECONDARY CONTEXT ONLY — never let this override the search:
 Pantry hints: {pantry_context}
-Cheap REWE hints: {catalog_context}
+REWE examples: {catalog_context}
 
-Return ONLY a compact JSON array. Each object needs exactly:
+Return ONLY a compact JSON array of 10 meal concepts. Each object needs exactly:
 id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,image
 
-Rules:
-- The user's request is a hard constraint. Every concept must clearly satisfy it.
-- Occasion/aesthetic words such as romantic, cozy, fancy, cute, simple, quick, healthy, cheap are mandatory, not optional.
-- Do not invent unrelated pantry novelty dishes merely because pantry hints exist.
-- Keep descriptions under 14 words.
-- time is estimated total minutes; cost is estimated EUR per serving.
+QUALITY RULES:
+- First ask: what would a normal person expect to see after searching this exact phrase on Pinterest or Google Images?
+- Return recognizable, appetizing, mainstream dishes that strongly match that expectation.
+- Do NOT invent quirky fusion dishes, vague concepts, novelty pantry combinations, or restaurant-menu wording.
+- Use familiar food names. Prefer concepts people can instantly picture.
+- The full search intent is mandatory. If the search says romantic + breakfast + simple, EVERY result must visibly satisfy all three.
+- For occasion/aesthetic searches, encode the aesthetic in the FOOD itself: heart-shaped toast or pancakes, strawberries/berries, croissants, waffles, eggs on toast, yogurt parfait, breakfast board/tray, fruit, cocoa/coffee. Do not just add words like elegant, cozy, sunrise, indulgent to an unrelated dish.
+- Avoid beverages as standalone meal cards unless the user explicitly asks for drinks.
+- Avoid pasta, salads, savory lunch/dinner dishes, or odd pantry hacks for a breakfast search unless explicitly requested.
+- Keep descriptions concrete and under 12 words.
+- time is realistic total minutes; cost is rough EUR per serving.
 - meal_type: breakfast|lunch|dinner|dessert|snack.
-- tags: max 4 short strings.
-- image: return a direct HTTPS URL for a representative food photo only if you are confident the URL is valid and visually matches the exact concept; otherwise return an empty string.
-- No ingredients. No steps. No method. No recipe text.
-- Make all 12 ideas visually and conceptually different.
+- tags: max 4 useful strings.
+- image: direct HTTPS food photo URL only if you are highly confident it is real and matches; otherwise empty string.
+- No ingredients, steps, methods, or recipe text.
+- Make results distinct but all clearly relevant. Rank the most obvious/best matches first.
+
+Example quality bar for search "simple romantic breakfast":
+heart-shaped French toast with strawberries; strawberry ricotta toast; croissants with berries and chocolate; heart-shaped fried eggs on toast; berry yogurt parfait for two; mini pancakes with strawberries; waffles with raspberries; breakfast board with croissants, fruit and jam; cinnamon rolls with berries; avocado toast with heart-shaped egg.
+These are examples of specificity and relevance, not a fixed list.
 """.strip()
 
         response, used_model = self._generate_once(instruction)
         generated = _parse_json_array(response.text or "")
         concepts = []
-        seen = set()
-        for index, raw in enumerate(generated[:12]):
+        seen_names = set()
+        for index, raw in enumerate(generated[:10]):
             if not isinstance(raw, dict):
                 continue
             name = str(raw.get("name") or "").strip()
-            if not name:
+            normalized_name = name.lower()
+            if not name or normalized_name in seen_names:
                 continue
+            seen_names.add(normalized_name)
             concept_id = f"concept-{_slug(str(raw.get('id') or name))}-{index+1}"
-            if concept_id in seen:
-                continue
-            seen.add(concept_id)
             concepts.append({
                 "id": concept_id[:100],
                 "name": name[:120],
@@ -102,7 +124,7 @@ Rules:
                 "steps": [],
                 "is_concept": True,
                 "generation_model": used_model,
-                "discovery_prompt": str(prompt)[:700],
+                "discovery_prompt": user_request[:700],
             })
         if not concepts:
             raise RuntimeError("Gemini returned no usable meal concepts.")
@@ -122,7 +144,7 @@ Rules:
         meal_type = str(concept.get("meal_type") or "dinner")
         image = _clean_image_url(concept.get("image"))
 
-        instruction = f"""Create ONE complete Bitewise recipe for the meal concept the user selected.
+        instruction = f"""Create ONE complete Bitewise recipe for the selected meal concept.
 
 SELECTED CONCEPT: {name}
 CONCEPT DESCRIPTION: {description}
