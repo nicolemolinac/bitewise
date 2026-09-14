@@ -1,4 +1,6 @@
 from pathlib import Path
+import hmac
+import os
 
 from dotenv import load_dotenv
 from fastapi import Request, HTTPException
@@ -146,9 +148,18 @@ app.include_router(cloud_router)
 app.include_router(migration_router)
 
 
+def _trusted_service_request(request: Request) -> bool:
+    expected = os.getenv("SERVICE_TOKEN", "").strip()
+    supplied = request.headers.get("x-service-token", "").strip()
+    return bool(expected and supplied and hmac.compare_digest(expected, supplied))
+
+
 @app.middleware("http")
 async def private_bitewise(request: Request, call_next):
     path = request.url.path
+    if _trusted_service_request(request):
+        request.state.bitewise_user = {"id": "personal-ai-os", "email": "chief@bitewise.local"}
+        return await call_next(request)
     if auth_enabled() and path.startswith("/api/") and path != "/api/health" and request.method != "OPTIONS":
         try:
             request.state.bitewise_user = authenticate_request(request)
