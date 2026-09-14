@@ -14,6 +14,8 @@ services:
         sync: false
       - key: APP_PASSWORD
         sync: false
+      - key: SERVICE_TOKEN
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: PEXELS_API_KEY
