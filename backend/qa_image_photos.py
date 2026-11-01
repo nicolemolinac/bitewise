@@ -4,6 +4,7 @@ This suite stubs browser/network access so CI verifies the route and payload con
 without depending on Google rate limits, cookies, or image-result changes.
 """
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 
 from app import server
 from app.ai import image_resolver
@@ -28,7 +29,7 @@ def test_image_url_filter():
     assert not image_resolver._usable_url("http://images.example.com/meal.jpg")
 
 
-def test_meal_photos_endpoint_contract(monkeypatch):
+def test_meal_photos_endpoint_contract():
     seen = []
 
     def fake_resolver(meals):
@@ -43,33 +44,32 @@ def test_meal_photos_endpoint_contract(monkeypatch):
             for meal in meals
         ]
 
-    monkeypatch.setattr(server, "resolve_meal_images", fake_resolver)
-    client = TestClient(server.app)
-
-    response = client.post("/api/meal-photos", json={
+    with patch.object(server, "resolve_meal_images", fake_resolver):
+        client = TestClient(server.app)
+        response = client.post("/api/meal-photos", json={
         "meals": [
             {"name": "Heart-shaped eggs", "ingredients": [["eggs", 2, "pcs"]]},
             {"name": "Strawberry pancakes", "ingredients": [["strawberries", 100, "g"]]},
         ]
-    })
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert len(payload["photos"]) == 2
-    assert payload["photos"][0]["image"].endswith("/Heart-shaped-eggs.jpg")
-    assert payload["photos"][1]["image"].endswith("/Strawberry-pancakes.jpg")
-    assert len(seen) == 2
+        })
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert len(payload["photos"]) == 2
+        assert payload["photos"][0]["image"].endswith("/Heart-shaped-eggs.jpg")
+        assert payload["photos"][1]["image"].endswith("/Strawberry-pancakes.jpg")
+        assert len(seen) == 2
 
 
-def test_meal_photos_rejects_non_list_payload(monkeypatch):
-    monkeypatch.setattr(server, "resolve_meal_images", lambda meals: [])
-    client = TestClient(server.app)
-    response = client.post("/api/meal-photos", json={"meals": "not-a-list"})
-    assert response.status_code == 422
+def test_meal_photos_rejects_non_list_payload():
+    with patch.object(server, "resolve_meal_images", lambda meals: []):
+        client = TestClient(server.app)
+        response = client.post("/api/meal-photos", json={"meals": "not-a-list"})
+        assert response.status_code == 422
 
 
 if __name__ == "__main__":
     test_query_is_specific_and_aesthetic()
     test_image_url_filter()
-    test_meal_photos_endpoint_contract(lambda *args, **kwargs: None)
-    test_meal_photos_rejects_non_list_payload(lambda *args, **kwargs: None)
+    test_meal_photos_endpoint_contract()
+    test_meal_photos_rejects_non_list_payload()
     print("IMAGE QA PASS: query, URL filtering, endpoint contract and validation")
