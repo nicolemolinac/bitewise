@@ -1,10 +1,15 @@
 import json
+import logging
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote_plus
 
 from playwright.sync_api import sync_playwright
+
+logger = logging.getLogger(__name__)
+CDP_ENDPOINT = os.getenv("BITEWISE_CHROME_CDP_URL", "http://127.0.0.1:9222").rstrip("/")
 
 CACHE_FILE = Path(__file__).resolve().parents[2] / "data" / "meal_image_cache.json"
 CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -81,9 +86,20 @@ def _usable_url(url: str) -> bool:
 
 
 def _open_browser(playwright):
-    # Diagnostic mode: use Playwright's bundled Chromium directly and show the
-    # browser window so Google Images navigation and any bot challenge are visible.
-    return playwright.chromium.launch(headless=False)
+    """Attach to the user's already-running Chrome for Testing over CDP.
+
+    Chrome is started separately with remote debugging enabled, so Bitewise
+    never launches a second browser or takes ownership of the shared profile.
+    """
+    logger.info("Connecting to existing Chrome for Testing at %s", CDP_ENDPOINT)
+    browser = playwright.chromium.connect_over_cdp(CDP_ENDPOINT, timeout=10_000)
+    if not browser.contexts:
+        browser.close()
+        raise RuntimeError(
+            f"Chrome at {CDP_ENDPOINT} has no available browser context"
+        )
+    logger.info("Connected to Chrome for Testing; reusing its existing profile")
+    return browser
 
 
 def _search_one(page, meal: dict) -> dict[str, str]:
@@ -194,17 +210,17 @@ def resolve_meal_images(meals: list[dict], *, force: bool = False) -> list[dict[
 
     if pending:
         browser = None
-        context = None
+        page = None
         try:
             with sync_playwright() as playwright:
                 browser = _open_browser(playwright)
-                context = browser.new_context(
-                    user_agent=_HEADERS["User-Agent"],
-                    locale="en-US",
-                    viewport={"width": 1440, "height": 1100},
-                )
+                # Use a fresh tab in the existing profile. Do not close or reset
+                # the shared browser context, cookies, or other apps' tabs.
+                context = browser.contexts[0]
                 page = context.new_page()
                 for index, key, meal in pending:
+                    query = _query(meal)
+                    logger.info("Searching Google Images for meal %d/%d: %s", index + 1, len(meals), query)
                     try:
                         candidates = _search_one(page, meal)
                         chosen = next((x for x in candidates if x["image"] not in used_images), None)
@@ -215,24 +231,30 @@ def resolve_meal_images(meals: list[dict], *, force: bool = False) -> list[dict[
                                 **chosen,
                                 "updated_at": datetime.now(timezone.utc).isoformat(),
                             }
+                            logger.info("Found image for %s", query)
                         else:
-                            results[index] = {"image": "", "image_page": "", "photographer": "", "search_query": _query(meal)}
+                            results[index] = {"image": "", "image_page": "", "photographer": "", "search_query": query}
+                            logger.warning("No usable image found for %s", query)
                     except Exception:
-                        results[index] = {"image": "", "image_page": "", "photographer": "", "search_query": _query(meal)}
+                        logger.exception("Image search failed for meal: %s", query)
+                        results[index] = {"image": "", "image_page": "", "photographer": "", "search_query": query}
                 _save_cache(cache)
         except Exception:
             # Do not break recipe generation if Chrome/Playwright or Google is unavailable.
+            logger.exception("Could not connect to Chrome for Testing or resolve meal photos")
             for index, _, meal in pending:
                 if not results[index]:
                     results[index] = {"image": "", "image_page": "", "photographer": "", "search_query": _query(meal)}
         finally:
-            if context:
+            if page:
                 try:
-                    context.close()
+                    page.close()
                 except Exception:
                     pass
             if browser:
                 try:
+                    # For a CDP connection this disconnects Playwright; it does
+                    # not shut down the externally launched Chrome process.
                     browser.close()
                 except Exception:
                     pass
