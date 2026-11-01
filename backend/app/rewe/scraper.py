@@ -420,68 +420,96 @@ class ReweCatalogScraper:
         report["products_with_price"] += priced
 
     def _run_browser(self, upsert, postcode, urls):
+        """Scrape REWE in the already-running Chrome for Testing via CDP.
+
+        This deliberately mirrors image_resolver._open_browser: Playwright is only
+        the CDP client. It never downloads/launches its bundled Chromium and never
+        owns or terminates the shared Chrome process/profile.
+        """
         try:
             from playwright.sync_api import sync_playwright
         except ImportError as exc:
-            raise RuntimeError("Playwright browser fallback is not installed") from exc
-        report = self._base_report(postcode, "playwright")
-        headless = os.getenv("REWE_BROWSER_HEADLESS", "true").lower() not in {"0", "false", "no"}
-        with sync_playwright() as pw:
-            launch_args = {"headless": headless, "args": ["--no-sandbox", "--disable-blink-features=AutomationControlled"]}
-            channel = os.getenv("REWE_BROWSER_CHANNEL", "").strip()
-            if channel:
-                launch_args["channel"] = channel
-            try:
-                browser = pw.chromium.launch(**launch_args)
-            except Exception:
-                launch_args.pop("channel", None)
-                browser = pw.chromium.launch(**launch_args)
-            context_args = {"locale": "de-DE", "user_agent": HEADERS["User-Agent"], "viewport": {"width": 1440, "height": 1000}}
-            if STATE_FILE.exists():
-                context_args["storage_state"] = str(STATE_FILE)
-            context = browser.new_context(**context_args)
-            page = context.new_page()
-            try:
+            raise RuntimeError("Playwright Python package is not installed") from exc
+
+        endpoint = os.getenv(
+            "BITEWISE_CHROME_CDP_URL",
+            os.getenv("REWE_CHROME_CDP_URL", "http://127.0.0.1:9222"),
+        ).rstrip("/")
+        report = self._base_report(postcode, "chrome-for-testing-cdp")
+        browser = None
+        page = None
+
+        try:
+            with sync_playwright() as pw:
                 try:
-                    self._set_delivery_location(page, postcode)
-                except Exception:
-                    if STATE_FILE.exists():
-                        STATE_FILE.unlink(missing_ok=True)
-                    context.close()
-                    browser.close()
-                    browser = pw.chromium.launch(**launch_args)
-                    context = browser.new_context(locale="de-DE", user_agent=HEADERS["User-Agent"], viewport={"width": 1440, "height": 1000})
-                    page = context.new_page()
-                    self._set_delivery_location(page, postcode)
-                for start in urls:
+                    browser = pw.chromium.connect_over_cdp(endpoint, timeout=15_000)
+                except Exception as exc:
+                    raise RuntimeError(
+                        "Could not connect to Chrome for Testing at "
+                        f"{endpoint}. Start the existing Chrome for Testing with "
+                        "remote debugging enabled (port 9222); Bitewise no longer "
+                        "tries to launch Playwright's bundled Chromium. "
+                        f"Original error: {str(exc)[:220]}"
+                    ) from exc
+
+                if not browser.contexts:
+                    raise RuntimeError(
+                        f"Chrome for Testing at {endpoint} has no browser context"
+                    )
+
+                # Reuse the existing profile so REWE consent/location cookies persist.
+                # Only this scraper-owned tab is closed at the end.
+                context = browser.contexts[0]
+                page = context.new_page()
+                self._set_delivery_location(page, postcode)
+
+                for category_url in urls:
                     report["categories_processed"] += 1
-                    category = start.rstrip("/").split("/")[-1] or "bonus"
+                    category = category_url.rstrip("/").split("/")[-1] or "bonus"
                     try:
                         by_id = {}
-                        for page_url, html in self._browser_category_pages(page, start):
+                        for page_url, html in self._browser_category_pages(page, category_url):
                             report["pages_processed"] += 1
                             for product in self.extract(html, page_url, category):
                                 current = by_id.get(product["external_id"])
-                                if current is None or (not current.get("product_url") and product.get("product_url")):
+                                if current is None or (
+                                    (not current.get("product_url") and product.get("product_url"))
+                                    or (current.get("price") is None and product.get("price") is not None)
+                                ):
                                     by_id[product["external_id"]] = product
+
                         products = list(by_id.values())
                         if not products:
-                            raise RuntimeError("No products found after localized delivery page load")
+                            raise RuntimeError(
+                                "No products found after localized REWE delivery page load"
+                            )
                         self._ingest_products(report, products, upsert, postcode)
                         report["categories_successful"] += 1
                     except Exception as exc:
                         report["categories_failed"] += 1
-                        report["errors"].append({"category": category, "error": str(exc)[:300]})
-            finally:
+                        report["errors"].append({
+                            "category": category,
+                            "error": str(exc)[:300],
+                        })
+
+        finally:
+            if page:
                 try:
-                    context.close()
+                    page.close()
                 except Exception:
                     pass
+            if browser:
                 try:
+                    # Closing a CDP-connected Playwright Browser disconnects the
+                    # client; it does not terminate the externally managed Chrome.
                     browser.close()
                 except Exception:
                     pass
-        report["status"] = "failed" if not report["categories_successful"] else ("partial" if report["categories_failed"] else "healthy")
+
+        report["status"] = (
+            "failed" if not report["categories_successful"]
+            else ("partial" if report["categories_failed"] else "healthy")
+        )
         return report
 
     def _run_http(self, upsert, postcode, urls):
