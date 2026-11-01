@@ -45,6 +45,8 @@ jobs:
               '/api/brain-dump',
               '/api/user-state',
               '/api/meal-photos',
+              '/api/recipe-history',
+              '/api/recipe-history/{record_key:path}',
           }
           missing = sorted(required - paths)
           assert not missing, f'Missing critical routes: {missing}'
@@ -52,6 +54,8 @@ jobs:
           PY
       - name: End-to-end API smoke QA
         run: python qa_smoke.py
+      - name: Recipe history persistence and shopping rehydration QA
+        run: python qa_recipe_history.py
       - name: Google Images meal-photo API QA
         run: python qa_image_photos.py
       - name: Live REWE delivery QA (external site may block cloud runners)

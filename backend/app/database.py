@@ -141,6 +141,22 @@ class PlannedMeal(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class RecipeHistory(Base):
+    __tablename__ = "recipe_history"
+    __table_args__ = (UniqueConstraint("user_id", "record_key", name="uq_recipe_history_user_record"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(160), index=True)
+    record_key: Mapped[str] = mapped_column(String(180))
+    record_type: Mapped[str] = mapped_column(String(20), index=True)
+    status: Mapped[str] = mapped_column(String(30), default="discovered", index=True)
+    name: Mapped[str] = mapped_column(String(180))
+    prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meal_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 Base.metadata.create_all(engine)
 
 

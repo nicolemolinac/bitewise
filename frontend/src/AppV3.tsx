@@ -9,7 +9,7 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const K = 'bitewise.v3.';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'dessert' | 'snack';
-type Tab = 'discover'|'picks'|'plan'|'today'|'basket'|'extras'|'pantry'|'settings';
+type Tab = 'discover'|'picks'|'history'|'plan'|'today'|'basket'|'extras'|'pantry'|'settings';
 type Strategy = 'maximum-savings'|'best-value'|'plan-efficiency'|'premium';
 type CalendarView = 'week'|'month'|'year';
 type Meal = {
@@ -83,6 +83,7 @@ function exactRewe(url?:string|null){try{const u=new URL(url||'');return /(^|\.)
 export default function AppV3(){
   const [tab,setTab]=useState<Tab>(()=>read('tab','discover'));
   const [meals,setMeals]=useState<Meal[]>([]);
+  const [history,setHistory]=useState<any[]>([]);
   const [liked,setLiked]=useState<Meal[]>(()=>read('liked',[]));
   const [skipped,setSkipped]=useState<string[]>(()=>read('skipped',[]));
   const [mealType,setMealType]=useState<MealType>(()=>read('mealType','dinner'));
@@ -116,8 +117,11 @@ export default function AppV3(){
 
   async function boot(){
     try{
-      const [m,p,s,ss]=await Promise.all([api('/meals?mode=random'),api('/pantry'),api('/settings'),api('/shopping/state')]);
+      const [m,p,s,ss,h]=await Promise.all([api('/meals?mode=random'),api('/pantry'),api('/settings'),api('/shopping/state'),api('/recipe-history')]);
       setMeals(m.meals||[]);setPantry(p||[]);if(s.shopping_strategy)setStrategy(s.shopping_strategy);
+      const records=h.records||[];setHistory(records);
+      const savedRecipes=records.filter((x:any)=>x.record_type==='recipe'&&['saved','cooked'].includes(x.status)).map((x:any)=>x.meal).filter(Boolean);
+      if(savedRecipes.length)setLiked(savedRecipes);
       const apiOwned=(ss.items||[]).filter((x:any)=>x.state==='owned').map((x:any)=>x.ingredient);if(apiOwned.length)setOwned(apiOwned);
     }catch(e:any){setError(e.message)}
   }
@@ -155,8 +159,51 @@ export default function AppV3(){
     }
   }
 
-  async function generateAI(prompt:string){setLoading(true);setError('');try{const p=prompt.toLowerCase();const promptType:MealType|undefined=/\b(breakfast|desayuno)\b/.test(p)?'breakfast':/\b(lunch|almuerzo)\b/.test(p)?'lunch':/\b(dinner|cena)\b/.test(p)?'dinner':/\b(dessert|postre)\b/.test(p)?'dessert':/\b(snack|merienda)\b/.test(p)?'snack':undefined;const requestedType=promptType||mealType;setMealType(requestedType);const full=`${prompt}. Meal type: ${requestedType}. Available appliances: ${appliances.join(', ')||'basic kitchen'}. User portion factor is ${factor.toFixed(2)}. Prefer the easiest method and minimal cleanup.`;const d=await api('/ai/meals',{method:'POST',body:JSON.stringify({prompt:full})});const fresh:Meal[]=d.meals||[];if(!fresh.length)throw new Error('No meal ideas were generated. Check GEMINI_API_KEY in backend/.env.');const requestedMeals=fresh.map(m=>({...m,meal_type:requestedType,image:''}));setMeals(requestedMeals);setFilter('all');void attachFreePhotos(requestedMeals)}catch(e:any){setError(e.message)}finally{setLoading(false)}}
-  async function react(meal:Meal,action:'like'|'skip'|'dislike'){if(action==='like'&&meal.is_concept){setLoading(true);setError('');try{const d=await api('/ai/recipe',{method:'POST',body:JSON.stringify({concept:meal,context:meal.discovery_prompt||brain})});const recipe:Meal={...d.meal,image:meal.image||d.meal?.image||'',image_page:meal.image_page||'',photographer:meal.photographer||''};if(!recipe?.id)throw new Error('Bitewise could not build the selected recipe.');try{await api('/events',{method:'POST',body:JSON.stringify({meal_id:recipe.id,action:'like'})})}catch{}setLiked(x=>x.some(a=>a.id===recipe.id)?x:[...x,recipe]);setSkipped(x=>[...new Set([...x,meal.id])])}catch(e:any){setError(e.message)}finally{setLoading(false)}return}if(!meal.is_concept){try{await api('/events',{method:'POST',body:JSON.stringify({meal_id:meal.id,action})})}catch{}}if(action==='like')setLiked(x=>x.some(a=>a.id===meal.id)?x:[...x,meal]);else setSkipped(x=>[...new Set([...x,meal.id])])}
+  async function generateAI(prompt:string){
+    setLoading(true);setError('');
+    try{
+      const p=prompt.toLowerCase();
+      const promptType:MealType|undefined=/\b(breakfast|desayuno)\b/.test(p)?'breakfast':/\b(lunch|almuerzo)\b/.test(p)?'lunch':/\b(dinner|cena)\b/.test(p)?'dinner':/\b(dessert|postre)\b/.test(p)?'dessert':/\b(snack|merienda)\b/.test(p)?'snack':undefined;
+      const requestedType=promptType||mealType;setMealType(requestedType);
+      const full=`${prompt}. Meal type: ${requestedType}. Available appliances: ${appliances.join(', ')||'basic kitchen'}. User portion factor is ${factor.toFixed(2)}. Prefer the easiest method and minimal cleanup.`;
+      const d=await api('/ai/meals',{method:'POST',body:JSON.stringify({prompt:full})});
+      const generated:Meal[]=d.meals||[];
+      if(!generated.length)throw new Error('No meal ideas were generated. Check GEMINI_API_KEY in backend/.env.');
+      const batchId=Date.now();
+      const requestedMeals=generated.map((m,i)=>({...m,id:`${m.id}-${batchId}-${i+1}`,meal_type:requestedType,image:'',discovery_prompt:prompt,is_concept:true}));
+      const saved=await api('/recipe-history',{method:'POST',body:JSON.stringify({records:requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal}))})});
+      if(!saved.ok)throw new Error('Bitewise could not save this discovery to your permanent history.');
+      setHistory(prev=>[...requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal})),...prev]);
+      setMeals(requestedMeals);setFilter('all');void attachFreePhotos(requestedMeals);
+    }catch(e:any){setError(e.message)}finally{setLoading(false)}
+  }
+  async function react(meal:Meal,action:'like'|'skip'|'dislike'){
+    if(action==='like'&&meal.is_concept){
+      setLoading(true);setError('');
+      try{
+        const d=await api('/ai/recipe',{method:'POST',body:JSON.stringify({concept:meal,context:meal.discovery_prompt||brain})});
+        const recipe:Meal={...d.meal,image:meal.image||d.meal?.image||'',image_page:meal.image_page||'',photographer:meal.photographer||''};
+        if(!recipe?.id)throw new Error('Bitewise could not build the selected recipe.');
+        try{await api('/events',{method:'POST',body:JSON.stringify({meal_id:recipe.id,action:'like'})})}catch{}
+        setLiked(x=>x.some(a=>a.id===recipe.id)?x:[...x,recipe]);
+        setSkipped(x=>[...new Set([...x,meal.id])]);
+        setHistory(prev=>[
+          {record_key:`recipe:${meal.id}`,record_type:'recipe',status:'saved',prompt:meal.discovery_prompt,meal:recipe},
+          ...prev.map(row=>row.record_key===meal.id?{...row,status:'expanded'}:row),
+        ]);
+      }catch(e:any){setError(e.message)}finally{setLoading(false)}
+      return;
+    }
+    if(meal.is_concept){
+      const nextStatus=action==='dislike'?'disliked':'skipped';
+      try{await api(`/recipe-history/${encodeURIComponent(meal.id)}`,{method:'PATCH',body:JSON.stringify({status:nextStatus})})}catch(e:any){setError('Could not update permanent history: '+e.message)}
+      setHistory(prev=>prev.map(row=>row.record_key===meal.id?{...row,status:nextStatus}:row));
+    }else{
+      try{await api('/events',{method:'POST',body:JSON.stringify({meal_id:meal.id,action})})}catch{}
+    }
+    if(action==='like')setLiked(x=>x.some(a=>a.id===meal.id)?x:[...x,meal]);
+    else setSkipped(x=>[...new Set([...x,meal.id])]);
+  }
   function servingTotals(){const totals:Record<string,number>={};weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(s.meal)totals[s.meal.id]=(totals[s.meal.id]||0)+factor*(dayContexts[idx]?.people||1)}));if(!Object.keys(totals).length)liked.forEach(m=>totals[m.id]=factor);return totals}
   async function makeBasket(nextStrategy:Strategy=strategy){if(!liked.length)return;setLoading(true);setError('');try{const servings=servingTotals();const d=await api('/shopping',{method:'POST',body:JSON.stringify({meal_ids:Object.keys(servings),servings,owned,mode:nextStrategy})});setBasket(d.items||d.basket||[]);setSummary(d);setTab('basket')}catch(e:any){setError(e.message)}finally{setLoading(false)}}
   async function changeStrategy(s:Strategy){setStrategy(s);await api('/settings',{method:'PATCH',body:JSON.stringify({shopping_strategy:s})});if(basket.length)await makeBasket(s)}
@@ -173,7 +220,7 @@ export default function AppV3(){
     <header className="sticky top-0 z-40 border-b border-[#17211b]/8 bg-[#f7f4ee]/92 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-3">
         <button onClick={()=>setTab('discover')} className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#18392b] text-white"><UtensilsCrossed size={17}/></span><div className="text-left"><div className="font-black">Bitewise</div><div className="text-[9px] font-bold uppercase tracking-[.22em] text-[#18392b]/45">Eat well. Think less.</div></div></button>
-        <nav className="hidden gap-1 rounded-full bg-white p-1 shadow-sm xl:flex">{(['discover','picks','plan','today','basket','extras'] as Tab[]).map(t=><button key={t} onClick={()=>setTab(t)} className={cx('rounded-full px-4 py-2 text-xs font-black capitalize transition',tab===t?'bg-[#18392b] text-white':'text-[#18392b]/50 hover:bg-[#edf3ee] hover:text-[#18392b]')}>{t}{t==='picks'&&liked.length?` ${liked.length}`:''}</button>)}</nav>
+        <nav className="hidden gap-1 rounded-full bg-white p-1 shadow-sm xl:flex">{(['discover','picks','history','plan','today','basket','extras'] as Tab[]).map(t=><button key={t} onClick={()=>setTab(t)} className={cx('rounded-full px-4 py-2 text-xs font-black capitalize transition',tab===t?'bg-[#18392b] text-white':'text-[#18392b]/50 hover:bg-[#edf3ee] hover:text-[#18392b]')}>{t}{t==='picks'&&liked.length?` ${liked.length}`:''}</button>)}</nav>
         <div className="flex gap-1"><button onClick={()=>setTab('pantry')} className="rounded-full bg-white p-2.5 shadow-sm"><Home size={16}/></button><button onClick={()=>setTab('settings')} className="rounded-full bg-white p-2.5 shadow-sm"><Settings size={16}/></button></div>
       </div>
     </header>
@@ -190,6 +237,8 @@ export default function AppV3(){
       </>}
 
       {tab==='picks'&&<><Title title="Your picks" sub="Only selected ideas become full recipes. Portions adapt to your profile and each day's guest count."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{liked.map(m=><MealCard key={m.id} meal={m} open={()=>setDetail(m)} like={()=>setLiked(x=>x.filter(a=>a.id!==m.id))} skip={()=>setLiked(x=>x.filter(a=>a.id!==m.id))} picked/>)}</div>{liked.length>0&&<button onClick={()=>makeBasket()} className="mt-6 rounded-2xl bg-[#18392b] px-5 py-3 text-sm font-black text-white"><ShoppingBasket size={15} className="mr-2 inline"/>Build adaptive weekly basket</button>}</>}
+
+      {tab==='history'&&<><Title title="Recipe history" sub="Your generated ideas and completed recipes are saved in the permanent Bitewise database."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{history.map((row:any)=><article key={row.record_key} className="rounded-[22px] bg-white p-4 shadow-sm"><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/40">{row.record_type==='recipe'?'Full recipe':'Idea'}</span><span className="rounded-full bg-[#edf3ee] px-2 py-1 text-[10px] font-bold capitalize">{row.status}</span></div><div className="mt-2 font-black">{row.meal?.name||row.name}</div><div className="mt-1 text-xs text-[#18392b]/45">{row.meal?.meal_type||''} · {row.meal?.time||'—'} min</div><div className="mt-3 flex gap-2">{row.record_type==='recipe'?<button onClick={()=>setDetail(row.meal)} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white">Open recipe</button>:<button disabled={row.status==='expanded'} onClick={()=>react(row.meal,'like')} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white disabled:opacity-40">{row.status==='expanded'?'Expanded':'Create recipe'}</button>}</div></article>)}</div>{!history.length&&<Empty text="Your generated ideas and recipes will appear here."/>}</>}
 
       {tab==='plan'&&<><div className="flex flex-wrap items-end justify-between gap-3"><Title title="Calendar" sub="Week, month and year views are projected from your current recurring meal plan."/><div className="flex rounded-full bg-white p-1 shadow-sm">{(['week','month','year'] as CalendarView[]).map(v=><button key={v} onClick={()=>setCalendarView(v)} className={cx('rounded-full px-4 py-2 text-xs font-black capitalize',calendarView===v?'bg-[#18392b] text-white':'text-[#18392b]/45')}>{v}</button>)}</div></div><Stats cost={weeklyStats.cost} calories={weeklyStats.avgCalories} count={weeklyStats.mealCount}/>{calendarView==='week'?<div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">{weeklyPlan.map((d,i)=><DayCard key={i} day={d} index={i} context={dayContexts[i]} update={p=>updateDay(i,p)} open={setDetail}/>)}</div>:calendarView==='month'?<MonthView weekly={weeklyStats}/>:<YearView weekly={weeklyStats}/>}</>}
 

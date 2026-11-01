@@ -1,6 +1,9 @@
 from pathlib import Path
 import hmac
+import json
 import os
+import uuid
+from datetime import datetime
 
 from dotenv import load_dotenv
 from fastapi import Request, HTTPException
@@ -15,6 +18,7 @@ from .cloud_sync import auth_enabled, authenticate_request, router as cloud_rout
 from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
+from .database import RecipeHistory, SessionLocal
 from .ingredient_aliases import ingredient_aliases
 from .rewe_refresh import router as rewe_refresh_router
 
@@ -100,6 +104,135 @@ main_module.CatalogAdapter.search = _multilingual_catalog_search
 app = main_module.app
 
 
+def _history_owner(request: Request) -> str:
+    user = getattr(request.state, "bitewise_user", None) or {}
+    return str(user.get("id") or user.get("email") or "local")[:160]
+
+
+def _upsert_recipe_history(request: Request, record_key: str, record_type: str, status: str, meal: dict, prompt: str = ""):
+    if record_type not in {"concept", "recipe"} or not isinstance(meal, dict):
+        return
+    key = str(record_key or meal.get("id") or "").strip()[:180]
+    name = str(meal.get("name") or "").strip()[:180]
+    if not key or not name:
+        return
+    owner = _history_owner(request)
+    db = SessionLocal()
+    try:
+        row = db.query(RecipeHistory).filter_by(user_id=owner, record_key=key).first()
+        if row is None:
+            row = RecipeHistory(
+                id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"bitewise:{owner}:{key}")),
+                user_id=owner,
+                record_key=key,
+                record_type=record_type,
+                status=status,
+                name=name,
+                prompt=str(prompt or "")[:4000] or None,
+                meal_json=json.dumps(meal, ensure_ascii=False),
+            )
+            db.add(row)
+        else:
+            row.record_type = record_type
+            row.status = status
+            row.name = name
+            row.prompt = str(prompt or row.prompt or "")[:4000] or None
+            row.meal_json = json.dumps(meal, ensure_ascii=False)
+            row.updated_at = datetime.utcnow()
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+@app.get("/api/recipe-history")
+def get_recipe_history(request: Request, record_type: str | None = None, limit: int = 300):
+    db = SessionLocal()
+    try:
+        query = db.query(RecipeHistory).filter_by(user_id=_history_owner(request))
+        if record_type in {"concept", "recipe"}:
+            query = query.filter_by(record_type=record_type)
+        rows = query.order_by(RecipeHistory.created_at.desc()).limit(max(1, min(limit, 1000))).all()
+        records = []
+        for row in rows:
+            try:
+                meal = json.loads(row.meal_json)
+            except Exception:
+                meal = {}
+            records.append({
+                "record_key": row.record_key,
+                "record_type": row.record_type,
+                "status": row.status,
+                "name": row.name,
+                "prompt": row.prompt,
+                "meal": meal,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+            })
+        return {"records": records, "count": len(records)}
+    finally:
+        db.close()
+
+
+@app.post("/api/recipe-history")
+async def save_recipe_history(request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON payload")
+    records = payload.get("records", []) if isinstance(payload, dict) else []
+    if not isinstance(records, list):
+        raise HTTPException(422, "records must be a list")
+    saved = 0
+    for item in records[:100]:
+        if not isinstance(item, dict):
+            continue
+        meal = item.get("meal")
+        record_type = str(item.get("record_type") or "concept")
+        status = str(item.get("status") or "discovered")
+        if status not in {"discovered", "saved", "skipped", "disliked", "expanded", "removed", "cooked"}:
+            status = "discovered"
+        if isinstance(meal, dict) and meal.get("name"):
+            _upsert_recipe_history(
+                request,
+                str(item.get("record_key") or meal.get("id") or ""),
+                record_type,
+                status,
+                meal,
+                str(item.get("prompt") or meal.get("discovery_prompt") or ""),
+            )
+            saved += 1
+    return {"ok": True, "saved": saved}
+
+
+@app.patch("/api/recipe-history/{record_key:path}")
+async def update_recipe_history(record_key: str, request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON payload")
+    status = str(payload.get("status") or "") if isinstance(payload, dict) else ""
+    allowed = {"discovered", "saved", "skipped", "disliked", "expanded", "removed", "cooked"}
+    if status not in allowed:
+        raise HTTPException(422, "Invalid recipe history status")
+    db = SessionLocal()
+    try:
+        row = db.query(RecipeHistory).filter_by(
+            user_id=_history_owner(request),
+            record_key=record_key,
+        ).first()
+        if row is None:
+            raise HTTPException(404, "Recipe history record not found")
+        row.status = status
+        row.updated_at = datetime.utcnow()
+        db.commit()
+        return {"ok": True, "record_key": row.record_key, "status": row.status}
+    finally:
+        db.close()
+
+
 @app.post("/api/ai/recipe")
 async def expand_ai_recipe(request: Request):
     try:
@@ -112,6 +245,10 @@ async def expand_ai_recipe(request: Request):
         raise HTTPException(422, "A meal concept with a name is required")
     try:
         recipe = EfficientGeminiService().expand_concept(concept, str(context or ""))
+        concept_id = str(concept.get("id") or "").strip()
+        if concept_id:
+            _upsert_recipe_history(request, concept_id, "concept", "expanded", concept, str(context or ""))
+            _upsert_recipe_history(request, f"recipe:{concept_id}", "recipe", "saved", recipe, str(context or ""))
         return {"meal": recipe}
     except Exception as exc:
         raise HTTPException(502, f"Recipe expansion failed: {str(exc)[:300]}")
