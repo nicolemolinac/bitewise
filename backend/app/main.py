@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import re
 from datetime import date, datetime, timedelta
@@ -12,7 +13,7 @@ from sqlalchemy import or_
 
 from .ai.gemini import GeminiService
 from .ai.image_resolver import resolve_meal_images
-from .database import AppSetting, CatalogRun, PantryItem, Plan, PlannedMeal, Product, ProductOverride, SessionLocal, ShoppingState, UserEvent
+from .database import AppSetting, CatalogRun, PantryItem, Plan, PlannedMeal, Product, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
 from .recommendations.engine import score_meal
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
@@ -292,12 +293,23 @@ def brain_dump(payload:BrainDumpIn):
   if any(alias in text for alias in aliases):mode=cuisine;break
  constraints['mode']=mode;return {'mode':mode,'constraints':constraints}
 @app.post('/api/shopping')
-def shopping(payload:BasketIn):
+def shopping(payload:BasketIn,request:Request):
  if payload.mode not in STRATEGIES:raise HTTPException(422,'Unknown shopping strategy')
- selected=[m for m in MEALS if m['id'] in payload.meal_ids]
- if not selected:raise HTTPException(422,'Select at least one valid meal')
- servings_map={m['id']:max(1,payload.servings.get(m['id'],2)) for m in selected};requirements=consolidate(selected,servings_map);db=SessionLocal()
+ db=SessionLocal()
  try:
+  selected=[m for m in MEALS if m['id'] in payload.meal_ids]
+  selected_ids={m['id'] for m in selected}
+  user=getattr(request.state,'bitewise_user',None) or {}
+  owner=str(user.get('id') or user.get('email') or 'local')[:160]
+  if len(selected_ids)<len(set(payload.meal_ids)):
+   history_rows=db.query(RecipeHistory).filter_by(user_id=owner,record_type='recipe').filter(RecipeHistory.status.in_(['saved','cooked'])).all()
+   for row in history_rows:
+    try:meal=json.loads(row.meal_json)
+    except Exception:continue
+    if isinstance(meal,dict) and meal.get('id') in payload.meal_ids and meal['id'] not in selected_ids:
+     selected.append(meal);selected_ids.add(meal['id'])
+  if not selected:raise HTTPException(422,'Select at least one valid saved recipe')
+  servings_map={m['id']:max(1,payload.servings.get(m['id'],2)) for m in selected};requirements=consolidate(selected,servings_map)
   overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['total'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'waste':waste,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
  finally:db.close()
 def serialize_planned_meal(row):
