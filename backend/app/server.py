@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 import hmac
 import os
 
@@ -133,7 +134,7 @@ async def meal_photos(request: Request):
     if not isinstance(meals, list):
         raise HTTPException(422, "meals must be a list")
     meals = [meal for meal in meals[:12] if isinstance(meal, dict) and str(meal.get("name") or "").strip()]
-    photos = resolve_meal_images(meals)
+    photos = await asyncio.to_thread(resolve_meal_images, meals)
     return {"photos": photos}
 
 
