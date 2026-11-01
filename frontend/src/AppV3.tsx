@@ -137,15 +137,22 @@ export default function AppV3(){
   const weeklyStats=useMemo(()=>{let cost=0,calories=0,mealCount=0;weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(!s.meal)return;const portions=dayContexts[idx]?.people||1;cost+=s.meal.cost*factor*portions;calories+=caloriesOf(s.meal)*factor;mealCount++}));return {cost,avgCalories:mealCount?Math.round(calories/7):0,mealCount}},[weeklyPlan,dayContexts,factor]);
 
   async function attachFreePhotos(fresh:Meal[]){
-    const enriched = await Promise.all(fresh.map(async meal=>{
-      try{
-        const q=new URLSearchParams({name:meal.name,meal_type:mealTypeOf(meal),tags:(meal.tags||[]).join(',')});
-        const photo=await api(`/meal-photo?${q.toString()}`);
-        if(photo?.image)return {...meal,image:photo.image,image_page:photo.image_page||'',photographer:photo.photographer||''};
-      }catch{}
-      return {...meal,image:''};
-    }));
-    setMeals(enriched);
+    try{
+      const photos=await api('/meal-photos',{method:'POST',body:JSON.stringify({meals:fresh.map(meal=>({
+        name:meal.name,
+        description:meal.description||'',
+        meal_type:mealTypeOf(meal),
+        tags:meal.tags||[],
+        ingredients:meal.ingredients||[]
+      }))})});
+      const enriched=fresh.map((meal,index)=>{
+        const photo=photos?.photos?.[index]||{};
+        return {...meal,image:photo.image||'',image_page:photo.image_page||'',photographer:photo.photographer||''};
+      });
+      setMeals(enriched);
+    }catch{
+      setMeals(fresh.map(meal=>({...meal,image:''})));
+    }
   }
 
   async function generateAI(prompt:string){setLoading(true);setError('');try{const full=`${prompt}. Meal type: ${mealType}. Available appliances: ${appliances.join(', ')||'basic kitchen'}. User portion factor is ${factor.toFixed(2)}. Prefer the easiest method and minimal cleanup.`;const d=await api('/ai/meals',{method:'POST',body:JSON.stringify({prompt:full})});const fresh:Meal[]=d.meals||[];if(!fresh.length)throw new Error('No meal ideas were generated. Check GEMINI_API_KEY in backend/.env.');setMeals(fresh.map(m=>({...m,image:''})));setFilter('all');void attachFreePhotos(fresh)}catch(e:any){setError(e.message)}finally{setLoading(false)}}
