@@ -130,7 +130,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
 
         for product in raw_products:
             price = product.get("price")
-            if price is None:
+            if price is None or str(product.get("availability") or "").lower() in {"unavailable", "out_of_stock", "not_available"}:
                 continue
             pack_qty, product_unit = _package(product)
             if product_unit != unit and not ({product_unit, unit} <= {"g", "ml"}):
