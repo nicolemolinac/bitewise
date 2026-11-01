@@ -8,12 +8,12 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python -m playwright install chromium
-uvicorn app.main:app --reload --port 8000
+uvicorn app.server:app --reload --host 127.0.0.1 --port 8000
 ```
 
 API: `http://localhost:8000/api/health`
 
-Optional Google AI Studio configuration:
+Optional Google AI Studio configuration (meal photos use Google Images via local Playwright/Chrome and do not need a Pexels API key):
 
 ```bash
 cp .env.example .env
@@ -44,7 +44,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5174` when using the Chief Officer launcher. Use `localhost` (not `127.0.0.1`) to match the configured CORS origin.
 
 For a different backend URL, copy `.env.example` to `.env` and change `VITE_API_URL`.
 

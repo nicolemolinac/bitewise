@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 import hmac
 import os
 
@@ -15,7 +16,7 @@ from .cloud_sync import auth_enabled, authenticate_request, router as cloud_rout
 from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
-from .ai.pexels_images import search_pexels_image
+from .ai.image_resolver import resolve_meal_images
 from .ingredient_aliases import ingredient_aliases
 from .rewe_refresh import router as rewe_refresh_router
 
@@ -118,21 +119,23 @@ async def expand_ai_recipe(request: Request):
         raise HTTPException(502, f"Recipe expansion failed: {str(exc)[:300]}")
 
 
-@app.get("/api/meal-photo")
-def meal_photo(name: str, meal_type: str = "", tags: str = ""):
-    """Return one free Pexels photo for a meal concept.
+@app.post("/api/meal-photos")
+async def meal_photos(request: Request):
+    """Find distinct, aesthetic Google Images results for a batch of meal concepts.
 
-    This endpoint is deliberately separate from Gemini so discovery stays one LLM call and
-    image lookup remains free-first. If PEXELS_API_KEY is missing, return an empty result.
+    One local Chrome/Playwright session is shared across the batch. Results are cached
+    locally and image lookup does not call Gemini or a paid image-generation service.
     """
-    result = search_pexels_image(
-        {
-            "name": name,
-            "meal_type": meal_type,
-            "tags": [x.strip() for x in tags.split(",") if x.strip()],
-        }
-    )
-    return result
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON payload")
+    meals = payload.get("meals", []) if isinstance(payload, dict) else []
+    if not isinstance(meals, list):
+        raise HTTPException(422, "meals must be a list")
+    meals = [meal for meal in meals[:12] if isinstance(meal, dict) and str(meal.get("name") or "").strip()]
+    photos = await asyncio.to_thread(resolve_meal_images, meals)
+    return {"photos": photos}
 
 
 app.router.routes = [
