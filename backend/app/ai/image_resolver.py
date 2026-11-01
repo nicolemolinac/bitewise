@@ -81,12 +81,9 @@ def _usable_url(url: str) -> bool:
 
 
 def _open_browser(playwright):
-    # Prefer the user's installed Google Chrome. Fall back to Playwright Chromium
-    # when Chrome is not installed or cannot be launched in this environment.
-    try:
-        return playwright.chromium.launch(channel="chrome", headless=True)
-    except Exception:
-        return playwright.chromium.launch(headless=True)
+    # Diagnostic mode: use Playwright's bundled Chromium directly and show the
+    # browser window so Google Images navigation and any bot challenge are visible.
+    return playwright.chromium.launch(headless=False)
 
 
 def _search_one(page, meal: dict) -> dict[str, str]:
