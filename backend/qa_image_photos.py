@@ -6,6 +6,7 @@ without depending on Google rate limits, cookies, or image-result changes.
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
+from app import main as main_module
 from app import server
 from app.ai import image_resolver
 
@@ -44,8 +45,9 @@ def test_meal_photos_endpoint_contract():
             for meal in meals
         ]
 
-    with patch.object(server, "resolve_meal_images", fake_resolver):
-        client = TestClient(server.app)
+    assert server.app is main_module.app, "server entrypoint must reuse the shared app"
+    with patch.object(main_module, "resolve_meal_images", fake_resolver):
+        client = TestClient(main_module.app)
         response = client.post("/api/meal-photos", json={
         "meals": [
             {"name": "Heart-shaped eggs", "ingredients": [["eggs", 2, "pcs"]]},
@@ -61,8 +63,8 @@ def test_meal_photos_endpoint_contract():
 
 
 def test_meal_photos_rejects_non_list_payload():
-    with patch.object(server, "resolve_meal_images", lambda meals: []):
-        client = TestClient(server.app)
+    with patch.object(main_module, "resolve_meal_images", lambda meals: []):
+        client = TestClient(main_module.app)
         response = client.post("/api/meal-photos", json={"meals": "not-a-list"})
         assert response.status_code == 422
 

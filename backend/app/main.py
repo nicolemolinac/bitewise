@@ -1,15 +1,17 @@
+import asyncio
 import os
 import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy import or_
 
 from .ai.gemini import GeminiService
+from .ai.image_resolver import resolve_meal_images
 from .database import AppSetting, CatalogRun, PantryItem, Plan, PlannedMeal, Product, ProductOverride, SessionLocal, ShoppingState, UserEvent
 from .recommendations.engine import score_meal
 from .recipes.seed import MEALS
@@ -19,6 +21,28 @@ from .shopping.optimizer import STRATEGIES, build_basket, consolidate
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 app = FastAPI(title='Bitewise API', version='2.0')
+@app.post("/api/meal-photos")
+async def meal_photos(request: Request):
+    """Resolve aesthetic Google Images photos for a batch of generated meals.
+
+    This route lives in main.py so both app.main:app (local launcher) and
+    app.server:app (cloud/extended launcher) expose the same endpoint.
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON payload")
+    meals = payload.get("meals", []) if isinstance(payload, dict) else []
+    if not isinstance(meals, list):
+        raise HTTPException(422, "meals must be a list")
+    meals = [
+        meal for meal in meals[:12]
+        if isinstance(meal, dict) and str(meal.get("name") or "").strip()
+    ]
+    photos = await asyncio.to_thread(resolve_meal_images, meals)
+    return {"photos": photos}
+
+
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in os.getenv('CORS_ORIGINS','http://localhost:5173').split(',') if x.strip()],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
 
 def rows(model):
