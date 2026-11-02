@@ -188,6 +188,7 @@ export default function AppV3(){
         if(!recipe?.id)throw new Error('Bitewise could not build the selected recipe.');
         try{await api('/events',{method:'POST',body:JSON.stringify({meal_id:recipe.id,action:'like'})})}catch{}
         setLiked(x=>x.some(a=>a.id===recipe.id)?x:[...x,recipe]);
+        setDetail(recipe);
         setSkipped(x=>[...new Set([...x,meal.id])]);
         setHistory(prev=>[
           {record_key:`recipe:${meal.id}`,record_type:'recipe',status:'saved',prompt:meal.discovery_prompt,meal:recipe},
