@@ -308,39 +308,96 @@ class ReweCatalogScraper:
         start_path = urlsplit(start).path.rstrip("/")
         return candidate_path == start_path
 
-    def _pagination_links(self, html: str, current_url: str, start_url: str):
-        """Discover however many pages a category actually has instead of assuming a fixed count."""
+    @staticmethod
+    def _page_number(url: str):
+        query = parse_qs(urlsplit(url).query)
+        for key in ("page", "seite"):
+            values = query.get(key)
+            if values:
+                match = re.search(r"\d+", values[0])
+                if match:
+                    return int(match.group())
+        return None
+
+    @staticmethod
+    def _page_fingerprint(html: str):
+        """Fingerprint visible product IDs/links so URL aliases cannot loop forever."""
         soup = BeautifulSoup(html, "html.parser")
-        links = []
+        ids = sorted({
+            urlsplit(urljoin("https://www.rewe.de", node.get("href", ""))).path
+            for node in soup.select('a[href*="/shop/p/"]')
+            if node.get("href")
+        })
+        if ids:
+            return hashlib.sha256("\n".join(ids).encode()).hexdigest()
+        # Fallback for pages whose product cards do not expose product links.
+        text = normalize(soup.get_text(" ", strip=True))
+        return hashlib.sha256(text[:12000].encode()).hexdigest()
+
+    def _pagination_links(self, html: str, current_url: str, start_url: str):
+        """Return only forward pagination targets, not every page number including page 1."""
+        soup = BeautifulSoup(html, "html.parser")
+        current_number = self._page_number(current_url)
+        candidates = []
+        numeric = []
         for anchor in soup.select("a[href]"):
             href = urljoin(current_url, anchor.get("href", "")).split("#")[0]
             if not self._same_category(href, start_url):
                 continue
-            query = parse_qs(urlsplit(href).query)
             rel = " ".join(anchor.get("rel", [])) if anchor.get("rel") else ""
             label = " ".join(anchor.stripped_strings)
             aria = anchor.get("aria-label", "")
-            is_pagination = (
-                "page" in query
-                or "seite" in query
-                or re.search(r"\b(next|weiter|nächste|naechste)\b", f"{rel} {label} {aria}", re.I)
+            title = anchor.get("title", "")
+            marker = f"{rel} {label} {aria} {title}"
+            if re.search(r"\b(next|weiter|nächste|naechste)\b", marker, re.I):
+                candidates.append(href)
+                continue
+
+            number = self._page_number(href)
+            if number is None:
+                # Some REWE page controls expose the page number in their label.
+                match = re.fullmatch(r"\s*(\d+)\s*", label)
+                if match:
+                    number = int(match.group(1))
+            if number is not None:
+                numeric.append((number, href))
+
+        # Prefer an explicit "next" link when REWE provides one. Otherwise
+        # queue only the immediate next numeric page, never the whole page strip.
+        if not candidates and numeric:
+            threshold = current_number if current_number is not None else 1
+            forward = sorted(
+                (number, href) for number, href in numeric
+                if number > threshold
             )
-            if is_pagination and href not in links:
-                links.append(href)
-        return links
+            if forward:
+                candidates.append(forward[0][1])
+
+        unique = []
+        for href in candidates:
+            if href not in unique:
+                unique.append(href)
+        return unique
 
     def pages(self, start):
-        seen, pending = set(), [start]
-        while pending and len(seen) < MAX_CATEGORY_PAGES:
+        seen_urls, seen_content = set(), set()
+        pending = [start]
+        while pending and len(seen_urls) < MAX_CATEGORY_PAGES:
             url = pending.pop(0).split("#")[0]
-            if url in seen:
+            if url in seen_urls:
                 continue
-            seen.add(url)
+            seen_urls.add(url)
             response = self.session.get(url, headers=HEADERS, timeout=20)
             response.raise_for_status()
+            fingerprint = self._page_fingerprint(response.text)
+            if fingerprint in seen_content:
+                # REWE sometimes serves page 1 again under a different pagination URL.
+                # Stop this category rather than repeatedly ingesting identical content.
+                break
+            seen_content.add(fingerprint)
             yield url, response.text
             for href in self._pagination_links(response.text, url, start):
-                if href not in seen and href not in pending:
+                if href not in seen_urls and href not in pending:
                     pending.append(href)
             time.sleep(self.delay)
 
@@ -499,16 +556,22 @@ class ReweCatalogScraper:
         return page.content()
 
     def _browser_category_pages(self, page, start):
-        seen, pending = set(), [start]
-        while pending and len(seen) < MAX_CATEGORY_PAGES:
+        seen_urls, seen_content = set(), set()
+        pending = [start]
+        while pending and len(seen_urls) < MAX_CATEGORY_PAGES:
             current = pending.pop(0).split("#")[0]
-            if current in seen:
+            if current in seen_urls:
                 continue
-            seen.add(current)
+            seen_urls.add(current)
             html = self._browser_category_html(page, current)
+            fingerprint = self._page_fingerprint(html)
+            if fingerprint in seen_content:
+                # Stop when REWE returns the same product page for a different URL.
+                break
+            seen_content.add(fingerprint)
             yield current, html
             for href in self._pagination_links(html, current, start):
-                if href not in seen and href not in pending:
+                if href not in seen_urls and href not in pending:
                     pending.append(href)
 
     def _base_report(self, postcode, mode):
