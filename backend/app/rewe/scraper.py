@@ -5,6 +5,8 @@ import hashlib
 import json
 import os
 import re
+import subprocess
+import sys
 import time
 from pathlib import Path
 from urllib.parse import parse_qs, urljoin, urlsplit, urlunsplit
@@ -184,6 +186,100 @@ def _visible_postcode_input(scope):
         except Exception:
             pass
     return None
+
+
+def _find_chrome_for_testing(playwright):
+    """Find an installed Chrome for Testing / Playwright Chromium executable."""
+    candidates = []
+    configured = os.getenv("CHROME_FOR_TESTING_PATH", "").strip()
+    if configured:
+        candidates.append(Path(configured).expanduser())
+
+    home = Path.home()
+    candidates.extend([
+        Path("/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
+        home / "Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        Path("/Applications/Chromium.app/Contents/MacOS/Chromium"),
+        home / "Applications/Chromium.app/Contents/MacOS/Chromium",
+    ])
+    for pattern in (
+        "Library/Caches/ms-playwright/chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+        "Library/Caches/ms-playwright/chromium-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        ".cache/ms-playwright/chromium-*/chrome-linux/chrome",
+        ".cache/ms-playwright/chromium-*/chrome-linux64/chrome",
+    ):
+        candidates.extend(home.glob(pattern))
+
+    try:
+        candidates.append(Path(playwright.chromium.executable_path))
+    except Exception:
+        pass
+
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _ensure_chrome_for_testing(playwright, endpoint):
+    """Attach to an existing CDP browser or launch an isolated local one."""
+    try:
+        response = requests.get(endpoint + "/json/version", timeout=1.5)
+        if response.ok:
+            return
+    except requests.RequestException:
+        pass
+
+    parsed = urlsplit(endpoint)
+    if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+        raise RuntimeError(
+            f"No Chrome for Testing is reachable at {endpoint}; automatic launch is local-only."
+        )
+
+    executable = _find_chrome_for_testing(playwright)
+    if not executable:
+        raise RuntimeError(
+            "Chrome for Testing was not found. Install it with "
+            "'python -m playwright install chromium' or set CHROME_FOR_TESTING_PATH "
+            "to the Chrome for Testing executable."
+        )
+
+    port = parsed.port or 9222
+    profile = Path(__file__).resolve().parents[2] / "data" / "chrome-for-testing-profile"
+    profile.mkdir(parents=True, exist_ok=True)
+    command = [
+        executable,
+        f"--remote-debugging-port={port}",
+        f"--user-data-dir={profile}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-blink-features=AutomationControlled",
+    ]
+    if os.getenv("REWE_BROWSER_HEADLESS", "false").lower() in {"1", "true", "yes"}:
+        command.append("--headless=new")
+    command.append("about:blank")
+    kwargs = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+    }
+    if sys.platform != "win32":
+        kwargs["start_new_session"] = True
+    subprocess.Popen(command, **kwargs)
+
+    last_error = None
+    for _ in range(40):
+        try:
+            response = requests.get(endpoint + "/json/version", timeout=1)
+            if response.ok:
+                return
+        except requests.RequestException as exc:
+            last_error = exc
+        time.sleep(0.25)
+    raise RuntimeError(
+        f"Chrome for Testing was launched from {executable} but CDP did not become "
+        f"available at {endpoint}. {last_error or ''}"
+    )
 
 
 class ReweCatalogScraper:
@@ -443,14 +539,11 @@ class ReweCatalogScraper:
             with sync_playwright() as pw:
                 try:
                     browser = pw.chromium.connect_over_cdp(endpoint, timeout=15_000)
-                except Exception as exc:
-                    raise RuntimeError(
-                        "Could not connect to Chrome for Testing at "
-                        f"{endpoint}. Start the existing Chrome for Testing with "
-                        "remote debugging enabled (port 9222); Bitewise no longer "
-                        "tries to launch Playwright's bundled Chromium. "
-                        f"Original error: {str(exc)[:220]}"
-                    ) from exc
+                except Exception:
+                    # If no browser is running, start an isolated Chrome for Testing
+                    # profile, then attach over CDP. Never call chromium.launch().
+                    _ensure_chrome_for_testing(pw, endpoint)
+                    browser = pw.chromium.connect_over_cdp(endpoint, timeout=15_000)
 
                 if not browser.contexts:
                     raise RuntimeError(
