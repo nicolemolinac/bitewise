@@ -19,7 +19,7 @@ python -m venv .venv
 # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn app.main:app --reload --port 8000
+uvicorn app.server:app --reload --port 8000
 ```
 
 Set `GEMINI_API_KEY` in `.env` if you want AI meal generation/adaptation. Google AI Studio provides API keys; keep the key server-side only.
@@ -31,7 +31,7 @@ npm install
 npm run dev
 ```
 
-Open the Vite URL, normally `http://localhost:5173`.
+Open the Vite URL shown by Vite (the project commonly uses `http://localhost:5174`).
 
 ## MVP flow
 1. Discover meal cards.
@@ -44,7 +44,7 @@ Open the Vite URL, normally `http://localhost:5173`.
 8. Switch between Cheapest and Best Value optimization.
 
 ## REWE notes
-REWE's public shop exposes products, but concrete prices can depend on the selected market/location. The adapter therefore tries a live search and falls back safely to local seed products. This keeps the entire UX functional even if REWE changes markup, blocks automation, or requires a location cookie. Replace `backend/app/rewe/adapter.py` with an official/API-backed implementation when available.
+REWE's public shop exposes products, but concrete prices can depend on the selected market/location. Prices and availability are postcode-dependent. Refresh the catalog from the REWE Catalog control before expecting real product matches. The server never substitutes demo seed products for a real catalog match: unmatched ingredients are clearly reported instead of receiving invented prices. Local development uses SQLite by default; configure `DATABASE_URL` to use persistent PostgreSQL in a hosted environment.
 
 ## Architecture
 ```text

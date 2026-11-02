@@ -1,5 +1,6 @@
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import time
@@ -82,7 +83,20 @@ def main():
     finally:
         stop_api(proc)
 
-    # A fresh server process must see the same history from the same durable DB file.
+    # Seed one real catalog row, then verify the restarted app matches the recipe to it.
+    with sqlite3.connect(DB) as conn:
+        conn.execute("""INSERT INTO products (
+            supermarket, external_id, ingredient, name_original, name_normalized,
+            brand, category, package_size, package_unit, price, price_per_unit,
+            currency, product_url, availability, postcode_context, first_seen_at,
+            last_seen_at, last_checked_at, last_price
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)""",
+        ("REWE", "qa-rice-500g", "rice", "REWE Beste Wahl Langkornreis 500g", "langkornreis",
+         "REWE Beste Wahl", "Rice", 500, "g", 1.49, 0.00298, "EUR",
+         "https://www.rewe.de/shop/p/rewe-beste-wahl-langkornreis-500g/123456", "available", "13353", 1.49))
+        conn.commit()
+
+    # A fresh server process must see the same durable history and REWE product row.
     proc = start_api()
     try:
         history = call("GET", "/api/recipe-history")
@@ -95,7 +109,10 @@ def main():
             "mode": "best-value",
         })
         assert basket["meals"] == 1 and basket["servings"] == 2
-        print("QA PASS: recipe history survives API restart and saved AI recipes rebuild shopping baskets")
+        rice_item = next(row for row in basket["items"] if row["ingredient"] == "rice")
+        assert rice_item["product"]["name_original"] == "REWE Beste Wahl Langkornreis 500g"
+        assert rice_item["total"] == 1.49
+        print("QA PASS: recipe history survives restart and shopping resolves real REWE catalog products")
     finally:
         stop_api(proc)
         if DB.exists():

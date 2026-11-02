@@ -7,8 +7,8 @@ from .gemini import (
     GeminiService as BaseGeminiService,
     _parse_json_array,
     _persist_generated,
-    _shopping_context,
 )
+from ..database import PantryItem, SessionLocal
 
 _REPAIR_DONE = False
 
@@ -16,6 +16,18 @@ _REPAIR_DONE = False
 def repair_persisted_ai_images(gemini_client=None, gemini_model: str = "") -> int:
     """Startup image repair stays disabled so discovery never blocks."""
     return 0
+
+
+def _pantry_context() -> list[str]:
+    """Fetch only pantry hints; catalog matching belongs to the local optimizer."""
+    db = SessionLocal()
+    try:
+        return [
+            f"{row.ingredient} ({row.quantity:g} {row.unit})"
+            for row in db.query(PantryItem).filter(PantryItem.quantity > 0).limit(40).all()
+        ]
+    finally:
+        db.close()
 
 
 def _slug(value: str) -> str:
@@ -57,9 +69,8 @@ class GeminiService(BaseGeminiService):
             raise RuntimeError("Gemini client could not be initialized")
 
         user_request = _base_user_request(prompt)
-        pantry, catalog = _shopping_context()
+        pantry = _pantry_context()
         pantry_context = ", ".join(pantry[:8]) if pantry else "none"
-        catalog_context = "; ".join(catalog[:6]) if catalog else "none"
 
         instruction = f"""You are Bitewise's visual discovery editor. Think like a strong Pinterest board curator, not a novelty recipe generator.
 
@@ -68,7 +79,11 @@ PRIMARY USER SEARCH (this controls the result set):
 
 SECONDARY CONTEXT ONLY — never let this override the search:
 Pantry hints: {pantry_context}
-REWE examples: {catalog_context}
+
+AVAILABILITY RULE:
+- Choose familiar ingredients normally sold by mainstream German supermarkets such as REWE.
+- Do not name brands, SKUs, exact package sizes, or invent product availability/prices.
+- Use generic ingredient names; Bitewise will match them to its live REWE catalog after selection.
 
 Return ONLY a compact JSON array of 10 meal concepts. Each object needs exactly:
 id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,image
@@ -136,7 +151,7 @@ These are examples of specificity and relevance, not a fixed list.
         if not self.client:
             raise RuntimeError("Gemini client could not be initialized")
 
-        pantry, catalog = _shopping_context()
+        pantry, _ = _shopping_context()
         name = str(concept.get("name") or "").strip()
         if not name:
             raise ValueError("Concept name is required")
@@ -151,7 +166,7 @@ CONCEPT DESCRIPTION: {description}
 MEAL TYPE: {meal_type}
 ORIGINAL DISCOVERY CONTEXT: {context or concept.get('discovery_prompt') or 'none'}
 PANTRY: {', '.join(pantry[:30]) if pantry else 'none'}
-CHEAP REWE EXAMPLES: {'; '.join(catalog[:25]) if catalog else 'none'}
+SUPERMARKET AVAILABILITY: Use ordinary ingredients commonly sold by German supermarkets such as REWE. Do not specify brands, SKUs, package sizes, or prices; Bitewise will match the ingredients to its current catalog after generation.
 
 Return ONLY a JSON array containing exactly one object with:
 id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredients,steps,image
@@ -161,6 +176,8 @@ Rules:
 - ingredients: [[english_name,quantity,unit]], units only g|ml|unit|cloves.
 - steps: 3-6 concise objects {{"text":"...","minutes":N}}.
 - Optimize for low effort and minimal cleanup.
+- Use generic, unambiguous ingredient names (e.g. "chicken breast", "Greek yogurt", "cherry tomatoes").
+- Prefer ingredients commonly available at REWE, but never claim a specific product or price is available.
 - image must be exactly this existing URL if non-empty: {image}
 """.strip()
 

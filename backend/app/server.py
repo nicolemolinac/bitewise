@@ -75,29 +75,9 @@ def _multilingual_catalog_search(self, ingredient):
         rows.sort(key=score, reverse=True)
         return [main_module.product_dict(row) for row in rows[:40]]
 
-    needle = main_module.normalize_ingredient(ingredient)
-    exact = [p for p in main_module.PRODUCTS if p["ingredient"] == needle]
-    fallback = exact or [
-        p for p in main_module.PRODUCTS
-        if needle in p["ingredient"].lower() or p["ingredient"].lower() in needle
-    ][:5]
-    return [
-        {
-            "id": None,
-            "supermarket": "REWE",
-            "ingredient": p["ingredient"],
-            "name_original": p.get("name", p["ingredient"]),
-            "name_normalized": p.get("name", p["ingredient"]).lower(),
-            "brand": p.get("brand"),
-            "package_size": p.get("pack_qty", 1),
-            "package_unit": p.get("unit", "unit"),
-            "price": p.get("price"),
-            "price_per_unit": p.get("unit_price"),
-            "product_url": p.get("url"),
-            "availability": "fixture",
-        }
-        for p in fallback
-    ]
+    # Never substitute seed/demo products for a real REWE catalog match.
+    # An empty result is more honest than displaying invented availability or prices.
+    return []
 
 
 main_module.CatalogAdapter.search = _multilingual_catalog_search
@@ -246,6 +226,42 @@ async def expand_ai_recipe(request: Request):
     try:
         recipe = EfficientGeminiService().expand_concept(concept, str(context or ""))
         concept_id = str(concept.get("id") or "").strip()
+        # Product matching and costing are deterministic backend work: no second Gemini call.
+        db = SessionLocal()
+        try:
+            requirements = main_module.consolidate([recipe], {recipe["id"]: 2})
+            overrides = {row.ingredient: row.product_id for row in db.query(main_module.ProductOverride).all()}
+            basket = main_module.build_basket(
+                requirements,
+                main_module.CatalogAdapter(db),
+                "best-value",
+                overrides=overrides,
+                pantry=main_module.pantry_snapshot(db),
+            )
+            checkout_total = round(sum(float(row.get("total") or 0) for row in basket), 2)
+            consumed_total = 0.0
+            matched = 0
+            for row in basket:
+                product = row.get("product") or {}
+                if product.get("id") is not None and product.get("price") is not None:
+                    matched += 1
+                    pack_qty = float(product.get("package_size") or 0)
+                    needed = float(row.get("needed_quantity") or 0)
+                    packs = int(row.get("packs") or 0)
+                    if pack_qty > 0 and packs > 0:
+                        consumed_total += float(row["total"]) * min(1.0, needed / (packs * pack_qty))
+            recipe["product_matches"] = basket
+            recipe["costing"] = {
+                "strategy": "best-value",
+                "matched_ingredients": matched,
+                "total_ingredients": len(basket),
+                "catalog_ready": db.query(main_module.Product).filter(main_module.Product.supermarket == "REWE").count() > 0,
+                "checkout_total": checkout_total if matched else None,
+                "consumed_cost": round(consumed_total, 2) if matched else None,
+                "currency": "EUR",
+            }
+        finally:
+            db.close()
         if concept_id:
             _upsert_recipe_history(request, concept_id, "concept", "expanded", concept, str(context or ""))
             _upsert_recipe_history(request, f"recipe:{concept_id}", "recipe", "saved", recipe, str(context or ""))
