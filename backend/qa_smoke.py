@@ -99,6 +99,11 @@ def main():
         })
         assert ai_basket["servings"] == 2 and ai_basket["total"] >= 0, "AI meal did not integrate into shopping"
 
+        fractional_basket = call("POST", "/api/shopping", {
+            "meal_ids": ["ai-qa-taco-bowl"], "servings": {"ai-qa-taco-bowl": 0.85}, "owned": [], "mode": "best-value"
+        })
+        assert abs(fractional_basket["servings"] - 0.85) < 0.001, "Fractional portion factor was not preserved for basket quantities"
+
         basket = call("POST", "/api/shopping", {
             "meal_ids": ["teriyaki-chicken"], "servings": {"teriyaki-chicken": 2}, "owned": [], "mode": "best-value"
         })
