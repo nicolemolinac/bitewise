@@ -23,7 +23,15 @@ def main():
             all_products.append(product)
             return True
 
-        report = scraper.run(collect, POSTCODE, urls=[url])
+        try:
+            report = scraper.run(collect, POSTCODE, urls=[url])
+        except Exception as exc:
+            report = {
+                "status": "failed",
+                "fetch_mode": "exception",
+                "pages_processed": 0,
+                "errors": [str(exc)[:500]],
+            }
         category_reports.append((category, report, len(products)))
         priced = sum(row.get("price") is not None for row in products)
         coverage = priced / len(products) if products else 0
