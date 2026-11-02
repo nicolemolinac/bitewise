@@ -253,9 +253,20 @@ def _ensure_chrome_for_testing(playwright, endpoint):
         f"--user-data-dir={profile}",
         "--no-first-run",
         "--no-default-browser-check",
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
         "--disable-blink-features=AutomationControlled",
     ]
-    if os.getenv("REWE_BROWSER_HEADLESS", "false").lower() in {"1", "true", "yes"}:
+    headless_setting = os.getenv("REWE_BROWSER_HEADLESS")
+    # Local macOS runs are visible by default; Linux/CI runs have no desktop
+    # session, so start the same Chrome for Testing build in headless mode.
+    headless = (
+        headless_setting.strip().lower() in {"1", "true", "yes"}
+        if headless_setting is not None
+        else sys.platform != "darwin" or bool(os.getenv("CI"))
+    )
+    if headless:
         command.append("--headless=new")
     command.append("about:blank")
     kwargs = {
