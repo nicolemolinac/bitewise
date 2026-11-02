@@ -600,6 +600,115 @@ class ReweCatalogScraper:
         report["products_found"] += len(products)
         report["products_with_price"] += priced
 
+
+    def add_products_to_cart(self, products):
+        """Add an explicit, user-requested product list to the authenticated REWE cart via CDP.
+
+        This never checks out or pays. It reuses the user's existing Chrome context and
+        reports any product whose add action cannot be confidently completed.
+        """
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as exc:
+            raise RuntimeError("Playwright Python package is not installed") from exc
+
+        endpoint = os.getenv(
+            "BITEWISE_CHROME_CDP_URL",
+            os.getenv("REWE_CHROME_CDP_URL", "http://127.0.0.1:9222"),
+        ).rstrip("/")
+        browser = None
+        page = None
+        owns_page = False
+        results = []
+        try:
+            with sync_playwright() as pw:
+                browser = pw.chromium.connect_over_cdp(endpoint, timeout=15_000)
+                if not browser.contexts:
+                    raise RuntimeError("Chrome for Testing has no browser context")
+                context = browser.contexts[0]
+                page = next(
+                    (candidate for candidate in context.pages
+                     if urlsplit(candidate.url).hostname
+                     and urlsplit(candidate.url).hostname.lower().endswith("rewe.de")),
+                    None,
+                )
+                if page is None:
+                    page = context.new_page()
+                    owns_page = True
+
+                for item in products:
+                    name = str(item.get("name") or "REWE product")
+                    product_url = _canonical_product_url(item.get("product_url") or "")
+                    packs = max(1, min(99, int(item.get("packs") or 1)))
+                    if not product_url:
+                        results.append({"name": name, "status": "rejected", "message": "Not a verified REWE product URL"})
+                        continue
+                    try:
+                        response = page.goto(product_url, wait_until="domcontentloaded", timeout=45_000)
+                        if response and response.status >= 400:
+                            raise RuntimeError("REWE product page returned HTTP " + str(response.status))
+                        try:
+                            page.wait_for_load_state("networkidle", timeout=6_000)
+                        except Exception:
+                            pass
+                        body = page.locator("body").inner_text(timeout=8_000)
+                        if re.search(r"Anmelden|Einloggen|Bitte melden Sie sich an", body[:2500], re.I) and re.search(r"Passwort|E-Mail-Adresse", body[:2500], re.I):
+                            results.append({"name": name, "status": "login_required", "message": "REWE session is not authenticated"})
+                            continue
+                        if re.search(r"ausverkauft|nicht verfügbar|derzeit nicht lieferbar", body, re.I):
+                            results.append({"name": name, "status": "unavailable", "message": "REWE marks this product as unavailable"})
+                            continue
+
+                        quantity_set = False
+                        for selector in ('input[aria-label*="Menge" i]', 'input[name*="quantity" i]', 'input[type="number"]'):
+                            try:
+                                field = page.locator(selector).first
+                                if field.count() and field.is_visible() and field.is_enabled():
+                                    field.fill(str(packs))
+                                    quantity_set = True
+                                    break
+                            except Exception:
+                                pass
+
+                        add_button = None
+                        for pattern in (r"In den Warenkorb", r"Warenkorb hinzufügen", r"Zum Warenkorb"):
+                            try:
+                                candidate = page.get_by_role("button", name=re.compile(pattern, re.I)).first
+                                if candidate.count() and candidate.is_visible() and candidate.is_enabled():
+                                    add_button = candidate
+                                    break
+                            except Exception:
+                                pass
+                        if add_button is None:
+                            results.append({"name": name, "status": "not_added", "message": "Could not find an enabled add-to-cart button"})
+                            continue
+
+                        add_button.click(timeout=8_000)
+                        page.wait_for_timeout(1_400)
+                        confirmation = page.locator("body").inner_text(timeout=8_000)
+                        confirmed = bool(re.search(r"hinzugefügt|im Warenkorb|zum Warenkorb gelegt|Warenkorb wurde aktualisiert", confirmation, re.I))
+                        results.append({
+                            "name": name,
+                            "status": "added" if confirmed else "submitted_unverified",
+                            "packs_requested": packs,
+                            "quantity_set": quantity_set,
+                            "message": "REWE displayed an add confirmation" if confirmed else "Add action was clicked; verify the cart before checkout",
+                        })
+                    except Exception as exc:
+                        results.append({"name": name, "status": "error", "message": str(exc)[:240]})
+        finally:
+            if page and owns_page:
+                try:
+                    page.close()
+                except Exception:
+                    pass
+            if browser:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+        return {"results": results, "checkout_performed": False}
+
     def _run_browser(self, upsert, postcode, urls):
         """Scrape REWE in the already-running Chrome for Testing via CDP.
 
