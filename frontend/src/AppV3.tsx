@@ -125,6 +125,10 @@ export default function AppV3(){
       const savedRecipes=records.filter((x:any)=>x.record_type==='recipe'&&['saved','cooked'].includes(x.status)).map((x:any)=>x.meal).filter(Boolean);
       // The database is the source of truth for Picks, including an empty list.
       setLiked(savedRecipes);
+      const savedConcepts=records
+        .filter((x:any)=>x.record_type==='concept'&&!['expanded','disliked','removed'].includes(x.status))
+        .slice(0,24).map((x:any)=>x.meal).filter(Boolean);
+      if(savedConcepts.length)void attachFreePhotos(savedConcepts);
       const apiOwned=(ss.items||[]).filter((x:any)=>x.state==='owned').map((x:any)=>x.ingredient);if(apiOwned.length)setOwned(apiOwned);
     }catch(e:any){setError(e.message)}
   }
@@ -166,21 +170,21 @@ export default function AppV3(){
         const photo=photos?.photos?.[index]||{};
         return {...meal,image:photo.image||'',image_page:photo.image_page||'',photographer:photo.photographer||''};
       });
-      setMeals(enriched);
-      // Keep the image metadata with the durable concept record so Discover
-      // can reconstruct the same cards after switching tabs or reloading.
-      const updates=enriched.map(meal=>({
-        record_key:meal.id,record_type:'concept',status:'discovered',
-        prompt:meal.discovery_prompt||'',meal
+      setMeals(current=>{
+        const byId=new Map(current.map(meal=>[meal.id,meal]));
+        enriched.forEach(meal=>byId.set(meal.id,meal));
+        return [...byId.values()];
+      });
+      setHistory(current=>current.map(row=>{
+        const updated=enriched.find(meal=>meal.id===row.record_key);
+        return updated?{...row,meal:updated}:row;
       }));
-      void api('/recipe-history',{method:'POST',body:JSON.stringify({records:updates})}).then(()=>{
-        setHistory(prev=>prev.map(row=>{
-          const updated=enriched.find(meal=>meal.id===row.record_key);
-          return updated?{...row,meal:updated}:row;
-        }));
-      }).catch(()=>{});
     }catch{
-      setMeals(fresh.map(meal=>({...meal,image:''})));
+      setMeals(current=>{
+        const byId=new Map(current.map(meal=>[meal.id,meal]));
+        fresh.forEach(meal=>{if(!byId.has(meal.id))byId.set(meal.id,{...meal,image:''})});
+        return [...byId.values()];
+      });
     }
   }
 
