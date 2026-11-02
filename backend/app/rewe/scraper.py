@@ -314,7 +314,7 @@ class ReweCatalogScraper:
         for key in ("page", "seite"):
             values = query.get(key)
             if values:
-                match = re.search(r"\\d+", values[0])
+                match = re.search(r"\d+", values[0])
                 if match:
                     return int(match.group())
         return None
@@ -329,7 +329,7 @@ class ReweCatalogScraper:
             if node.get("href")
         })
         if ids:
-            return hashlib.sha256("\\n".join(ids).encode()).hexdigest()
+            return hashlib.sha256("\n".join(ids).encode()).hexdigest()
         # Fallback for pages whose product cards do not expose product links.
         text = normalize(soup.get_text(" ", strip=True))
         return hashlib.sha256(text[:12000].encode()).hexdigest()
@@ -349,14 +349,14 @@ class ReweCatalogScraper:
             aria = anchor.get("aria-label", "")
             title = anchor.get("title", "")
             marker = f"{rel} {label} {aria} {title}"
-            if re.search(r"\\b(next|weiter|nächste|naechste)\\b", marker, re.I):
+            if re.search(r"\b(next|weiter|nächste|naechste)\b", marker, re.I):
                 candidates.append(href)
                 continue
 
             number = self._page_number(href)
             if number is None:
                 # Some REWE page controls expose the page number in their label.
-                match = re.fullmatch(r"\\s*(\\d+)\\s*", label)
+                match = re.fullmatch(r"\s*(\d+)\s*", label)
                 if match:
                     number = int(match.group(1))
             if number is not None:
