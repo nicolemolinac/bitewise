@@ -7,8 +7,8 @@ from .gemini import (
     GeminiService as BaseGeminiService,
     _parse_json_array,
     _persist_generated,
-    _shopping_context,
 )
+from ..database import PantryItem, SessionLocal
 
 _REPAIR_DONE = False
 
@@ -16,6 +16,18 @@ _REPAIR_DONE = False
 def repair_persisted_ai_images(gemini_client=None, gemini_model: str = "") -> int:
     """Startup image repair stays disabled so discovery never blocks."""
     return 0
+
+
+def _pantry_context() -> list[str]:
+    """Fetch only pantry hints; catalog matching belongs to the local optimizer."""
+    db = SessionLocal()
+    try:
+        return [
+            f"{row.ingredient} ({row.quantity:g} {row.unit})"
+            for row in db.query(PantryItem).filter(PantryItem.quantity > 0).limit(40).all()
+        ]
+    finally:
+        db.close()
 
 
 def _slug(value: str) -> str:
@@ -57,7 +69,7 @@ class GeminiService(BaseGeminiService):
             raise RuntimeError("Gemini client could not be initialized")
 
         user_request = _base_user_request(prompt)
-        pantry, _ = _shopping_context()
+        pantry = _pantry_context()
         pantry_context = ", ".join(pantry[:8]) if pantry else "none"
 
         instruction = f"""You are Bitewise's visual discovery editor. Think like a strong Pinterest board curator, not a novelty recipe generator.
