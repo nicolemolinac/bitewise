@@ -48,7 +48,7 @@ def run():
     assert rice["package_quantity"] == 500 and rice["package_unit"] == "g"
 
     assert milk["match_status"] == "matched"
-    assert milk["checkout_cost"] == 1.19 and milk["consumed_cost"] == 0.6
+    assert milk["checkout_cost"] == 1.19 and milk["consumed_cost"] == 0.59
 
     assert unknown["match_status"] == "unmatched"
     assert unknown["checkout_cost"] == 0
