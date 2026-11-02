@@ -3,7 +3,8 @@ import hmac
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
 from dotenv import load_dotenv
 from fastapi import Request, HTTPException
@@ -92,6 +93,17 @@ def _assign_expanded_recipe_identity(recipe: dict, concept_id: str) -> dict:
     return recipe
 
 
+def _json_history_default(value):
+    """Convert common Python values to stable JSON-safe history values."""
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, set):
+        return sorted(value, key=str)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
 def _history_owner(request: Request) -> str:
     user = getattr(request.state, "bitewise_user", None) or {}
     return str(user.get("id") or user.get("email") or "local")[:160]
@@ -117,7 +129,7 @@ def _upsert_recipe_history(request: Request, record_key: str, record_type: str, 
                 status=status,
                 name=name,
                 prompt=str(prompt or "")[:4000] or None,
-                meal_json=json.dumps(meal, ensure_ascii=False),
+                meal_json=json.dumps(meal, ensure_ascii=False, default=_json_history_default),
             )
             db.add(row)
         else:
@@ -125,7 +137,7 @@ def _upsert_recipe_history(request: Request, record_key: str, record_type: str, 
             row.status = status
             row.name = name
             row.prompt = str(prompt or row.prompt or "")[:4000] or None
-            row.meal_json = json.dumps(meal, ensure_ascii=False)
+            row.meal_json = json.dumps(meal, ensure_ascii=False, default=_json_history_default)
             row.updated_at = datetime.utcnow()
         db.commit()
     except Exception:
