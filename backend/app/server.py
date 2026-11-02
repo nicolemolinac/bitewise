@@ -226,6 +226,11 @@ async def expand_ai_recipe(request: Request):
     try:
         recipe = EfficientGeminiService().expand_concept(concept, str(context or ""))
         concept_id = str(concept.get("id") or "").strip()
+        if concept_id:
+            # Gemini may reuse a generic recipe ID across separate ideas. Give
+            # each expansion a stable ID derived from its originating concept.
+            recipe["source_concept_id"] = concept_id
+            recipe["id"] = f"{recipe.get('id') or 'recipe'}-{concept_id}"
         # Product matching and costing are deterministic backend work: no second Gemini call.
         db = SessionLocal()
         try:
