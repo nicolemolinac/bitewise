@@ -61,6 +61,43 @@ function mealTypeOf(m:Meal):MealType{
   if(/lunch|salad|sandwich|wrap/.test(s))return 'lunch';
   return 'dinner';
 }
+
+function buildSmartWeek(meals:Meal[]):Record<string,string>{
+  const assignments:Record<string,string>={};
+  const slotTypes:MealType[]=['breakfast','lunch','dinner'];
+  const usage=new Map<string,number>();
+  const lastByType=new Map<MealType,string>();
+  for(let day=0;day<7;day++){
+    for(const type of slotTypes){
+      const candidates=meals.filter(m=>mealTypeOf(m)===type);
+      if(!candidates.length)continue;
+      const ranked=[...candidates].sort((a,b)=>{
+        const score=(m:Meal)=>{
+          const used=usage.get(m.id)||0;
+          const repeatedYesterday=lastByType.get(type)===m.id?1000:0;
+          const time=Math.max(0,Number(m.time)||0);
+          const cost=Math.max(0,Number(m.cost)||0);
+          return used*100+repeatedYesterday+time*0.7+cost*3;
+        };
+        return score(a)-score(b);
+      });
+      const chosen=ranked[0];
+      assignments[`${day}:${type}`]=chosen.id;
+      usage.set(chosen.id,(usage.get(chosen.id)||0)+1);
+      lastByType.set(type,chosen.id);
+    }
+  }
+  return assignments;
+}
+function mondayOfCurrentWeek(){
+  const date=new Date();
+  date.setHours(0,0,0,0);
+  date.setDate(date.getDate()-((date.getDay()+6)%7));
+  return date;
+}
+function dateLabel(date:Date){
+  return date.toLocaleDateString(undefined,{day:'numeric',month:'short'});
+}
 function caloriesOf(m:Meal){
   if(m.calories)return m.calories;
   const protein=(m.ingredients||[]).some(x=>/chicken|beef|salmon|fish|pancetta/.test(x[0]))?170:0;
@@ -99,6 +136,7 @@ export default function AppV3(){
   });
   const [profile,setProfile]=useState<Profile>(()=>read('profile',{heightCm:170,weightKg:70,portionPreference:1}));
   const [dayContexts,setDayContexts]=useState<DayContext[]>(()=>read('dayContexts',Array.from({length:7},()=>({people:1,occasion:''}))));
+  const [planAssignments,setPlanAssignments]=useState<Record<string,string>>(()=>read('planAssignments',{}));
   const [calendarView,setCalendarView]=useState<CalendarView>(()=>read('calendarView','week'));
   const [extras,setExtras]=useState<ExtraItem[]>(()=>read('extras',[]));
   const [extraKind,setExtraKind]=useState<'beverage'|'non-food'>('beverage');
@@ -119,7 +157,7 @@ export default function AppV3(){
   useEffect(()=>save('tab',tab),[tab]);useEffect(()=>save('liked',liked),[liked]);useEffect(()=>save('skipped',skipped),[skipped]);
   useEffect(()=>save('mealType',mealType),[mealType]);useEffect(()=>save('filter',filter),[filter]);useEffect(()=>save('brain',brain),[brain]);
   useEffect(()=>save('appliances',appliances),[appliances]);useEffect(()=>save('profile',profile),[profile]);useEffect(()=>save('dayContexts',dayContexts),[dayContexts]);
-  useEffect(()=>save('calendarView',calendarView),[calendarView]);useEffect(()=>save('extras',extras),[extras]);useEffect(()=>save('basket',basket),[basket]);
+  useEffect(()=>save('planAssignments',planAssignments),[planAssignments]);useEffect(()=>save('calendarView',calendarView),[calendarView]);useEffect(()=>save('extras',extras),[extras]);useEffect(()=>save('basket',basket),[basket]);
   useEffect(()=>save('summary',summary),[summary]);useEffect(()=>save('strategy',strategy),[strategy]);useEffect(()=>save('owned',owned),[owned]);
 
   async function boot(){
@@ -183,7 +221,7 @@ export default function AppV3(){
     return list;
   },[discoverPool,liked,skipped,mealType,filter]);
 
-  const weeklyPlan=useMemo(()=>{const groups:Record<MealType,Meal[]>={breakfast:[],lunch:[],dinner:[],dessert:[],snack:[]};liked.forEach(m=>groups[mealTypeOf(m)].push(m));return Array.from({length:7},(_,day)=>({day,slots:mealTypes.map(t=>({type:t.id,meal:groups[t.id].length?groups[t.id][day%groups[t.id].length]:null} as Slot)).filter(x=>x.meal)}))},[liked]);
+  const weeklyPlan=useMemo(()=>Array.from({length:7},(_,day)=>({day,date:(()=>{const d=mondayOfCurrentWeek();d.setDate(d.getDate()+day);return d})(),slots:(['breakfast','lunch','dinner'] as MealType[]).map(type=>({type,meal:liked.find(m=>m.id===planAssignments[`${day}:${type}`])||null} as Slot)).filter(x=>x.meal)})),[liked,planAssignments]);
   const factor=portionFactor(profile);const todayIndex=(new Date().getDay()+6)%7;const todaySlots=weeklyPlan[todayIndex]?.slots||[];
   const weeklyStats=useMemo(()=>{let cost=0,calories=0,mealCount=0;weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(!s.meal)return;const portions=dayContexts[idx]?.people||1;cost+=s.meal.cost*factor*portions;calories+=caloriesOf(s.meal)*factor;mealCount++}));return {cost,avgCalories:mealCount?Math.round(calories/7):0,mealCount}},[weeklyPlan,dayContexts,factor]);
 
@@ -287,6 +325,12 @@ export default function AppV3(){
   async function searchExtras(){if(!extraQuery.trim())return;const d=await api(`/products/search?q=${encodeURIComponent(extraQuery)}`);setExtraResults(d.products||[])}
   function addExtra(p:Product){const id=`${extraKind}-${p.id||p.name_original}`;if(extras.some(x=>x.id===id))return;setExtras(x=>[...x,{id,kind:extraKind,label:p.name_original,product:p,dailyUse:extraKind==='beverage'?1:0,onHand:0}])}
   function updateDay(i:number,patch:Partial<DayContext>){setDayContexts(x=>x.map((d,idx)=>idx===i?{...d,...patch}:d))}
+  function assignMeal(day:number,type:MealType,mealId:string){
+    const key=`${day}:${type}`;
+    setPlanAssignments(current=>{const next={...current};if(mealId)next[key]=mealId;else delete next[key];return next});
+  }
+  function autoPlanWeek(){setPlanAssignments(buildSmartWeek(liked));}
+  function clearWeek(){setPlanAssignments({});}
   function updateExtra(id:string,patch:Partial<ExtraItem>){setExtras(x=>x.map(e=>e.id===id?{...e,...patch}:e))}
 
   return <div className="min-h-screen bg-[#f7f4ee] text-[#17211b]">
@@ -313,7 +357,7 @@ export default function AppV3(){
 
       {tab==='history'&&<><Title title="Recipe history" sub="Your generated ideas and completed recipes are saved in the permanent Bitewise database."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{history.map((row:any)=><article key={row.record_key} className="rounded-[22px] bg-white p-4 shadow-sm"><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/40">{row.record_type==='recipe'?'Full recipe':'Idea'}</span><span className="rounded-full bg-[#edf3ee] px-2 py-1 text-[10px] font-bold capitalize">{row.status}</span></div><div className="mt-2 font-black">{row.meal?.name||row.name}</div><div className="mt-1 text-xs text-[#18392b]/45">{row.meal?.meal_type||''} · {row.meal?.time||'—'} min</div><div className="mt-3 flex gap-2">{row.record_type==='recipe'?<button onClick={()=>setDetail(row.meal)} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white">Open recipe</button>:<button disabled={row.status==='expanded'} onClick={()=>react(row.meal,'like')} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white disabled:opacity-40">{row.status==='expanded'?'Expanded':'Create recipe'}</button>}</div></article>)}</div>{!history.length&&<Empty text="Your generated ideas and recipes will appear here."/>}</>}
 
-      {tab==='plan'&&<><div className="flex flex-wrap items-end justify-between gap-3"><Title title="Calendar" sub="Week, month and year views are projected from your current recurring meal plan."/><div className="flex rounded-full bg-white p-1 shadow-sm">{(['week','month','year'] as CalendarView[]).map(v=><button key={v} onClick={()=>setCalendarView(v)} className={cx('rounded-full px-4 py-2 text-xs font-black capitalize',calendarView===v?'bg-[#18392b] text-white':'text-[#18392b]/45')}>{v}</button>)}</div></div><Stats cost={weeklyStats.cost} calories={weeklyStats.avgCalories} count={weeklyStats.mealCount}/>{calendarView==='week'?<div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">{weeklyPlan.map((d,i)=><DayCard key={i} day={d} index={i} context={dayContexts[i]} update={p=>updateDay(i,p)} open={setDetail}/>)}</div>:calendarView==='month'?<MonthView weekly={weeklyStats}/>:<YearView weekly={weeklyStats}/>}</>}
+      {tab==='plan'&&<><div className="flex flex-wrap items-end justify-between gap-3"><Title title="Smart meal calendar" sub="Plan real meals from your saved Picks. Assign portions, avoid repeats and keep the week in sync with your shopping basket."/><div className="flex rounded-full bg-white p-1 shadow-sm">{(['week','month','year'] as CalendarView[]).map(v=><button key={v} onClick={()=>setCalendarView(v)} className={cx('rounded-full px-4 py-2 text-xs font-black capitalize',calendarView===v?'bg-[#18392b] text-white':'text-[#18392b]/45')}>{v}</button>)}</div></div><div className="mt-4 flex flex-wrap items-center gap-2"><button onClick={autoPlanWeek} disabled={!liked.length} className="rounded-xl bg-[#18392b] px-4 py-2.5 text-sm font-black text-white disabled:opacity-40">✨ Auto-plan from Picks</button><button onClick={clearWeek} className="rounded-xl border border-[#18392b]/15 bg-white px-4 py-2.5 text-sm font-black">Clear week</button><span className="text-xs text-[#18392b]/45">Auto-plan balances variety, prep time and estimated cost. You can edit every slot.</span></div><Stats cost={weeklyStats.cost} calories={weeklyStats.avgCalories} count={weeklyStats.mealCount}/>{calendarView==='week'?<div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{weeklyPlan.map((d,i)=><DayCard key={i} day={d} index={i} context={dayContexts[i]} update={p=>updateDay(i,p)} open={setDetail} picks={liked} assign={assignMeal}/>)}</div>:calendarView==='month'?<MonthView weekly={weeklyStats}/>:<YearView weekly={weeklyStats}/>}</>}
 
       {tab==='today'&&<><Title title="Today" sub={`${dayContexts[todayIndex]?.people||1} person${(dayContexts[todayIndex]?.people||1)>1?'s':''}${dayContexts[todayIndex]?.occasion?` · ${dayContexts[todayIndex].occasion}`:''}`}/><div className="mt-5 space-y-4">{todaySlots.length?todaySlots.map(s=><div key={s.type} className="grid overflow-hidden rounded-[26px] bg-white shadow-sm md:grid-cols-[280px_1fr]">{s.meal?.image?<img src={s.meal.image} className="h-56 w-full object-cover md:h-full"/>:<div className="h-56 bg-[#e8e5dc] md:h-full"/>}<div className="p-6"><div className="text-xs font-black uppercase tracking-[.16em] text-[#18392b]/35">{s.type}</div><div className="mt-1 text-2xl font-black">{s.meal?.name}</div><div className="mt-2 text-sm text-[#18392b]/45">≈ {Math.round(caloriesOf(s.meal!)*factor)} kcal for your portion · {s.meal?.time} min</div><RecipeSteps meal={s.meal!} appliances={appliances}/></div></div>):<Empty text="No meals planned for today yet."/>}</div></>}
 
@@ -333,7 +377,10 @@ function MealCard({meal,open,like,skip,picked}:{meal:Meal;open:()=>void;like:()=
   return <article className="group overflow-hidden rounded-[24px] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"><button onClick={open} className="block w-full text-left"><div className="aspect-[4/3] overflow-hidden bg-[#e8e5dc]">{meal.image?<img src={meal.image} alt={meal.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" loading="lazy"/>:<div className="grid h-full place-items-center text-xs font-black uppercase tracking-[.12em] text-[#18392b]/25">Finding photo…</div>}</div><div className="p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-black leading-tight">{meal.name}</h3><span className="shrink-0 rounded-full bg-[#dff2df] px-2 py-1 text-[10px] font-black">≈{caloriesOf(meal)} kcal</span></div><div className="mt-2 text-xs text-[#18392b]/45">{meal.time} min · {meal.cuisine} · {money(meal.cost)}</div>{meal.is_concept&&<div className="mt-2 text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/35">Recipe generated only if you pick it</div>}{meal.image_page&&<a href={meal.image_page} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} className="mt-2 block text-[10px] font-bold text-[#18392b]/35">Photo{meal.photographer?` by ${meal.photographer}`:''} · Pexels</a>}</div></button><div className="flex gap-2 px-4 pb-4"><button onClick={skip} className="rounded-xl border border-[#18392b]/10 p-2"><X size={14}/></button><button onClick={like} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white">{picked?'Remove':'♥ I’d eat this'}</button></div></article>
 }
 function RecipeSteps({meal,appliances}:{meal:Meal;appliances:string[]}){const steps=meal.steps?.length?meal.steps:fallbackSteps(meal,appliances);return <div className="mt-5"><div className="text-xs font-black uppercase tracking-[.16em] text-[#18392b]/35">Fastest way</div><div className="mt-3 space-y-2">{steps.map((s,i)=><div key={i} className="flex gap-3 rounded-xl bg-[#f7f5ef] p-3"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#18392b] text-[10px] font-black text-white">{i+1}</span><div className="text-sm"><b>{s.text}</b>{s.minutes?<span className="ml-2 text-xs text-[#18392b]/40">~{s.minutes} min</span>:null}</div></div>)}</div></div>}
-function DayCard({day,index,context,update,open}:{day:{day:number;slots:Slot[]};index:number;context:DayContext;update:(p:Partial<DayContext>)=>void;open:(m:Meal)=>void}){return <div className="rounded-[22px] bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><div><div className="text-xs font-black uppercase text-[#18392b]/35">Day {index+1}</div><div className="font-black">{dayNames[index]}</div></div><CalendarDays size={16} className="text-[#18392b]/25"/></div><div className="mt-3 space-y-2">{day.slots.map(s=><button key={s.type} onClick={()=>s.meal&&open(s.meal)} className="flex w-full gap-2 rounded-xl bg-[#f7f5ef] p-2 text-left">{s.meal?.image&&<img src={s.meal.image} className="h-12 w-14 rounded-lg object-cover"/>}<div><div className="text-[9px] font-black uppercase text-[#18392b]/35">{s.type}</div><div className="text-xs font-black">{s.meal?.name}</div></div></button>)}</div></div>}
+function DayCard({day,index,context,update,open,picks,assign}:{day:{day:number;date:Date;slots:Slot[]};index:number;context:DayContext;update:(p:Partial<DayContext>)=>void;open:(m:Meal)=>void;picks:Meal[];assign:(day:number,type:MealType,mealId:string)=>void}){
+  const types:MealType[]=['breakfast','lunch','dinner'];
+  return <div className="rounded-[22px] bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><div><div className="text-xs font-black uppercase text-[#18392b]/35">{dayNames[index]} · {dateLabel(day.date)}</div><div className="font-black">{day.slots.length} planned meal{day.slots.length===1?'':'s'}</div></div><CalendarDays size={16} className="text-[#18392b]/25"/></div><div className="mt-3 flex items-center gap-2"><label className="text-xs font-bold text-[#18392b]/50">People <input aria-label={`People on ${dayNames[index]}`} type="number" min="1" max="12" value={context?.people||1} onChange={e=>update({people:Math.max(1,Math.min(12,Number(e.target.value)||1))})} className="ml-1 w-14 rounded-lg bg-[#f3f1eb] px-2 py-1.5 text-sm text-[#18392b]"/></label><input aria-label={`Occasion on ${dayNames[index]}`} value={context?.occasion||''} onChange={e=>update({occasion:e.target.value})} placeholder="Notes (optional)" className="min-w-0 flex-1 rounded-lg bg-[#f3f1eb] px-2 py-1.5 text-xs"/></div><div className="mt-3 space-y-3">{types.map(type=>{const meal=day.slots.find(x=>x.type===type)?.meal||null;const candidates=picks.filter(m=>mealTypeOf(m)===type);return <div key={type} className="rounded-xl bg-[#f7f5ef] p-2"><div className="text-[9px] font-black uppercase tracking-wide text-[#18392b]/40">{type}</div><select aria-label={`${dayNames[index]} ${type}`} value={meal?.id||''} onChange={e=>assign(index,type,e.target.value)} className="mt-1 w-full rounded-lg border-0 bg-white px-2 py-2 text-xs font-bold text-[#18392b]"><option value="">Not planned</option>{candidates.map(m=><option key={m.id} value={m.id}>{m.name} · {m.time||'?'} min · {money(m.cost)}</option>)}</select>{meal&&<button onClick={()=>open(meal)} className="mt-2 flex w-full items-center gap-2 text-left">{meal.image&&<img src={meal.image} className="h-10 w-12 rounded-lg object-cover"/>}<span className="min-w-0 flex-1 text-xs font-black">{meal.name}</span><span className="text-[10px] text-[#18392b]/45">Open recipe</span></button>}</div>})}</div></div>
+}
 function Stats({cost,calories,count}:{cost:number;calories:number;count:number}){return <div className="mt-5 grid gap-3 sm:grid-cols-3"><Stat label="Projected weekly food" value={money(cost)}/><Stat label="Avg kcal / day" value={calories}/><Stat label="Planned meals" value={count}/></div>}
 function MonthView({weekly}:{weekly:{cost:number;avgCalories:number;mealCount:number}}){return <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{Array.from({length:4},(_,i)=><div key={i} className="rounded-[22px] bg-white p-5 shadow-sm"><div className="text-xs font-black uppercase text-[#18392b]/35">Week {i+1}</div><div className="mt-2 text-2xl font-black">{money(weekly.cost)}</div><div className="mt-1 text-sm text-[#18392b]/45">≈ {weekly.avgCalories} kcal/day · {weekly.mealCount} meals</div></div>)}</div>}
 function YearView({weekly}:{weekly:{cost:number;avgCalories:number;mealCount:number}}){return <div className="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m=><div key={m} className="rounded-[22px] bg-white p-5 shadow-sm"><div className="font-black">{m}</div><div className="mt-2 text-xl font-black">{money(weekly.cost*4.345)}</div><div className="text-xs text-[#18392b]/45">projected food · ≈ {weekly.avgCalories} kcal/day</div></div>)}</div>}
