@@ -163,7 +163,7 @@ export default function AppV3(){
   const [error,setError]=useState('');
   const [basket,setBasket]=useState<BasketItem[]>(()=>read('basket',[]));
   const [summary,setSummary]=useState<any>(()=>read('summary',null));
-  const [basketUsesUnplannedPicks,setBasketUsesUnplannedPicks]=useState(false);
+  const [basketUsesUnplannedPicks,setBasketUsesUnplannedPicks]=useState(()=>read('basketUsesUnplannedPicks',false));
   const [strategy,setStrategy]=useState<Strategy>(()=>read('strategy','best-value'));
   const [owned,setOwned]=useState<string[]>(()=>read('owned',[]));
   const [pantry,setPantry]=useState<any[]>([]);
@@ -175,7 +175,7 @@ export default function AppV3(){
   useEffect(()=>save('mealType',mealType),[mealType]);useEffect(()=>save('filter',filter),[filter]);useEffect(()=>save('brain',brain),[brain]);
   useEffect(()=>save('appliances',appliances),[appliances]);useEffect(()=>save('profile',profile),[profile]);useEffect(()=>save('dayContexts',dayContexts),[dayContexts]);
   useEffect(()=>save(planStorageKey(),planAssignments),[planAssignments]);useEffect(()=>save('calendarView',calendarView),[calendarView]);useEffect(()=>save('extras',extras),[extras]);useEffect(()=>save('basket',basket),[basket]);
-  useEffect(()=>save('summary',summary),[summary]);useEffect(()=>save('strategy',strategy),[strategy]);useEffect(()=>save('owned',owned),[owned]);
+  useEffect(()=>save('summary',summary),[summary]);useEffect(()=>save('basketUsesUnplannedPicks',basketUsesUnplannedPicks),[basketUsesUnplannedPicks]);useEffect(()=>save('strategy',strategy),[strategy]);useEffect(()=>save('owned',owned),[owned]);
 
   async function boot(){
     try{
