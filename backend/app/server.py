@@ -7,6 +7,7 @@ from datetime import datetime
 
 from dotenv import load_dotenv
 from fastapi import Request, HTTPException
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import or_
 
@@ -97,6 +98,11 @@ def _history_owner(request: Request) -> str:
     return str(user.get("id") or user.get("email") or "local")[:160]
 
 
+def _history_meal_json(meal: dict) -> str:
+    """Serialize nested recipe data safely, including Python datetime values."""
+    return json.dumps(jsonable_encoder(meal), ensure_ascii=False)
+
+
 def _upsert_recipe_history(request: Request, record_key: str, record_type: str, status: str, meal: dict, prompt: str = ""):
     if record_type not in {"concept", "recipe"} or not isinstance(meal, dict):
         return
@@ -117,7 +123,7 @@ def _upsert_recipe_history(request: Request, record_key: str, record_type: str, 
                 status=status,
                 name=name,
                 prompt=str(prompt or "")[:4000] or None,
-                meal_json=json.dumps(meal, ensure_ascii=False),
+                meal_json=_history_meal_json(meal),
             )
             db.add(row)
         else:
@@ -125,7 +131,7 @@ def _upsert_recipe_history(request: Request, record_key: str, record_type: str, 
             row.status = status
             row.name = name
             row.prompt = str(prompt or row.prompt or "")[:4000] or None
-            row.meal_json = json.dumps(meal, ensure_ascii=False)
+            row.meal_json = _history_meal_json(meal)
             row.updated_at = datetime.utcnow()
         db.commit()
     except Exception:
