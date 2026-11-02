@@ -108,6 +108,14 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 name = candidate.get("name") or ""
                 raw_url = candidate.get("url") or ""
                 product_url = _canonical_product_url(raw_url, base_url)
+                raw_image = candidate.get("image")
+                if isinstance(raw_image, list):
+                    raw_image = next((value for value in raw_image if isinstance(value, str)), None)
+                elif isinstance(raw_image, dict):
+                    raw_image = raw_image.get("url") or raw_image.get("contentUrl")
+                image_url = urljoin(base_url, str(raw_image)) if raw_image else None
+                if image_url and urlsplit(image_url).scheme not in {"http", "https"}:
+                    image_url = None
                 offers = candidate.get("offers") or {}
                 if isinstance(offers, list):
                     offers = offers[0] if offers else {}
@@ -135,6 +143,7 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     "price": offer_price,
                     "price_per_unit": (offer_price / size) if offer_price is not None and size else None,
                     "product_url": product_url,
+                    "image_url": image_url,
                     "availability": "available" if offers else "unknown",
                 })
     return rows
@@ -421,6 +430,15 @@ class ReweCatalogScraper:
                 pdp_by_name[name_key] = href
             size, unit = package(raw)
             cost = price(raw)
+            image_node = box.select_one("img")
+            image_src = None
+            if image_node:
+                image_src = (image_node.get("src") or image_node.get("data-src") or image_node.get("data-lazy-src") or "")
+                if not image_src and image_node.get("srcset"):
+                    image_src = image_node.get("srcset").split(",")[0].strip().split(" ")[0]
+            image_url = urljoin(url, image_src) if image_src else None
+            if image_url and urlsplit(image_url).scheme not in {"http", "https"}:
+                image_url = None
             external_id = href.rstrip("/").rsplit("/", 1)[-1].split("?")[0] or hashlib.sha256((product_name + href).encode()).hexdigest()[:20]
             anchor_products.append({
                 "external_id": external_id,
@@ -434,6 +452,7 @@ class ReweCatalogScraper:
                 "price": cost,
                 "price_per_unit": (cost / size) if cost is not None and size else None,
                 "product_url": href,
+                "image_url": image_url,
                 "availability": "unknown",
             })
 
@@ -457,6 +476,7 @@ class ReweCatalogScraper:
                 continue
             candidate_is_better = (
                 (not current.get("product_url") and product.get("product_url"))
+                or (not current.get("image_url") and product.get("image_url"))
                 or (current.get("price") is None and product.get("price") is not None)
             )
             if candidate_is_better:
