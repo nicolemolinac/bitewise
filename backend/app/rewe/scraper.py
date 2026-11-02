@@ -254,8 +254,10 @@ def _ensure_chrome_for_testing(playwright, endpoint):
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-blink-features=AutomationControlled",
-        "about:blank",
     ]
+    if os.getenv("REWE_BROWSER_HEADLESS", "false").lower() in {"1", "true", "yes"}:
+        command.append("--headless=new")
+    command.append("about:blank")
     kwargs = {
         "stdin": subprocess.DEVNULL,
         "stdout": subprocess.DEVNULL,
