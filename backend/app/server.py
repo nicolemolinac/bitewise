@@ -93,6 +93,13 @@ def _assign_expanded_recipe_identity(recipe: dict, concept_id: str) -> dict:
     return recipe
 
 
+def _json_default(value):
+    """Serialize database timestamps embedded in recipe/product history payloads."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
 def _history_owner(request: Request) -> str:
     user = getattr(request.state, "bitewise_user", None) or {}
     return str(user.get("id") or user.get("email") or "local")[:160]
