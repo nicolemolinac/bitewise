@@ -59,8 +59,6 @@ jobs:
         run: python qa_recipe_history.py
       - name: Selected recipe expansion regression QA
         run: python qa_recipe_expansion.py
-      - name: Recipe history datetime serialization regression QA
-        run: python qa_recipe_history_datetime.py
       - name: Recipe history datetime serialization QA
         run: python qa_recipe_history_datetime.py
       - name: Air fryer and microwave cooking preference QA
