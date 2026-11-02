@@ -135,12 +135,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         unit = _normal_unit(requirement["unit"])
         pantry_row = pantry.get(ingredient)
         pantry_used = 0.0
-        pantry_quantity = 0.0
         if pantry_row:
             converted_pantry = _convert_quantity(pantry_row.get("quantity", 0), pantry_row.get("unit"), unit)
             if converted_pantry is not None:
                 pantry_used = min(requested, max(0.0, converted_pantry))
-                pantry_quantity = pantry_used
         needed = max(0.0, requested - pantry_used)
 
         base = {
@@ -160,6 +158,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "unit_cost": None,
             "match_status": "unmatched",
             "match_reason": None,
+            "why": None,
             "badge": "Availability unknown",
             "selected_by_user": False,
         }
@@ -170,6 +169,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 "pantry_used": round(requested if ingredient in owned else pantry_used, 2),
                 "match_status": "covered",
                 "match_reason": "Covered by pantry / marked as owned.",
+                "why": "Covered by pantry / marked as owned.",
                 "badge": "🏠 Uses Pantry",
             })
             output.append(base)
@@ -212,6 +212,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         if not candidates:
             base.update({
                 "match_reason": "No available catalog product with a compatible unit and a real price was found.",
+                "why": "No compatible priced REWE product found.",
             })
             output.append(base)
             continue
@@ -235,6 +236,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "unit_cost": round(chosen["unit_price"], 6),
             "match_status": "matched",
             "match_reason": "Matched against a priced, available catalog product using compatible units.",
+            "why": f"Used in {len(requirement.get('source_meals', []))} meal(s); {round(chosen['waste_ratio'] * 100)}% estimated package leftover.",
             "badge": badge,
             "selected_by_user": chosen["selected_by_user"],
         })
