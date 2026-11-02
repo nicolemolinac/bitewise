@@ -68,3 +68,25 @@ CORS_ORIGINS=http://localhost:5173
 ```
 
 For a first local run, leave `REWE_LIVE_ENABLED=false`; the seed catalog gives deterministic results. Turn it on only after checking that live access is permitted for your use case.
+
+## Release readiness checks
+
+Before treating the app as ready for everyday use:
+
+1. Refresh the REWE catalog for the intended postcode and confirm products have current prices and availability.
+2. Generate one recipe and verify every ingredient is either matched to a real priced REWE product, covered by the pantry, or explicitly marked unmatched.
+3. Compare Cheapest and Best Value and confirm the selected products and package prices change as expected.
+4. Check both checkout package cost and proportional consumed-ingredient cost. For example, using 250 g from a 500 g pack must show the full pack price at checkout and half that price as consumed cost.
+5. Build a basket from multiple recipes and confirm shared ingredients are consolidated before product matching.
+6. Restart the backend and verify saved concepts, expanded recipes and the shopping basket can be reconstructed from persistent history.
+7. For hosted use, verify `DATABASE_URL` points to persistent PostgreSQL. Do not rely on the local SQLite database or an ephemeral container filesystem for production history.
+8. Run the app in a browser from discovery through recipe expansion and basket generation; verify Gemini errors are visible and do not create fake recipes or prices.
+
+Deterministic QA scripts (run from `backend/`):
+
+```bash
+python qa_ingredient_costing.py
+python qa_recipe_history.py
+```
+
+The first script checks unit conversions, pantry deductions, unmatched handling, and the difference between checkout and consumed cost. The second checks that recipe history and real catalog-based shopping survive a backend restart. These scripts do not replace a browser test against a freshly scraped REWE catalog.
