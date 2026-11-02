@@ -8,6 +8,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from app.server import _assign_expanded_recipe_identity
+
 ROOT = Path(__file__).resolve().parent
 DB = ROOT / "data" / "recipe_history_qa.sqlite"
 BASE = "http://127.0.0.1:8012"
@@ -54,6 +56,12 @@ def stop_api(proc):
 
 
 def main():
+    first = _assign_expanded_recipe_identity({"id": "gemini-generic-id"}, "concept-a")
+    second = _assign_expanded_recipe_identity({"id": "gemini-generic-id"}, "concept-b")
+    assert first["id"] != second["id"], "Two different ideas must never collapse into one Pick"
+    assert first["source_concept_id"] == "concept-a"
+    assert second["source_concept_id"] == "concept-b"
+
     DB.parent.mkdir(parents=True, exist_ok=True)
     if DB.exists():
         DB.unlink()
