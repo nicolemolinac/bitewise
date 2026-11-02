@@ -362,9 +362,9 @@ class ReweCatalogScraper:
             if number is not None:
                 numeric.append((number, href))
 
-        # Page-number controls often include links to page 1 and the current page.
-        # Queue only the immediate next page; the next response discovers its successor.
-        if numeric:
+        # Prefer an explicit "next" link when REWE provides one. Otherwise
+        # queue only the immediate next numeric page, never the whole page strip.
+        if not candidates and numeric:
             threshold = current_number if current_number is not None else 1
             forward = sorted(
                 (number, href) for number, href in numeric
