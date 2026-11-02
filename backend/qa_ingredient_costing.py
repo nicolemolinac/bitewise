@@ -2,7 +2,7 @@
 
 Run from backend/: python qa_ingredient_costing.py
 """
-from app.shopping.optimizer import build_basket
+from app.shopping.optimizer import build_basket, consolidate
 
 
 class FakeCatalog:
@@ -64,6 +64,17 @@ def run():
     assert pantry_rice["needed_quantity"] == 0.75
     assert pantry_rice["checkout_cost"] == 3.0
     assert pantry_rice["consumed_cost"] == 2.25
+
+    mixed_units = consolidate([
+        {"id": "a", "name": "Chicken bowl", "ingredients": [["chicken breast", 200, "g"], ["milk", 100, "ml"], ["garlic", 2, "cloves"]]},
+        {"id": "b", "name": "Chicken pasta", "ingredients": [["chicken breast", 0.3, "kg"], ["milk", 0.5, "l"], ["garlic", 1, "unit"]]},
+    ], {"a": 2, "b": 2})
+    chicken = next(row for row in mixed_units if row["ingredient"] == "chicken breast")
+    milk_total = next(row for row in mixed_units if row["ingredient"] == "milk")
+    garlic_rows = [row for row in mixed_units if row["ingredient"] == "garlic"]
+    assert chicken["quantity"] == 500 and chicken["unit"] == "g"
+    assert milk_total["quantity"] == 600 and milk_total["unit"] == "ml"
+    assert len(garlic_rows) == 2, "Cloves and whole units must not be silently merged"
 
     print("PASS: kg/g and l/ml conversions, pantry deductions, checkout package cost, consumed cost, and unmatched handling")
 
