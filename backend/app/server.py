@@ -229,10 +229,11 @@ async def expand_ai_recipe(request: Request):
         raise HTTPException(400, "Invalid JSON payload")
     concept = payload.get("concept") if isinstance(payload, dict) else None
     context = payload.get("context", "") if isinstance(payload, dict) else ""
+    appliances = payload.get("appliances", []) if isinstance(payload, dict) else []
     if not isinstance(concept, dict) or not str(concept.get("name") or "").strip():
         raise HTTPException(422, "A meal concept with a name is required")
     try:
-        recipe = EfficientGeminiService().expand_concept(concept, str(context or ""))
+        recipe = EfficientGeminiService().expand_concept(concept, str(context or ""), appliances)
         concept_id = str(concept.get("id") or "").strip()
         if concept_id:
             # Gemini may reuse a generic recipe ID across separate ideas. Give

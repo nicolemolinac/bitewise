@@ -10,6 +10,32 @@ from .gemini import (
 )
 from ..database import PantryItem, SessionLocal
 
+
+_ALLOWED_APPLIANCES = ("air fryer", "microwave", "stovetop", "oven")
+_DEFAULT_APPLIANCES = ("air fryer", "microwave", "stovetop")
+
+
+def cooking_preferences_instruction(appliances=None) -> str:
+    """Build deterministic, testable cooking-method guidance in user priority order."""
+    supplied = appliances if isinstance(appliances, (list, tuple)) else []
+    selected = []
+    for value in supplied:
+        name = str(value or "").strip().lower()
+        if name in _ALLOWED_APPLIANCES and name not in selected:
+            selected.append(name)
+    if not selected:
+        selected = list(_DEFAULT_APPLIANCES)
+    priorities = ", ".join(f"{index + 1}. {name}" for index, name in enumerate(selected))
+    return f"""KITCHEN EQUIPMENT — USER PRIORITY ORDER:
+{priorities}
+- Prefer the first suitable selected appliance; use later options as fallbacks.
+- Optimize for very little hands-on work, very few steps and minimal washing-up. Aim for no more than 10 minutes of active preparation and one main appliance/container whenever practical.
+- Prefer air-fryer and microwave combinations when selected. Use the microwave for suitable tasks such as steaming vegetables, heating or cooking suitable grains/potatoes in a microwave-safe container; use the air fryer for crisping and cooking suitable proteins/vegetables.
+- Use a pan/stovetop or oven only when it makes the dish substantially easier, safer or better. Do not add a pan just out of habit.
+- Consider affordable supermarket frozen, pre-cut or ready-to-cook ingredients when they genuinely save work and are likely to be good value. Do not assume convenience products are always cheaper; avoid expensive premium convenience foods and do not invent prices or specific stock.
+- Keep recipes simple, affordable and realistic for an ordinary German supermarket shop.
+- Give practical appliance-specific steps with realistic temperatures, wattage where useful and cooking times. Never recommend microwaving raw poultry or other unsafe shortcuts; follow safe cooking and package instructions.""".strip()
+
 _REPAIR_DONE = False
 
 
@@ -145,7 +171,7 @@ These are examples of specificity and relevance, not a fixed list.
             raise RuntimeError("Gemini returned no usable meal concepts.")
         return concepts
 
-    def expand_concept(self, concept: dict, context: str = ""):
+    def expand_concept(self, concept: dict, context: str = "", appliances=None):
         if not self.key:
             raise RuntimeError("GEMINI_API_KEY is missing from backend/.env")
         if not self.client:
@@ -165,6 +191,7 @@ SELECTED CONCEPT: {name}
 CONCEPT DESCRIPTION: {description}
 MEAL TYPE: {meal_type}
 ORIGINAL DISCOVERY CONTEXT: {context or concept.get('discovery_prompt') or 'none'}
+{cooking_preferences_instruction(appliances)}
 PANTRY: {', '.join(pantry[:30]) if pantry else 'none'}
 SUPERMARKET AVAILABILITY: Use ordinary ingredients commonly sold by German supermarkets such as REWE. Do not specify brands, SKUs, package sizes, or prices; Bitewise will match the ingredients to its current catalog after generation.
 
@@ -175,7 +202,8 @@ Rules:
 - Keep the selected concept recognizable; do not replace it with another dish.
 - ingredients: [[english_name,quantity,unit]], units only g|ml|unit|cloves.
 - steps: 3-6 concise objects {{"text":"...","minutes":N}}.
-- Optimize for low effort and minimal cleanup.
+- Optimize for low effort and minimal cleanup, following the selected kitchen-equipment priority above.
+- Prefer affordable frozen or pre-cut ingredients when they reduce preparation without making the meal unnecessarily expensive.
 - Use generic, unambiguous ingredient names (e.g. "chicken breast", "Greek yogurt", "cherry tomatoes").
 - Prefer ingredients commonly available at REWE, but never claim a specific product or price is available.
 - image must be exactly this existing URL if non-empty: {image}
