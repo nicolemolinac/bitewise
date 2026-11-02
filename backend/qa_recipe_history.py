@@ -88,9 +88,9 @@ def main():
         conn.execute("""INSERT INTO products (
             supermarket, external_id, ingredient, name_original, name_normalized,
             brand, category, package_size, package_unit, price, price_per_unit,
-            currency, product_url, availability, postcode_context, last_seen_at,
-            last_checked_at, last_price
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)""",
+            currency, product_url, availability, postcode_context, first_seen_at,
+            last_seen_at, last_checked_at, last_price
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)""",
         ("REWE", "qa-rice-500g", "rice", "REWE Beste Wahl Langkornreis 500g", "langkornreis",
          "REWE Beste Wahl", "Rice", 500, "g", 1.49, 0.00298, "EUR",
          "https://www.rewe.de/shop/p/rewe-beste-wahl-langkornreis-500g/123456", "available", "13353", 1.49))
