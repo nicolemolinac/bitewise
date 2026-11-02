@@ -238,26 +238,23 @@ async def expand_ai_recipe(request: Request):
                 overrides=overrides,
                 pantry=main_module.pantry_snapshot(db),
             )
-            checkout_total = round(sum(float(row.get("total") or 0) for row in basket), 2)
-            consumed_total = 0.0
-            matched = 0
-            for row in basket:
-                product = row.get("product") or {}
-                if product.get("id") is not None and product.get("price") is not None:
-                    matched += 1
-                    pack_qty = float(product.get("package_size") or 0)
-                    needed = float(row.get("needed_quantity") or 0)
-                    packs = int(row.get("packs") or 0)
-                    if pack_qty > 0 and packs > 0:
-                        consumed_total += float(row["total"]) * min(1.0, needed / (packs * pack_qty))
+            matched_rows = [row for row in basket if row.get("match_status") == "matched"]
+            checkout_total = round(sum(float(row.get("checkout_cost") or 0) for row in matched_rows), 2)
+            consumed_total = round(sum(float(row.get("consumed_cost") or 0) for row in matched_rows), 2)
+            unmatched = [
+                {"ingredient": row.get("ingredient"), "quantity": row.get("needed_quantity"),
+                 "unit": row.get("unit"), "reason": row.get("match_reason")}
+                for row in basket if row.get("match_status") == "unmatched"
+            ]
             recipe["product_matches"] = basket
             recipe["costing"] = {
                 "strategy": "best-value",
-                "matched_ingredients": matched,
+                "matched_ingredients": len(matched_rows),
+                "unmatched_ingredients": len(unmatched),
                 "total_ingredients": len(basket),
                 "catalog_ready": db.query(main_module.Product).filter(main_module.Product.supermarket == "REWE").count() > 0,
-                "checkout_total": checkout_total if matched else None,
-                "consumed_cost": round(consumed_total, 2) if matched else None,
+                "checkout_total": checkout_total if matched_rows else None,
+                "consumed_cost": consumed_total if matched_rows else None,
                 "currency": "EUR",
             }
         finally:
