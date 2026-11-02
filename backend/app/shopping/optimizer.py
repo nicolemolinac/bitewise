@@ -13,24 +13,33 @@ STRATEGIES = {
 
 
 def consolidate(meals, servings_map):
-    grouped = defaultdict(lambda: {"quantity": 0.0, "unit": "", "source_meals": []})
+    grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": []})
+    canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
     for meal in meals:
         servings = servings_map.get(meal["id"], 2)
         factor = servings / 2
         for name, quantity, unit in meal["ingredients"]:
-            key = name.lower().strip()
+            normalized_unit = _normal_unit(unit)
+            unit_info = _UNIT_BASE.get(normalized_unit)
+            if unit_info:
+                dimension, multiplier = unit_info
+                normalized_unit = canonical_units[dimension]
+                normalized_quantity = float(quantity) * multiplier
+            else:
+                # Keep semantically different units (e.g. cloves vs pieces) separate.
+                normalized_quantity = float(quantity)
+            key = (name.lower().strip(), normalized_unit)
             row = grouped[key]
-            row["quantity"] += float(quantity) * factor
-            row["unit"] = unit
+            row["quantity"] += normalized_quantity * factor
             row["source_meals"].append(meal["name"])
     return [
         {
-            "ingredient": key,
+            "ingredient": ingredient,
             "quantity": round(value["quantity"], 2),
-            "unit": value["unit"],
+            "unit": unit,
             "source_meals": list(dict.fromkeys(value["source_meals"])),
         }
-        for key, value in grouped.items()
+        for (ingredient, unit), value in grouped.items()
     ]
 
 
