@@ -3,13 +3,19 @@ import json
 from datetime import datetime, timezone
 
 from fastapi.encoders import jsonable_encoder
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.ai.gemini_efficient import GeminiService
+from app.server import _json_default
 
 
 def main():
+    # Product matches can contain SQLAlchemy datetime fields such as last_checked_at.
+    encoded = json.dumps({"product_matches": [{"product": {"last_checked_at": datetime(2026, 11, 3, 12, 30)}}]}, default=_json_default)
+    assert "2026-11-03T12:30:00" in encoded
+
     # Basket product metadata can contain SQLAlchemy datetime values. Ensure
     # the recipe-history serializer normalizes nested values before JSON storage.
     nested_basket = {"product_matches": [{"product": {"last_checked_at": datetime(2026, 11, 3, tzinfo=timezone.utc)}}]}
