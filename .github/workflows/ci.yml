@@ -64,6 +64,7 @@ jobs:
         continue-on-error: true
         env:
           REWE_BROWSER_ENABLED: 'true'
+          REWE_BROWSER_HEADLESS: 'true'
         run: python qa_rewe_live.py
 
   frontend:
