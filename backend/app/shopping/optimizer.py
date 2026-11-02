@@ -41,9 +41,13 @@ _UNIT_ALIASES = {
     "liter": "l", "litre": "l", "liters": "l", "litres": "l", "l": "l",
     "stück": "piece", "stuck": "piece", "pcs": "piece", "pc": "piece",
     "pieces": "piece", "piece": "piece", "unit": "piece", "units": "piece",
+    "tbsp": "tbsp", "tablespoon": "tbsp", "tablespoons": "tbsp",
+    "tsp": "tsp", "teaspoon": "tsp", "teaspoons": "tsp",
+    "cup": "cup", "cups": "cup",
 }
 _UNIT_BASE = {"g": ("mass", 1.0), "kg": ("mass", 1000.0),
               "ml": ("volume", 1.0), "l": ("volume", 1000.0),
+              "tbsp": ("volume", 15.0), "tsp": ("volume", 5.0), "cup": ("volume", 250.0),
               "piece": ("count", 1.0)}
 
 
