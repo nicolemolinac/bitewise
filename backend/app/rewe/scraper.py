@@ -671,7 +671,7 @@ class ReweCatalogScraper:
                                 pass
 
                         add_button = None
-                        for pattern in (r"In den Warenkorb", r"Warenkorb hinzufügen", r"Zum Warenkorb"):
+                        for pattern in (r"In den Warenkorb", r"Warenkorb hinzufügen"):
                             try:
                                 candidate = page.get_by_role("button", name=re.compile(pattern, re.I)).first
                                 if candidate.count() and candidate.is_visible() and candidate.is_enabled():
@@ -686,10 +686,11 @@ class ReweCatalogScraper:
                         add_button.click(timeout=8_000)
                         page.wait_for_timeout(1_400)
                         confirmation = page.locator("body").inner_text(timeout=8_000)
-                        confirmed = bool(re.search(r"hinzugefügt|im Warenkorb|zum Warenkorb gelegt|Warenkorb wurde aktualisiert", confirmation, re.I))
+                        confirmed = bool(re.search(r"hinzugefügt|zum Warenkorb gelegt|Warenkorb wurde aktualisiert", confirmation, re.I))
+                        fully_confirmed = confirmed and (packs == 1 or quantity_set)
                         results.append({
                             "name": name,
-                            "status": "added" if confirmed else "submitted_unverified",
+                            "status": "added" if fully_confirmed else ("quantity_unconfirmed" if confirmed else "submitted_unverified"),
                             "packs_requested": packs,
                             "quantity_set": quantity_set,
                             "message": "REWE displayed an add confirmation" if confirmed else "Add action was clicked; verify the cart before checkout",
