@@ -439,9 +439,20 @@ class ReweCatalogScraper:
             _click_first(page, [r"Standort ändern", r"Lieferadresse", r"Lieferservice", r"Lieferung"], timeout=1200)
             page.wait_for_timeout(700)
         if postcode_input is None:
+            # A saved delivery address in an authenticated REWE session does not
+            # necessarily expose the postcode form. Do not break a valid session
+            # by demanding the postcode again; only fail later if catalog pages
+            # themselves cannot be loaded or contain no products.
             title = page.title()
-            body = page.locator("body").inner_text(timeout=5000)[:800]
-            raise RuntimeError(f"REWE postcode input was not found; title={title!r}; page={body!r}")
+            body = page.locator("body").inner_text(timeout=5000)[:1200]
+            if re.search(r"Lieferservice|Lieferung|Lieferadresse|Liefergebiet|Lieferung an", body, re.I):
+                STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+                page.context.storage_state(path=str(STATE_FILE))
+                return
+            raise RuntimeError(
+                f"REWE has no visible postcode form or confirmed delivery context; "
+                f"title={title!r}; page={body!r}"
+            )
 
         postcode_input.fill(postcode)
         try:
@@ -561,11 +572,22 @@ class ReweCatalogScraper:
                         f"Chrome for Testing at {endpoint} has no browser context"
                     )
 
-                # Reuse the existing profile so REWE consent/location cookies persist.
-                # Only this scraper-owned tab is closed at the end.
+                # Reuse an already-open REWE tab when possible. This preserves
+                # the user's authenticated account and saved delivery address instead
+                # of opening a fresh tab and forcing the postcode dialog.
                 context = browser.contexts[0]
-                page = context.new_page()
-                self._set_delivery_location(page, postcode)
+                page = next(
+                    (
+                        candidate for candidate in context.pages
+                        if urlsplit(candidate.url).hostname
+                        and urlsplit(candidate.url).hostname.lower().endswith("rewe.de")
+                    ),
+                    None,
+                )
+                owns_page = page is None
+                if page is None:
+                    page = context.new_page()
+                    self._set_delivery_location(page, postcode)
 
                 for category_url in urls:
                     report["categories_processed"] += 1
@@ -597,7 +619,7 @@ class ReweCatalogScraper:
                         })
 
         finally:
-            if page:
+            if page and locals().get("owns_page", False):
                 try:
                     page.close()
                 except Exception:
