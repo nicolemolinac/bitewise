@@ -123,20 +123,35 @@ export default function AppV3(){
       setMeals(m.meals||[]);setPantry(p||[]);if(s.shopping_strategy)setStrategy(s.shopping_strategy);
       const records=h.records||[];setHistory(records);
       const savedRecipes=records.filter((x:any)=>x.record_type==='recipe'&&['saved','cooked'].includes(x.status)).map((x:any)=>x.meal).filter(Boolean);
-      if(savedRecipes.length)setLiked(savedRecipes);
+      // The database is the source of truth for Picks, including an empty list.
+      setLiked(savedRecipes);
+      const savedConcepts=records
+        .filter((x:any)=>x.record_type==='concept'&&!['expanded','disliked','removed'].includes(x.status))
+        .slice(0,24).map((x:any)=>x.meal).filter(Boolean);
+      if(savedConcepts.length)void attachFreePhotos(savedConcepts);
       const apiOwned=(ss.items||[]).filter((x:any)=>x.state==='owned').map((x:any)=>x.ingredient);if(apiOwned.length)setOwned(apiOwned);
     }catch(e:any){setError(e.message)}
   }
 
+  const discoverPool=useMemo(()=>{
+    const concepts=history
+      .filter((row:any)=>row.record_type==='concept'&&!['expanded','disliked','removed'].includes(row.status))
+      .map((row:any)=>row.meal)
+      .filter(Boolean) as Meal[];
+    const byId=new Map<string,Meal>();
+    [...concepts,...meals].forEach(meal=>{if(meal?.id)byId.set(meal.id,meal)});
+    return [...byId.values()];
+  },[history,meals]);
+
   const visible=useMemo(()=>{
-    let list=meals.filter(m=>!liked.some(x=>x.id===m.id)&&!skipped.includes(m.id)).filter(m=>mealTypeOf(m)===mealType);
+    let list=discoverPool.filter(m=>!liked.some(x=>x.id===m.id)&&!skipped.includes(m.id)).filter(m=>mealTypeOf(m)===mealType);
     if(filter==='quick')list=list.filter(m=>m.time<=30||m.tags?.some(t=>/quick/i.test(t)));
     else if(filter==='cheap')list=list.filter(m=>m.cost<=3||m.tags?.some(t=>/cheap/i.test(t)));
     else if(filter==='healthy')list=list.filter(m=>m.tags?.some(t=>/healthy/i.test(t)));
     else if(filter==='high-protein')list=list.filter(m=>m.tags?.some(t=>/protein/i.test(t)));
     else if(filter!=='all')list=list.filter(m=>m.cuisine?.toLowerCase().replace(/\s+/g,'-').includes(filter));
     return list;
-  },[meals,liked,skipped,mealType,filter]);
+  },[discoverPool,liked,skipped,mealType,filter]);
 
   const weeklyPlan=useMemo(()=>{const groups:Record<MealType,Meal[]>={breakfast:[],lunch:[],dinner:[],dessert:[],snack:[]};liked.forEach(m=>groups[mealTypeOf(m)].push(m));return Array.from({length:7},(_,day)=>({day,slots:mealTypes.map(t=>({type:t.id,meal:groups[t.id].length?groups[t.id][day%groups[t.id].length]:null} as Slot)).filter(x=>x.meal)}))},[liked]);
   const factor=portionFactor(profile);const todayIndex=(new Date().getDay()+6)%7;const todaySlots=weeklyPlan[todayIndex]?.slots||[];
@@ -155,9 +170,21 @@ export default function AppV3(){
         const photo=photos?.photos?.[index]||{};
         return {...meal,image:photo.image||'',image_page:photo.image_page||'',photographer:photo.photographer||''};
       });
-      setMeals(enriched);
+      setMeals(current=>{
+        const byId=new Map(current.map(meal=>[meal.id,meal]));
+        enriched.forEach(meal=>byId.set(meal.id,meal));
+        return [...byId.values()];
+      });
+      setHistory(current=>current.map(row=>{
+        const updated=enriched.find(meal=>meal.id===row.record_key);
+        return updated?{...row,meal:updated}:row;
+      }));
     }catch{
-      setMeals(fresh.map(meal=>({...meal,image:''})));
+      setMeals(current=>{
+        const byId=new Map(current.map(meal=>[meal.id,meal]));
+        fresh.forEach(meal=>{if(!byId.has(meal.id))byId.set(meal.id,{...meal,image:''})});
+        return [...byId.values()];
+      });
     }
   }
 
@@ -208,6 +235,19 @@ export default function AppV3(){
     else setSkipped(x=>[...new Set([...x,meal.id])]);
   }
   function servingTotals(){const totals:Record<string,number>={};weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(s.meal)totals[s.meal.id]=(totals[s.meal.id]||0)+factor*(dayContexts[idx]?.people||1)}));if(!Object.keys(totals).length)liked.forEach(m=>totals[m.id]=factor);return totals}
+  async function removePick(meal:Meal){
+    setLiked(current=>current.filter(item=>item.id!==meal.id));
+    const sourceConceptId=(meal as any).source_concept_id;
+    if(sourceConceptId){
+      try{
+        await api(`/recipe-history/${encodeURIComponent(`recipe:${sourceConceptId}`)}`,{
+          method:'PATCH',body:JSON.stringify({status:'removed'})
+        });
+        setHistory(current=>current.map(row=>row.record_key===`recipe:${sourceConceptId}`?{...row,status:'removed'}:row));
+      }catch(e:any){setError('Pick removed locally but could not update permanent history: '+e.message)}
+    }
+  }
+
   async function makeBasket(nextStrategy:Strategy=strategy){if(!liked.length)return;setLoading(true);setError('');try{const servings=servingTotals();const d=await api('/shopping',{method:'POST',body:JSON.stringify({meal_ids:Object.keys(servings),servings,owned,mode:nextStrategy})});setBasket(d.items||d.basket||[]);setSummary(d);setTab('basket')}catch(e:any){setError(e.message)}finally{setLoading(false)}}
   async function changeStrategy(s:Strategy){setStrategy(s);await api('/settings',{method:'PATCH',body:JSON.stringify({shopping_strategy:s})});if(basket.length)await makeBasket(s)}
   async function toggleOwned(ingredient:string){const next=owned.includes(ingredient)?owned.filter(x=>x!==ingredient):[...owned,ingredient];setOwned(next);try{await api('/shopping/state',{method:'PUT',body:JSON.stringify({ingredient,state:next.includes(ingredient)?'owned':'needed'})})}catch{}}
@@ -239,7 +279,7 @@ export default function AppV3(){
         {!visible.length&&!loading?<div className="mt-5 rounded-[28px] bg-white p-10 text-center"><ChefHat className="mx-auto text-[#18392b]/20"/><div className="mt-3 font-black">No exact matches yet</div><button onClick={()=>generateAI(`${filter==='all'?'varied':filter} ${mealType} ideas`)} className="mt-4 rounded-full bg-[#18392b] px-5 py-2.5 text-sm font-black text-white">Generate matching meals</button></div>:!visible.length&&loading?<div className="mt-5 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-[#18392b]/45">Creating your {mealType} ideas…</div>:<div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{visible.map(m=><MealCard key={m.id} meal={m} open={()=>!m.is_concept&&setDetail(m)} like={()=>react(m,'like')} skip={()=>react(m,'skip')} picked={false}/>)}</div>}
       </>}
 
-      {tab==='picks'&&<><Title title="Your picks" sub="Only selected ideas become full recipes. Portions adapt to your profile and each day's guest count."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{liked.map(m=><MealCard key={m.id} meal={m} open={()=>setDetail(m)} like={()=>setLiked(x=>x.filter(a=>a.id!==m.id))} skip={()=>setLiked(x=>x.filter(a=>a.id!==m.id))} picked/>)}</div>{liked.length>0&&<button onClick={()=>makeBasket()} className="mt-6 rounded-2xl bg-[#18392b] px-5 py-3 text-sm font-black text-white"><ShoppingBasket size={15} className="mr-2 inline"/>Build adaptive weekly basket</button>}</>}
+      {tab==='picks'&&<><Title title="Your picks" sub="Only selected ideas become full recipes. Portions adapt to your profile and each day's guest count."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{liked.map(m=><MealCard key={m.id} meal={m} open={()=>setDetail(m)} like={()=>void removePick(m)} skip={()=>void removePick(m)} picked/>)}</div>{liked.length>0&&<button onClick={()=>makeBasket()} className="mt-6 rounded-2xl bg-[#18392b] px-5 py-3 text-sm font-black text-white"><ShoppingBasket size={15} className="mr-2 inline"/>Build adaptive weekly basket</button>}</>}
 
       {tab==='history'&&<><Title title="Recipe history" sub="Your generated ideas and completed recipes are saved in the permanent Bitewise database."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{history.map((row:any)=><article key={row.record_key} className="rounded-[22px] bg-white p-4 shadow-sm"><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/40">{row.record_type==='recipe'?'Full recipe':'Idea'}</span><span className="rounded-full bg-[#edf3ee] px-2 py-1 text-[10px] font-bold capitalize">{row.status}</span></div><div className="mt-2 font-black">{row.meal?.name||row.name}</div><div className="mt-1 text-xs text-[#18392b]/45">{row.meal?.meal_type||''} · {row.meal?.time||'—'} min</div><div className="mt-3 flex gap-2">{row.record_type==='recipe'?<button onClick={()=>setDetail(row.meal)} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white">Open recipe</button>:<button disabled={row.status==='expanded'} onClick={()=>react(row.meal,'like')} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white disabled:opacity-40">{row.status==='expanded'?'Expanded':'Create recipe'}</button>}</div></article>)}</div>{!history.length&&<Empty text="Your generated ideas and recipes will appear here."/>}</>}
 

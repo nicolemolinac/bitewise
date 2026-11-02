@@ -84,6 +84,14 @@ main_module.CatalogAdapter.search = _multilingual_catalog_search
 app = main_module.app
 
 
+def _assign_expanded_recipe_identity(recipe: dict, concept_id: str) -> dict:
+    """Make expanded recipe IDs unique even when Gemini reuses a generic ID."""
+    if concept_id:
+        recipe["source_concept_id"] = concept_id
+        recipe["id"] = f"{recipe.get('id') or 'recipe'}-{concept_id}"
+    return recipe
+
+
 def _history_owner(request: Request) -> str:
     user = getattr(request.state, "bitewise_user", None) or {}
     return str(user.get("id") or user.get("email") or "local")[:160]
@@ -226,6 +234,10 @@ async def expand_ai_recipe(request: Request):
     try:
         recipe = EfficientGeminiService().expand_concept(concept, str(context or ""))
         concept_id = str(concept.get("id") or "").strip()
+        if concept_id:
+            # Gemini may reuse a generic recipe ID across separate ideas. Give
+            # each expansion a stable ID derived from its originating concept.
+            _assign_expanded_recipe_identity(recipe, concept_id)
         # Product matching and costing are deterministic backend work: no second Gemini call.
         db = SessionLocal()
         try:
