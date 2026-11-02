@@ -63,6 +63,7 @@ class Product(Base):
     price_per_unit: Mapped[float | None] = mapped_column(Float, nullable=True)
     currency: Mapped[str] = mapped_column(String(6), default="EUR")
     product_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     availability: Mapped[str] = mapped_column(String(30), default="unknown")
     postcode_context: Mapped[str] = mapped_column(String(12), default="13353")
     first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -169,6 +170,7 @@ def _migrate_sqlite() -> None:
             ("categories_successful", "INTEGER DEFAULT 0"),
             ("categories_failed", "INTEGER DEFAULT 0"),
         ],
+        "products": [("image_url", "TEXT")],
         "shopping_state": [
             ("product_id", "INTEGER"),
             ("purchased_quantity", "REAL"),
@@ -237,7 +239,7 @@ def _auto_restore_local_rewe_snapshot() -> None:
         source_columns = {row[1] for row in source.execute("PRAGMA table_info(products)")}
         fields = [
             "ingredient", "name_original", "name_normalized", "translated_name", "brand", "category",
-            "package_size", "package_unit", "price", "price_per_unit", "currency", "product_url",
+            "package_size", "package_unit", "price", "price_per_unit", "currency", "product_url", "image_url",
             "availability", "postcode_context", "first_seen_at", "last_seen_at", "last_checked_at", "last_price",
         ]
         restored = 0
