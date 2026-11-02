@@ -56,6 +56,8 @@ jobs:
         run: python qa_smoke.py
       - name: Recipe history persistence and shopping rehydration QA
         run: python qa_recipe_history.py
+      - name: REWE ingredient matching and cost QA
+        run: python qa_ingredient_costing.py
       - name: Google Images meal-photo API QA
         run: python qa_image_photos.py
       - name: Live REWE delivery QA (external site may block cloud runners)
