@@ -293,6 +293,47 @@ app.include_router(cloud_router)
 app.include_router(migration_router)
 
 
+
+@app.post("/api/rewe/cart/add")
+async def add_rewe_products_to_cart(request: Request):
+    """Add selected catalog products to the signed-in REWE cart; never checks out."""
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON payload")
+    items = payload.get("items", []) if isinstance(payload, dict) else []
+    if not isinstance(items, list) or not items:
+        raise HTTPException(422, "At least one product is required")
+    db = SessionLocal()
+    try:
+        products = []
+        for item in items[:100]:
+            if not isinstance(item, dict):
+                continue
+            try:
+                product_id = int(item.get("product_id"))
+                packs = max(1, min(99, int(item.get("packs") or 1)))
+            except (TypeError, ValueError):
+                continue
+            product = db.get(main_module.Product, product_id)
+            if product is None or str(product.supermarket or "").upper() != "REWE":
+                continue
+            products.append({
+                "name": product.name_original,
+                "product_url": product.product_url,
+                "packs": packs,
+            })
+    finally:
+        db.close()
+    if not products:
+        raise HTTPException(422, "No valid REWE catalog products were supplied")
+    try:
+        from .rewe.scraper import ReweCatalogScraper
+        return ReweCatalogScraper().add_products_to_cart(products)
+    except Exception as exc:
+        raise HTTPException(502, f"REWE cart handoff failed: {str(exc)[:300]}")
+
+
 def _trusted_service_request(request: Request) -> bool:
     expected = os.getenv("SERVICE_TOKEN", "").strip()
     supplied = request.headers.get("x-service-token", "").strip()
