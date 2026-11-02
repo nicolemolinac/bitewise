@@ -122,9 +122,34 @@ export default function AppV3(){
       const [m,p,s,ss,h]=await Promise.all([api('/meals?mode=random'),api('/pantry'),api('/settings'),api('/shopping/state'),api('/recipe-history')]);
       setMeals(m.meals||[]);setPantry(p||[]);if(s.shopping_strategy)setStrategy(s.shopping_strategy);
       const records=h.records||[];setHistory(records);
-      const savedRecipes=records.filter((x:any)=>x.record_type==='recipe'&&['saved','cooked'].includes(x.status)).map((x:any)=>x.meal).filter(Boolean);
+      const recipeRows=records.filter((x:any)=>x.record_type==='recipe'&&['saved','cooked'].includes(x.status)&&x.meal);
+      const savedRecipes=recipeRows.map((row:any)=>{
+        const meal={...row.meal};
+        const conceptId=String(meal.source_concept_id||String(row.record_key||'').replace(/^recipe:/,''));
+        // Migrate old history rows created before recipe IDs were namespaced by concept.
+        if(conceptId&&!meal.source_concept_id){
+          meal.source_concept_id=conceptId;
+          meal.id=`${meal.id||'recipe'}-${conceptId}`;
+        }
+        return meal as Meal;
+      });
       // The database is the source of truth for Picks, including an empty list.
       setLiked(savedRecipes);
+      const migrated=recipeRows.filter((row:any)=>!row.meal.source_concept_id);
+      if(migrated.length){
+        const bySource=new Map(savedRecipes.map(meal=>[(meal as any).source_concept_id,meal]));
+        const updates=migrated.map((row:any)=>{
+          const conceptId=String(row.record_key||'').replace(/^recipe:/,'');
+          return {record_key:row.record_key,record_type:'recipe',status:row.status,prompt:row.prompt||'',meal:bySource.get(conceptId)};
+        }).filter((row:any)=>row.meal);
+        void api('/recipe-history',{method:'POST',body:JSON.stringify({records:updates})}).then(()=>{
+          setHistory(current=>current.map(row=>{
+            const conceptId=String(row.record_key||'').replace(/^recipe:/,'');
+            const updated=bySource.get(conceptId);
+            return row.record_type==='recipe'&&updated?{...row,meal:updated}:row;
+          }));
+        }).catch(()=>{});
+      }
       const savedConcepts=records
         .filter((x:any)=>x.record_type==='concept'&&!['expanded','disliked','removed'].includes(x.status))
         .slice(0,24).map((x:any)=>x.meal).filter(Boolean);
