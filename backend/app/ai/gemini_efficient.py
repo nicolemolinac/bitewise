@@ -177,7 +177,7 @@ These are examples of specificity and relevance, not a fixed list.
         if not self.client:
             raise RuntimeError("Gemini client could not be initialized")
 
-        pantry, _ = _shopping_context()
+        pantry = _pantry_context()
         name = str(concept.get("name") or "").strip()
         if not name:
             raise ValueError("Concept name is required")
