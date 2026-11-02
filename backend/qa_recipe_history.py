@@ -76,18 +76,38 @@ def main():
             "steps": [],
         }
         recipe = {
-            "id": "ai-persistent-qa-pasta",
+            "id": first["id"],
+            "source_concept_id": concept["id"],
             "name": "Persistent QA Pasta",
             "meal_type": "dinner",
             "ingredients": [["rice", 100, "g"]],
             "steps": [{"text": "Cook rice.", "minutes": 10}],
         }
+        concept_two = {
+            "id": "concept-persistent-qa-curry",
+            "name": "Persistent QA Curry",
+            "meal_type": "dinner",
+            "is_concept": True,
+            "ingredients": [],
+            "steps": [],
+        }
+        recipe_two = {
+            "id": second["id"],
+            "source_concept_id": concept_two["id"],
+            "name": "Persistent QA Curry",
+            "meal_type": "dinner",
+            "ingredients": [["rice", 100, "g"]],
+            "steps": [{"text": "Cook curry.", "minutes": 15}],
+        }
         saved = call("POST", "/api/recipe-history", {"records": [
             {"record_key": concept["id"], "record_type": "concept", "status": "expanded", "meal": concept},
             {"record_key": "recipe:" + concept["id"], "record_type": "recipe", "status": "saved", "meal": recipe},
+            {"record_key": concept_two["id"], "record_type": "concept", "status": "expanded", "meal": concept_two},
+            {"record_key": "recipe:" + concept_two["id"], "record_type": "recipe", "status": "saved", "meal": recipe_two},
         ]})
-        assert saved["saved"] == 2
+        assert saved["saved"] == 4
         call("PATCH", "/api/recipe-history/" + concept["id"], {"status": "expanded"})
+        call("PATCH", "/api/recipe-history/" + concept_two["id"], {"status": "expanded"})
     finally:
         stop_api(proc)
 
@@ -108,8 +128,9 @@ def main():
     proc = start_api()
     try:
         history = call("GET", "/api/recipe-history")
-        assert history["count"] == 2
-        assert any(row["meal"].get("id") == "ai-persistent-qa-pasta" for row in history["records"])
+        assert history["count"] == 4
+        saved_recipe_ids = {row["meal"].get("id") for row in history["records"] if row["record_type"] == "recipe"}
+        assert saved_recipe_ids == {first["id"], second["id"]}, saved_recipe_ids
         basket = call("POST", "/api/shopping", {
             "meal_ids": ["ai-persistent-qa-pasta"],
             "servings": {"ai-persistent-qa-pasta": 2},
