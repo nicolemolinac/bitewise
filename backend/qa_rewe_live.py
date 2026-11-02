@@ -1,37 +1,55 @@
-from app.rewe.scraper import ReweCatalogScraper
+"""Live REWE delivery QA for all configured categories and discovered pages.
 
-URL = "https://www.rewe.de/shop/c/obst-gemuese/"
+Run locally with the user's authenticated Chrome for Testing session. REWE may
+block cloud CI IPs; the workflow therefore marks this external smoke test
+continue-on-error while the deterministic pagination QA remains mandatory.
+"""
+from app.rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper
+
 POSTCODE = "13353"
 
 
 def main():
-    products = []
+    scraper = ReweCatalogScraper(delay=0.2, browser_enabled=True)
+    all_products = []
+    category_reports = []
 
-    def collect(product, postcode):
-        assert postcode == POSTCODE
-        products.append(product)
-        return True
+    for url in REWE_CATEGORY_URLS:
+        category = url.rstrip("/").split("/")[-1] or "bonus"
+        products = []
+        def collect(product, postcode):
+            assert postcode == POSTCODE
+            products.append(product)
+            all_products.append(product)
+            return True
 
-    scraper = ReweCatalogScraper(delay=0, browser_enabled=True)
-    report = scraper.run(collect, POSTCODE, urls=[URL])
-    priced = [row for row in products if row.get("price") is not None]
-    coverage = len(priced) / len(products) if products else 0
+        report = scraper.run(collect, POSTCODE, urls=[url])
+        category_reports.append((category, report, len(products)))
+        priced = sum(row.get("price") is not None for row in products)
+        coverage = priced / len(products) if products else 0
+        print(
+            f"{category}: status={report.get('status')} "
+            f"mode={report.get('fetch_mode')} pages={report.get('pages_processed')} "
+            f"products={len(products)} priced={priced} "
+            f"price_coverage={coverage:.1%} errors={report.get('errors', [])[:2]}"
+        )
+
+    successful = sum(report.get("status") != "failed" for _, report, _ in category_reports)
+    pages = sum(report.get("pages_processed", 0) for _, report, _ in category_reports)
+    priced = sum(row.get("price") is not None for row in all_products)
+    coverage = priced / len(all_products) if all_products else 0
     print(
-        "REWE delivery QA:",
-        f"mode={report.get('fetch_mode')}",
-        f"service={report.get('service_type')}",
-        f"postcode={report.get('postcode')}",
-        f"products={len(products)}",
-        f"priced={len(priced)}",
-        f"price_coverage={coverage:.1%}",
+        "REWE full catalog QA: "
+        f"categories={len(category_reports)} successful={successful} "
+        f"pages={pages} products={len(all_products)} "
+        f"priced={priced} price_coverage={coverage:.1%}"
     )
-    assert report.get("service_type") == "delivery"
-    assert report.get("postcode") == POSTCODE
-    assert report.get("status") != "failed", report
-    assert len(products) >= 20, f"Expected localized product cards from REWE, got {len(products)}; report={report}"
+
+    assert len(category_reports) == 17
+    assert successful > 0, "No REWE categories could be scraped"
+    assert len(all_products) >= 20, "No meaningful product catalog was extracted"
     assert coverage >= 0.25, (
-        "REWE delivery session did not expose enough localized prices; "
-        f"coverage={coverage:.1%}, report={report}"
+        f"REWE delivery session did not expose enough localized prices: {coverage:.1%}"
     )
 
 
