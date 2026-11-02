@@ -132,8 +132,8 @@ def main():
         saved_recipe_ids = {row["meal"].get("id") for row in history["records"] if row["record_type"] == "recipe"}
         assert saved_recipe_ids == {first["id"], second["id"]}, saved_recipe_ids
         basket = call("POST", "/api/shopping", {
-            "meal_ids": ["ai-persistent-qa-pasta"],
-            "servings": {"ai-persistent-qa-pasta": 2},
+            "meal_ids": [first["id"]],
+            "servings": {first["id"]: 2},
             "owned": [],
             "mode": "best-value",
         })
