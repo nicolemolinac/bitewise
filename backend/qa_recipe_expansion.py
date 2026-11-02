@@ -1,5 +1,8 @@
 """Regression QA for expanding a selected meal concept without undefined context names."""
 import json
+from datetime import datetime, timezone
+
+from fastapi.encoders import jsonable_encoder
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -7,6 +10,13 @@ from app.ai.gemini_efficient import GeminiService
 
 
 def main():
+    # Basket product metadata can contain SQLAlchemy datetime values. Ensure
+    # the recipe-history serializer normalizes nested values before JSON storage.
+    nested_basket = {"product_matches": [{"product": {"last_checked_at": datetime(2026, 11, 3, tzinfo=timezone.utc)}}]}
+    encoded = jsonable_encoder(nested_basket)
+    round_trip = json.loads(json.dumps(encoded, ensure_ascii=False))
+    assert round_trip["product_matches"][0]["product"]["last_checked_at"].startswith("2026-11-03")
+
     service = object.__new__(GeminiService)
     service.key = "test-key"
     service.client = object()
