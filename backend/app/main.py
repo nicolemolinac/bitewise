@@ -71,7 +71,7 @@ class CatalogAdapter:
 class EventIn(BaseModel):meal_id:str;action:str|None=None;event:str|None=None
 class PantryIn(BaseModel):ingredient:str;quantity:float=1;unit:str='unit';confidence:str='user_confirmed';source:str='manual';notes:str|None=None;expiry_date:str|None=None
 class PantryPatch(BaseModel):ingredient:str|None=None;quantity:float|None=None;unit:str|None=None;notes:str|None=None;expiry_date:str|None=None
-class BasketIn(BaseModel):meal_ids:list[str];servings:dict[str,int]=Field(default_factory=dict);owned:list[str]=Field(default_factory=list);mode:str='best-value'
+class BasketIn(BaseModel):meal_ids:list[str];servings:dict[str,float]=Field(default_factory=dict);owned:list[str]=Field(default_factory=list);mode:str='best-value'
 class SettingsIn(BaseModel):postcode:str|None=None;shopping_strategy:str|None=None
 class BrainDumpIn(BaseModel):prompt:str
 class PurchaseIn(BaseModel):product_id:int;packs:int=1;ingredient:str|None=None
@@ -309,7 +309,7 @@ def shopping(payload:BasketIn,request:Request):
     if isinstance(meal,dict) and meal.get('id') in payload.meal_ids and meal['id'] not in selected_ids:
      selected.append(meal);selected_ids.add(meal['id'])
   if not selected:raise HTTPException(422,'Select at least one valid saved recipe')
-  servings_map={m['id']:max(1,payload.servings.get(m['id'],2)) for m in selected};requirements=consolidate(selected,servings_map)
+  servings_map={m['id']:max(0.1,float(payload.servings.get(m['id'],2))) for m in selected};requirements=consolidate(selected,servings_map)
   overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['total'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'waste':waste,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
  finally:db.close()
 def serialize_planned_meal(row):
