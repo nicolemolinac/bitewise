@@ -3,12 +3,21 @@
 Run from backend/: python qa_recipe_history_datetime.py
 """
 from datetime import date, datetime, timezone
+import os
+from pathlib import Path
+import tempfile
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 import json
 
 from starlette.requests import Request
+
+QA_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-recipe-history-datetime-qa-")
+os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(QA_TEMP.name) / "qa.sqlite")
+os.environ["BITEWISE_AI_MEALS_PATH"] = str(Path(QA_TEMP.name) / "ai_meals.json")
+os.environ["DATABASE_URL"] = ""
+os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 
 from app import server
 from app.server import _json_history_default, _upsert_recipe_history
