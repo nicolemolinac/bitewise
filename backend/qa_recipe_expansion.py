@@ -50,6 +50,7 @@ GENERATED_RECIPE = {
         {"text": "Mix the glaze and assemble the bowl.", "minutes": 2},
     ],
     "image": "",
+    "expanded_from_concept": "concept-salmon-lunch-qa-001",
 }
 
 
