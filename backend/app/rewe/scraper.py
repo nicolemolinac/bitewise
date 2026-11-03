@@ -789,7 +789,7 @@ class ReweCatalogScraper:
                     (
                         candidate for candidate in context.pages
                         if urlsplit(candidate.url).hostname
-                        and urlsplit(candidate.url).hostname.lower().endswith("rewe.de")
+                        and urlsplit(candidate.url).hostname.lower() in {"www.rewe.de", "rewe.de"}
                     ),
                     None,
                 )
