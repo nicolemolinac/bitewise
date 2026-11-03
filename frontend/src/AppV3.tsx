@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { parseApiResponse } from './apiResponse.js';
+import { isCanonicalReweProductUrl } from './reweUrl.js';
 import {
   AirVent, CalendarDays, Check, ChefHat, ExternalLink, Flame, Home,
   Microwave, PackageCheck, Settings, ShoppingBasket,
@@ -145,7 +146,7 @@ function fallbackSteps(m:Meal,appliances:string[]){
   return out;
 }
 function portionFactor(profile:Profile){const body=Math.sqrt((Math.max(profile.weightKg,35)/70)*(Math.max(profile.heightCm,140)/170));return clamp(body*profile.portionPreference,0.65,1.4)}
-function exactRewe(url?:string|null){try{const u=new URL(url||'');return /(^|\.)rewe\.de$/.test(u.hostname)&&u.pathname.includes('/shop/p/')}catch{return false}}
+function exactRewe(url?:string|null){return isCanonicalReweProductUrl(url)}
 
 export default function AppV3(){
   const [tab,setTab]=useState<Tab>(()=>read('tab','discover'));
