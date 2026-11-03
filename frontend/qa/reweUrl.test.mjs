@@ -15,6 +15,7 @@ test("rejects lookalike hosts, non-HTTPS and non-product pages", () => {
     "https://rewe.de.evil.example/shop/p/salmon/123456",
     "https://evilrewe.de/shop/p/salmon/123456",
     "https://www.rewe.de/shop/c/fisch/",
+    "https://www.rewe.de/not-a-product/shop/p/fake/123456",
     "javascript:alert(1)",
     "",
     null,
