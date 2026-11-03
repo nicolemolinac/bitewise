@@ -1,7 +1,10 @@
 """QA for malformed Gemini output: quantities, units, tags and step metadata."""
+import json
 import os
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
+from unittest.mock import patch
 
 _QA_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-ai-sanitize-qa-")
 os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_TEMP.name) / "qa.sqlite")
@@ -10,6 +13,7 @@ os.environ["DATABASE_URL"] = ""
 os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 
 from app.ai.gemini import _sanitize_meal, _sanitize_steps
+from app.ai.gemini_efficient import GeminiService
 
 
 def main():
@@ -55,7 +59,44 @@ def main():
     assert _sanitize_steps([{"text": "Cook", "minutes": 999}]) == [{"text": "Cook", "minutes": None}]
     assert _sanitize_steps("bad") == []
 
-    print("AI output sanitization QA PASS: rejects invalid quantities/units and normalizes metadata safely")
+    # The lightweight Discover generator has a separate schema from full recipes.
+    # Malformed metadata must not crash the request or leak NaN/Infinity into JSON.
+    service = object.__new__(GeminiService)
+    service.key = "qa-key"
+    service.client = object()
+    generated = [
+        {
+            "id": "concept-salmon",
+            "name": "Salmon lunch bowl",
+            "description": "Salmon with rice",
+            "time": "NaN",
+            "cost": "Infinity",
+            "calories": "unknown",
+            "meal_type": "brunch-ish",
+            "tags": "quick high protein",
+            "image": "http://not-secure.example/image.jpg",
+        },
+        {"id": "empty-name", "name": "  "},
+    ]
+    with patch("app.ai.gemini_efficient._pantry_context", return_value=[]), patch.object(
+        service,
+        "_generate_once",
+        return_value=(SimpleNamespace(text=json.dumps(generated)), "mock-model"),
+    ):
+        concepts = service.generate_meals("lunch with salmon")
+
+    assert len(concepts) == 1
+    concept = concepts[0]
+    assert concept["time"] == 20
+    assert concept["cost"] == 3.5
+    assert concept["calories"] == 400
+    assert concept["meal_type"] == "dinner"
+    assert concept["tags"] == []
+    assert concept["image"] == ""
+    assert concept["ingredients"] == [] and concept["steps"] == []
+    assert concept["is_concept"] is True
+
+    print("AI output sanitization QA PASS: recipe and discovery metadata are normalized safely")
 
 
 if __name__ == "__main__":
