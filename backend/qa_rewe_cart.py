@@ -29,6 +29,7 @@ def test_url_and_status_contract():
     for unsafe in (
         "https://evil.example/shop/p/test/1",
         "https://www.rewe.de/shop/c/tiefkuehlkost/",
+        "https://www.rewe.de/not-a-product/shop/p/fake/123456",
         "javascript:alert(1)",
         "https://rewe.de.evil.example/shop/p/test/1",
         "https://evilrewe.de/shop/p/test/1",
