@@ -1,5 +1,5 @@
 """Offline contract checks for safe REWE cart handoff URL validation."""
-from app.rewe.scraper import _canonical_product_url
+from app.rewe.scraper import _canonical_product_url, _cart_add_status
 
 
 def main():
@@ -10,10 +10,15 @@ def main():
         "https://www.rewe.de/shop/c/tiefkuehlkost/",
         "javascript:alert(1)",
         "https://rewe.de.evil.example/shop/p/test/1",
+        "https://evilrewe.de/shop/p/test/1",
+        "http://www.rewe.de/shop/p/test/1",
         "",
     ):
         assert _canonical_product_url(unsafe) is None, unsafe
-    print("REWE cart handoff QA PASS: only exact REWE product-detail URLs are accepted")
+    assert _cart_add_status(True, 1) == "added"
+    assert _cart_add_status(True, 3) == "quantity_unconfirmed"
+    assert _cart_add_status(False, 1) == "submitted_unverified"
+    print("REWE cart handoff QA PASS: HTTPS host validation and truthful quantity confirmation")
 
 
 if __name__ == "__main__":
