@@ -96,6 +96,8 @@ jobs:
       - run: npm install
       - name: Frontend fractional serving regression QA
         run: node --test qa/servings.test.mjs
+      - name: Frontend API error handling regression QA
+        run: node --test qa/apiResponse.test.mjs
       - name: Capture npm audit findings without hiding them in CI logs
         run: |
           npm audit --json > npm-audit.json || true
