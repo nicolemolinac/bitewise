@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -24,41 +25,106 @@ def _slug(value: str) -> str:
 
 def _sanitize_steps(value):
     steps = []
-    for raw in value or []:
-        if isinstance(raw, str): text, minutes = raw.strip(), None
+    if not isinstance(value, (list, tuple)):
+        return steps
+    for raw in value[:20]:
+        if isinstance(raw, str):
+            text, minutes = raw.strip(), None
         elif isinstance(raw, dict):
             text = str(raw.get("text") or raw.get("step") or "").strip()
-            try: minutes = int(raw.get("minutes")) if raw.get("minutes") is not None else None
-            except Exception: minutes = None
-        else: continue
-        if text: steps.append({"text": text[:240], "minutes": minutes})
+            try:
+                minutes = int(raw.get("minutes")) if raw.get("minutes") is not None else None
+                if minutes is not None and not 0 <= minutes <= 240:
+                    minutes = None
+            except Exception:
+                minutes = None
+        else:
+            continue
+        if text:
+            steps.append({"text": text[:240], "minutes": minutes})
     return steps[:10]
 
 
 def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
-    if not isinstance(raw, dict): return None
+    if not isinstance(raw, dict):
+        return None
     name = str(raw.get("name") or "").strip()
-    if not name: return None
+    if not name:
+        return None
+
     ingredients = []
-    for item in raw.get("ingredients") or []:
-        if isinstance(item, dict): ingredient, quantity, unit = str(item.get("ingredient") or item.get("name") or "").strip().lower(), item.get("quantity"), str(item.get("unit") or "unit").strip().lower() or "unit"
-        elif isinstance(item, (list, tuple)) and len(item) >= 3: ingredient, quantity, unit = str(item[0]).strip().lower(), item[1], str(item[2] or "unit").strip().lower() or "unit"
-        else: continue
-        if not ingredient: continue
-        try: quantity = float(quantity)
-        except Exception: continue
-        ingredients.append([ingredient, quantity, unit])
-    if not ingredients: return None
-    try: minutes = max(5, min(240, int(float(raw.get("time") or 30))))
-    except Exception: minutes = 30
-    try: cost = max(.5, min(50, float(raw.get("cost") or 3.5)))
-    except Exception: cost = 3.5
-    try: calories = max(50, min(1800, int(float(raw.get("calories") or 500))))
-    except Exception: calories = 500
+    raw_ingredients = raw.get("ingredients")
+    if not isinstance(raw_ingredients, (list, tuple)):
+        return None
+    unit_aliases = {
+        "g": "g", "gram": "g", "grams": "g",
+        "ml": "ml", "milliliter": "ml", "milliliters": "ml",
+        "unit": "unit", "units": "unit", "piece": "unit", "pieces": "unit", "pc": "unit",
+        "clove": "cloves", "cloves": "cloves",
+    }
+    for item in raw_ingredients[:40]:
+        if isinstance(item, dict):
+            ingredient = str(item.get("ingredient") or item.get("name") or "").strip().lower()
+            quantity = item.get("quantity")
+            raw_unit = item.get("unit") or "unit"
+        elif isinstance(item, (list, tuple)) and len(item) >= 3:
+            ingredient = str(item[0]).strip().lower()
+            quantity = item[1]
+            raw_unit = item[2] or "unit"
+        else:
+            continue
+        if not ingredient:
+            continue
+        try:
+            quantity = float(quantity)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        unit = unit_aliases.get(str(raw_unit).strip().lower())
+        if not math.isfinite(quantity) or quantity <= 0 or unit is None:
+            continue
+        ingredients.append([ingredient[:100], quantity, unit])
+    if not ingredients:
+        return None
+
+    try:
+        raw_minutes = float(raw.get("time") or 30)
+        minutes = max(5, min(240, int(raw_minutes))) if math.isfinite(raw_minutes) else 30
+    except (TypeError, ValueError, OverflowError):
+        minutes = 30
+    try:
+        raw_cost = float(raw.get("cost") or 3.5)
+        cost = max(.5, min(50, raw_cost)) if math.isfinite(raw_cost) else 3.5
+    except (TypeError, ValueError, OverflowError):
+        cost = 3.5
+    try:
+        raw_calories = float(raw.get("calories") or 500)
+        calories = max(50, min(1800, int(raw_calories))) if math.isfinite(raw_calories) else 500
+    except (TypeError, ValueError, OverflowError):
+        calories = 500
+
     meal_type = str(raw.get("meal_type") or "dinner").strip().lower()
-    if meal_type not in {"breakfast", "lunch", "dinner", "dessert", "snack"}: meal_type = "dinner"
-    meal_id = _slug(str(raw.get("id") or name)); meal_id = meal_id if meal_id.startswith("ai-") else f"ai-{meal_id}"
-    return {"id": meal_id[:80], "name": name[:120], "description": str(raw.get("description") or "AI-generated meal idea.")[:280], "time": minutes, "difficulty": str(raw.get("difficulty") or "Easy")[:30], "cost": round(cost, 2), "calories": calories, "meal_type": meal_type, "cuisine": str(raw.get("cuisine") or "International")[:60], "tags": [str(tag)[:40] for tag in (raw.get("tags") or ["AI Generated"])][:8], "ingredients": ingredients[:20], "steps": _sanitize_steps(raw.get("steps")), "image": str(raw.get("image") or FALLBACK_IMAGE), "source": "gemini"}
+    if meal_type not in {"breakfast", "lunch", "dinner", "dessert", "snack"}:
+        meal_type = "dinner"
+    raw_tags = raw.get("tags")
+    tags = [str(tag)[:40] for tag in raw_tags[:8] if str(tag).strip()] if isinstance(raw_tags, (list, tuple)) else ["AI Generated"]
+    meal_id = _slug(str(raw.get("id") or name))
+    meal_id = meal_id if meal_id.startswith("ai-") else f"ai-{meal_id}"
+    return {
+        "id": meal_id[:80],
+        "name": name[:120],
+        "description": str(raw.get("description") or "AI-generated meal idea.")[:280],
+        "time": minutes,
+        "difficulty": str(raw.get("difficulty") or "Easy")[:30],
+        "cost": round(cost, 2),
+        "calories": calories,
+        "meal_type": meal_type,
+        "cuisine": str(raw.get("cuisine") or "International")[:60],
+        "tags": tags,
+        "ingredients": ingredients[:20],
+        "steps": _sanitize_steps(raw.get("steps")),
+        "image": str(raw.get("image") or FALLBACK_IMAGE),
+        "source": "gemini",
+    }
 
 
 def _load_persisted() -> None:
