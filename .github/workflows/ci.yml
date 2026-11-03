@@ -92,5 +92,9 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm install
+      - run: npm ci
+      - name: Capture npm audit findings without hiding them in CI logs
+        run: |
+          npm audit --json > npm-audit.json || true
+          node -e "const a=JSON.parse(require('fs').readFileSync('npm-audit.json','utf8')); console.log('npm audit severity totals:', JSON.stringify(a.metadata?.vulnerabilities || {})); for (const [name,v] of Object.entries(a.vulnerabilities || {})) console.log(JSON.stringify({name,severity:v.severity,isDirect:v.isDirect,range:v.range,via:(v.via || []).map(x => typeof x === 'string' ? x : {title:x.title,url:x.url,range:x.range,severity:x.severity}),fixAvailable:v.fixAvailable}));"
       - run: npm run build
