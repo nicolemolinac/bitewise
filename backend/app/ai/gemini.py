@@ -11,7 +11,7 @@ except Exception:
 from ..database import PantryItem, Product, SessionLocal
 from ..recipes.seed import MEALS
 
-DATA_FILE = Path(__file__).resolve().parents[2] / "data" / "ai_meals.json"
+DATA_FILE = Path(os.getenv("BITEWISE_AI_MEALS_PATH") or Path(__file__).resolve().parents[2] / "data" / "ai_meals.json").expanduser().resolve()
 DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 FALLBACK_IMAGE = ""
 FREE_GEMINI_MODEL = "gemini-3.1-flash-lite"
