@@ -1,14 +1,17 @@
 import json
 import subprocess
+import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parent
-DB = ROOT / "data" / "grocery.db"
-AI_DATA = ROOT / "data" / "ai_meals.json"
+QA_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-qa-smoke-")
+DB = Path(QA_TEMP.name) / "grocery.db"
+AI_DATA = Path(QA_TEMP.name) / "ai_meals.json"
 BASE = "http://127.0.0.1:8011"
 
 
@@ -54,9 +57,14 @@ def main():
         "source": "gemini"
     }]), encoding="utf-8")
 
+    env = os.environ.copy()
+    env["BITEWISE_LOCAL_DB_PATH"] = str(DB)
+    env["BITEWISE_AI_MEALS_PATH"] = str(AI_DATA)
+    env["DATABASE_URL"] = ""  # Never let a local .env redirect QA writes to hosted Postgres.
+    env["AUTO_RESTORE_LOCAL_REWE"] = "false"
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8011"],
-        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
     try:
         wait_for_api()
