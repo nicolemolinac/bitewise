@@ -244,9 +244,28 @@ async def expand_ai_recipe(request: Request):
     appliances = payload.get("appliances", []) if isinstance(payload, dict) else []
     if not isinstance(concept, dict) or not str(concept.get("name") or "").strip():
         raise HTTPException(422, "A meal concept with a name is required")
+    concept_id = str(concept.get("id") or "").strip()
+    # Idempotency guard: a rapid repeat tap or network retry must not spend another
+    # Gemini call for a concept that already has a persisted recipe.
+    if concept_id:
+        existing_db = SessionLocal()
+        try:
+            existing_row = existing_db.query(RecipeHistory).filter_by(
+                user_id=_history_owner(request),
+                record_key=f"recipe:{concept_id}",
+                record_type="recipe",
+            ).first()
+            if existing_row and existing_row.status in {"saved", "cooked"}:
+                try:
+                    existing_recipe = json.loads(existing_row.meal_json)
+                except Exception:
+                    existing_recipe = None
+                if isinstance(existing_recipe, dict) and existing_recipe.get("id"):
+                    return {"meal": existing_recipe, "reused": True}
+        finally:
+            existing_db.close()
     try:
         recipe = EfficientGeminiService().expand_concept(concept, str(context or ""), appliances)
-        concept_id = str(concept.get("id") or "").strip()
         if concept_id:
             # Gemini may reuse a generic recipe ID across separate ideas. Give
             # each expansion a stable ID derived from its originating concept.
