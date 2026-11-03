@@ -81,7 +81,7 @@ def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
         return None
     absolute = urljoin(base_url, value)
     parts = urlsplit(absolute)
-    if parts.scheme.lower() != "https" or parts.netloc.lower() not in {"www.rewe.de", "rewe.de"} or "/shop/p/" not in parts.path:
+    if parts.scheme.lower() != "https" or parts.netloc.lower() not in {"www.rewe.de", "rewe.de"} or not parts.path.startswith("/shop/p/"):
         return None
     return urlunsplit((parts.scheme or "https", parts.netloc, parts.path, parts.query, ""))
 
