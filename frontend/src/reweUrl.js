@@ -8,7 +8,7 @@ export function isCanonicalReweProductUrl(value) {
     return (
       url.protocol === "https:" &&
       (url.hostname.toLowerCase() === "www.rewe.de" || url.hostname.toLowerCase() === "rewe.de") &&
-      url.pathname.includes("/shop/p/")
+      url.pathname.startsWith("/shop/p/")
     );
   } catch {
     return false;
