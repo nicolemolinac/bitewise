@@ -52,6 +52,10 @@ def run():
             "id": 4, "name_original": "No price", "package_size": 100,
             "package_unit": "g", "price": None, "availability": "available",
         }],
+        "zero-priced": [{
+            "id": 6, "name_original": "Zero priced product", "package_size": 100,
+            "package_unit": "g", "price": 0, "availability": "available",
+        }],
         "pine nuts": [{
             "id": 5, "ingredient": "sunflower seeds", "ingredient_match_type": "substitute",
             "ingredient_substitute": "sunflower seeds",
@@ -65,9 +69,10 @@ def run():
         {"ingredient": "milk", "quantity": 500, "unit": "ml", "source_meals": ["Pancakes"]},
         {"ingredient": "unknown", "quantity": 2, "unit": "tbsp", "source_meals": ["Sauce"]},
         {"ingredient": "unpriced", "quantity": 50, "unit": "g", "source_meals": ["Soup"]},
+        {"ingredient": "zero-priced", "quantity": 50, "unit": "g", "source_meals": ["Test"]},
     ]
     basket = build_basket(requirements, catalog, mode="cheapest")
-    rice, milk, unknown, unpriced = basket
+    rice, milk, unknown, unpriced, zero_priced = basket
 
     assert rice["match_status"] == "matched"
     assert rice["packs"] == 1 and rice["checkout_cost"] == 1.5
@@ -81,6 +86,8 @@ def run():
     assert unknown["checkout_cost"] == 0
     assert unpriced["match_status"] == "unmatched"
     assert unpriced["checkout_cost"] == 0
+    assert zero_priced["match_status"] == "unmatched"
+    assert zero_priced["checkout_cost"] == 0
 
     substitute_basket = build_basket(
         [{"ingredient": "pine nuts", "quantity": 30, "unit": "g", "source_meals": ["Pesto pasta"]}],
