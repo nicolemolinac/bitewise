@@ -83,7 +83,12 @@ def classify_product(product: dict) -> ProductProfile:
             prep = "ready_to_heat"
     else:
         # Components are useful shortcuts, but are not complete meals.
-        if any(x in name for x in ("passata", "passierte tomaten", "pesto", "tomatensauce", "tomatensosse", "sugo", "cooking sauce")):
+        if dry_lasagne_sheets:
+            product_type, role, prep, convenience = "ingredient", "starch", "dry", 1
+            confidence = 0.94
+            evidence.append("dry-lasagne-sheets")
+            families.append("lasagna")
+        elif any(x in name for x in ("passata", "passierte tomaten", "pesto", "tomatensauce", "tomatensosse", "sugo", "cooking sauce")):
             product_type, role, prep, convenience = "prepared_component", "sauce", "ready_to_use", 4
             confidence = 0.94
             evidence.append("sauce-component")
