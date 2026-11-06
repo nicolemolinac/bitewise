@@ -201,6 +201,132 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
     recipe["adaptations"] = adaptations
     return adaptations
 
+
+
+def _build_convenience_options(db, recipe: dict) -> dict:
+    """Find real catalog products for the homemade, component-shortcut and ready-meal levels."""
+    import re
+
+    Product = main_module.Product
+    recipe_name = str(recipe.get("name") or "").lower()
+    ingredient_text = " ".join(
+        str(item[0] if isinstance(item, (list, tuple)) and item else item).lower()
+        for item in recipe.get("ingredients", [])
+    )
+
+    ready_terms = []
+    for pattern, terms in [
+        (r"lasagne|lasagna", ["lasagne", "lasagna"]),
+        (r"pizza", ["pizza"]),
+        (r"curry", ["curry"]),
+        (r"bolognese", ["bolognese"]),
+        (r"burger", ["burger"]),
+        (r"auflauf|casserole|gratin", ["auflauf", "gratin"]),
+        (r"rice bowl|reis bowl|bowl", ["bowl"]),
+    ]:
+        if re.search(pattern, recipe_name):
+            ready_terms.extend(terms)
+
+    excluded = {"unavailable", "out_of_stock", "not_available", "discontinued"}
+
+    def title_of(product):
+        return " ".join(str(value or "") for value in (
+            product.name_original, product.name_normalized, product.translated_name
+        ))
+
+    def profile_of(product):
+        return classify_product({
+            "name_original": product.name_original,
+            "name_normalized": product.name_normalized,
+            "translated_name": product.translated_name,
+            "brand": product.brand,
+            "category": product.category,
+        })
+
+    def eligible(product):
+        try:
+            price = float(product.price)
+        except (TypeError, ValueError, OverflowError):
+            return False
+        return (
+            price > 0
+            and str(product.availability or "unknown").strip().lower() not in excluded
+        )
+
+    def serialize(product, profile):
+        return {
+            "id": product.id,
+            "name": product.name_original,
+            "price": product.price,
+            "package_size": product.package_size,
+            "package_unit": product.package_unit,
+            "category": product.category,
+            "availability": product.availability,
+            "product_type": profile.product_type,
+            "culinary_role": profile.culinary_role,
+            "preparation_state": profile.preparation_state,
+            "storage_type": profile.storage_type,
+            "convenience_level": profile.convenience_level,
+            "is_complete_meal": profile.is_complete_meal,
+        }
+
+    catalog_rows = (
+        db.query(Product)
+        .filter(Product.supermarket == "REWE", Product.price.isnot(None), Product.price > 0)
+        .all()
+    )
+
+    ready_products = []
+    if ready_terms:
+        for product in catalog_rows:
+            if not eligible(product):
+                continue
+            profile = profile_of(product)
+            title = title_of(product).lower()
+            if profile.is_complete_meal and any(term in title for term in ready_terms):
+                ready_products.append(serialize(product, profile))
+        ready_products.sort(key=lambda item: (float(item.get("price") or 1e12), item["name"].lower()))
+
+    shortcut_patterns = []
+    if any(term in ingredient_text for term in ("tomato", "tomate", "bolognese", "sauce", "salsa")):
+        shortcut_patterns.append(r"tomatensauce|tomatensoße|passata|bolognese|pastasauce|pesto")
+    if any(term in ingredient_text for term in ("vegetable", "vegetables", "verdura", "carrot", "broccoli", "pepper", "onion", "spinach")):
+        shortcut_patterns.append(r"gemüse|gemuese|broccoli|paprika|zwiebel|möhren|karotten|blattspinat|spinat")
+    if any(term in ingredient_text for term in ("chicken", "hähnchen", "beef", "meat")):
+        shortcut_patterns.append(r"gegart|vorgegart|hähnchen-filetstreifen gebraten|hähnchenbrust gebraten")
+    if "pizza dough" in ingredient_text:
+        shortcut_patterns.append(r"pizzateig")
+    if "rice" in ingredient_text:
+        shortcut_patterns.append(r"express.?reis|vorgegart.*reis|reis.*vorgegart|reis im beutel")
+
+    shortcut_products = []
+    if shortcut_patterns:
+        for product in catalog_rows:
+            if not eligible(product):
+                continue
+            profile = profile_of(product)
+            # Never expose a full dish as a recipe component. Shortcuts must be a
+            # prepared component, a frozen/pre-cut item or a ready-to-use staple.
+            if profile.is_complete_meal:
+                continue
+            if not (
+                profile.product_type == "prepared_component"
+                or profile.storage_type == "frozen"
+                or profile.convenience_level >= 2
+            ):
+                continue
+            title = title_of(product).lower()
+            if any(re.search(pattern, title) for pattern in shortcut_patterns):
+                shortcut_products.append(serialize(product, profile))
+        shortcut_products.sort(key=lambda item: (float(item.get("price") or 1e12), item["name"].lower()))
+
+    return {
+        "ready_made": ready_products[:4],
+        "shortcuts": shortcut_products[:5],
+        "stock_note": "Catalog listing only; live availability is unknown. Prices are package prices.",
+    }
+
+
 def _json_history_default(value):
     """Convert common Python values to stable JSON-safe history values."""
     if isinstance(value, (datetime, date)):
@@ -459,72 +585,8 @@ async def expand_ai_recipe(request: Request):
                 "catalog_coverage": round((len(matched_rows) + len(covered_rows)) / len(basket), 4) if basket else 1.0,
                 "currency": "EUR",
             }
-            # Lightweight convenience suggestions: local catalog lookup only, no extra AI call.
-            recipe_name = str(recipe.get("name") or "").lower()
-            ready_terms = []
-            for pattern, terms in [
-                (r"lasagne|lasagna", ["lasagne", "lasagna"]),
-                (r"pizza", ["pizza"]),
-                (r"curry", ["curry"]),
-                (r"bolognese", ["bolognese"]),
-                (r"burger", ["burger"]),
-                (r"auflauf|casserole", ["auflauf"]),
-            ]:
-                if __import__("re").search(pattern, recipe_name):
-                    ready_terms.extend(terms)
-            ready_products = []
-            if ready_terms:
-                ready_products = (
-                    db.query(main_module.Product)
-                    .filter(
-                        main_module.Product.supermarket == "REWE",
-                        main_module.Product.category.in_(["fertiggerichte-konserven", "tiefkuehlkost"]),
-                        main_module.Product.price.isnot(None),
-                        main_module.Product.price > 0,
-                        main_module.Product.name_normalized.notilike("%baby%"),
-                    )
-                    .all()
-                )
-                ready_products = [
-                    p for p in ready_products
-                    if any(term in " ".join(str(v or "").lower() for v in
-                        (p.name_original, p.name_normalized, p.translated_name)) for term in ready_terms)
-                ][:4]
-            shortcut_products = []
-            ingredient_text = " ".join(str(x[0] if isinstance(x, (list, tuple)) and x else x).lower()
-                                       for x in recipe.get("ingredients", []))
-            shortcut_patterns = []
-            if any(x in ingredient_text for x in ("tomato", "tomate", "bolognese", "sauce", "salsa")):
-                shortcut_patterns.append(r"tomatensauce|tomatensoße|bolognese|pastasauce|pesto")
-            if any(x in ingredient_text for x in ("vegetable", "vegetables", "verdura", "carrot", "broccoli", "pepper", "onion")):
-                shortcut_patterns.append(r"gemüse|gemuese|broccoli|paprika|zwiebel|möhren|karotten")
-            if shortcut_patterns:
-                candidates = (
-                    db.query(main_module.Product)
-                    .filter(
-                        main_module.Product.supermarket == "REWE",
-                        main_module.Product.price.isnot(None),
-                        main_module.Product.price > 0,
-                        main_module.Product.category.in_(["fertiggerichte-konserven", "tiefkuehlkost", "obst-gemuese"]),
-                    )
-                    .limit(500).all()
-                )
-                shortcut_products = [
-                    p for p in candidates
-                    if any(__import__("re").search(pattern, " ".join(str(v or "").lower() for v in
-                        (p.name_original, p.name_normalized, p.translated_name))) for pattern in shortcut_patterns)
-                ][:5]
-            def _convenience_product(p):
-                return {
-                    "id": p.id, "name": p.name_original, "price": p.price,
-                    "package_size": p.package_size, "package_unit": p.package_unit,
-                    "category": p.category, "availability": p.availability,
-                }
-            recipe["convenience_options"] = {
-                "ready_made": [_convenience_product(p) for p in ready_products],
-                "shortcuts": [_convenience_product(p) for p in shortcut_products],
-                "stock_note": "Catalog listing only; live availability is unknown.",
-            }
+            # Convenience variants are local catalog lookups; no extra Gemini call.
+            recipe["convenience_options"] = _build_convenience_options(db, recipe)
         finally:
             db.close()
         # Normalize every nested value (notably REWE last_checked_at datetimes) before
