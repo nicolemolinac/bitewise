@@ -59,6 +59,7 @@ def classify_product(product: dict) -> ProductProfile:
         "fertiggericht", "fertigmenü", "fertig menu", "ready meal", "microwave meal",
         "foodmaker", "youcook", "rice bowl", "reis bowl", "bowl mit ", "spaghetti bolognese", "lasagne", "lasagna",
         "pizza ", "curry mit reis", "reisgericht", "nudelgericht", "pasta bolognese", "mahlzeit",
+        "chili con carne", "quiche", "ramen", "nudelsuppe", "schnitzel mit",
     )
     dry_lasagne_sheets = any(term in name for term in ("lasagneplatten", "lasagne platten", "lasagne blätter", "lasagneblaetter"))
     # "Bowl" alone is not proof of a complete meal: REWE also lists toppings,
@@ -135,6 +136,18 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep, convenience = "ingredient", "cheese", "ready_to_use", 1
             confidence = 0.88
             evidence.append("cheese-ingredient")
+        elif any(x in name for x in ("tofu",)) and any(
+            marker in name for marker in ("geräuchert", "geraeuchert", "mariniert", "gewürzt", "gewuerzt", "smoked", "marinated")
+        ):
+            product_type, role, prep, convenience = "prepared_component", "protein", "ready_to_use", 3
+            confidence = 0.86
+            evidence.append("seasoned-tofu-component")
+        elif any(x in name for x in ("kichererbse", "kichererbsen", "kidneybohnen", "kidney-bohnen", "bohnen", "linsen", "lentils", "chickpeas")) and (
+            "konserven" in category or any(marker in name for marker in ("gekocht", "vorgegart", "abgetropft", "ready to eat", "dose"))
+        ):
+            product_type, role, prep, convenience = "prepared_component", "legume", "ready_to_use", 3
+            confidence = 0.82
+            evidence.append("cooked-legume-component")
         elif any(x in name for x in ("gemüse", "brokkoli", "spinat", "paprika", "tomaten", "zucchini")):
             product_type, role = "ingredient", "vegetable"
             prep = "frozen" if frozen else "raw"
