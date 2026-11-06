@@ -15,7 +15,7 @@ os.environ["BITEWISE_AI_MEALS_PATH"] = str(Path(_QA_TEMP.name) / "ai_meals.json"
 os.environ["DATABASE_URL"] = ""
 os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 
-from app.server import _assign_expanded_recipe_identity, _json_safe
+from app.server import _adapt_recipe_to_catalog, _assign_expanded_recipe_identity, _json_safe
 
 
 def run():
@@ -52,7 +52,25 @@ def run():
     _assign_expanded_recipe_identity(retry, "concept-pasta-1")
     assert retry["id"] == first["id"]
 
-    print("PASS: nested datetime/date/Decimal serialization and independent recipe identities")
+    # A catalog substitute must update the recipe itself, not only the shopping list.
+    adapted = {
+        "ingredients": [["pine nuts", 30, "g"], ["basil pesto", 50, "g"]],
+        "steps": [{"text": "Toast the pine nuts and stir through the basil pesto."}],
+    }
+    changes = _adapt_recipe_to_catalog(adapted, [{
+        "ingredient": "pine nuts",
+        "match_status": "substituted",
+        "match_reason": "No exact match; culinary substitute selected.",
+        "product": {
+            "ingredient_substitute": "sunflower seeds",
+            "name_original": "REWE Bio Sonnenblumenkerne 200g",
+        },
+    }])
+    assert adapted["ingredients"][0] == ["sunflower seeds", 30, "g"]
+    assert "sunflower seeds" in adapted["steps"][0]["text"]
+    assert changes[0]["replacement"] == "sunflower seeds"
+
+    print("PASS: nested datetime/date/Decimal serialization, independent recipe identities and actionable substitutions")
 
 
 if __name__ == "__main__":
