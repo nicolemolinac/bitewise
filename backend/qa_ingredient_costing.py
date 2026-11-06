@@ -3,7 +3,7 @@
 Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import build_basket, consolidate
-from app.ingredient_aliases import ingredient_name_matches
+from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type
 
 
 class FakeCatalog:
@@ -23,6 +23,9 @@ def run():
     assert ingredient_name_matches("parmesan", "Käse-Wiener") is False
     assert ingredient_name_matches("fresh basil pesto", "Basilikum Pesto") is True
     assert ingredient_name_matches("pine nuts", "Pinienkerne natur") is True
+    assert ingredient_product_match_type("trofie pasta", "REWE Fusilli") == "substitute"
+    assert ingredient_product_match_type("trofie pasta", "REWE Udon Nudeln") is None
+    assert ingredient_product_match_type("parmesan", "Grana Padano") == "substitute"
 
     catalog = FakeCatalog({
         "rice": [{
