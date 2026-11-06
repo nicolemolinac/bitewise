@@ -25,6 +25,8 @@ jobs:
       - name: Install Chromium for REWE browser fallback
         run: python -m playwright install --with-deps chromium
       - run: python -m compileall app
+      - name: REWE committed catalog snapshot import QA
+        run: python qa_catalog_snapshot.py
       - name: Import API and verify critical routes
         run: |
           python - <<'PY'
