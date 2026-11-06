@@ -522,10 +522,12 @@ function RecipeSteps({meal,appliances}:{meal:Meal;appliances:string[]}){
 }
 function CookingStep({index,step,completed,onToggle,savedTimer,onTimerChange,onTimerFinished}:{index:number;step:{text:string;minutes?:number|null};completed:boolean;onToggle:()=>void;savedTimer?:CookingTimerState;onTimerChange:(timer:CookingTimerState)=>void;onTimerFinished:()=>void}){
   const alertedEndAt=useRef<number|null>(null);
+  const onTimerFinishedRef=useRef(onTimerFinished);
+  useEffect(()=>{onTimerFinishedRef.current=onTimerFinished;},[onTimerFinished]);
   const [minutes,setMinutes]=useState(savedTimer?.minutes??String(step.minutes??''));
   const [remaining,setRemaining]=useState(()=>savedTimer?.endsAt?Math.max(0,Math.ceil((savedTimer.endsAt-Date.now())/1000)):savedTimer?.remaining??Math.max(0,Number(step.minutes)||0)*60);
   const [endsAt,setEndsAt]=useState<number|null>(savedTimer?.endsAt??null);
-  useEffect(()=>{if(endsAt===null)return;const tick=()=>{const next=Math.max(0,Math.ceil((endsAt-Date.now())/1000));setRemaining(next);if(next===0){if(alertedEndAt.current!==endsAt){alertedEndAt.current=endsAt;onTimerFinished();}setEndsAt(null);onTimerChange({minutes,remaining:0,endsAt:null});}};tick();const timer=window.setInterval(tick,250);return()=>window.clearInterval(timer);},[endsAt]);
+  useEffect(()=>{if(endsAt===null)return;const tick=()=>{const next=Math.max(0,Math.ceil((endsAt-Date.now())/1000));setRemaining(next);if(next===0){if(alertedEndAt.current!==endsAt){alertedEndAt.current=endsAt;onTimerFinishedRef.current();}setEndsAt(null);onTimerChange({minutes,remaining:0,endsAt:null});}};tick();const timer=window.setInterval(tick,250);return()=>window.clearInterval(timer);},[endsAt]);
   const running=endsAt!==null;
   const validMinutes=Number(minutes)>0&&Number.isFinite(Number(minutes))&&Number(minutes)<=240;
   const display=`${Math.floor(remaining/60).toString().padStart(2,'0')}:${(remaining%60).toString().padStart(2,'0')}`;
