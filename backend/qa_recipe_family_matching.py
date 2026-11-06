@@ -126,6 +126,11 @@ def main():
     assert classify_product({"name_original": "REWE Garnelen Curry Fertiggericht 400 g"}).is_complete_meal is True
     assert classify_product({"name_original": "REWE Pizza Margherita 350 g"}).is_complete_meal is True
     assert classify_product({"name_original": "REWE Basilikum"}).is_complete_meal is False
+    assert classify_product({"name_original": "REWE Oregano gerebelt"}).culinary_role == "seasoning"
+    assert classify_product({"name_original": "REWE Ricotta 250 g"}).culinary_role == "cheese"
+    assert classify_product({"name_original": "REWE Gemüsebrühe"}).culinary_role == "broth"
+    assert classify_product({"name_original": "REWE Pizzateig"}).culinary_role == "dough"
+    assert classify_product({"name_original": "REWE Tagliatelle 500 g"}).culinary_role == "starch"
 
     print(f"PASS: {len(RECIPES)} recipe families, {total} ingredient titles, German herbs/spices/broths, and meal-vs-component classification")
 
