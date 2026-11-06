@@ -150,14 +150,14 @@ def _image_url_from_card(box, anchor, base_url: str):
             continue
         seen.add(id(node))
         candidates = [
-            node.get("src"),
+            node.get("data-srcset"),
+            node.get("srcset"),
             node.get("data-src"),
             node.get("data-lazy-src"),
             node.get("data-original"),
             node.get("data-image"),
             node.get("data-zoom-image"),
-            node.get("data-srcset"),
-            node.get("srcset"),
+            node.get("src"),
         ]
         for candidate in candidates:
             if not candidate:
@@ -170,7 +170,7 @@ def _image_url_from_card(box, anchor, base_url: str):
                     bits = item.strip().split()
                     if bits:
                         descriptor = bits[1] if len(bits) > 1 else "1x"
-                        match = re.match(r"(\\d+(?:\\.\\d+)?)(w|x)", descriptor)
+                        match = re.match(r"(\d+(?:\.\d+)?)(w|x)", descriptor)
                         score = float(match.group(1)) if match else 1.0
                         choices.append((score, bits[0]))
                 if choices:
