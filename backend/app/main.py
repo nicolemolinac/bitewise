@@ -255,18 +255,38 @@ def alternatives(product_id:int,needed_qty:float|None=None,unit:str|None=None):
  try:
   current=db.get(Product,product_id)
   if not current:raise HTTPException(404,'Product not found')
-  query=db.query(Product).filter(Product.id!=product_id).filter(or_(Product.ingredient==current.ingredient,Product.category==current.category));prs=query.limit(40).all()
+  query=db.query(Product).filter(Product.id!=product_id).filter(or_(Product.ingredient==current.ingredient,Product.category==current.category));prs=query.limit(100).all()
   requested_unit=unit or current.package_unit
-  prs=[p for p in prs if _convert_quantity(1,requested_unit,p.package_unit) is not None]
-  def estimate(row):
+  ingredient=normalize_ingredient(current.ingredient)
+  compatible=[]
+  for candidate in prs:
+   if str(candidate.supermarket or '').strip().lower()!='rewe':
+    continue
+   if candidate.price is None or candidate.price<=0 or not candidate.package_size or candidate.package_size<=0:
+    continue
+   if str(candidate.availability or '').strip().lower() in {'unavailable','out_of_stock','not_available','discontinued'}:
+    continue
+   title=' '.join(str(value or '') for value in (candidate.name_original,candidate.name_normalized,candidate.translated_name))
+   match_type=ingredient_product_match_type(ingredient,title)
+   if not match_type:
+    continue
+   if _convert_quantity(1,requested_unit,candidate.package_unit) is None:
+    continue
+   compatible.append((candidate,match_type))
+  def estimate(entry):
+   row=entry[0]
    quantity=float(needed_qty) if needed_qty is not None else float(current.package_size or row.package_size or 1)
    converted=_convert_quantity(quantity,requested_unit,row.package_unit)
-   if converted is None or not row.package_size or row.package_size<=0 or row.price is None:
+   if converted is None:
     return float('inf')
    packs=max(1,math.ceil(converted/row.package_size))
    waste=max(0.0,packs*row.package_size-converted)
    return packs*float(row.price)+waste/max(converted,1.0)
-  prs.sort(key=estimate);return {'current':product_dict(current),'alternatives':[product_dict(x) for x in prs[:20]]}
+  compatible.sort(key=estimate)
+  alternatives=[]
+  for candidate,match_type in compatible[:20]:
+   item=product_dict(candidate);item['ingredient_match_type']=match_type;alternatives.append(item)
+  return {'current':product_dict(current),'alternatives':alternatives}
  finally:db.close()
 @app.post('/api/products/replace')
 def replace_product(payload:ProductOverrideIn):
