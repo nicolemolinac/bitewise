@@ -12,7 +12,7 @@ _ALIAS_GROUPS = [
     ("greek yogurt", "greek yoghurt", "griechischer joghurt", "griechischer yoghurt"),
     ("quark", "quark", "speisequark"),
     ("mozzarella", "mozzarella"),
-    ("parmesan", "parmesan", "parmigiano"),
+    ("parmesan", "parmesan cheese", "parmigiano", "parmigiano reggiano", "grana padano"),
     ("feta", "feta", "hirtenkäse", "hirtenkaese"),
     ("chicken", "hähnchen", "haehnchen", "huhn", "hühner", "huehner"),
     ("chicken breast", "hähnchenbrust", "haehnchenbrust"),
@@ -29,6 +29,10 @@ _ALIAS_GROUPS = [
     ("oats", "oat", "haferflocken", "hafer"),
     ("rice", "reis"),
     ("pasta", "nudeln", "pasta"),
+    ("trofie pasta", "trofie", "fusilli", "penne", "farfalle", "rigatoni", "casarecce", "orecchiette", "short pasta", "kurze nudeln"),
+    ("fresh basil pesto", "basil pesto", "pesto alla genovese", "pesto genovese", "basilikum pesto", "basilikum-pesto"),
+    ("pine nuts", "pinienkerne", "pinienkerne natur"),
+    ("salt", "salz", "speisesalz", "meersalz", "jodsalz", "table salt"),
     ("spaghetti", "spaghetti"),
     ("noodles", "nudeln"),
     ("couscous", "couscous"),
@@ -122,8 +126,21 @@ def ingredient_aliases(value: str) -> list[str]:
         aliases.add(needle[:-1])
     else:
         aliases.add(needle + "s")
-    # If a generated ingredient contains a known phrase, inherit that group's aliases.
-    for known, group in _ALIAS_INDEX.items():
-        if known in needle or needle in known:
-            aliases.update(group)
     return sorted((x for x in aliases if x), key=lambda x: (-len(x), x))
+
+
+def ingredient_name_matches(ingredient: str, product_name: str) -> bool:
+    """Return True only when a product title contains a complete known ingredient term.
+
+    This deliberately rejects broad substring matches (e.g. cheese -> cheese sausage)
+    and keeps recipe-to-product compatibility grounded in the actual product title.
+    """
+    title = _norm(product_name)
+    if not title:
+        return False
+    padded_title = " " + title + " "
+    for alias in ingredient_aliases(ingredient):
+        padded_alias = " " + _norm(alias) + " "
+        if padded_alias in padded_title:
+            return True
+    return False
