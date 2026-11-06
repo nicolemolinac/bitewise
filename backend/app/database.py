@@ -319,7 +319,7 @@ def _snapshot_float(value, default=None):
 
 def _snapshot_package_size(name: str, current_size: float, current_unit: str) -> float:
     """Correct multi-packs such as 2x200ml and 4x50g in older scraper exports."""
-    match = re.search(r"(\\d+)\\s*[x×]\\s*(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l)\\b", name or "", re.I)
+    match = re.search(r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b", name or "", re.I)
     if not match:
         return current_size
     count = int(match.group(1))
@@ -337,7 +337,7 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
     """Convert displayed €/kg or €/l unit prices into actual package checkout prices."""
     match = re.search(
-        r"1\\s*(kg|l|stück|stk\\.?)\\s*=\\s*(\\d+[,.]\\d{2})\\s*€",
+        r"1\s*(kg|l|stück|stk\.?)\s*=\s*(\d+[,.]\d{2})\s*€",
         name or "",
         re.I,
     )
