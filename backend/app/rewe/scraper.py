@@ -175,7 +175,12 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
                 except Exception:
                     offer_price = None
-                size, unit = package(f"{name} {candidate.get('description') or ''}")
+                price_text = f"{name} {candidate.get('description') or ''}"
+                size, unit = package(price_text)
+                normalized_price, normalized_price_per_unit = price_details(price_text, size, unit)
+                if normalized_price is None and offer_price is not None:
+                    normalized_price = offer_price
+                    normalized_price_per_unit = offer_price / size if size else None
                 external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
                 if not external_id:
                     external_id = hashlib.sha256(f"{name}|{product_url or raw_url}".encode()).hexdigest()[:20]
@@ -191,8 +196,8 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     "category": category,
                     "package_size": size or 1,
                     "package_unit": unit or "unit",
-                    "price": offer_price,
-                    "price_per_unit": (offer_price / size) if offer_price is not None and size else None,
+                    "price": normalized_price,
+                    "price_per_unit": normalized_price_per_unit,
                     "product_url": product_url,
                     "image_url": image_url,
                     "availability": "available" if offers else "unknown",
