@@ -102,7 +102,7 @@ def main():
         "image": "",
     }]
     with patch("app.ai.gemini_efficient._pantry_context", return_value=["rice (500 g)"]), patch(
-        "app.ai.gemini_efficient._catalog_context", return_value="salmon, rice, cucumber"
+        "app.ai.gemini_efficient._catalog_context", return_value=("salmon, rice, cucumber", "prepared components: pesto")
     ), patch.object(
         service, "_generate_once",
         return_value=(SimpleNamespace(text=json.dumps(generated)), "qa-model"),
@@ -116,6 +116,8 @@ def main():
     instruction = generate.call_args.args[0]
     assert generate.call_count == 1, "Catalog awareness must not add a second Gemini call"
     assert "REWE CATALOG INGREDIENTS: salmon, rice, cucumber" in instruction
+    assert "REWE PRODUCT INTELLIGENCE CONVENIENCE SIGNALS: prepared components: pesto" in instruction
+    assert "complete ready meals as optional no-cook alternatives" in instruction
     assert "Prefer suitable core ingredients from the REWE catalog list" in instruction
     assert "Pantry ingredients may be used even when they are not in the REWE list" in instruction
     assert "Do not force a bad substitution" in instruction
