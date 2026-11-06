@@ -193,7 +193,16 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         if override_id is not None and hasattr(adapter, "get_by_id"):
             selected_override = adapter.get_by_id(override_id)
             if selected_override and all(str(p.get("id")) != str(override_id) for p in raw_products):
-                raw_products.append(selected_override)
+                # Revalidate the user's saved choice against the actual recipe
+                # ingredient so curated substitutions are never mislabeled exact.
+                from ..ingredient_aliases import ingredient_product_match_type
+                title = " ".join(str(selected_override.get(key) or "") for key in (
+                    "name_original", "name_normalized", "translated_name", "name"
+                ))
+                match_type = ingredient_product_match_type(ingredient, title)
+                if match_type:
+                    selected_override["ingredient_match_type"] = match_type
+                    raw_products.append(selected_override)
         for product in raw_products:
             price = product.get("price")
             if price is None or str(product.get("availability") or "").lower() in {
