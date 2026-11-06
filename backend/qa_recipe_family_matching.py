@@ -320,17 +320,26 @@ def main():
 
         # The product-alternatives route must use the recipe ingredient and the
         # same full-catalog matcher, not Product.ingredient equality/category caps.
-        olive_products = [
-            product for product in adapter.search("olive oil")
-            if product.get("id") and float(product.get("price") or 0) > 0
-            and product.get("package_unit") == "ml"
-        ]
-        if olive_products:
-            current_product = olive_products[0]
+        alternative_checks = 0
+        for ingredient, unit, needed_quantity in (
+            ("olive oil", "ml", 100),
+            ("tomato passata", "g", 350),
+        ):
+            current_candidates = [
+                product for product in adapter.search(ingredient)
+                if product.get("id") and float(product.get("price") or 0) > 0
+                and product.get("package_unit") == unit
+            ]
+            assert current_candidates, f"No priced {ingredient} SKU with a compatible package unit"
+            current_product = current_candidates[0]
             alternative_result = production_server.main_module.alternatives(
-                current_product["id"], needed_qty=100, unit="ml", ingredient="olive oil"
+                current_product["id"],
+                needed_qty=needed_quantity,
+                unit=unit,
+                ingredient=ingredient,
             )
             alternatives = alternative_result["alternatives"]
+            assert alternatives, f"No compatible product alternatives returned for {ingredient}"
             assert all(item.get("ingredient_match_type") in {"exact", "substitute"} for item in alternatives)
             assert all(float(item.get("price") or 0) > 0 for item in alternatives)
             assert all(item.get("supermarket") == "REWE" for item in alternatives)
@@ -338,10 +347,10 @@ def main():
             assert all(
                 alternatives[index]["price_per_package_unit"] <= alternatives[index+1]["price_per_package_unit"]
                 for index in range(len(alternatives)-1)
-            ), "Product alternatives must be ordered by comparable unit price"
-            print(f"PRODUCT ALTERNATIVES: {len(alternatives)} compatible priced olive-oil alternatives, sorted by unit price")
-        else:
-            print("PRODUCT ALTERNATIVES: no priced olive-oil product in this snapshot; route fixture skipped")
+            ), f"{ingredient} alternatives must be ordered by comparable unit price"
+            alternative_checks += 1
+            print(f"PRODUCT ALTERNATIVES: {ingredient}: {len(alternatives)} compatible priced alternatives")
+        assert alternative_checks == 2, "Both a condiment and a cooking oil must expose real product alternatives"
 
         # Explicit economic vs premium selection sanity check using two valid
         # catalog-shaped products for the same ingredient.
