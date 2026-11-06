@@ -58,7 +58,7 @@ def _pantry_context() -> list[str]:
         db.close()
 
 
-def _catalog_context(query: str = "", limit: int = 60) -> str:
+def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600) -> str:
     """Return a compact list of canonical ingredients backed by priced REWE products.
 
     The complete catalog stays in SQLite. We validate each candidate ingredient
@@ -114,8 +114,24 @@ def _catalog_context(query: str = "", limit: int = 60) -> str:
             total = stats["exact"] + stats["substitute"]
             return (-phrase_match, -overlap, -stats["exact"], -total, ingredient)
 
-        selected = sorted(coverage.items(), key=rank)[:max(1, min(int(limit), 80))]
-        return ", ".join(ingredient for ingredient, _ in selected)
+        # Bound both ingredient count and prompt characters. A count-only cap can
+        # still produce a large prompt when the catalog contains verbose labels.
+        max_items = max(1, min(int(limit), 60))
+        char_budget = max(120, min(int(max_chars), 2000))
+        selected = []
+        used_chars = 0
+        for ingredient, _stats in sorted(coverage.items(), key=rank):
+            # Canonical keys should be short ingredient names, not pasted product titles.
+            if len(ingredient) > 64:
+                continue
+            extra = len(ingredient) + (2 if selected else 0)
+            if used_chars + extra > char_budget:
+                continue
+            selected.append(ingredient)
+            used_chars += extra
+            if len(selected) >= max_items:
+                break
+        return ", ".join(selected)
     finally:
         db.close()
 
