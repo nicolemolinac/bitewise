@@ -102,7 +102,9 @@ _ALIAS_GROUPS = [
 
 
 def _norm(value: str) -> str:
-    return re.sub(r"\s+", " ", (value or "").lower().strip())
+    text = unicodedata.normalize("NFC", str(value or "").lower())
+    text = re.sub(r"[^a-z0-9äöüß]+", " ", text)
+    return re.sub(r"\\s+", " ", text).strip()
 
 
 _ALIAS_INDEX: dict[str, set[str]] = {}
