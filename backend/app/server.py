@@ -299,6 +299,11 @@ async def expand_ai_recipe(request: Request):
             }
         finally:
             db.close()
+        # Normalize every nested value before history persistence and the API
+        # response. Some generated/model metadata may contain datetime objects;
+        # one such value must never make an otherwise valid recipe expansion fail.
+        recipe = json.loads(json.dumps(recipe, ensure_ascii=False, default=_json_history_default))
+        concept = json.loads(json.dumps(concept, ensure_ascii=False, default=_json_history_default))
         if concept_id:
             _upsert_recipe_history(request, concept_id, "concept", "expanded", concept, str(context or ""))
             _upsert_recipe_history(request, f"recipe:{concept_id}", "recipe", "saved", recipe, str(context or ""))
