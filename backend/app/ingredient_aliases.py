@@ -195,3 +195,16 @@ def ingredient_product_match_type(ingredient: str, product_name: str) -> str | N
             if any((" " + _norm(term) + " ") in padded_title for term in substitutes):
                 return "substitute"
     return None
+
+
+def ingredient_substitution_name(ingredient: str, product_name: str) -> str | None:
+    """Return the specific curated replacement phrase present in a product title."""
+    title = " " + _norm(product_name) + " "
+    needle = _norm(ingredient)
+    for canonical, substitutes in _SUBSTITUTION_GROUPS.items():
+        if needle != _norm(canonical):
+            continue
+        for substitute in sorted(substitutes, key=lambda value: -len(_norm(value))):
+            if (" " + _norm(substitute) + " ") in title:
+                return substitute
+    return None
