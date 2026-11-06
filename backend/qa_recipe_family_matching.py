@@ -108,6 +108,86 @@ RECIPES = {
         "banana", "eggs", "milk", "flour", "baking powder",
         "cinnamon", "yogurt", "honey",
     ],
+    "Chicken schnitzel with potato salad": [
+        "chicken breast", "breadcrumbs", "eggs", "flour", "potato",
+        "cucumber", "yogurt", "mustard", "lemon", "parsley",
+    ],
+    "Beef meatballs in tomato sauce": [
+        "ground beef", "breadcrumbs", "eggs", "onion", "garlic",
+        "tomato passata", "parmesan", "parsley", "olive oil",
+    ],
+    "Chili con carne": [
+        "ground beef", "kidney beans", "corn", "tomato passata",
+        "tomato paste", "onion", "bell pepper", "garlic", "chili powder",
+    ],
+    "Vegetarian chickpea coconut curry": [
+        "chickpea", "coconut milk", "sweet potato", "spinach",
+        "rice", "ginger", "garlic", "onion", "chili powder",
+    ],
+    "Greek village salad": [
+        "tomato", "cucumber", "red onion", "feta", "olive oil",
+        "lemon", "oregano", "lettuce",
+    ],
+    "Roasted vegetable couscous": [
+        "couscous", "chickpea", "zucchini", "bell pepper", "carrot",
+        "tomato", "vegetable broth", "lemon", "parsley", "olive oil",
+    ],
+    "Creamy pork mushroom medallions": [
+        "pork", "mushroom", "cream", "onion", "garlic",
+        "potato", "rosemary", "black pepper", "butter",
+    ],
+    "Salmon fish tacos": [
+        "salmon", "tortilla", "cucumber", "tomato", "avocado",
+        "greek yogurt", "lime", "chili flakes", "lettuce",
+    ],
+    "Eggplant parmesan bake": [
+        "eggplant", "tomato passata", "mozzarella", "parmesan",
+        "breadcrumbs", "eggs", "basil", "olive oil",
+    ],
+    "Broccoli potato soup": [
+        "broccoli", "potato", "onion", "garlic", "cream",
+        "vegetable broth", "cheese", "butter", "black pepper",
+    ],
+    "Miso-style tofu noodle bowl": [
+        "tofu", "noodles", "eggs", "mushroom", "spinach",
+        "soy sauce", "ginger", "garlic", "spring onion",
+    ],
+    "Tuna avocado rice bowl": [
+        "tuna", "rice", "avocado", "cucumber", "carrot",
+        "soy sauce", "lime", "sesame seeds",
+    ],
+    "Quiche lorraine": [
+        "eggs", "cream", "bacon", "cheese", "onion",
+        "flour", "butter", "black pepper",
+    ],
+    "Stuffed bell peppers": [
+        "bell pepper", "rice", "ground beef", "tomato passata",
+        "onion", "garlic", "cheese", "parsley",
+    ],
+    "Chicken noodle soup": [
+        "chicken breast", "noodles", "carrot", "celery",
+        "onion", "chicken broth", "parsley", "black pepper",
+    ],
+    "Crispy tofu peanut noodles": [
+        "tofu", "noodles", "peanut butter", "soy sauce",
+        "lime", "ginger", "garlic", "carrot", "cucumber",
+    ],
+    "Apple almond crumble": [
+        "apple", "oats", "flour", "butter", "brown sugar",
+        "cinnamon", "almond", "lemon",
+    ],
+    "Blueberry banana overnight oats": [
+        "oats", "milk", "yogurt", "blueberry", "banana",
+        "honey", "peanut butter",
+    ],
+    "Sweet potato black bean bowls": [
+        "sweet potato", "bean", "corn", "rice", "avocado",
+        "tomato", "lime", "greek yogurt", "chili powder",
+    ],
+    "Turkey meatloaf": [
+        "turkey", "breadcrumbs", "eggs", "onion", "garlic",
+        "tomato paste", "carrot", "potato", "parsley",
+    ],
 }
 
 # These are not new AI-generated recipes. They are deterministic ingredient
