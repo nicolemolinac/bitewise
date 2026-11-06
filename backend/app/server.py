@@ -21,6 +21,7 @@ from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
 from .ingredient_aliases import ingredient_product_match_type, ingredient_search_terms, ingredient_substitution_name
+from .catalog.intelligence import classify_product
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -47,20 +48,35 @@ def _multilingual_catalog_search(self, ingredient):
             ]
         )
 
-    rows = self.db.query(Product).filter(or_(*clauses)).limit(240).all()
+    rows = self.db.query(Product).filter(
+        Product.supermarket == "REWE"
+    ).filter(or_(*clauses)).limit(240).all()
     if rows:
         # Search columns improve recall, but the actual product title must independently
         # confirm compatibility. Catalog ingredient labels can be broad or misclassified.
-        match_types = {
-            row.id: ingredient_product_match_type(
-                ingredient,
-                " ".join(str(value or "") for value in (
-                    row.name_original, row.name_normalized, row.translated_name
-                )),
-            )
-            for row in rows
-        }
-        rows = [row for row in rows if match_types.get(row.id)]
+        match_types = {}
+        profiles = {}
+        for row in rows:
+            title = " ".join(str(value or "") for value in (
+                row.name_original, row.name_normalized, row.translated_name
+            ))
+            match_type = ingredient_product_match_type(ingredient, title)
+            if not match_type:
+                continue
+            profile = classify_product({
+                "name_original": row.name_original,
+                "name_normalized": row.name_normalized,
+                "translated_name": row.translated_name,
+                "brand": row.brand,
+                "category": row.category,
+            })
+            # A complete prepared dish is never an ingredient, even if its title
+            # contains the requested protein (e.g. shrimp curry or chicken lasagna).
+            if profile.is_complete_meal:
+                continue
+            match_types[row.id] = match_type
+            profiles[row.id] = profile
+        rows = [row for row in rows if row.id in match_types]
     if rows:
         alias_set = {x.lower() for x in aliases}
 
@@ -101,6 +117,7 @@ def _multilingual_catalog_search(self, ingredient):
                         row.name_original, row.name_normalized, row.translated_name
                     )),
                 ) if match_types.get(row.id) == "substitute" else None,
+                "intelligence": profiles[row.id].as_dict(),
             }
             for row in rows[:40]
         ]
