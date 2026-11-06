@@ -9,7 +9,8 @@ try:
 except Exception:
     genai = None
 
-from ..database import PantryItem, Product, SessionLocal
+from ..database import PantryItem, Product, ProductIntelligence, SessionLocal, UserEvent
+from ..recommendations.engine import build_preference_profile
 from ..recipes.seed import MEALS
 
 DATA_FILE = Path(os.getenv("BITEWISE_AI_MEALS_PATH") or Path(__file__).resolve().parents[2] / "data" / "ai_meals.json").expanduser().resolve()
@@ -154,18 +155,64 @@ def _persist_generated(generated: list[dict]) -> list[dict]:
 
 
 def _shopping_context():
+    """Build a compact, real catalog context without sending the SKU database to Gemini."""
     db = SessionLocal()
     try:
-        pantry = [f"{p.ingredient} ({p.quantity:g} {p.unit})" for p in db.query(PantryItem).filter(PantryItem.quantity > 0).limit(40).all()]
-        products = db.query(Product).filter(Product.price.isnot(None)).order_by(Product.price.asc()).limit(120).all()
-        catalog = []; seen = set()
-        for p in products:
-            key = (p.ingredient or p.name_normalized or "").strip().lower()
-            if not key or key in seen: continue
-            seen.add(key); catalog.append(f"{p.name_original or p.ingredient} €{p.price:.2f}")
-            if len(catalog) >= 60: break
-        return pantry, catalog
-    finally: db.close()
+        pantry = [
+            f"{p.ingredient} ({p.quantity:g} {p.unit})"
+            for p in db.query(PantryItem).filter(PantryItem.quantity > 0).limit(40).all()
+        ]
+        query = (
+            db.query(Product, ProductIntelligence)
+            .outerjoin(ProductIntelligence, ProductIntelligence.product_id == Product.id)
+            .filter(Product.supermarket == "REWE")
+            .order_by(Product.last_seen_at.desc(), Product.id.desc())
+            .limit(240)
+        )
+        grouped = {}
+        for product, intelligence in query.all():
+            role = intelligence.culinary_role if intelligence else None
+            if not role:
+                category = (product.category or "").lower()
+                role = (
+                    "protein" if any(x in category for x in ("fleisch", "fisch", "wurst")) else
+                    "dairy" if any(x in category for x in ("milch", "käse", "molkerei")) else
+                    "vegetable" if any(x in category for x in ("obst", "gemüse")) else
+                    "pantry staple" if any(x in category for x in ("kochen", "backen", "konserve")) else
+                    "other"
+                )
+            if role not in grouped:
+                grouped[role] = []
+            if len(grouped[role]) >= 4:
+                continue
+            title = (product.name_original or product.name_normalized or "").strip()
+            if not title:
+                continue
+            pack = ""
+            if product.package_size and product.package_unit:
+                pack = f" ({product.package_size:g} {product.package_unit})"
+            grouped[role].append(title + pack)
+        catalog = [f"{role}: " + "; ".join(items) for role, items in grouped.items() if items]
+        catalog = catalog[:9]
+
+        events = db.query(UserEvent).all()
+        preferences = build_preference_profile(events, MEALS)
+        favorite_cuisines = sorted(
+            ((key, value) for key, value in preferences["cuisines"].items() if value > 0),
+            key=lambda item: item[1], reverse=True
+        )[:3]
+        favorite_tags = sorted(
+            ((key, value) for key, value in preferences["tags"].items() if value > 0),
+            key=lambda item: item[1], reverse=True
+        )[:5]
+        preference_context = []
+        if favorite_cuisines:
+            preference_context.append("Positive cuisine signals: " + ", ".join(k for k, _ in favorite_cuisines))
+        if favorite_tags:
+            preference_context.append("Positive food/style signals: " + ", ".join(k for k, _ in favorite_tags))
+        return pantry, catalog, preference_context
+    finally:
+        db.close()
 
 
 def _parse_json_array(text: str):
@@ -203,13 +250,13 @@ class GeminiService:
         if not self.key: raise RuntimeError("GEMINI_API_KEY is missing from backend/.env")
         if genai is None: raise RuntimeError("google-genai is not installed in the backend environment")
         if not self.client: raise RuntimeError("Gemini client could not be initialized")
-        pantry, catalog = _shopping_context()
+        pantry, catalog, preference_context = _shopping_context()
         instruction = f"""
 You are Bitewise, a food decision engine for a person in Berlin who wants attractive food with minimum cooking effort.
 Return ONLY a valid JSON array of 8 distinct meal ideas. Be concise to minimize free-tier token use.
 User request: {prompt}
 PANTRY: {', '.join(pantry) if pantry else 'none confirmed'}
-LOW-PRICE REWE EXAMPLES: {'; '.join(catalog) if catalog else 'catalog unavailable'}
+REAL REWE CATALOG EXAMPLES BY CULINARY ROLE (not a complete inventory; stock is not confirmed): {' | '.join(catalog) if catalog else 'catalog unavailable'}\nLEARNED USER PREFERENCES: {'; '.join(preference_context) if preference_context else 'not enough feedback yet'}
 Rules:
 - Respect cuisine, meal type, cheap/quick/fancy/healthy/high-protein constraints literally.
 - Prefer pantry/REWE ingredients when sensible.
