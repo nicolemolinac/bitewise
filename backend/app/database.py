@@ -144,6 +144,17 @@ class PlannedMeal(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class PantryConsumption(Base):
+    __tablename__ = "pantry_consumptions"
+    __table_args__ = (UniqueConstraint("planned_meal_id", name="uq_pantry_consumption_planned_meal"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    planned_meal_id: Mapped[int] = mapped_column(Integer, index=True)
+    meal_id: Mapped[str] = mapped_column(String(80), index=True)
+    consumed_json: Mapped[str] = mapped_column(Text, default="[]")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class RecipeHistory(Base):
     __tablename__ = "recipe_history"
     __table_args__ = (UniqueConstraint("user_id", "record_key", name="uq_recipe_history_user_record"),)
