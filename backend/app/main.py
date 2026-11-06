@@ -244,7 +244,7 @@ def rewe_refresh():
    if existing:
     if existing.price!=data.get('price'):existing.last_price=existing.price
     for k,v in data.items():
-     if hasattr(existing,k):setattr(existing,k,v)
+     if hasattr(existing,k) and not (k in {'image_url','product_url'} and not v):setattr(existing,k,v)
     existing.postcode_context=current_postcode;existing.last_seen_at=now;existing.last_checked_at=now;db.flush();return False
    db.add(Product(supermarket='REWE',postcode_context=current_postcode,**data));db.flush();return True
   report=ReweCatalogScraper().run(upsert,postcode);run.status=report['status'];run.products_seen=report['products_found'];run.errors=len(report['errors']);run.categories_processed=report['categories_processed'];run.categories_successful=report['categories_successful'];run.categories_failed=report['categories_failed'];run.finished_at=datetime.utcnow();db.commit();return {'ok':report['status']!='failed',**report,'message':'Manual public-category refresh. Prices are a catalog snapshot, not real-time checkout data.'}
