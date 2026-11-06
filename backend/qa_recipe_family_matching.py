@@ -6,6 +6,18 @@ does not call Gemini, REWE, or any scraper.
 from app.ingredient_aliases import ingredient_product_match_type, ingredient_search_terms
 from app.catalog.intelligence import classify_product
 
+# Use the committed REWE snapshot in an isolated temporary database.
+import os
+from pathlib import Path
+import tempfile
+_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-recipe-family-snapshot-")
+os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_TEMP.name) / "rewe.sqlite")
+os.environ["DATABASE_URL"] = ""
+os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
+os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
+from app.database import Product, SessionLocal
+from app.main import CatalogAdapter
+
 # Each recipe is a realistic ingredient list rather than only its headline protein.
 RECIPES = {
     "Creamy mushroom tagliatelle": {
@@ -120,6 +132,29 @@ def main():
             ingredient, german_title, ingredient_search_terms(ingredient)
         )
 
+    # Run each recipe ingredient against the actual committed REWE catalog.
+    # The snapshot is imported into a disposable DB; no user database is touched.
+    db = SessionLocal()
+    try:
+        catalog_count = db.query(Product).filter(Product.supermarket == "REWE").count()
+        assert catalog_count >= 1000, f"Expected imported REWE catalog snapshot, got {catalog_count}"
+        adapter = CatalogAdapter(db)
+        real_results = {}
+        for recipe, ingredients in RECIPES.items():
+            real_results[recipe] = {}
+            for ingredient in ingredients:
+                real_results[recipe][ingredient] = len(adapter.search(ingredient))
+        total_real = sum(len(rows) for rows in real_results.values())
+        matched_real = sum(bool(count) for rows in real_results.values() for count in rows.values())
+        coverage = matched_real / max(total_real, 1)
+        print(f"REAL REWE SNAPSHOT: {catalog_count} products; {matched_real}/{total_real} recipe ingredients matched ({coverage:.0%})")
+        for recipe, rows in real_results.items():
+            missing = [ingredient for ingredient, count in rows.items() if not count]
+            print(f"  {recipe}: {len(rows)-len(missing)}/{len(rows)} matched; unmatched={missing}")
+        assert coverage >= 0.80, f"Real REWE recipe ingredient coverage below 80%: {coverage:.0%}"
+    finally:
+        db.close()
+
     # Classification must distinguish recipe components from complete prepared meals.
     assert classify_product({"name_original": "REWE Bio Passata 700 g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
     assert classify_product({"name_original": "REWE Lasagneplatten 500 g"}).is_complete_meal is False
@@ -132,7 +167,7 @@ def main():
     assert classify_product({"name_original": "REWE Pizzateig"}).culinary_role == "dough"
     assert classify_product({"name_original": "REWE Tagliatelle 500 g"}).culinary_role == "starch"
 
-    print(f"PASS: {len(RECIPES)} recipe families, {total} ingredient titles, German herbs/spices/broths, and meal-vs-component classification")
+    print(f"PASS: {len(RECIPES)} recipe families, {total} fixture ingredient titles, real REWE snapshot matching, German herbs/spices/broths, and meal-vs-component classification")
 
 if __name__ == "__main__":
     main()
