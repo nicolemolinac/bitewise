@@ -6,6 +6,7 @@ No Gemini API calls, live REWE calls, scraper, image process or user DB are touc
 """
 import os
 from pathlib import Path
+from sqlalchemy import or_
 import tempfile
 
 _TEMP = tempfile.TemporaryDirectory(prefix="bitewise-recipe-matrix-")
