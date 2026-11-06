@@ -242,7 +242,7 @@ def main():
         for recipe, ingredients in RECIPES.items():
             options = production_server._build_convenience_options(
                 db,
-                {"name": recipe, "ingredients": [_qa_quantity(name) for name in ingredients]},
+                {"name": recipe, "ingredients": [[name, *_qa_quantity(name)] for name in ingredients]},
             )
             for product in options["shortcuts"]:
                 convenience_shortcuts += 1
