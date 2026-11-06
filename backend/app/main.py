@@ -431,6 +431,9 @@ def remove_planned_meal(plan_id:int,planned_meal_id:int):
  try:
   row=db.get(PlannedMeal,planned_meal_id)
   if not row or row.plan_id!=plan_id:raise HTTPException(404,'Planned meal not found')
+  consumed=db.query(PantryConsumption).filter_by(planned_meal_id=row.id).first()
+  if consumed or row.status in ('cooked','eaten'):
+   raise HTTPException(409,'A cooked/eaten meal cannot be removed because its pantry consumption is already recorded')
   db.delete(row);db.commit();return {'ok':True}
  finally:db.close()
 @app.post('/api/plans/{plan_id}/meals/{planned_meal_id}/swap')
@@ -439,6 +442,9 @@ def swap_planned_meal(plan_id:int,planned_meal_id:int,payload:SwapMealIn):
  try:
   row=db.get(PlannedMeal,planned_meal_id)
   if not row or row.plan_id!=plan_id:raise HTTPException(404,'Planned meal not found')
+  consumed=db.query(PantryConsumption).filter_by(planned_meal_id=row.id).first()
+  if consumed or row.status in ('cooked','eaten'):
+   raise HTTPException(409,'A cooked/eaten meal cannot be swapped because its pantry consumption is already recorded')
   ids={x.meal_id for x in db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan_id).all()}
   if payload.meal_id:
    replacement=meal_by_id(payload.meal_id)
