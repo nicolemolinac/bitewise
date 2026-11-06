@@ -4,7 +4,7 @@ import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint, create_engine, text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -72,6 +72,57 @@ class Product(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_checked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
+class ProductIntelligence(Base):
+    """Derived culinary metadata. Safe to recompute without changing source catalog data."""
+    __tablename__ = "product_intelligence"
+    __table_args__ = (UniqueConstraint("product_id", name="uq_product_intelligence_product"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    product_type: Mapped[str] = mapped_column(String(40), default="ingredient", index=True)
+    culinary_role: Mapped[str] = mapped_column(String(40), default="ingredient", index=True)
+    dish_families_json: Mapped[str] = mapped_column(Text, default="[]")
+    preparation_state: Mapped[str] = mapped_column(String(40), default="unknown")
+    storage_type: Mapped[str] = mapped_column(String(30), default="unknown")
+    convenience_level: Mapped[int] = mapped_column(Integer, default=1)
+    is_complete_meal: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    evidence_json: Mapped[str] = mapped_column(Text, default="[]")
+    classifier_version: Mapped[str] = mapped_column(String(30), default="1.0.0")
+    classified_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ProductDetails(Base):
+    """Separately sourced REWE product-page facts; populated by a future isolated job."""
+    __tablename__ = "product_details"
+    __table_args__ = (UniqueConstraint("product_id", name="uq_product_details_product"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    details_status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
+    source: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ean: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    ingredients_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    allergens_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    traces_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    additives_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    nutrition_basis: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    energy_kj: Mapped[float | None] = mapped_column(Float, nullable=True)
+    energy_kcal: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fat_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    saturated_fat_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    carbohydrates_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sugars_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fibre_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    protein_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    salt_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preparation_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    storage_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    origin: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class ProductOverride(Base):
