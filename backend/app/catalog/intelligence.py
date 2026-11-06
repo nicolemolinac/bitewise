@@ -32,8 +32,11 @@ class ProductProfile:
         return value
 
 def _text(product: dict) -> str:
+    # Keep aisle/category metadata separate from product-name evidence.
+    # Otherwise a category such as "fertiggerichte-konserven" makes every canned
+    # tomato/passata look like a complete meal.
     return " ".join(str(product.get(k) or "") for k in
-                    ("name_original", "name_normalized", "translated_name", "brand", "category")).lower()
+                    ("name_original", "name_normalized", "translated_name", "brand")).lower()
 
 def classify_product(product: dict) -> ProductProfile:
     """Classify a product by culinary function, not merely supermarket aisle."""
