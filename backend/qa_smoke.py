@@ -86,6 +86,15 @@ def main():
         call("POST", "/api/pantry", {"ingredient": "chicken breast", "quantity": 0.1, "unit": "kg"})
         rice = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
         assert rice["quantity"] == 0.5 and rice["unit"] == "kg"
+        updated_rice = call("PATCH", f"/api/pantry/{rice['id']}", {
+            "quantity": 0.25, "unit": "kg", "expiry_date": "2026-11-20"
+        })
+        assert updated_rice["ok"] is True
+        rice = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
+        assert rice["quantity"] == 0.25 and rice["expiry_date"] == "2026-11-20"
+        call("PATCH", f"/api/pantry/{rice['id']}", {"quantity": -1}, expected=422)
+        call("DELETE", f"/api/pantry/{rice['id']}")
+        assert not any(row["ingredient"] == "rice" for row in call("GET", "/api/pantry"))
 
         call("POST", "/api/events", {"meal_id": "arrabbiata", "action": "dislike"})
         assert any(row["id"] == "arrabbiata" for row in call("GET", "/api/events/dislikes")["meals"])
