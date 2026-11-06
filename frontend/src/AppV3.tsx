@@ -17,7 +17,7 @@ type Meal = {
   tags:string[]; ingredients:[string,number,string][]; image:string; calories?:number; meal_type?:MealType;
   steps?:{text:string;minutes?:number|null}[]; is_concept?:boolean; discovery_prompt?:string;
   image_page?:string; photographer?:string;
-  costing?:{strategy:string;matched_ingredients:number;unmatched_ingredients?:number;total_ingredients:number;catalog_ready:boolean;checkout_total:number|null;consumed_cost:number|null;currency:string};
+  costing?:{strategy:string;matched_ingredients:number;unmatched_ingredients?:number;total_ingredients:number;catalog_ready:boolean;checkout_total:number|null;consumed_cost:number|null;servings?:number;cost_per_serving?:number|null;cost_scope?:string;currency:string};
   product_matches?:any[];
 };
 type Product = { id:number|null; name_original:string; brand?:string|null; package_size:number; package_unit:string; price:number|null; product_url?:string|null; image_url?:string|null; ingredient?:string; };
