@@ -81,9 +81,11 @@ def main():
         call("PATCH", "/api/settings", {"postcode": "abc"}, expected=422)
         call("PATCH", "/api/settings", {"postcode": "13353", "shopping_strategy": "best-value"})
 
-        call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 500, "unit": "g"})
+        # Pantry quantities must convert safely across kg/g and never go negative.
+        call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 0.5, "unit": "kg"})
+        call("POST", "/api/pantry", {"ingredient": "chicken breast", "quantity": 0.1, "unit": "kg"})
         rice = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
-        assert rice["quantity"] == 500
+        assert rice["quantity"] == 0.5 and rice["unit"] == "kg"
 
         call("POST", "/api/events", {"meal_id": "arrabbiata", "action": "dislike"})
         assert any(row["id"] == "arrabbiata" for row in call("GET", "/api/events/dislikes")["meals"])
@@ -118,14 +120,19 @@ def main():
         assert basket["servings"] == 2 and basket["pantry_savings_items"] >= 1
 
         eaten = call("POST", "/api/meals/teriyaki-chicken/eaten?servings=2")
-        assert any(row["ingredient"] == "rice" for row in eaten["consumed"])
+        rice_used = next(row for row in eaten["consumed"] if row["ingredient"] == "rice")
+        assert rice_used["unit"] == "g" and rice_used["quantity"] == 160
         rice_after = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
-        assert rice_after["quantity"] == 340
+        assert rice_after["unit"] == "kg" and abs(rice_after["quantity"] - 0.34) < 0.001
+        chicken_after = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "chicken breast")
+        assert chicken_after["quantity"] == 0, "Insufficient pantry stock must clamp to zero, never become negative"
+        chicken_used = next(row for row in eaten["consumed"] if row["ingredient"] == "chicken breast")
+        assert chicken_used["quantity"] == 100 and chicken_used["unit"] == "g"
 
         rewe_status = call("GET", "/api/rewe/status")
         assert rewe_status["live_data"] is False and rewe_status["data_freshness"] == "catalog_snapshot"
 
-        print("QA PASS: core loop + persistent AI meal Discover/Plan/Shopping integration + REWE status")
+        print("QA PASS: core loop + unit-safe pantry consumption + persistent AI meal Discover/Plan/Shopping integration + REWE status")
     finally:
         proc.terminate()
         try: proc.wait(timeout=5)
