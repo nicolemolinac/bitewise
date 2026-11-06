@@ -73,6 +73,8 @@ jobs:
         run: python qa_cooking_preferences.py
       - name: REWE ingredient matching and cost QA
         run: python qa_ingredient_costing.py
+      - name: REWE package price and multipack normalization QA
+        run: python qa_rewe_price_normalization.py
       - name: REWE pagination regression QA across all 17 categories
         run: python qa_rewe_pagination.py
       - name: Google Images meal-photo API QA
