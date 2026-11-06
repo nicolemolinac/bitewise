@@ -129,10 +129,27 @@ def main():
         chicken_used = next(row for row in eaten["consumed"] if row["ingredient"] == "chicken breast")
         assert chicken_used["quantity"] == 100 and chicken_used["unit"] == "g"
 
+        # A planned meal may be toggled cooked -> planned -> eaten, but its
+        # pantry deduction must be recorded only once for that planned_meal_id.
+        call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 0.5, "unit": "kg"})
+        call("POST", "/api/pantry", {"ingredient": "chicken breast", "quantity": 0.1, "unit": "kg"})
+        ledger_plan = call("POST", "/api/plans", {
+            "weeks": 1, "servings": 2, "strategy": "best-value",
+            "meal_ids": ["teriyaki-chicken"]
+        })
+        ledger_meal = ledger_plan["meals"][0]
+        first_status = call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/status", {"status": "cooked"})
+        assert first_status["consumed"], "First cooked transition should consume available pantry stock"
+        call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/status", {"status": "planned"})
+        repeated_status = call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/status", {"status": "eaten"})
+        assert repeated_status["already_consumed"] is True and repeated_status["consumed"] == []
+        rice_after_repeat = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
+        assert abs(rice_after_repeat["quantity"] - 0.34) < 0.001, "Toggling meal status deducted pantry stock more than once"
+
         rewe_status = call("GET", "/api/rewe/status")
         assert rewe_status["live_data"] is False and rewe_status["data_freshness"] == "catalog_snapshot"
 
-        print("QA PASS: core loop + unit-safe pantry consumption + persistent AI meal Discover/Plan/Shopping integration + REWE status")
+        print("QA PASS: core loop + unit-safe/idempotent pantry consumption + persistent AI meal Discover/Plan/Shopping integration + REWE status")
     finally:
         proc.terminate()
         try: proc.wait(timeout=5)
