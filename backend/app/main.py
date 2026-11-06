@@ -63,6 +63,9 @@ def pantry_snapshot(db):return {r.ingredient.lower():{'quantity':r.quantity,'uni
 
 class CatalogAdapter:
  def __init__(self,db):self.db=db
+ def get_by_id(self,product_id):
+  product=self.db.get(Product,product_id)
+  return product_dict(product) if product else None
  def search(self,ingredient):
   needle=normalize_ingredient(ingredient);direct=self.db.query(Product).filter(Product.ingredient==needle).limit(40).all()
   if not direct:direct=self.db.query(Product).filter(or_(Product.name_normalized.ilike(f'%{needle}%'),Product.name_original.ilike(f'%{needle}%'),Product.translated_name.ilike(f'%{needle}%'),Product.brand.ilike(f'%{needle}%'))).limit(40).all()
