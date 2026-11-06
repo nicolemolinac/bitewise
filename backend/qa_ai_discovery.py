@@ -15,8 +15,9 @@ def run():
     original_taste = module._taste_context
 
     module._pantry_context = lambda: ["chicken (300 g)", "rice (200 g)"]
-    module._catalog_context = lambda query="", limit=60, max_chars=1600: (
-        "chicken, rice, broccoli, passata, ready-made lasagne"
+    module._catalog_context = lambda query="", limit=60, max_chars=1600, include_intelligence=False: (
+        ("chicken, rice, broccoli, passata", "prepared components: passata; frozen shortcuts: broccoli")
+        if include_intelligence else "chicken, rice, broccoli, passata"
     )
     module._taste_context = lambda: "cuisines: Italian, Asian; food styles: high protein, quick"
 
@@ -42,6 +43,7 @@ def run():
     assert "chicken, rice, broccoli, passata" in prompt
     assert "Italian, Asian" in prompt
     assert "chicken (300 g)" in prompt
+    assert "prepared components: passata" in prompt
     assert "never let this override the search" in prompt.lower()
     assert "do not restrict ideas to the list" in prompt.lower()
     assert len(ideas) == 2 and all(item["is_concept"] for item in ideas)
