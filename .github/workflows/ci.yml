@@ -33,6 +33,8 @@ jobs:
         run: python qa_product_intelligence.py
       - name: Adaptive recommendation engine QA
         run: python qa_recommendation_engine.py
+      - name: AI discovery catalog and preference context QA
+        run: python qa_ai_discovery.py
       - name: Import API and verify critical routes
         run: |
           python - <<'PY'
