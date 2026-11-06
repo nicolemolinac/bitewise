@@ -135,7 +135,7 @@ READY_MEAL_FAMILIES = {}
 def _qa_quantity(ingredient):
     """Use realistic compatible recipe units so basket QA tests package matching, not bad fixtures."""
     name = ingredient.lower()
-    if name in {"eggs", "tortilla", "garlic", "lemon", "lime", "banana", "lettuce"}:
+    if name in {"eggs", "garlic", "lemon", "lime", "lettuce"}:
         return (2 if name in {"eggs", "tortilla", "garlic"} else 1, "unit")
     if name in {"olive oil", "soy sauce", "milk", "cream", "coconut milk"}:
         return (20 if name in {"olive oil", "soy sauce"} else 100, "ml")
@@ -314,6 +314,9 @@ def main():
             print(f"  {strategy}: combined recipe checkout estimate €{total:.2f}")
         for recipe, missing in basket_unmatched.items():
             print(f"  BASKET UNMATCHED — {recipe}: {', '.join(sorted(set(missing)))}")
+        assert not basket_unmatched, (
+            f"All recipe ingredients should resolve to priced, unit-compatible catalog products: {basket_unmatched}"
+        )
 
         # The product-alternatives route must use the recipe ingredient and the
         # same full-catalog matcher, not Product.ingredient equality/category caps.
