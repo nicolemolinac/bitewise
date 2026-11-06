@@ -57,7 +57,7 @@ def classify_product(product: dict) -> ProductProfile:
     # Full meals must be recognized before individual components such as pasta or sauce.
     meal_markers = (
         "fertiggericht", "fertigmenü", "fertig menu", "ready meal", "microwave meal",
-        "foodmaker", "youcook", "bowl ", "spaghetti bolognese", "lasagne", "lasagna",
+        "foodmaker", "youcook", "rice bowl", "reis bowl", "bowl mit ", "spaghetti bolognese", "lasagne", "lasagna",
         "pizza ", "curry mit reis", "reisgericht", "nudelgericht", "pasta bolognese", "mahlzeit",
     )
     dry_lasagne_sheets = any(term in name for term in ("lasagneplatten", "lasagne platten", "lasagne blätter", "lasagneblaetter"))
@@ -70,7 +70,7 @@ def classify_product(product: dict) -> ProductProfile:
     # The REWE aisle also contains canned ingredients and sauces; category alone
     # is not enough evidence that a product is a complete meal.
     category_meal = "fertiggerichte" in category and not bowl_topping and any(
-        term in name for term in ("gericht", "menü", "menu", "bolognese", "lasagne", "lasagna", "curry", "pizza", "bowl")
+        term in name for term in ("gericht", "menü", "menu", "bolognese", "lasagne", "lasagna", "curry", "pizza", "rice bowl", "reis bowl", "bowl mit ")
     )
     if meal_hit or category_meal:
         product_type, role, prep, convenience, complete = (
@@ -85,7 +85,7 @@ def classify_product(product: dict) -> ProductProfile:
             families.append("pasta")
         if "pizza" in name:
             families.append("pizza")
-        if "bowl" in name:
+        if any(term in name for term in ("rice bowl", "reis bowl", "bowl mit ")):
             families.append("bowl")
         if frozen:
             prep = "ready_to_heat"
