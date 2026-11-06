@@ -70,6 +70,22 @@ def run():
     assert "sunflower seeds" in adapted["steps"][0]["text"]
     assert changes[0]["replacement"] == "sunflower seeds"
 
+    partially_adapted = {
+        "ingredients": [["pine nuts", 30, "g"]],
+        "steps": [{"text": "Toast the pine nuts."}],
+    }
+    _adapt_recipe_to_catalog(partially_adapted, [{
+        "ingredient": "pine nuts",
+        "match_status": "substituted",
+        "pantry_used": 10,
+        "needed_quantity": 20,
+        "product": {"ingredient_substitute": "sunflower seeds"},
+    }])
+    assert partially_adapted["ingredients"] == [
+        ["pine nuts", 10, "g"], ["sunflower seeds", 20, "g"]
+    ]
+    assert "pine nuts and sunflower seeds" in partially_adapted["steps"][0]["text"]
+
     print("PASS: nested datetime/date/Decimal serialization, independent recipe identities and actionable substitutions")
 
 
