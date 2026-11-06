@@ -121,7 +121,36 @@ def _json_history_default(value):
         return float(value)
     if isinstance(value, set):
         return sorted(value, key=str)
+    if hasattr(value, "model_dump"):
+        return _json_safe(value.model_dump(mode="json"))
+    if hasattr(value, "dict") and callable(value.dict):
+        return _json_safe(value.dict())
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def _json_safe(value):
+    """Recursively remove non-JSON Python objects before persistence or API response.
+
+    This is deliberately applied to the complete expanded recipe (including catalog
+    product metadata) rather than relying on FastAPI or a single json.dumps call.
+    """
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, set):
+        return [_json_safe(item) for item in sorted(value, key=str)]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if hasattr(value, "model_dump"):
+        return _json_safe(value.model_dump(mode="json"))
+    if hasattr(value, "isoformat") and callable(value.isoformat):
+        return value.isoformat()
+    raise TypeError(f"Unsupported value in recipe payload: {type(value).__name__}")
 
 
 def _history_owner(request: Request) -> str:
@@ -149,7 +178,7 @@ def _upsert_recipe_history(request: Request, record_key: str, record_type: str, 
                 status=status,
                 name=name,
                 prompt=str(prompt or "")[:4000] or None,
-                meal_json=json.dumps(meal, ensure_ascii=False, default=_json_history_default),
+                meal_json=json.dumps(_json_safe(meal), ensure_ascii=False, default=_json_history_default),
             )
             db.add(row)
         else:
@@ -157,7 +186,7 @@ def _upsert_recipe_history(request: Request, record_key: str, record_type: str, 
             row.status = status
             row.name = name
             row.prompt = str(prompt or row.prompt or "")[:4000] or None
-            row.meal_json = json.dumps(meal, ensure_ascii=False, default=_json_history_default)
+            row.meal_json = json.dumps(_json_safe(meal), ensure_ascii=False, default=_json_history_default)
             row.updated_at = datetime.utcnow()
         db.commit()
     except Exception:
@@ -339,8 +368,11 @@ async def expand_ai_recipe(request: Request):
             }
         finally:
             db.close()
+        # Normalize every nested value (notably REWE last_checked_at datetimes) before
+        # either database persistence or the FastAPI response encoder sees the payload.
+        recipe = _json_safe(recipe)
         if concept_id:
-            _upsert_recipe_history(request, concept_id, "concept", "expanded", concept, str(context or ""))
+            _upsert_recipe_history(request, concept_id, "concept", "expanded", _json_safe(concept), str(context or ""))
             _upsert_recipe_history(request, f"recipe:{concept_id}", "recipe", "saved", recipe, str(context or ""))
         return {"meal": recipe}
     except Exception as exc:
