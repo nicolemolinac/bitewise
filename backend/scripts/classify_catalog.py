@@ -6,7 +6,12 @@ This script never reads or writes image URLs and never launches a browser.
 from __future__ import annotations
 
 import argparse
+import sys
 from collections import Counter
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from app.catalog.intelligence import classify_product, persist_product_profile
 from app.database import Product, SessionLocal
