@@ -449,6 +449,9 @@ def main():
         for ingredient, unit, needed_quantity in (
             ("olive oil", "ml", 100),
             ("tomato passata", "g", 350),
+            ("chicken breast", "g", 250),
+            ("rice", "g", 150),
+            ("parmesan", "g", 40),
         ):
             current_candidates = [
                 product for product in adapter.search(ingredient)
@@ -475,7 +478,7 @@ def main():
             ), f"{ingredient} alternatives must be ordered by comparable unit price"
             alternative_checks += 1
             print(f"PRODUCT ALTERNATIVES: {ingredient}: {len(alternatives)} compatible priced alternatives")
-        assert alternative_checks == 2, "Both a condiment and a cooking oil must expose real product alternatives"
+        assert alternative_checks == 5, "Oil, sauce, protein, staple and cheese must expose real product alternatives"
 
         # Explicit economic vs premium selection sanity check using two valid
         # catalog-shaped products for the same ingredient.
