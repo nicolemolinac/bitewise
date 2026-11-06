@@ -201,6 +201,7 @@ id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredi
 Rules:
 - Keep the selected concept recognizable; do not replace it with another dish.
 - ingredients: [[english_name,quantity,unit]], units only g|ml|unit|cloves.
+- Ingredient quantities must represent exactly 2 servings; Bitewise scales them to the user's actual portion count.
 - steps: 3-6 concise objects {{"text":"...","minutes":N}}.
 - Optimize for low effort and minimal cleanup, following the selected kitchen-equipment priority above.
 - Prefer affordable frozen or pre-cut ingredients when they reduce preparation without making the meal unnecessarily expensive.

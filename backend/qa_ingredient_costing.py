@@ -3,6 +3,7 @@
 Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import build_basket, consolidate
+from app.ingredient_aliases import ingredient_name_matches
 
 
 class FakeCatalog:
@@ -14,6 +15,16 @@ class FakeCatalog:
 
 
 def run():
+    # Product titles, not broad catalog labels, must confirm culinary compatibility.
+    assert ingredient_name_matches("trofie pasta", "REWE Fusilli 500g")
+    assert not ingredient_name_matches("trofie pasta", "REWE Beste Wahl Udon-Nudeln vorgekocht 200g")
+    assert ingredient_name_matches("parmesan cheese", "Parmigiano Reggiano gerieben")
+    assert ingredient_name_matches("parmesan cheese", "Grana Padano")
+    assert not ingredient_name_matches("parmesan cheese", "Delikat Käse-Wiener 4x50g")
+    assert ingredient_name_matches("fresh basil pesto", "REWE Bio Basilikum Pesto 130g")
+    assert ingredient_name_matches("pine nuts", "REWE Pinienkerne 50g")
+    assert ingredient_name_matches("salt", "REWE Jodsalz")
+
     catalog = FakeCatalog({
         "rice": [{
             "id": 1, "name_original": "REWE Rice 500g", "package_size": 500,
@@ -69,6 +80,22 @@ def run():
         {"id": "a", "name": "Chicken bowl", "ingredients": [["chicken breast", 200, "g"], ["milk", 100, "ml"], ["garlic", 2, "cloves"]]},
         {"id": "b", "name": "Chicken pasta", "ingredients": [["chicken breast", 0.3, "kg"], ["milk", 0.5, "l"], ["garlic", 1, "unit"]]},
     ], {"a": 2, "b": 2})
+
+    one_portion = consolidate(
+        [{"id": "single", "name": "Pesto pasta", "base_servings": 2, "ingredients": [["trofie pasta", 200, "g"]]}],
+        {"single": 1},
+    )
+    two_portions = consolidate(
+        [{"id": "double", "name": "Pesto pasta", "base_servings": 2, "ingredients": [["trofie pasta", 200, "g"]]}],
+        {"double": 2},
+    )
+    four_portions = consolidate(
+        [{"id": "family", "name": "Pesto pasta", "base_servings": 2, "ingredients": [["trofie pasta", 200, "g"]]}],
+        {"family": 4},
+    )
+    assert one_portion[0]["quantity"] == 100
+    assert two_portions[0]["quantity"] == 200
+    assert four_portions[0]["quantity"] == 400
     chicken = next(row for row in mixed_units if row["ingredient"] == "chicken breast")
     milk_total = next(row for row in mixed_units if row["ingredient"] == "milk")
     garlic_rows = [row for row in mixed_units if row["ingredient"] == "garlic"]
@@ -76,7 +103,7 @@ def run():
     assert milk_total["quantity"] == 600 and milk_total["unit"] == "ml"
     assert len(garlic_rows) == 2, "Cloves and whole units must not be silently merged"
 
-    print("PASS: kg/g and l/ml conversions, pantry deductions, checkout package cost, consumed cost, and unmatched handling")
+    print("PASS: strict REWE title compatibility, portion scaling, unit conversions, pantry deductions, checkout/consumed cost, and unmatched handling")
 
 
 if __name__ == "__main__":
