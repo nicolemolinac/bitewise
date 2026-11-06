@@ -176,11 +176,6 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 except Exception:
                     offer_price = None
                 size, unit = package(f"{name} {candidate.get('description') or ''}")
-                offer_unit_price, offer_unit = _displayed_unit_price(
-                    f"{name} {candidate.get('description') or ''}"
-                )
-                if offer_price is not None and size and unit in {"g", "ml"} and offer_unit == unit:
-                    offer_price = round(offer_unit_price * size / 1000.0, 2)
                 external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
                 if not external_id:
                     external_id = hashlib.sha256(f"{name}|{product_url or raw_url}".encode()).hexdigest()[:20]
