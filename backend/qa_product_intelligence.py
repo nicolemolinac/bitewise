@@ -1,0 +1,29 @@
+"""Offline regression QA for the product-intelligence taxonomy."""
+from app.catalog.intelligence import classify_product
+
+def profile(name, category=""):
+    return classify_product({"name_original": name, "category": category})
+
+def run():
+    lasagne = profile("ja! Lasagne Bolognese 1 kg", "fertiggerichte-konserven")
+    assert lasagne.is_complete_meal and lasagne.product_type == "ready_meal"
+    assert "lasagna" in lasagne.dish_families
+
+    passata = profile("REWE Bio Passata 700 g", "oele-sossen-gewuerze")
+    assert not passata.is_complete_meal
+    assert passata.product_type == "prepared_component" and passata.culinary_role == "sauce"
+
+    pasta = profile("Barilla Penne Rigate 500 g", "kochen-backen")
+    assert not pasta.is_complete_meal and pasta.culinary_role == "starch"
+    assert pasta.preparation_state == "dry"
+
+    chicken = profile("Hähnchen-Filetstreifen gebraten 125 g", "fleisch-wurst-fisch")
+    assert not chicken.is_complete_meal
+    assert chicken.product_type == "prepared_component" and chicken.culinary_role == "protein"
+
+    frozen = profile("REWE Bio Brokkoli 750 g", "tiefkuehlkost")
+    assert frozen.storage_type == "frozen" and frozen.culinary_role == "vegetable"
+    print("Product intelligence taxonomy QA passed.")
+
+if __name__ == "__main__":
+    run()
