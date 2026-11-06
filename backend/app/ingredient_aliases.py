@@ -28,7 +28,7 @@ _ALIAS_GROUPS = [
     ("toast", "toast", "toastbrot"),
     ("flour", "mehl", "weizenmehl"),
     ("oats", "oat", "haferflocken", "hafer"),
-    ("rice", "reis"),
+    ("rice", "reis", "langkornreis", "basmatireis", "jasminreis", "vollkornreis", "naturreis"),
     ("pasta", "nudeln", "pasta"),
     ("trofie pasta", "trofie"),
     ("fresh basil pesto", "basil pesto", "pesto alla genovese", "pesto genovese", "basilikum pesto", "basilikum-pesto"),
