@@ -20,7 +20,8 @@ from .recommendations.engine import build_preference_profile, rank_meals, score_
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
-from .ingredient_aliases import ingredient_product_match_type
+from .ingredient_aliases import ingredient_product_match_type, ingredient_search_terms
+from .catalog.intelligence import classify_product
 from .shopping.optimizer import STRATEGIES, _convert_quantity, build_basket, consolidate
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
@@ -67,12 +68,84 @@ class CatalogAdapter:
  def get_by_id(self,product_id):
   product=self.db.get(Product,product_id)
   return product_dict(product) if product else None
+ def _profile(self,product,stored=None):
+  if stored is not None:
+   return {
+    'product_type':stored.product_type,
+    'culinary_role':stored.culinary_role,
+    'dish_families':json.loads(stored.dish_families_json or '[]'),
+    'preparation_state':stored.preparation_state,
+    'storage_type':stored.storage_type,
+    'convenience_level':stored.convenience_level,
+    'is_complete_meal':stored.is_complete_meal,
+    'confidence':stored.confidence,
+    'evidence':json.loads(stored.evidence_json or '[]'),
+    'classifier_version':stored.classifier_version,
+   }
+  return classify_product({
+   'name_original':product.name_original,'name_normalized':product.name_normalized,
+   'translated_name':product.translated_name,'brand':product.brand,'category':product.category,
+  }).as_dict()
  def search(self,ingredient):
-  needle=normalize_ingredient(ingredient);direct=self.db.query(Product).filter(Product.ingredient==needle).limit(40).all()
-  if not direct:direct=self.db.query(Product).filter(or_(Product.name_normalized.ilike(f'%{needle}%'),Product.name_original.ilike(f'%{needle}%'),Product.translated_name.ilike(f'%{needle}%'),Product.brand.ilike(f'%{needle}%'))).limit(40).all()
-  if direct:return [product_dict(x) for x in direct]
-  exact=[p for p in PRODUCTS if p['ingredient']==needle];fallback=exact or [p for p in PRODUCTS if needle in p['ingredient'].lower() or p['ingredient'].lower() in needle][:5]
-  return [{'id':None,'supermarket':'REWE','ingredient':p['ingredient'],'name_original':p.get('name',p['ingredient']),'name_normalized':p.get('name',p['ingredient']).lower(),'brand':p.get('brand'),'package_size':p.get('pack_qty',1),'package_unit':p.get('unit','unit'),'price':p.get('price'),'price_per_unit':p.get('unit_price'),'product_url':p.get('url'),'availability':'fixture'} for p in fallback]
+  needle=normalize_ingredient(ingredient)
+  # Search aliases against actual product titles across the complete REWE catalog.
+  # Product.ingredient is only an import hint; it is never accepted as proof of a match.
+  terms=ingredient_search_terms(needle)
+  title_filters=[]
+  for term in terms:
+   pattern=f'%{term}%'
+   title_filters.extend([
+    Product.name_original.ilike(pattern),Product.name_normalized.ilike(pattern),
+    Product.translated_name.ilike(pattern),
+   ])
+  if not title_filters:return []
+  rows=self.db.query(Product).filter(
+   Product.supermarket=='REWE'
+  ).filter(or_(*title_filters)).all()
+  if not rows:
+   # Keep the small legacy fixture fallback for isolated demo data, but validate
+   # its displayed title with the same strict matcher as real catalog products.
+   fallback=[]
+   for item in PRODUCTS:
+    title=item.get('name') or item.get('ingredient') or ''
+    match_type=ingredient_product_match_type(needle,title)
+    if not match_type:continue
+    fallback.append({
+     'id':None,'supermarket':'REWE','ingredient':item.get('ingredient',needle),
+     'name_original':title,'name_normalized':title.lower(),'brand':item.get('brand'),
+     'package_size':item.get('pack_qty',1),'package_unit':item.get('unit','unit'),
+     'price':item.get('price'),'price_per_unit':item.get('unit_price'),
+     'product_url':item.get('url'),'availability':'fixture',
+     'ingredient_match_type':match_type,
+    })
+   return fallback
+  profile_rows=self.db.query(ProductIntelligence).filter(
+   ProductIntelligence.product_id.in_([product.id for product in rows])
+  ).all()
+  profiles={profile.product_id:profile for profile in profile_rows}
+  candidates=[]
+  for product in rows:
+   title=' '.join(str(value or '') for value in (
+    product.name_original,product.name_normalized,product.translated_name
+   ))
+   match_type=ingredient_product_match_type(needle,title)
+   if not match_type:continue
+   intelligence=self._profile(product,profiles.get(product.id))
+   # A complete prepared dish is not an ingredient match, even when its title
+   # happens to contain the requested ingredient (e.g. shrimp curry ready meal).
+   if intelligence.get('is_complete_meal'):continue
+   item=product_dict(product)
+   item['ingredient_match_type']=match_type
+   item['intelligence']=intelligence
+   candidates.append(item)
+  # Return every validated candidate; the basket optimizer, not an arbitrary
+  # SQL LIMIT 40, chooses the best package/price/waste trade-off.
+  candidates.sort(key=lambda item: (
+   0 if item['ingredient_match_type']=='exact' else 1,
+   -float(item['intelligence'].get('confidence') or 0),
+   float(item.get('price') or 1e12),
+  ))
+  return candidates
 
 class EventIn(BaseModel):meal_id:str;action:str|None=None;event:str|None=None
 class PantryIn(BaseModel):ingredient:str;quantity:float=1;unit:str='unit';confidence:str='user_confirmed';source:str='manual';notes:str|None=None;expiry_date:str|None=None
