@@ -188,6 +188,12 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         candidates = []
         raw_products = list(adapter.search(ingredient) or [])
         override_id = overrides.get(ingredient)
+        # A user's saved choice must remain selectable even when it falls
+        # outside the adapter's capped top-40 search result.
+        if override_id is not None and hasattr(adapter, "get_by_id"):
+            selected_override = adapter.get_by_id(override_id)
+            if selected_override and all(str(p.get("id")) != str(override_id) for p in raw_products):
+                raw_products.append(selected_override)
         for product in raw_products:
             price = product.get("price")
             if price is None or str(product.get("availability") or "").lower() in {
