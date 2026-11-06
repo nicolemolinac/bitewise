@@ -461,6 +461,7 @@ def _auto_import_rewe_csv_snapshot() -> None:
             "rewe_snapshot_source": "committed-csv-snapshot",
             "rewe_snapshot_product_count": str(len(products)),
             "rewe_snapshot_last_imported_at": now.isoformat(),
+            "rewe_snapshot_price_repair_v1": "normalized-on-import",
         }
         for key, value in settings.items():
             setting = db.get(AppSetting, key)
