@@ -31,6 +31,8 @@ jobs:
         run: python qa_catalog_coverage.py
       - name: Product intelligence classification QA
         run: python qa_product_intelligence.py
+      - name: Full REWE catalog intelligence matching QA
+        run: python qa_catalog_matching.py
       - name: Adaptive recommendation engine QA
         run: python qa_recommendation_engine.py
       - name: AI discovery catalog and preference context QA
