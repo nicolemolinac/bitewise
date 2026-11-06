@@ -109,11 +109,54 @@ def dislikes():
  db=SessionLocal()
  try:ids=[x.meal_id for x in db.query(UserEvent).filter(UserEvent.action=='dislike').all()];return {'meals':[m for m in MEALS if m['id'] in ids]}
  finally:db.close()
+def _pantry_unit_base(unit):
+ unit=str(unit or '').strip().lower()
+ aliases={
+  'g':('mass',1.0),'gram':('mass',1.0),'grams':('mass',1.0),
+  'kg':('mass',1000.0),'kilogram':('mass',1000.0),'kilograms':('mass',1000.0),
+  'ml':('volume',1.0),'milliliter':('volume',1.0),'milliliters':('volume',1.0),
+  'l':('volume',1000.0),'liter':('volume',1000.0),'liters':('volume',1000.0),
+  'piece':('count',1.0),'pieces':('count',1.0),'pc':('count',1.0),'pcs':('count',1.0),
+  'unit':('count',1.0),'units':('count',1.0),'stk':('count',1.0),'st':('count',1.0),
+ }
+ return aliases.get(unit)
+
+
 def consume_meal_from_pantry(db,meal,servings=2):
- factor=servings/2;consumed=[]
- for ingredient,amount,unit in meal['ingredients']:
-  item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first()
-  if item and item.unit==unit:used=min(item.quantity,amount*factor);item.quantity=max(0,item.quantity-amount*factor);consumed.append({'ingredient':ingredient,'quantity':round(used,2),'unit':unit})
+ factor=servings/2
+ consumed=[]
+ if not meal or not isinstance(meal.get('ingredients'),list):
+  return consumed
+ for entry in meal['ingredients']:
+  if not isinstance(entry,(list,tuple)) or len(entry)<3:
+   continue
+  ingredient,amount,unit=entry[:3]
+  try:
+   required=float(amount)*factor
+  except (TypeError,ValueError):
+   continue
+  if required<=0:
+   continue
+  item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(str(ingredient))).first()
+  if not item or item.quantity<=0:
+   continue
+  recipe_unit=_pantry_unit_base(unit)
+  pantry_unit=_pantry_unit_base(item.unit)
+  if recipe_unit and pantry_unit:
+   if recipe_unit[0]!=pantry_unit[0]:
+    continue
+   required_base=required*recipe_unit[1]
+   available_base=float(item.quantity)*pantry_unit[1]
+   used_base=min(available_base,required_base)
+   item.quantity=max(0.0,float(item.quantity)-used_base/pantry_unit[1])
+   used=used_base/recipe_unit[1]
+  elif str(item.unit or '').strip().lower()==str(unit or '').strip().lower():
+   used=min(float(item.quantity),required)
+   item.quantity=max(0.0,float(item.quantity)-used)
+  else:
+   # Unknown or incompatible units must never be guessed or consumed.
+   continue
+  consumed.append({'ingredient':ingredient,'quantity':round(used,3),'unit':unit})
  return consumed
 @app.post('/api/meals/{meal_id}/eaten')
 def eaten(meal_id:str,servings:int=2):
@@ -390,6 +433,7 @@ def regenerate_plan(plan_id:int):
   plan=db.get(Plan,plan_id)
   if not plan:raise HTTPException(404,'Plan not found')
   candidates=ranked_plan_candidates(db);rows_to_update=db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan_id,PlannedMeal.status=='planned').order_by(PlannedMeal.day_index).all()
+  if rows_to_update and not candidates:raise HTTPException(409,'No eligible meals available to regenerate this plan')
   for i,row in enumerate(rows_to_update):row.meal_id=candidates[i%len(candidates)]['id']
   db.commit();return serialize_plan(db,plan)
  finally:db.close()
