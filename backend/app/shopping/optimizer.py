@@ -206,6 +206,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1.0)
             unit_price = _number(product, "unit_price", "price_per_unit", default=float(price) / pack_qty)
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
+            # Exact matches win over substitutions; a substitute is used only when
+            # no exact priced/available option is present.
+            if product.get("ingredient_match_type") == "substitute":
+                score += 1000
             product_id = product.get("id")
             selected_by_user = override_id is not None and str(product_id) == str(override_id)
             if selected_by_user:
@@ -233,6 +237,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                        chosen["product"], cheapest_total, chosen["checkout_cost"])
         if chosen["selected_by_user"]:
             badge = "✓ Your choice"
+        selected_match_type = chosen["product"].get("ingredient_match_type") or "exact"
         base.update({
             "product": chosen["product"],
             "packs": chosen["packs"],
@@ -244,8 +249,12 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "package_quantity": round(chosen["package_quantity"], 2),
             "package_unit": chosen["package_unit"],
             "unit_cost": round(chosen["unit_price"], 6),
-            "match_status": "matched",
-            "match_reason": "Matched against a priced, available catalog product using compatible units.",
+            "match_status": "substituted" if selected_match_type == "substitute" else "matched",
+            "match_reason": (
+                "Used a curated culinary substitute because an exact catalog match was not selected."
+                if selected_match_type == "substitute"
+                else "Matched against a priced, available catalog product using compatible units."
+            ),
             "why": f"Used in {len(requirement.get('source_meals', []))} meal(s); {round(chosen['waste_ratio'] * 100)}% estimated package leftover.",
             "badge": badge,
             "selected_by_user": chosen["selected_by_user"],
