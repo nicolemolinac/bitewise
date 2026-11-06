@@ -20,7 +20,7 @@ from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
-from .ingredient_aliases import ingredient_aliases, ingredient_name_matches
+from .ingredient_aliases import ingredient_product_match_type, ingredient_search_terms
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -30,7 +30,7 @@ main_module.GeminiService = EfficientGeminiService
 
 def _multilingual_catalog_search(self, ingredient):
     """Match English recipe ingredients against the German REWE catalog without LLM calls."""
-    aliases = ingredient_aliases(ingredient)
+    aliases = ingredient_search_terms(ingredient)
     if not aliases:
         return []
 
@@ -51,15 +51,16 @@ def _multilingual_catalog_search(self, ingredient):
     if rows:
         # Search columns improve recall, but the actual product title must independently
         # confirm compatibility. Catalog ingredient labels can be broad or misclassified.
-        rows = [
-            row for row in rows
-            if ingredient_name_matches(
+        match_types = {
+            row.id: ingredient_product_match_type(
                 ingredient,
                 " ".join(str(value or "") for value in (
                     row.name_original, row.name_normalized, row.translated_name
                 )),
             )
-        ]
+            for row in rows
+        }
+        rows = [row for row in rows if match_types.get(row.id)]
     if rows:
         alias_set = {x.lower() for x in aliases}
 
@@ -79,6 +80,10 @@ def _multilingual_catalog_search(self, ingredient):
                         best = max(best, 80)
                     elif alias in field:
                         best = max(best, 60 if len(alias) >= 4 else 40)
+            if match_types.get(row.id) == "exact":
+                best += 1000
+            elif match_types.get(row.id) == "substitute":
+                best -= 100
             if row.price is not None:
                 best += 10
             if str(row.availability or "").lower() == "available":
@@ -86,7 +91,10 @@ def _multilingual_catalog_search(self, ingredient):
             return best
 
         rows.sort(key=score, reverse=True)
-        return [main_module.product_dict(row) for row in rows[:40]]
+        return [
+            {**main_module.product_dict(row), "ingredient_match_type": match_types.get(row.id)}
+            for row in rows[:40]
+        ]
 
     # Never substitute seed/demo products for a real REWE catalog match.
     # An empty result is more honest than displaying invented availability or prices.
