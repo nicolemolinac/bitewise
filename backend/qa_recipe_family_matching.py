@@ -235,7 +235,7 @@ READY_MEAL_FAMILIES = {}
 def _qa_quantity(ingredient):
     """Use realistic compatible recipe units so basket QA tests package matching, not bad fixtures."""
     name = ingredient.lower()
-    if name in {"eggs", "garlic", "lemon", "lime", "lettuce"}:
+    if name in {"eggs", "garlic", "lemon", "lime", "lettuce", "eggplant", "aubergine"}:
         return (2 if name in {"eggs", "tortilla", "garlic"} else 1, "unit")
     if name in {"olive oil", "soy sauce", "milk", "cream", "coconut milk"}:
         return (20 if name in {"olive oil", "soy sauce"} else 100, "ml")
