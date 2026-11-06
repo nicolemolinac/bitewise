@@ -112,7 +112,7 @@ def main():
         "salmon rice bowl", limit=10, include_intelligence=True
     )
     assert ingredient_context == context
-    assert "prepared components: passata" in convenience_context
+    assert "prepared components: tomato passata" in convenience_context
     assert "complete ready meals: shrimp" in convenience_context
 
     service = object.__new__(GeminiService)
