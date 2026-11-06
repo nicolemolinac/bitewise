@@ -29,7 +29,7 @@ _ALIAS_GROUPS = [
     ("flour", "mehl", "weizenmehl"),
     ("oats", "oat", "haferflocken", "hafer"),
     ("rice", "reis", "langkornreis", "basmatireis", "jasminreis", "vollkornreis", "naturreis"),
-    ("pasta", "nudeln", "pasta"),
+    ("pasta", "nudeln", "pasta", "fadennudeln", "spiralen", "maccaroni", "makkaroni"),
     ("tagliatelle", "tagliatelle", "bandnudeln"),
     ("pizza dough", "pizzateig"),
     ("linguine", "linguine"),
