@@ -146,6 +146,10 @@ def main():
         call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/status", {"status": "planned"})
         repeated_status = call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/status", {"status": "eaten"})
         assert repeated_status["already_consumed"] is True and repeated_status["consumed"] == []
+        # Once stock has been consumed, swapping/deleting the planned row would
+        # orphan the ledger or make a different recipe appear already consumed.
+        call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/swap", {}, expected=409)
+        call("DELETE", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}", expected=409)
         rice_after_repeat = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
         assert abs(rice_after_repeat["quantity"] - 0.34) < 0.001, "Toggling meal status deducted pantry stock more than once"
 
