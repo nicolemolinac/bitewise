@@ -227,6 +227,13 @@ MIDDLE_SHORTCUTS = {
     "Blueberry banana overnight oats": ["oats", "milk", "yogurt", "blueberry"],
     "Sweet potato black bean bowls": ["sweet potato", "bean", "corn", "rice"],
     "Turkey meatloaf": ["turkey", "breadcrumbs", "tomato paste", "potato"],
+    "Creamy carbonara": ["spaghetti", "bacon", "parmesan", "cream", "eggs"],
+    "Garlic shrimp pasta": ["tagliatelle", "shrimp", "garlic", "butter", "parsley"],
+    "Creamy salmon spinach rice": ["salmon", "spinach", "rice", "cream", "lemon"],
+    "Beef tacos": ["ground beef", "tortilla", "tomato", "lettuce", "yogurt"],
+    "Teriyaki salmon rice": ["salmon", "rice", "soy sauce", "honey", "ginger"],
+    "Potato gratin": ["potato", "cream", "milk", "parmesan", "butter"],
+    "Banana oat pancakes": ["banana", "oats", "eggs", "milk", "yogurt"],
 }
 
 READY_MEAL_FAMILIES = {}
