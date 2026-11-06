@@ -1,5 +1,6 @@
 import csv
 import os
+import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -316,6 +317,45 @@ def _snapshot_float(value, default=None):
         return default
 
 
+def _snapshot_package_size(name: str, current_size: float, current_unit: str) -> float:
+    """Correct multi-packs such as 2x200ml and 4x50g in older scraper exports."""
+    match = re.search(r"(\\d+)\\s*[x×]\\s*(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l)\\b", name or "", re.I)
+    if not match:
+        return current_size
+    count = int(match.group(1))
+    amount = float(match.group(2).replace(",", "."))
+    source_unit = match.group(3).lower()
+    if source_unit == "kg":
+        amount *= 1000
+        source_unit = "g"
+    elif source_unit == "l":
+        amount *= 1000
+        source_unit = "ml"
+    return count * amount if source_unit == current_unit else current_size
+
+
+def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
+    """Convert displayed €/kg or €/l unit prices into actual package checkout prices."""
+    match = re.search(
+        r"1\\s*(kg|l|stück|stk\\.?)\\s*=\\s*(\\d+[,.]\\d{2})\\s*€",
+        name or "",
+        re.I,
+    )
+    unit_price = _snapshot_float(match.group(2)) if match else None
+    standard_unit = match.group(1).lower() if match else ""
+    if unit_price is not None and standard_unit == "kg" and package_unit == "g":
+        return round(unit_price * package_size / 1000, 2), unit_price / 1000
+    if unit_price is not None and standard_unit == "l" and package_unit == "ml":
+        return round(unit_price * package_size / 1000, 2), unit_price / 1000
+    if unit_price is not None and standard_unit.startswith(("stk", "stück")) and package_unit == "unit":
+        return round(unit_price * package_size, 2), unit_price
+    fallback = _snapshot_float(raw_price)
+    per_unit = _snapshot_float(raw_price_per_unit)
+    if per_unit is None and fallback is not None and package_size > 0:
+        per_unit = fallback / package_size
+    return fallback, per_unit
+
+
 def _auto_import_rewe_csv_snapshot() -> None:
     """Seed an empty product table from the committed REWE CSV snapshot exactly once.
 
@@ -368,6 +408,11 @@ def _auto_import_rewe_csv_snapshot() -> None:
                     source_id = str(len(products) + 1)
                 package_size = _snapshot_float(row.get("package_size"), 1.0)
                 package_size = package_size if package_size and package_size > 0 else 1.0
+                package_unit = str(row.get("package_unit") or "unit").strip()[:20]
+                package_size = _snapshot_package_size(name, package_size, package_unit)
+                pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
+                    name, package_size, package_unit, row.get("price"), row.get("price_per_unit")
+                )
                 products.append(Product(
                     supermarket="REWE",
                     external_id=(str(row.get("external_id") or "").strip() or f"csv-snapshot-{source_id}"),
@@ -378,9 +423,9 @@ def _auto_import_rewe_csv_snapshot() -> None:
                     brand=(str(row.get("brand") or "").strip()[:120] or None),
                     category=(str(row.get("category") or "").strip()[:120] or None),
                     package_size=package_size,
-                    package_unit=str(row.get("package_unit") or "unit").strip()[:20],
-                    price=_snapshot_float(row.get("price")),
-                    price_per_unit=_snapshot_float(row.get("price_per_unit")),
+                    package_unit=package_unit,
+                    price=pack_price,
+                    price_per_unit=normalized_price_per_unit,
                     currency=str(row.get("currency") or "EUR").strip()[:6],
                     product_url=(str(row.get("product_url") or "").strip() or None),
                     image_url=(str(row.get("image_url") or "").strip() or None),
