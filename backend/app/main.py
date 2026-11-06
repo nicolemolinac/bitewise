@@ -423,6 +423,9 @@ def move_planned_meal(plan_id:int,planned_meal_id:int,payload:PlannedMealPatch):
   row=db.get(PlannedMeal,planned_meal_id);plan=db.get(Plan,plan_id)
   if not plan or not row or row.plan_id!=plan_id:raise HTTPException(404,'Planned meal not found')
   values=payload.model_dump(exclude_none=True)
+  consumed=db.query(PantryConsumption).filter_by(planned_meal_id=row.id).first()
+  if values and (consumed or row.status in ('cooked','eaten')):
+   raise HTTPException(409,'A cooked/eaten meal cannot be edited because its pantry consumption is already recorded')
   if 'day_index' in values and not (0<=values['day_index']<plan.weeks*7):raise HTTPException(422,'day_index outside plan range')
   if 'servings' in values and values['servings']<1:raise HTTPException(422,'servings must be positive')
   for k,v in values.items():setattr(row,k,v)
