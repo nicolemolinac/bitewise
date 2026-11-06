@@ -71,7 +71,7 @@ def _product_image_from_html(html: str, base_url: str) -> str | None:
         if isinstance(node, dict):
             node_type = node.get("@type")
             types = node_type if isinstance(node_type, list) else [node_type]
-            if any(str(item).lower() == "product" for item in types):
+            if any(str(item).lower().rstrip("/").endswith("product") for item in types):
                 raw = node.get("image")
                 if isinstance(raw, list):
                     for item in raw:
