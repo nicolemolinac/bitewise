@@ -12,7 +12,7 @@ from .gemini import (
 from ..database import PantryItem, Product, ProductIntelligence, SessionLocal, UserEvent
 from ..catalog.intelligence import classify_product
 from ..recommendations.engine import build_preference_profile
-from ..ingredient_aliases import ingredient_product_match_type
+from ..ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type
 
 
 _ALLOWED_APPLIANCES = ("air fryer", "microwave", "stovetop", "oven")
@@ -107,15 +107,16 @@ def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600, in
         intelligence_groups = {}
         excluded = {"unavailable", "out_of_stock", "not_available", "discontinued"}
         for product, stored_profile in rows:
-            ingredient = str(product.ingredient or "").strip().lower()
-            if not ingredient or str(product.availability or "unknown").strip().lower() in excluded:
+            if str(product.availability or "unknown").strip().lower() in excluded:
                 continue
             title = " ".join(
                 str(value or "")
                 for value in (product.name_original, product.name_normalized, product.translated_name)
             )
-            match_type = ingredient_product_match_type(ingredient, title)
-            if not match_type:
+            # Product.ingredient is not canonical in this import: it can be a
+            # normalized copy of the full SKU title. Derive known terms from title.
+            canonical_terms = canonical_ingredient_terms(title)
+            if not canonical_terms:
                 continue
 
             profile = stored_profile or classify_product({
@@ -146,15 +147,22 @@ def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600, in
                 group = None
             if group:
                 labels = intelligence_groups.setdefault(group, set())
-                if len(labels) < 5 and len(ingredient) <= 48:
-                    labels.add(ingredient)
+                for ingredient in canonical_terms:
+                    if len(labels) >= 5:
+                        break
+                    if len(ingredient) <= 48:
+                        labels.add(ingredient)
 
             # Complete dishes are useful as optional convenience ideas, not as
             # ingredient signals for a homemade recipe.
             if complete_meal:
                 continue
-            stats = coverage.setdefault(ingredient, {"exact": 0, "substitute": 0})
-            stats[match_type] += 1
+            for ingredient in canonical_terms:
+                match_type = ingredient_product_match_type(ingredient, title)
+                if not match_type:
+                    continue
+                stats = coverage.setdefault(ingredient, {"exact": 0, "substitute": 0})
+                stats[match_type] += 1
 
         intelligence_context = "; ".join(
             f"{group}: {', '.join(sorted(labels))}"
