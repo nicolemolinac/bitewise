@@ -384,6 +384,13 @@ def _auto_import_rewe_csv_snapshot() -> None:
         now = datetime.utcnow()
         products = []
         expected_columns = [
+            "id", "supermarket", "external_id", "ingredient", "name_original",
+            "name_normalized", "translated_name", "brand", "category", "package_size",
+            "package_unit", "price", "price_per_unit", "currency", "product_url",
+            "image_url", "availability", "postcode_context", "first_seen_at",
+            "last_seen_at", "last_checked_at", "last_price",
+        ]
+        legacy_columns = [
             "id", "supermarket", "ingredient", "name_original", "name_normalized",
             "translated_name", "brand", "category", "package_size", "package_unit",
             "price", "price_per_unit", "currency", "availability", "last_seen_at",
@@ -398,11 +405,16 @@ def _auto_import_rewe_csv_snapshot() -> None:
             if required.issubset(set(first_row)):
                 reader = csv.DictReader(handle)
             else:
-                if len(first_row) != len(expected_columns):
+                if len(first_row) == len(expected_columns):
+                    fieldnames = expected_columns
+                elif len(first_row) == len(legacy_columns):
+                    fieldnames = legacy_columns
+                else:
                     raise ValueError(
-                        f"REWE CSV snapshot has {len(first_row)} columns; expected {len(expected_columns)}"
+                        f"REWE CSV snapshot has {len(first_row)} columns; expected "
+                        f"{len(legacy_columns)} (legacy) or {len(expected_columns)} (full)"
                     )
-                reader = csv.DictReader(handle, fieldnames=expected_columns)
+                reader = csv.DictReader(handle, fieldnames=fieldnames)
 
             for row in reader:
                 supermarket = str(row.get("supermarket") or "REWE").strip().upper()
