@@ -61,6 +61,8 @@ jobs:
         run: python qa_recipe_history.py
       - name: Selected recipe expansion regression QA
         run: python qa_recipe_expansion.py
+      - name: Nested datetime serialization and repeated recipe identity QA
+        run: python qa_recipe_expansion_regression.py
       - name: AI recipe output sanitization QA
         run: python qa_ai_sanitization.py
       - name: Recipe history datetime serialization QA
