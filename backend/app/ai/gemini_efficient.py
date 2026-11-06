@@ -1,4 +1,5 @@
 import json
+import math
 import re
 
 from .gemini import (
@@ -59,6 +60,17 @@ def _pantry_context() -> list[str]:
 def _slug(value: str) -> str:
     value = re.sub(r"[^a-z0-9]+", "-", (value or "").lower()).strip("-")
     return value or "meal"
+
+
+def _safe_number(value, default, minimum, maximum, integer=False):
+    try:
+        number = float(value)
+        if not math.isfinite(number):
+            return default
+        number = max(minimum, min(maximum, number))
+        return int(number) if integer else number
+    except (TypeError, ValueError, OverflowError):
+        return default
 
 
 def _clean_image_url(value: str) -> str:
@@ -149,17 +161,26 @@ These are examples of specificity and relevance, not a fixed list.
                 continue
             seen_names.add(normalized_name)
             concept_id = f"concept-{_slug(str(raw.get('id') or name))}-{index+1}"
+            raw_tags = raw.get("tags")
+            tags = [
+                str(tag).strip()[:40]
+                for tag in raw_tags[:4]
+                if str(tag).strip()
+            ] if isinstance(raw_tags, (list, tuple)) else []
+            meal_type = str(raw.get("meal_type") or "dinner").strip().lower()
+            if meal_type not in {"breakfast", "lunch", "dinner", "dessert", "snack"}:
+                meal_type = "dinner"
             concepts.append({
                 "id": concept_id[:100],
                 "name": name[:120],
                 "description": str(raw.get("description") or "")[:180],
-                "time": int(raw.get("time") or 20),
+                "time": _safe_number(raw.get("time"), 20, 5, 240, integer=True),
                 "difficulty": str(raw.get("difficulty") or "Easy")[:30],
-                "cost": float(raw.get("cost") or 3.5),
-                "calories": int(raw.get("calories") or 400),
-                "meal_type": str(raw.get("meal_type") or "dinner").lower(),
+                "cost": round(_safe_number(raw.get("cost"), 3.5, 0.5, 50), 2),
+                "calories": _safe_number(raw.get("calories"), 400, 50, 1800, integer=True),
+                "meal_type": meal_type,
                 "cuisine": str(raw.get("cuisine") or "International")[:60],
-                "tags": [str(x)[:40] for x in (raw.get("tags") or [])][:4],
+                "tags": tags,
                 "image": _clean_image_url(raw.get("image")),
                 "ingredients": [],
                 "steps": [],

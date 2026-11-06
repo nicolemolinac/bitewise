@@ -1,8 +1,18 @@
 """Deterministic QA for the Google Images meal-photo API contract.
 
 This suite stubs browser/network access so CI verifies the route and payload contract
-without depending on Google rate limits, cookies, or image-result changes.
+without depending on Google rate limits, cookies, or image-result changes. It uses
+an isolated SQLite file and never touches a developer catalog or hosted database.
 """
+import os
+from pathlib import Path
+import tempfile
+
+QA_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-image-qa-")
+os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(QA_TEMP.name) / "qa.sqlite")
+os.environ["BITEWISE_AI_MEALS_PATH"] = str(Path(QA_TEMP.name) / "ai_meals.json")
+os.environ["DATABASE_URL"] = ""
+os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 

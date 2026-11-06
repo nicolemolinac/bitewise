@@ -3,15 +3,17 @@ import os
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from app.server import _assign_expanded_recipe_identity
 
 ROOT = Path(__file__).resolve().parent
-DB = ROOT / "data" / "recipe_history_qa.sqlite"
+QA_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-recipe-history-qa-")
+DB = Path(QA_TEMP.name) / "recipe_history_qa.sqlite"
+AI_DATA = Path(QA_TEMP.name) / "ai_meals.json"
 BASE = "http://127.0.0.1:8012"
 
 
@@ -30,6 +32,8 @@ def call(method, path, payload=None, expected=200):
 def start_api():
     env = os.environ.copy()
     env["BITEWISE_LOCAL_DB_PATH"] = str(DB)
+    env["BITEWISE_AI_MEALS_PATH"] = str(AI_DATA)
+    env["DATABASE_URL"] = ""  # Force isolated SQLite even when hosted Postgres is configured.
     env["AUTO_RESTORE_LOCAL_REWE"] = "false"
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.server:app", "--host", "127.0.0.1", "--port", "8012"],
@@ -56,6 +60,12 @@ def stop_api(proc):
 
 
 def main():
+    os.environ["BITEWISE_LOCAL_DB_PATH"] = str(DB)
+    os.environ["BITEWISE_AI_MEALS_PATH"] = str(AI_DATA)
+    os.environ["DATABASE_URL"] = ""
+    os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
+    from app.server import _assign_expanded_recipe_identity
+
     first = _assign_expanded_recipe_identity({"id": "gemini-generic-id"}, "concept-a")
     second = _assign_expanded_recipe_identity({"id": "gemini-generic-id"}, "concept-b")
     assert first["id"] != second["id"], "Two different ideas must never collapse into one Pick"

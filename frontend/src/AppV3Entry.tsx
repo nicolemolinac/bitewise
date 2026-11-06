@@ -3,6 +3,7 @@ import AuthGate from './AuthGate';
 import CustomProductPlanner from './CustomProductPlanner';
 import { authConfigured, getAccessToken } from './auth';
 import { isCloudStateKey, queueCloudSync } from './cloudSync';
+import { preserveFractionalServings } from './servings.js';
 
 const V2 = 'bitewise.v2.';
 const V3 = 'bitewise.v3.';
@@ -29,9 +30,7 @@ if (typeof window !== 'undefined') {
         if (url.endsWith('/api/shopping') && typeof init?.body === 'string') {
           const payload = JSON.parse(init.body);
           if (payload?.servings && typeof payload.servings === 'object') {
-            payload.servings = Object.fromEntries(
-              Object.entries(payload.servings).map(([id, value]) => [id, Math.max(1, Math.round(Number(value) || 1))]),
-            );
+            payload.servings = preserveFractionalServings(payload.servings);
             init = { ...init, body: JSON.stringify(payload) };
           }
         }
