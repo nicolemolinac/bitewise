@@ -55,11 +55,14 @@ def classify_product(product: dict) -> ProductProfile:
     meal_markers = (
         "fertiggericht", "fertigmenü", "fertig menu", "ready meal", "microwave meal",
         "foodmaker", "youcook", "bowl ", "spaghetti bolognese", "lasagne", "lasagna",
-        "pizza ", "curry mit reis", "reisgericht", "nudelgericht", "pasta bolognese",
-        "ravioli", "tortellini", "mahlzeit",
+        "pizza ", "curry mit reis", "reisgericht", "nudelgericht", "pasta bolognese", "mahlzeit",
     )
     meal_hit = next((term for term in meal_markers if term in name), None)
-    category_meal = "fertiggerichte" in category
+    # The REWE aisle also contains canned ingredients and sauces; category alone
+    # is not enough evidence that a product is a complete meal.
+    category_meal = "fertiggerichte" in category and any(
+        term in name for term in ("gericht", "menü", "menu", "bolognese", "lasagne", "lasagna", "curry", "pizza", "bowl")
+    )
     if meal_hit or category_meal:
         product_type, role, prep, convenience, complete = (
             "ready_meal", "complete_meal", "ready_to_heat", 5, True)
