@@ -18,6 +18,7 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app import server
 from app.database import Product, SessionLocal
+from app.ai.gemini_efficient import _catalog_context
 
 
 SAMPLE_INGREDIENTS = [
@@ -55,6 +56,15 @@ def main():
         )
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         stale = sum(row.last_checked_at is None or row.last_checked_at < cutoff for row in products)
+
+        # The generation prompt must see only a compact set of ingredient keys
+        # backed by real, title-validated products from this committed REWE snapshot.
+        generation_context = _catalog_context("salmon rice bowl", limit=90)
+        context_ingredients = [x.strip() for x in generation_context.split(",") if x.strip()]
+        assert len(context_ingredients) <= 90, "Generation context exceeded its ingredient cap"
+        assert len(generation_context) < 3000, "Generation context is not compact enough"
+        print(f"Catalog-aware Gemini context: {len(context_ingredients)} canonical ingredients / {len(generation_context)} chars")
+        print("Catalog-aware ingredient keys:", generation_context)
 
         adapter = server.main_module.CatalogAdapter(db)
         coverage = []
