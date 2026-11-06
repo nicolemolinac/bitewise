@@ -11,7 +11,10 @@ os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_TEMP.name) / "snapshot.sqlite")
 os.environ["DATABASE_URL"] = ""
 os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 
-from app.database import (\n    AppSetting, CatalogRun, Product, SessionLocal, _auto_import_rewe_csv_snapshot,\n    _snapshot_pack_pricing, _snapshot_package_size,\n)
+from app.database import (
+    AppSetting, CatalogRun, Product, SessionLocal, _auto_import_rewe_csv_snapshot,
+    _snapshot_pack_pricing, _snapshot_package_size,
+)
 
 
 def main():
