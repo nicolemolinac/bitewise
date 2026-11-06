@@ -279,13 +279,29 @@ export default function App() {
     });
   }
 
+  async function requestAIIdeas(prompt: string) {
+    const result = await api('/ai/meals', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    });
+    const incoming: Meal[] = result.meals || [];
+    const savedLiked = readStored<Meal[]>('likedMeals', likedMeals);
+    const savedSkipped = readStored<string[]>('skipped', skipped);
+    setMeals(incoming.filter(meal =>
+      !savedLiked.some(item => item.id === meal.id) && !savedSkipped.includes(meal.id)
+    ));
+    if (result.intent) setBrainResult(result.intent);
+  }
+
   async function applyBrainDump() {
     if (!brainDump.trim()) return;
     await run(async () => {
       const result = await api('/brain-dump', { method: 'POST', body: JSON.stringify({ prompt: brainDump }) });
       setBrainResult(result.constraints);
       setMode(result.mode);
-      await loadMeals(result.mode);
+      // The AI creates fresh ideas from the user's natural-language request.
+      // Local ranking then personalizes the order using feedback and pantry state.
+      await requestAIIdeas(brainDump.trim());
     });
   }
 
@@ -436,7 +452,26 @@ export default function App() {
           <Discover
             meals={meals}
             mode={mode}
-            setMode={async next => { setMode(next); await run(() => loadMeals(next)); }}
+            setMode={async next => {
+              setMode(next);
+              const modePrompts: Record<string, string> = {
+                random: 'Create a fresh varied mix of appealing meal ideas',
+                quick: 'Prioritize quick meals under 30 minutes with low effort and minimal cleanup',
+                cheap: 'Prioritize genuinely budget-friendly meals with sensible ingredient reuse',
+                healthy: 'Prioritize balanced, nutritious everyday meals without sacrificing taste',
+                'high-protein': 'Prioritize satisfying high-protein meals',
+                'one-pot': 'Prioritize one-pot or one-pan meals with very little washing up',
+                'meal-prep': 'Prioritize meals that keep well and work for meal prep',
+                asian: 'Focus on Asian-inspired meals',
+                mexican: 'Focus on Mexican-inspired meals',
+                italian: 'Focus on Italian-inspired meals',
+                mediterranean: 'Focus on Mediterranean-inspired meals',
+                'latin-american': 'Focus on Latin American-inspired meals',
+                german: 'Focus on German-inspired meals',
+              };
+              const prompt = [brainDump.trim(), modePrompts[next] || modePrompts.random].filter(Boolean).join('. ');
+              await run(() => requestAIIdeas(prompt));
+            }}
             brainDump={brainDump}
             setBrainDump={setBrainDump}
             brainResult={brainResult}
