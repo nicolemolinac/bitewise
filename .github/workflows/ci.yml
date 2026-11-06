@@ -57,6 +57,7 @@ jobs:
               '/api/plans',
               '/api/today',
               '/api/brain-dump',
+              '/api/ai/meals',
               '/api/user-state',
               '/api/meal-photos',
               '/api/recipe-history',
