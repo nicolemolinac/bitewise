@@ -623,7 +623,7 @@ function MealCard({ meal, like, skip, dislike }: { meal: Meal; like: () => void;
     <article className="overflow-hidden rounded-[28px] bg-white shadow-sm">
       <div className="relative aspect-[4/3] bg-[#e8e4dc]">
         {meal.image ? <img src={meal.image} alt={meal.name} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center"><ChefHat size={44} className="text-black/15" /></div>}
-        <div className="absolute left-4 top-4 flex gap-2"><span className="rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-black">{meal.cuisine}</span><span className="rounded-full bg-black/75 px-3 py-1.5 text-[11px] font-black text-white">{money(meal.cost)}</span></div>
+        <div className="absolute left-4 top-4 flex gap-2"><span className="rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-black">{meal.cuisine}</span><span title="Approximate AI estimate per serving; the REWE basket calculates product-based costs later" className="rounded-full bg-black/75 px-3 py-1.5 text-[11px] font-black text-white">~{money(meal.cost)}</span></div>
       </div>
       <div className="p-5"><h3 className="text-xl font-black">{meal.name}</h3><p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-black/45">{meal.description}</p>
         {meal.recommendation_reasons?.length ? <p className="mt-2 text-xs font-semibold leading-5 text-emerald-700">{meal.recommendation_reasons[0]}</p> : null}
