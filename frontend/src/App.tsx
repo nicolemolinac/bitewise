@@ -38,6 +38,8 @@ type Meal = {
   tags: string[];
   ingredients: [string, number, string][];
   image: string;
+  recommendation_reasons?: string[];
+  recommendation_score?: number;
 };
 
 type Product = {
@@ -599,10 +601,10 @@ function Discover(props: any) {
       </div>
 
       <div className="mt-6 rounded-[28px] bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-black/35"><Sparkles size={14} /> Brain Dump</div>
+        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-black/35"><Sparkles size={14} /> Tell Bitewise what you feel like eating</div>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <input value={brainDump} onChange={e => setBrainDump(e.target.value)} onKeyDown={e => e.key === 'Enter' && applyBrainDump()} placeholder="Fancy but easy tonight · cheap Mexican · I have chicken and rice..." className="min-w-0 flex-1 rounded-2xl bg-[#f3f1eb] px-4 py-3 text-sm outline-none" />
-          <button onClick={applyBrainDump} className="rounded-2xl bg-black px-5 py-3 text-sm font-black text-white">Apply</button>
+          <input value={brainDump} onChange={e => setBrainDump(e.target.value)} onKeyDown={e => e.key === 'Enter' && applyBrainDump()} placeholder="Something fresh and high-protein · cheap Mexican · I have chicken and rice..." className="min-w-0 flex-1 rounded-2xl bg-[#f3f1eb] px-4 py-3 text-sm outline-none" />
+          <button onClick={applyBrainDump} className="rounded-2xl bg-black px-5 py-3 text-sm font-black text-white">Find ideas with AI</button>
         </div>
         {brainResult && <div className="mt-3 flex flex-wrap gap-2 text-xs">{Object.entries(brainResult).filter(([,v]) => v !== null && v !== false && v !== '').slice(0,6).map(([k,v]) => <span key={k} className="rounded-full bg-[#f3f1eb] px-3 py-1.5 font-bold">{k}: {String(v)}</span>)}</div>}
       </div>
@@ -624,6 +626,7 @@ function MealCard({ meal, like, skip, dislike }: { meal: Meal; like: () => void;
         <div className="absolute left-4 top-4 flex gap-2"><span className="rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-black">{meal.cuisine}</span><span className="rounded-full bg-black/75 px-3 py-1.5 text-[11px] font-black text-white">{money(meal.cost)}</span></div>
       </div>
       <div className="p-5"><h3 className="text-xl font-black">{meal.name}</h3><p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-black/45">{meal.description}</p>
+        {meal.recommendation_reasons?.length ? <p className="mt-2 text-xs font-semibold leading-5 text-emerald-700">{meal.recommendation_reasons[0]}</p> : null}
         <div className="mt-4 flex flex-wrap gap-2"><Pill><Clock3 size={12} /> {meal.time} min</Pill><Pill>{meal.difficulty}</Pill>{meal.tags?.slice(0,2).map(tag => <Pill key={tag}>{tag}</Pill>)}</div>
         <div className="mt-5 grid grid-cols-[auto_auto_1fr] gap-2"><button onClick={dislike} className="rounded-xl border border-black/10 p-3" title="Don't show me this"><Trash2 size={16}/></button><button onClick={skip} className="rounded-xl border border-black/10 p-3"><X size={16}/></button><button onClick={like} className="flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-black text-white"><Heart size={16}/> I'd eat this</button></div>
       </div>
