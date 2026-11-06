@@ -97,10 +97,10 @@ def score_meal(meal, events, pantry, mode=None, profile=None):
         score -= min(2.0, (minutes - 60) / 60)
     return score
 
-def rank_meals(meals, events, pantry, mode=None, limit=None):
-    """Build user features once, then rank with light diversity across the result set."""
+def rank_meals(meals, events, pantry, mode=None, limit=None, profile=None):
+    """Build or reuse user features, then rank with light diversity across the result set."""
     pool = list(meals)
-    profile = build_preference_profile(events, pool)
+    profile = profile or build_preference_profile(events, pool)
     scored = [(score_meal(meal, events, pantry, mode, profile), meal) for meal in pool]
     remaining = sorted(scored, key=lambda row: row[0], reverse=True)
     ranked, cuisine_counts, signature_counts = [], Counter(), Counter()
