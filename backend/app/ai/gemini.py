@@ -12,6 +12,7 @@ except Exception:
 from ..catalog.intelligence import classify_product
 from ..database import PantryItem, Product, ProductIntelligence, SessionLocal, UserEvent
 from ..recommendations.engine import build_preference_profile
+from ..ingredient_aliases import ingredient_product_match_type
 from ..recipes.seed import MEALS
 
 DATA_FILE = Path(os.getenv("BITEWISE_AI_MEALS_PATH") or Path(__file__).resolve().parents[2] / "data" / "ai_meals.json").expanduser().resolve()
@@ -170,7 +171,12 @@ def _shopping_context():
         query = (
             db.query(Product, ProductIntelligence)
             .outerjoin(ProductIntelligence, ProductIntelligence.product_id == Product.id)
-            .filter(Product.supermarket == "REWE")
+            .filter(
+                Product.supermarket == "REWE",
+                Product.price.isnot(None),
+                Product.price > 0,
+                Product.availability.notin_(("unavailable", "out_of_stock", "not_available", "discontinued")),
+            )
             .order_by(Product.id.asc())
             .yield_per(500)
         )
@@ -180,6 +186,8 @@ def _shopping_context():
         for product, intelligence in query:
             title = (product.name_original or product.name_normalized or "").strip()
             if not title or any(term in title.lower() for term in excluded):
+                continue
+            if not ingredient_product_match_type(str(product.ingredient or ""), title):
                 continue
             profile = intelligence
             role = profile.culinary_role if profile else classify_product({
