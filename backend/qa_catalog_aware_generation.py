@@ -19,6 +19,7 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "false"
 
 from app.database import Product, SessionLocal
 from app.ai.gemini_efficient import GeminiService, _catalog_context
+from app.ingredient_aliases import ingredient_product_match_type
 
 
 def seed_catalog():
@@ -63,6 +64,11 @@ def seed_catalog():
 
 def main():
     seed_catalog()
+
+    # German REWE titles frequently combine ingredient words into one compound.
+    assert ingredient_product_match_type("salmon", "REWE Norwegisches Lachsfilet") == "exact"
+    assert ingredient_product_match_type("chicken breast", "Hähnchenbrustfilet") == "exact"
+    assert ingredient_product_match_type("tomato", "Rispentomaten") == "exact"
 
     # The helper reads the complete local catalog but returns only distinct,
     # title-validated, positively priced canonical ingredient names.
