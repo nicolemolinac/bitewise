@@ -118,7 +118,7 @@ RECIPES = {
     ],
     "Chili con carne": [
         "ground beef", "kidney beans", "corn", "tomato passata",
-        "tomato paste", "onion", "bell pepper", "garlic", "chili powder",
+        "tomato paste", "onion", "bell pepper", "garlic", "chili flakes",
     ],
     "Vegetarian chickpea coconut curry": [
         "chickpea", "coconut milk", "sweet potato", "spinach",
@@ -300,6 +300,10 @@ def main():
                         "paprika powder": ("paprika", "paprik"),
                         "ginger": ("ingwer", "ginger"),
                         "soy sauce": ("soja", "soy"),
+                        "eggplant": ("aubergine", "melanzani", "eggplant"),
+                        "celery": ("sellerie", "stangensellerie", "knollensellerie", "celery"),
+                        "spring onion": ("frühlingszwiebel", "fruehlingszwiebel", "zwiebelgrün", "spring onion"),
+                        "sesame seeds": ("sesam", "sesame"),
                     }.get(ingredient, tuple(ingredient.split()))
                     candidates = (
                         db.query(Product)
