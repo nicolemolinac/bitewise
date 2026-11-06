@@ -206,6 +206,7 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
 def _build_convenience_options(db, recipe: dict) -> dict:
     """Find real catalog products for the homemade, component-shortcut and ready-meal levels."""
     import re
+    from sqlalchemy import or_
 
     Product = main_module.Product
     recipe_name = str(recipe.get("name") or "").lower()
@@ -270,11 +271,43 @@ def _build_convenience_options(db, recipe: dict) -> dict:
             "is_complete_meal": profile.is_complete_meal,
         }
 
-    catalog_rows = (
-        db.query(Product)
-        .filter(Product.supermarket == "REWE", Product.price.isnot(None), Product.price > 0)
-        .all()
-    )
+    shortcut_patterns = []
+    shortcut_terms = []
+    if any(term in ingredient_text for term in ("tomato", "tomate", "bolognese", "sauce", "salsa")):
+        shortcut_patterns.append(r"tomatensauce|tomatensoße|passata|bolognese|pastasauce|pesto")
+        shortcut_terms.extend(["tomatensauce", "tomatensoße", "passata", "bolognese", "pastasauce", "pesto"])
+    if any(term in ingredient_text for term in ("vegetable", "vegetables", "verdura", "carrot", "broccoli", "pepper", "onion", "spinach")):
+        shortcut_patterns.append(r"gemüse|gemuese|broccoli|paprika|zwiebel|möhren|karotten|blattspinat|spinat")
+        shortcut_terms.extend(["gemüse", "gemuese", "broccoli", "paprika", "zwiebel", "möhren", "karotten", "blattspinat", "spinat"])
+    if any(term in ingredient_text for term in ("chicken", "hähnchen", "beef", "meat")):
+        shortcut_patterns.append(r"gegart|vorgegart|hähnchen-filetstreifen gebraten|hähnchenbrust gebraten")
+        shortcut_terms.extend(["gegart", "vorgegart", "hähnchen-filetstreifen gebraten", "hähnchenbrust gebraten"])
+    if "pizza dough" in ingredient_text:
+        shortcut_patterns.append(r"pizzateig")
+        shortcut_terms.append("pizzateig")
+    if "rice" in ingredient_text:
+        shortcut_patterns.append(r"express.?reis|vorgegart.*reis|reis.*vorgegart|reis im beutel")
+        shortcut_terms.extend(["expressreis", "express-reis", "vorgegart", "reis im beutel"])
+
+    # Query only titles relevant to this recipe's actual shortcut families. The
+    # previous full-catalog scan classified every SKU for every expansion.
+    catalog_terms = list(dict.fromkeys(ready_terms + shortcut_terms))
+    catalog_rows = []
+    if catalog_terms:
+        title_filters = []
+        for term in catalog_terms:
+            pattern = f"%{term}%"
+            title_filters.extend([
+                Product.name_original.ilike(pattern),
+                Product.name_normalized.ilike(pattern),
+                Product.translated_name.ilike(pattern),
+            ])
+        catalog_rows = (
+            db.query(Product)
+            .filter(Product.supermarket == "REWE", Product.price.isnot(None), Product.price > 0)
+            .filter(or_(*title_filters))
+            .all()
+        )
 
     ready_products = []
     if ready_terms:
@@ -286,18 +319,6 @@ def _build_convenience_options(db, recipe: dict) -> dict:
             if profile.is_complete_meal and any(term in title for term in ready_terms):
                 ready_products.append(serialize(product, profile))
         ready_products.sort(key=lambda item: (float(item.get("price") or 1e12), item["name"].lower()))
-
-    shortcut_patterns = []
-    if any(term in ingredient_text for term in ("tomato", "tomate", "bolognese", "sauce", "salsa")):
-        shortcut_patterns.append(r"tomatensauce|tomatensoße|passata|bolognese|pastasauce|pesto")
-    if any(term in ingredient_text for term in ("vegetable", "vegetables", "verdura", "carrot", "broccoli", "pepper", "onion", "spinach")):
-        shortcut_patterns.append(r"gemüse|gemuese|broccoli|paprika|zwiebel|möhren|karotten|blattspinat|spinat")
-    if any(term in ingredient_text for term in ("chicken", "hähnchen", "beef", "meat")):
-        shortcut_patterns.append(r"gegart|vorgegart|hähnchen-filetstreifen gebraten|hähnchenbrust gebraten")
-    if "pizza dough" in ingredient_text:
-        shortcut_patterns.append(r"pizzateig")
-    if "rice" in ingredient_text:
-        shortcut_patterns.append(r"express.?reis|vorgegart.*reis|reis.*vorgegart|reis im beutel")
 
     shortcut_products = []
     if shortcut_patterns:
@@ -325,6 +346,7 @@ def _build_convenience_options(db, recipe: dict) -> dict:
         "shortcuts": shortcut_products[:5],
         "stock_note": "Catalog listing only; live availability is unknown. Prices are package prices.",
     }
+
 
 
 def _json_history_default(value):
