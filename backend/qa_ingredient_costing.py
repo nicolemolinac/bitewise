@@ -89,6 +89,20 @@ def run():
     assert milk_total["quantity"] == 600 and milk_total["unit"] == "ml"
     assert len(garlic_rows) == 2, "Cloves and whole units must not be silently merged"
 
+    substitute_catalog = FakeCatalog({
+        "trofie pasta": [{
+            "id": 5, "name_original": "REWE Fusilli 500g", "package_size": 500,
+            "package_unit": "g", "price": 1.50, "price_per_unit": 0.003,
+            "availability": "available", "ingredient_match_type": "substitute",
+        }],
+    })
+    substitute_basket = build_basket(
+        [{"ingredient": "trofie pasta", "quantity": 200, "unit": "g", "source_meals": ["Pasta"]}],
+        substitute_catalog, mode="cheapest",
+    )
+    assert substitute_basket[0]["match_status"] == "substituted"
+    assert substitute_basket[0]["checkout_cost"] == 1.5
+
     # Recipe ingredient quantities are generated for 2 servings and scaled exactly once.
     one_serving = consolidate([
         {"id": "single", "name": "Single portion", "base_servings": 2,
