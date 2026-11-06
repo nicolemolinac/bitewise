@@ -122,7 +122,7 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep, convenience = "prepared_component", "broth", "ready_to_use", 3
             confidence = 0.86
             evidence.append("cooking-broth")
-        elif any(x in name for x in ("chiliflocken", "chili flocken", "chilipulver", "oregano", "thymian", "basilikum", "rosmarin", "petersilie", "muskat", "pfeffer", "salz", "kräuter", "kraeuter", "paprikapulver")):
+        elif any(x in name for x in ("chiliflocken", "chili flocken", "chilipulver", "oregano", "thymian", "basilikum", "rosmarin", "petersilie", "muskat", "pfeffer", "salz", "kräuter", "kraeuter", "paprikapulver", "paprika edelsüß", "paprika edelsuess", "ingwer")):
             product_type, role, prep, convenience = "ingredient", "seasoning", "ready_to_use", 1
             confidence = 0.86
             evidence.append("herb-or-seasoning")
