@@ -493,7 +493,11 @@ function RecipeSteps({meal,appliances}:{meal:Meal;appliances:string[]}){
   const alertTimerFinished=(stepIndex:number,stepText:string)=>{
     if(!alertsEnabled)return;
     if(typeof Notification!=='undefined'&&Notification.permission==='granted'){
-      try{new Notification('Bitewise timer finished',{body:`Step ${stepIndex}: ${stepText}`});}catch{}
+      const title='Bitewise timer finished';
+      const options:NotificationOptions={body:`Step ${stepIndex}: ${stepText}`,tag:`bitewise-timer-${meal.id}-${stepIndex}`};
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.ready.then(registration=>registration.showNotification(title,options)).catch(()=>{try{new Notification(title,options);}catch{}});
+      }else{try{new Notification(title,options);}catch{}}
     }
     const context=audioContextRef.current;
     if(context&&context.state==='running'){
