@@ -24,6 +24,9 @@ def run():
     assert ingredient_name_matches("parmesan", "Käse-Wiener") is False
     assert ingredient_name_matches("fresh basil pesto", "Basilikum Pesto") is True
     assert ingredient_name_matches("fresh basil pesto", "Basilikum-Pesto 190g") is True
+    assert ingredient_name_matches("cherry tomato", "REWE Cocktailtomaten 250g") is True
+    assert ingredient_name_matches("greek yogurt", "Joghurt griechischer Art 500g") is True
+    assert ingredient_product_match_type("greek yogurt", "Skyr Natur 500g") == "substitute"
     assert ingredient_name_matches("pine nuts", "Pinienkerne natur") is True
     assert ingredient_product_match_type("trofie pasta", "REWE Fusilli") == "substitute"
     assert ingredient_product_match_type("trofie pasta", "REWE Udon Nudeln") is None
