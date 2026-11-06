@@ -149,10 +149,16 @@ def main():
         rice_after_repeat = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
         assert abs(rice_after_repeat["quantity"] - 0.34) < 0.001, "Toggling meal status deducted pantry stock more than once"
 
+        # Pantry coverage is based on sufficient quantity, not ingredient-name presence.
+        call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 0.01, "unit": "kg"})
+        today_data = call("GET", f"/api/today?plan_id={ledger_plan['id']}")
+        today_meal = next(row for row in today_data["meals"] if row["id"] == ledger_meal["id"])
+        assert today_meal["pantry_covered_ingredients"] == 0, "10g of rice must not count as enough for a 160g recipe requirement"
+
         rewe_status = call("GET", "/api/rewe/status")
         assert rewe_status["live_data"] is False and rewe_status["data_freshness"] == "catalog_snapshot"
 
-        print("QA PASS: core loop + unit-safe/idempotent pantry consumption + persistent AI meal Discover/Plan/Shopping integration + REWE status")
+        print("QA PASS: core loop + unit-safe/idempotent/quantity-aware pantry coverage + persistent AI meal Discover/Plan/Shopping integration + REWE status")
     finally:
         proc.terminate()
         try: proc.wait(timeout=5)
