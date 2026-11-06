@@ -6,7 +6,7 @@ import unicodedata
 _ALIAS_GROUPS = [
     ("egg", "eggs", "ei", "eier"),
     ("milk", "milch", "vollmilch", "frischmilch"),
-    ("butter", "butter"),
+    ("butter", "butter", "markenbutter", "süßrahmbutter", "suessrahmbutter"),
     ("cheese", "käse", "kaese"),
     ("cream", "sahne", "schlagsahne", "kochcreme", "kochsahne"),
     ("yogurt", "yoghurt", "joghurt"),
@@ -79,7 +79,7 @@ _ALIAS_GROUPS = [
     ("eggplant", "aubergine"),
     ("broccoli", "brokkoli"),
     ("cauliflower", "blumenkohl"),
-    ("spinach", "spinat"),
+    ("spinach", "spinat", "blattspinat"),
     ("lettuce", "salat", "kopfsalat"),
     ("mushroom", "mushrooms", "pilz", "pilze", "champignon", "champignons"),
     ("avocado", "avocado"),
