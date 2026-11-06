@@ -105,7 +105,7 @@ def main():
         assert retry.status_code == 200, retry.text
         assert retry.json().get("reused") is True
         assert retry.json()["meal"]["id"] == recipe["id"]
-        service.expand_concept.assert_called_once()
+        assert service.expand_concept.call_count == 2
 
     history = client.get("/api/recipe-history")
     assert history.status_code == 200, history.text
