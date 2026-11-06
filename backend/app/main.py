@@ -19,7 +19,7 @@ from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
 from .ingredient_aliases import ingredient_product_match_type
-from .shopping.optimizer import STRATEGIES, build_basket, consolidate
+from .shopping.optimizer import STRATEGIES, _convert_quantity, build_basket, consolidate
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 app = FastAPI(title='Bitewise API', version='2.0')
@@ -252,9 +252,16 @@ def alternatives(product_id:int,needed_qty:float|None=None,unit:str|None=None):
   current=db.get(Product,product_id)
   if not current:raise HTTPException(404,'Product not found')
   query=db.query(Product).filter(Product.id!=product_id).filter(or_(Product.ingredient==current.ingredient,Product.category==current.category));prs=query.limit(40).all()
-  if unit:prs=[p for p in prs if p.package_unit==unit]
+  requested_unit=unit or current.package_unit
+  prs=[p for p in prs if _convert_quantity(1,requested_unit,p.package_unit) is not None]
   def estimate(row):
-   quantity=needed_qty or row.package_size;packs=max(1,int((quantity+row.package_size-1)//row.package_size)) if row.package_size else 1;return packs*(row.price or 9999)+max(0,packs*row.package_size-quantity)/max(quantity,1)
+   quantity=float(needed_qty) if needed_qty is not None else float(current.package_size or row.package_size or 1)
+   converted=_convert_quantity(quantity,requested_unit,row.package_unit)
+   if converted is None or not row.package_size or row.package_size<=0 or row.price is None:
+    return float('inf')
+   packs=max(1,math.ceil(converted/row.package_size))
+   waste=max(0.0,packs*row.package_size-converted)
+   return packs*float(row.price)+waste/max(converted,1.0)
   prs.sort(key=estimate);return {'current':product_dict(current),'alternatives':[product_dict(x) for x in prs[:20]]}
  finally:db.close()
 @app.post('/api/products/replace')
@@ -367,7 +374,7 @@ def shopping(payload:BasketIn,request:Request):
      selected.append(meal);selected_ids.add(meal['id'])
   if not selected:raise HTTPException(422,'Select at least one valid saved recipe')
   servings_map={m['id']:max(0.1,float(payload.servings.get(m['id'],2))) for m in selected};requirements=consolidate(selected,servings_map)
-  overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['total'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'waste':waste,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
+  overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['checkout_cost'] for x in basket),2);consumed_total=round(sum(x['consumed_cost'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'checkout_total':total,'consumed_cost':consumed_total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'checkout_cost_per_serving':round(total/total_servings,2) if total_servings else 0,'consumed_cost_per_serving':round(consumed_total/total_servings,2) if total_servings else 0,'waste':waste,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
  finally:db.close()
 def serialize_planned_meal(row):
  meal=meal_by_id(row.meal_id);return {'id':row.id,'plan_id':row.plan_id,'meal_id':row.meal_id,'day_index':row.day_index,'meal_type':row.meal_type,'servings':row.servings,'status':row.status,'meal':meal}
