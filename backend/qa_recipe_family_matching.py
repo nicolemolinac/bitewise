@@ -15,6 +15,9 @@ os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app.database import Product, SessionLocal
+# Import the production entrypoint first: it installs the strict multilingual
+# CatalogAdapter used by app.server:app and deliberately disables demo fallbacks.
+import app.server  # noqa: F401
 from app.main import CatalogAdapter
 from app.catalog.intelligence import classify_product
 from app.ingredient_aliases import ingredient_product_match_type
