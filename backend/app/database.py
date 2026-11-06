@@ -473,6 +473,95 @@ def _auto_import_rewe_csv_snapshot() -> None:
             db.close()
 
 
+
+def _repair_snapshot_unit_prices_once() -> None:
+    """Repair legacy REWE rows only when they still exactly match this CSV snapshot.
+
+    Older scraper runs stored the displayed €/kg or €/l reference price as the
+    package checkout price. We update only same-ID, same-name rows whose current
+    price still equals the CSV source value; changed live prices are left untouched.
+    """
+    snapshot_path = BACKEND_DIR / "data" / "catalog" / "rewe_products.csv"
+    if not snapshot_path.is_file():
+        return
+    db = None
+    try:
+        db = SessionLocal()
+        if db.get(AppSetting, "rewe_snapshot_price_repair_v1"):
+            return
+        rows = []
+        expected_reference_rows = 0
+        with snapshot_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            first_row = next(csv.reader(handle), [])
+            handle.seek(0)
+            expected_columns = [
+                "id", "supermarket", "ingredient", "name_original", "name_normalized",
+                "translated_name", "brand", "category", "package_size", "package_unit",
+                "price", "price_per_unit", "currency", "availability", "last_seen_at",
+                "last_checked_at",
+            ]
+            required = {"id", "supermarket", "ingredient", "name_original", "name_normalized"}
+            reader = (
+                csv.DictReader(handle)
+                if required.issubset(set(first_row))
+                else csv.DictReader(handle, fieldnames=expected_columns)
+            )
+            for row in reader:
+                name = str(row.get("name_original") or "").strip()
+                if re.search(r"1\s*(?:kg|l)\s*=", name, re.I):
+                    expected_reference_rows += 1
+                    rows.append(row)
+        if expected_reference_rows < 100:
+            return
+
+        repaired = 0
+        for row in rows:
+            try:
+                product_id = int(row.get("id") or 0)
+            except (TypeError, ValueError):
+                continue
+            product = db.get(Product, product_id)
+            if not product or product.name_original != str(row.get("name_original") or ""):
+                continue
+            source_price = _snapshot_float(row.get("price"))
+            if source_price is None or product.price is None or abs(float(product.price) - source_price) > 0.011:
+                continue
+            package_size = _snapshot_float(row.get("package_size"), product.package_size) or product.package_size
+            package_unit = str(row.get("package_unit") or product.package_unit).strip()
+            package_size = _snapshot_package_size(product.name_original, package_size, package_unit)
+            pack_price, unit_price = _snapshot_pack_pricing(
+                product.name_original, package_size, package_unit,
+                row.get("price"), row.get("price_per_unit"),
+            )
+            if pack_price is None or unit_price is None:
+                continue
+            product.package_size = package_size
+            product.price = pack_price
+            product.price_per_unit = unit_price
+            repaired += 1
+
+        # Require strong evidence that this is the exact source database before
+        # marking the one-time repair complete. Otherwise leave live data untouched.
+        if repaired >= expected_reference_rows * 0.70:
+            db.add(AppSetting(key="rewe_snapshot_price_repair_v1", value=str(repaired)))
+            db.commit()
+            print(f"Bitewise repaired {repaired} legacy REWE package prices from the matching snapshot.")
+        else:
+            db.rollback()
+            print(
+                "Bitewise skipped REWE snapshot price repair: existing catalog does not "
+                "sufficiently match the committed snapshot."
+            )
+    except Exception as exc:
+        if db:
+            db.rollback()
+        print(f"Bitewise could not repair legacy REWE snapshot prices: {exc}")
+    finally:
+        if db:
+            db.close()
+
+
 _migrate_sqlite()
 _auto_restore_local_rewe_snapshot()
 _auto_import_rewe_csv_snapshot()
+_repair_snapshot_unit_prices_once()
