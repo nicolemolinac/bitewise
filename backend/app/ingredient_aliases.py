@@ -149,7 +149,7 @@ def ingredient_name_matches(ingredient: str, product_name: str) -> bool:
 _SUBSTITUTION_GROUPS = {
     "trofie pasta": ("fusilli", "penne", "farfalle", "rigatoni", "casarecce", "orecchiette", "short pasta"),
     "parmesan": ("grana padano",),
-    "pine nuts": ("sunflower seeds", "pumpkin seeds"),
+    "pine nuts": ("sunflower seeds", "sonnenblumenkerne", "pumpkin seeds", "kürbiskerne"),
     "heavy cream": ("schlagsahne", "sahne", "kochcreme"),
     "sour cream": ("schmand", "saure sahne", "crème fraîche"),
     "buttermilk": ("buttermilch",),
@@ -206,5 +206,9 @@ def ingredient_substitution_name(ingredient: str, product_name: str) -> str | No
             continue
         for substitute in sorted(substitutes, key=lambda value: -len(_norm(value))):
             if (" " + _norm(substitute) + " ") in title:
-                return substitute
+                labels = {
+                    "sonnenblumenkerne": "sunflower seeds",
+                    "kürbiskerne": "pumpkin seeds",
+                }
+                return labels.get(_norm(substitute), substitute)
     return None
