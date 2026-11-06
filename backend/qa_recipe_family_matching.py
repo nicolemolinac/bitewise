@@ -128,14 +128,7 @@ MIDDLE_SHORTCUTS = {
     "Shakshuka": ["eggs", "tomato passata", "bell pepper", "feta"],
 }
 
-READY_MEAL_FAMILIES = {
-    "Lasagna": ("lasagne", "lasagna"),
-    "Pizza": ("pizza",),
-    "Creamy chicken mushroom rice": ("chicken", "reis", "rice", "bowl"),
-    "Coconut chicken curry": ("curry",),
-    "Lentil bolognese": ("bolognese",),
-    "Potato gratin": ("gratin", "auflauf"),
-}
+READY_MEAL_FAMILIES = {}
 
 
 def _qa_quantity(ingredient):
@@ -242,42 +235,21 @@ def main():
                 assert product["is_complete_meal"], (
                     f"{recipe}: component leaked into ready-made alternatives: {product['name']}"
                 )
+                title = product["name"].lower()
+                if "chicken" in " ".join(ingredients).lower():
+                    assert any(term in title for term in ("hähnchen", "haehnchen", "chicken")), (
+                        f"{recipe}: ready meal does not match the recipe protein: {product['name']}"
+                    )
+                if "lentil" in " ".join(ingredients).lower():
+                    assert any(term in title for term in ("linse", "linsen", "lentil", "vegan", "vegetar")), (
+                        f"{recipe}: meat bolognese is not a lentil shortcut: {product['name']}"
+                    )
+        assert convenience_ready > 0, "Known ready-meal families should expose genuine complete-meal alternatives"
         print(
             f"CONVENIENCE LEVELS: {len(RECIPES)} homemade baselines; "
             f"{convenience_shortcuts} verified middle-shortcut products; "
-            f"{convenience_ready} verified complete ready meals"
+            f"{convenience_ready} relevant complete ready meals"
         )
-
-        # Every available ready-meal candidate must really be a complete meal.
-        # A component such as passata, dry pasta or lasagne sheets is never enough.
-        ready_candidates = 0
-        for recipe, terms in READY_MEAL_FAMILIES.items():
-            rows = (
-                db.query(Product)
-                .filter(Product.supermarket == "REWE", Product.price.isnot(None), Product.price > 0)
-                .all()
-            )
-            hits = []
-            for product in rows:
-                title = _product_title({
-                    "name_original": product.name_original,
-                    "name_normalized": product.name_normalized,
-                    "translated_name": product.translated_name,
-                }).lower()
-                if not any(term in title for term in terms):
-                    continue
-                profile = classify_product({
-                    "name_original": product.name_original,
-                    "name_normalized": product.name_normalized,
-                    "translated_name": product.translated_name,
-                    "category": product.category,
-                    "brand": product.brand,
-                })
-                if profile.is_complete_meal:
-                    hits.append(product)
-            ready_candidates += len(hits)
-            print(f"  READY-MEAL CANDIDATES — {recipe}: {len(hits)} verified complete meals")
-        print(f"READY-MEAL CHECK: {ready_candidates} classified complete-meal candidates; components excluded")
 
         # Basket QA: test budget, balanced and premium strategies over every recipe.
         # The optimizer must never choose a zero/negative-price or unavailable SKU,
