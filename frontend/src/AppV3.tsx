@@ -19,7 +19,7 @@ type Meal = {
   tags:string[]; ingredients:[string,number,string][]; image:string; calories?:number; meal_type?:MealType;
   steps?:{text:string;minutes?:number|null}[]; is_concept?:boolean; discovery_prompt?:string;
   image_page?:string; photographer?:string;
-  costing?:{strategy:string;matched_ingredients:number;unmatched_ingredients?:number;total_ingredients:number;catalog_ready:boolean;checkout_total:number|null;consumed_cost:number|null;currency:string};
+  costing?:{strategy:string;matched_ingredients:number;unmatched_ingredients?:number;total_ingredients:number;catalog_ready:boolean;checkout_total:number|null;consumed_cost:number|null;cost_per_serving?:number|null;servings?:number;people?:number;cost_scope?:string;currency:string};
   product_matches?:any[];
 };
 type Product = { id:number|null; name_original:string; brand?:string|null; package_size:number; package_unit:string; price:number|null; product_url?:string|null; image_url?:string|null; ingredient?:string; };
@@ -311,7 +311,9 @@ export default function AppV3(){
     if(action==='like'&&meal.is_concept){
       setLoading(true);setError('');
       try{
-        const d=await api('/ai/recipe',{method:'POST',body:JSON.stringify({concept:meal,context:meal.discovery_prompt||brain,appliances})});
+        const people=dayContexts[todayIndex]?.people||1;
+        const servings=clamp(factor*people,0.1,12);
+        const d=await api('/ai/recipe',{method:'POST',body:JSON.stringify({concept:meal,context:meal.discovery_prompt||brain,appliances,servings,people})});
         const recipe:Meal={...d.meal,image:meal.image||d.meal?.image||'',image_page:meal.image_page||'',photographer:meal.photographer||''};
         if(!recipe?.id)throw new Error('Bitewise could not build the selected recipe.');
         try{await api('/events',{method:'POST',body:JSON.stringify({meal_id:recipe.id,action:'like'})})}catch{}
