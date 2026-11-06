@@ -59,10 +59,10 @@ def main():
 
         # The generation prompt must see only a compact set of ingredient keys
         # backed by real, title-validated products from this committed REWE snapshot.
-        generation_context = _catalog_context("salmon rice bowl", limit=90)
+        generation_context = _catalog_context("salmon rice bowl", limit=60)
         context_ingredients = [x.strip() for x in generation_context.split(",") if x.strip()]
-        assert len(context_ingredients) <= 90, "Generation context exceeded its ingredient cap"
-        assert len(generation_context) < 3000, "Generation context is not compact enough"
+        assert len(context_ingredients) <= 60, "Generation context exceeded its ingredient cap"
+        assert 0 < len(generation_context) < 2500, "Generation context is empty or not compact enough"
         print(f"Catalog-aware Gemini context: {len(context_ingredients)} canonical ingredients / {len(generation_context)} chars")
         print("Catalog-aware ingredient keys:", generation_context)
 
