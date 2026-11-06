@@ -150,7 +150,6 @@ _SUBSTITUTION_GROUPS = {
     "trofie pasta": ("fusilli", "penne", "farfalle", "rigatoni", "casarecce", "orecchiette", "short pasta"),
     "parmesan": ("grana padano",),
     "pine nuts": ("sunflower seeds", "pumpkin seeds"),
-    "parmesan": ("grana padano",),
     "heavy cream": ("schlagsahne", "sahne", "kochcreme"),
     "sour cream": ("schmand", "saure sahne", "crème fraîche"),
     "buttermilk": ("buttermilch",),
