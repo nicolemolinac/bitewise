@@ -90,6 +90,16 @@ def main():
         for row in coverage:
             if row["status"] == "gap":
                 print("CATALOG GAP:", row)
+                hint_terms = {
+                    "cherry tomato": ("tomat", "cocktail", "kirsche"),
+                    "greek yogurt": ("joghurt", "yoghurt", "skyr", "quark"),
+                }.get(row["ingredient"], tuple(row["ingredient"].split()))
+                suggestions = [
+                    product.name_original
+                    for product in products
+                    if any(term in str(product.name_original or "").lower() for term in hint_terms)
+                ][:20]
+                print("CATALOG NEAR-MATCH TITLES:", row["ingredient"], suggestions)
     finally:
         db.close()
 
