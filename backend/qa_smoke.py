@@ -135,6 +135,8 @@ def main():
         call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 0.5, "unit": "kg"})
         call("POST", "/api/pantry", {"ingredient": "chicken breast", "quantity": 0.1, "unit": "kg"})
 
+        print("PANTRY BEFORE EATEN:", json.dumps(call("GET", "/api/pantry")))
+        print("TERIYAKI INGREDIENTS:", json.dumps(next(m for m in call("GET", "/api/meals")["meals"] if m["id"] == "teriyaki-chicken")["ingredients"]))
         eaten = call("POST", "/api/meals/teriyaki-chicken/eaten?servings=2")
         rice_used = next(row for row in eaten["consumed"] if row["ingredient"] == "rice")
         assert rice_used["unit"] == "g" and rice_used["quantity"] == 160
