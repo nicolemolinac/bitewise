@@ -442,8 +442,6 @@ async def expand_ai_recipe(request: Request):
                 "catalog_coverage": round((len(matched_rows) + len(covered_rows)) / len(basket), 4) if basket else 1.0,
                 "currency": "EUR",
             }
-        finally:
-            db.close()
             # Lightweight convenience suggestions: local catalog lookup only, no extra AI call.
             recipe_name = str(recipe.get("name") or "").lower()
             ready_terms = []
@@ -510,6 +508,8 @@ async def expand_ai_recipe(request: Request):
                 "shortcuts": [_convenience_product(p) for p in shortcut_products],
                 "stock_note": "Catalog listing only; live availability is unknown.",
             }
+        finally:
+            db.close()
         # Normalize every nested value (notably REWE last_checked_at datetimes) before
         # either database persistence or the FastAPI response encoder sees the payload.
         recipe = _json_safe(recipe)
