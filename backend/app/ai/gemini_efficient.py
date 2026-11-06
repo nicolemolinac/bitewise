@@ -9,7 +9,8 @@ from .gemini import (
     _parse_json_array,
     _persist_generated,
 )
-from ..database import PantryItem, SessionLocal
+from ..database import PantryItem, Product, SessionLocal
+from ..ingredient_aliases import ingredient_product_match_type
 
 
 _ALLOWED_APPLIANCES = ("air fryer", "microwave", "stovetop", "oven")
@@ -53,6 +54,68 @@ def _pantry_context() -> list[str]:
             f"{row.ingredient} ({row.quantity:g} {row.unit})"
             for row in db.query(PantryItem).filter(PantryItem.quantity > 0).limit(40).all()
         ]
+    finally:
+        db.close()
+
+
+def _catalog_context(query: str = "", limit: int = 90) -> str:
+    """Return a compact list of canonical ingredients backed by priced REWE products.
+
+    The complete catalog stays in SQLite. We validate each candidate ingredient
+    against the actual product title locally and send only distinct ingredient
+    labels to Gemini. Unknown stock is allowed; explicitly unavailable products
+    and products without a positive price are excluded.
+    """
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(
+                Product.ingredient,
+                Product.name_original,
+                Product.name_normalized,
+                Product.translated_name,
+                Product.price,
+                Product.availability,
+            )
+            .filter(
+                Product.supermarket == "REWE",
+                Product.price.isnot(None),
+                Product.price > 0,
+            )
+            .all()
+        )
+        coverage = {}
+        excluded = {"unavailable", "out_of_stock", "not_available", "discontinued"}
+        for row in rows:
+            ingredient = str(row.ingredient or "").strip().lower()
+            if not ingredient or str(row.availability or "unknown").strip().lower() in excluded:
+                continue
+            title = " ".join(
+                str(value or "")
+                for value in (row.name_original, row.name_normalized, row.translated_name)
+            )
+            match_type = ingredient_product_match_type(ingredient, title)
+            if not match_type:
+                continue
+            stats = coverage.setdefault(ingredient, {"exact": 0, "substitute": 0})
+            stats[match_type] += 1
+
+        if not coverage:
+            return "No verified priced REWE ingredient matches in the current catalog snapshot."
+
+        query_text = re.sub(r"[^a-z0-9äöüß]+", " ", str(query or "").lower())
+        query_tokens = {token for token in query_text.split() if len(token) > 2}
+
+        def rank(item):
+            ingredient, stats = item
+            tokens = set(ingredient.split())
+            phrase_match = 1 if ingredient and ingredient in query_text else 0
+            overlap = len(tokens & query_tokens)
+            total = stats["exact"] + stats["substitute"]
+            return (-phrase_match, -overlap, -stats["exact"], -total, ingredient)
+
+        selected = sorted(coverage.items(), key=rank)[:max(1, min(int(limit), 120))]
+        return ", ".join(ingredient for ingredient, _ in selected)
     finally:
         db.close()
 
@@ -205,6 +268,9 @@ These are examples of specificity and relevance, not a fixed list.
         description = str(concept.get("description") or "").strip()
         meal_type = str(concept.get("meal_type") or "dinner")
         image = _clean_image_url(concept.get("image"))
+        catalog_ingredients = _catalog_context(
+            f"{name} {description} {context or concept.get('discovery_prompt') or ''}"
+        )
 
         instruction = f"""Create ONE complete Bitewise recipe for the selected meal concept.
 
@@ -214,7 +280,18 @@ MEAL TYPE: {meal_type}
 ORIGINAL DISCOVERY CONTEXT: {context or concept.get('discovery_prompt') or 'none'}
 {cooking_preferences_instruction(appliances)}
 PANTRY: {', '.join(pantry[:30]) if pantry else 'none'}
-SUPERMARKET AVAILABILITY: Use ordinary ingredients commonly sold by German supermarkets such as REWE. Do not specify brands, SKUs, package sizes, or prices; Bitewise will match the ingredients to its current catalog after generation.
+REWE CATALOG INGREDIENTS: {catalog_ingredients}
+The REWE list contains canonical ingredient names that have at least one title-validated, positively priced REWE catalog product. It is a compact summary, not the full product database. Catalog prices and stock are snapshots, not live checkout guarantees.
+
+CATALOG-AWARE RECIPE RULES:
+- Prefer suitable core ingredients from the REWE catalog list so the recipe can be matched and costed reliably.
+- Use the listed canonical ingredient names where they accurately describe the food (for example, "salmon", not a vague phrase such as "fish").
+- Pantry ingredients may be used even when they are not in the REWE list.
+- Normal small pantry staples such as salt, pepper, water and modest seasoning may be included even if not listed.
+- Avoid specialty or obscure ingredients that are not listed when a familiar listed ingredient works just as well.
+- Do not force a bad substitution or damage the selected dish merely to increase catalog coverage.
+- Keep every ingredient needed for a good recipe; never omit an ingredient just to make the basket look complete.
+- Do not claim that a product is currently in stock or invent a price. Bitewise checks every generated ingredient against the full local catalog after generation.
 
 Return ONLY a JSON array containing exactly one object with:
 id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredients,steps,image
