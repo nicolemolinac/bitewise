@@ -122,7 +122,7 @@ RECIPES = {
     ],
     "Vegetarian chickpea coconut curry": [
         "chickpea", "coconut milk", "sweet potato", "spinach",
-        "rice", "ginger", "garlic", "onion", "chili powder",
+        "rice", "ginger", "garlic", "onion", "chili flakes",
     ],
     "Greek village salad": [
         "tomato", "cucumber", "red onion", "feta", "olive oil",
@@ -182,7 +182,7 @@ RECIPES = {
     ],
     "Sweet potato black bean bowls": [
         "sweet potato", "bean", "corn", "rice", "avocado",
-        "tomato", "lime", "greek yogurt", "chili powder",
+        "tomato", "lime", "greek yogurt", "chili flakes",
     ],
     "Turkey meatloaf": [
         "turkey", "breadcrumbs", "eggs", "onion", "garlic",
