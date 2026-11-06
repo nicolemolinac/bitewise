@@ -1,4 +1,4 @@
-"""Focused deterministic QA for the REWE basket optimizer. Run: python backend/qa_optimizer.py"""
+"""Focused deterministic QA for the REWE basket optimizer. Run: cd backend && python qa_optimizer.py"""
 from app.shopping.optimizer import build_basket, consolidate
 
 
