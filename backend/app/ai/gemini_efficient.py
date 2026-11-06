@@ -286,6 +286,7 @@ The REWE list contains canonical ingredient names that have at least one title-v
 CATALOG-AWARE RECIPE RULES:
 - Prefer suitable core ingredients from the REWE catalog list so the recipe can be matched and costed reliably.
 - Use the listed canonical ingredient names where they accurately describe the food (for example, "salmon", not a vague phrase such as "fish").
+- When choosing a listed ingredient, use its canonical label exactly in the ingredients array (for example, use "salmon" rather than "salmon fillet"); describe the cut or preparation in the cooking steps instead.
 - Pantry ingredients may be used even when they are not in the REWE list.
 - Normal small pantry staples such as salt, pepper, water and modest seasoning may be included even if not listed.
 - Avoid specialty or obscure ingredients that are not listed when a familiar listed ingredient works just as well.
