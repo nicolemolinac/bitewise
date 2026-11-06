@@ -24,11 +24,15 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Install Chromium for REWE browser fallback
         run: python -m playwright install --with-deps chromium
-      - run: python -m compileall app
+      - run: python -m compileall app scripts
       - name: REWE committed catalog snapshot import QA
         run: python qa_catalog_snapshot.py
       - name: REWE catalog coverage and missing-price diagnostics
         run: python qa_catalog_coverage.py
+      - name: Product intelligence classification QA
+        run: python qa_product_intelligence.py
+      - name: Adaptive recommendation engine QA
+        run: python qa_recommendation_engine.py
       - name: Import API and verify critical routes
         run: |
           python - <<'PY'
