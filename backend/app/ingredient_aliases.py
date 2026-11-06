@@ -102,7 +102,7 @@ _ALIAS_GROUPS = [
 
 
 def _norm(value: str) -> str:
-    return re.sub(r"\s+", " ", (value or "").lower().strip())
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9äöüß]+", " ", (value or "").lower())).strip()
 
 
 _ALIAS_INDEX: dict[str, set[str]] = {}
