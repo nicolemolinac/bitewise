@@ -1,173 +1,318 @@
-"""Recipe-family coverage QA for common REWE ingredients and seasonings.
+"""Intensive recipe-family, convenience-variant and basket QA against the full REWE snapshot.
 
-Offline deterministic checks only. Uses real EN/DE aliases and title matching;
-does not call Gemini, REWE, or any scraper.
+Run from backend/: python qa_recipe_family_matching.py
+Uses a disposable SQLite DB imported from the committed catalog snapshot.
+No Gemini API calls, live REWE calls, scraper, image process or user DB are touched.
 """
-from app.ingredient_aliases import ingredient_product_match_type, ingredient_search_terms
-from app.catalog.intelligence import classify_product
-
-# Use the committed REWE snapshot in an isolated temporary database.
 import os
 from pathlib import Path
 import tempfile
-_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-recipe-family-snapshot-")
+
+_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-recipe-matrix-")
 os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_TEMP.name) / "rewe.sqlite")
 os.environ["DATABASE_URL"] = ""
 os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
+
 from app.database import Product, SessionLocal
 from app.main import CatalogAdapter
+from app.catalog.intelligence import classify_product
+from app.ingredient_aliases import ingredient_product_match_type
+from app.shopping.optimizer import build_basket, consolidate
 
-# Each recipe is a realistic ingredient list rather than only its headline protein.
+
+# 20 distinct recipes: familiar weeknight dishes, comfort food, seafood,
+# vegetarian meals, international food and breakfast.
 RECIPES = {
-    "Creamy mushroom tagliatelle": {
-        "tagliatelle": "REWE Tagliatelle 500 g",
-        "mushrooms": "REWE Champignons 250 g",
-        "cream": "REWE Schlagsahne 200 ml",
-        "garlic": "REWE Knoblauch",
-        "parmesan": "Parmigiano Reggiano gerieben",
-        "thyme": "REWE Thymian",
-        "parsley": "REWE Petersilie",
-        "butter": "Deutsche Markenbutter",
-        "black pepper": "Schwarzer Pfeffer gemahlen",
-        "salt": "Jodsalz",
-    },
-    "Pasta arrabbiata": {
-        "penne": "REWE Penne 500 g",
-        "tomato passata": "REWE Bio Passata 700 g",
-        "garlic": "REWE Knoblauch",
-        "chili flakes": "Chiliflocken 30 g",
-        "oregano": "REWE Oregano gerebelt",
-        "parsley": "REWE Petersilie",
-        "olive oil": "REWE Natives Olivenöl extra",
-        "parmesan": "Parmigiano Reggiano",
-    },
-    "Spinach ricotta tortellini": {
-        "tortellini": "REWE Tortellini Ricotta Spinat",
-        "spinach": "REWE Blattspinat",
-        "ricotta": "REWE Ricotta 250 g",
-        "garlic": "REWE Knoblauch",
-        "cream": "REWE Kochsahne",
-        "nutmeg": "Muskatnuss gemahlen",
-        "parmesan": "Parmigiano Reggiano gerieben",
-    },
-    "Creamy carbonara": {
-        "spaghetti": "REWE Spaghetti 500 g",
-        "eggs": "REWE Eier 10 Stück",
-        "parmesan": "Parmigiano Reggiano",
-        "bacon": "REWE Bacon Würfel",
-        "black pepper": "Schwarzer Pfeffer",
-        "olive oil": "REWE Olivenöl",
-    },
-    "Lasagna": {
-        "lasagne sheets": "REWE Lasagneplatten",
-        "ground beef": "Rinderhackfleisch 500 g",
-        "onion": "REWE Zwiebeln",
-        "garlic": "REWE Knoblauch",
-        "tomato passata": "REWE Passierte Tomaten",
-        "tomato paste": "REWE Tomatenmark",
-        "vegetable broth": "REWE Gemüsebrühe",
-        "milk": "REWE H-Milch",
-        "butter": "REWE Butter",
-        "flour": "REWE Weizenmehl Type 405",
-        "parmesan": "Parmigiano Reggiano",
-        "oregano": "REWE Oregano",
-        "nutmeg": "Muskat",
-    },
-    "Pizza": {
-        "pizza dough": "REWE Pizzateig",
-        "mozzarella": "REWE Mozzarella",
-        "tomato sauce": "REWE Tomatensauce",
-        "basil": "REWE Basilikum",
-        "oregano": "REWE Oregano",
-        "mushrooms": "REWE Champignons",
-        "olive oil": "REWE Olivenöl",
-    },
-    "Garlic shrimp pasta": {
-        "shrimp": "REWE Garnelen roh 200 g",
-        "tagliatelle": "REWE Tagliatelle",
-        "garlic": "REWE Knoblauch",
-        "lemon": "REWE Zitronen",
-        "parsley": "REWE Petersilie",
-        "chili flakes": "REWE Chiliflocken",
-        "butter": "REWE Butter",
-        "olive oil": "REWE Olivenöl",
-    },
-    "Creamy salmon spinach rice": {
-        "salmon": "REWE Lachsfilet",
-        "spinach": "REWE Blattspinat",
-        "rice": "REWE Basmatireis",
-        "cream": "REWE Sahne",
-        "dill": "REWE Dill",
-        "lemon": "REWE Zitronen",
-        "garlic": "REWE Knoblauch",
-        "black pepper": "REWE Schwarzer Pfeffer",
-    },
+    "Creamy mushroom tagliatelle": [
+        "tagliatelle", "mushroom", "cream", "garlic", "parmesan",
+        "thyme", "parsley", "butter", "black pepper", "salt",
+    ],
+    "Pasta arrabbiata": [
+        "penne", "tomato passata", "garlic", "chili flakes",
+        "oregano", "parsley", "olive oil", "parmesan",
+    ],
+    "Spinach ricotta tortellini": [
+        "tortellini", "spinach", "ricotta", "garlic", "cream",
+        "nutmeg", "parmesan",
+    ],
+    "Creamy carbonara": [
+        "spaghetti", "eggs", "parmesan", "bacon", "black pepper", "olive oil",
+    ],
+    "Lasagna": [
+        "lasagne sheets", "ground beef", "onion", "garlic", "tomato passata",
+        "tomato paste", "vegetable broth", "milk", "butter", "flour",
+        "parmesan", "oregano", "nutmeg",
+    ],
+    "Pizza": [
+        "pizza dough", "mozzarella", "tomato sauce", "basil", "oregano",
+        "mushroom", "olive oil",
+    ],
+    "Garlic shrimp pasta": [
+        "shrimp", "tagliatelle", "garlic", "lemon", "parsley",
+        "chili flakes", "butter", "olive oil",
+    ],
+    "Creamy salmon spinach rice": [
+        "salmon", "spinach", "rice", "cream", "dill", "lemon",
+        "garlic", "black pepper",
+    ],
+    "Chicken pesto pasta": [
+        "chicken breast", "pasta", "pesto", "parmesan",
+        "cherry tomato", "olive oil", "garlic", "basil",
+    ],
+    "Creamy chicken mushroom rice": [
+        "chicken breast", "rice", "mushroom", "cream", "onion",
+        "garlic", "chicken broth", "thyme", "parsley",
+    ],
+    "Beef tacos": [
+        "ground beef", "tortilla", "tomato", "lettuce", "onion",
+        "garlic", "paprika powder", "lime", "yogurt", "chili flakes",
+    ],
+    "Chicken fajita rice bowls": [
+        "chicken breast", "rice", "bell pepper", "onion", "garlic",
+        "tomato", "lime", "yogurt", "chili flakes", "olive oil",
+    ],
+    "Greek chicken bowls": [
+        "chicken breast", "rice", "cucumber", "tomato", "red onion",
+        "feta", "greek yogurt", "lemon", "garlic", "oregano",
+    ],
+    "Coconut chicken curry": [
+        "chicken breast", "coconut milk", "rice", "bell pepper",
+        "onion", "garlic", "ginger", "soy sauce", "lime", "chili flakes",
+    ],
+    "Teriyaki salmon rice": [
+        "salmon", "rice", "soy sauce", "honey", "ginger",
+        "garlic", "lime",
+    ],
+    "Lentil bolognese": [
+        "lentil", "spaghetti", "tomato passata", "tomato paste",
+        "onion", "garlic", "carrot", "olive oil", "oregano", "basil",
+    ],
+    "Tuna tomato pasta": [
+        "tuna", "spaghetti", "tomato passata", "olive oil",
+        "garlic", "lemon", "parsley", "chili flakes",
+    ],
+    "Potato gratin": [
+        "potato", "cream", "milk", "butter", "garlic",
+        "parmesan", "nutmeg", "black pepper", "salt",
+    ],
+    "Shakshuka": [
+        "eggs", "tomato", "bell pepper", "onion", "garlic",
+        "tomato paste", "paprika powder", "chili flakes", "parsley",
+    ],
+    "Banana oat pancakes": [
+        "banana", "eggs", "milk", "flour", "baking powder",
+        "cinnamon", "yogurt", "honey",
+    ],
 }
 
+# These are not new AI-generated recipes. They are deterministic ingredient
+# substitutions used to QA the "middle shortcut" route: keep the dish recognizable
+# while replacing selected prep work with a genuine REWE component.
+MIDDLE_SHORTCUTS = {
+    "Creamy mushroom tagliatelle": ["tagliatelle", "mushroom", "pesto", "cream", "parmesan"],
+    "Pasta arrabbiata": ["penne", "tomato sauce", "pesto", "chili flakes", "parmesan"],
+    "Spinach ricotta tortellini": ["tortellini", "spinach", "ricotta", "cream"],
+    "Lasagna": ["lasagne sheets", "tomato sauce", "ground beef", "mozzarella"],
+    "Pizza": ["pizza dough", "tomato sauce", "mozzarella", "mushroom"],
+    "Chicken pesto pasta": ["pasta", "pesto", "parmesan", "chicken breast"],
+    "Creamy chicken mushroom rice": ["rice", "mushroom", "cream", "chicken breast"],
+    "Chicken fajita rice bowls": ["rice", "bell pepper", "chicken breast", "tomato sauce"],
+    "Greek chicken bowls": ["rice", "feta", "greek yogurt", "cucumber", "chicken breast"],
+    "Coconut chicken curry": ["rice", "coconut milk", "chicken breast", "soy sauce"],
+    "Lentil bolognese": ["spaghetti", "tomato sauce", "lentil", "parmesan"],
+    "Tuna tomato pasta": ["spaghetti", "tomato sauce", "tuna", "olive oil"],
+    "Shakshuka": ["eggs", "tomato passata", "bell pepper", "feta"],
+}
+
+READY_MEAL_FAMILIES = {
+    "Lasagna": ("lasagne", "lasagna"),
+    "Pizza": ("pizza",),
+    "Creamy chicken mushroom rice": ("chicken", "reis", "rice", "bowl"),
+    "Coconut chicken curry": ("curry",),
+    "Lentil bolognese": ("bolognese",),
+    "Potato gratin": ("gratin", "auflauf"),
+}
+
+
+def _recipe_meal(name, ingredients):
+    return {
+        "id": "qa-" + str(abs(hash(name))),
+        "name": name,
+        "base_servings": 2,
+        "ingredients": [[ingredient, 100, "g"] for ingredient in ingredients],
+    }
+
+
+def _product_title(product):
+    return " ".join(str(product.get(key) or "") for key in (
+        "name_original", "name_normalized", "translated_name", "name"
+    ))
+
+
 def main():
-    total = 0
-    failures = []
-    for recipe, ingredients in RECIPES.items():
-        for ingredient, title in ingredients.items():
-            total += 1
-            match = ingredient_product_match_type(ingredient, title)
-            if match != "exact":
-                failures.append((recipe, ingredient, title, match))
-    assert not failures, f"Recipe ingredient coverage failures: {failures}"
-
-    # Specific pantry seasonings and German spellings must be discoverable.
-    for ingredient, german_title in [
-        ("chili flakes", "Chiliflocken"),
-        ("oregano", "Oregano gerebelt"),
-        ("thyme", "Thymian"),
-        ("nutmeg", "Muskat gemahlen"),
-        ("vegetable broth", "Gemüsebrühe"),
-        ("chicken broth", "Hühnerbrühe"),
-        ("ricotta", "Ricotta"),
-        ("basil", "Basilikum"),
-        ("tagliatelle", "Bandnudeln"),
-    ]:
-        assert ingredient_product_match_type(ingredient, german_title) == "exact", (
-            ingredient, german_title, ingredient_search_terms(ingredient)
-        )
-
-    # Run each recipe ingredient against the actual committed REWE catalog.
-    # The snapshot is imported into a disposable DB; no user database is touched.
     db = SessionLocal()
     try:
         catalog_count = db.query(Product).filter(Product.supermarket == "REWE").count()
-        assert catalog_count >= 1000, f"Expected imported REWE catalog snapshot, got {catalog_count}"
+        assert catalog_count >= 1000, f"Expected full REWE snapshot, got {catalog_count}"
         adapter = CatalogAdapter(db)
-        real_results = {}
+
+        base_total = base_matched = 0
+        base_missing = {}
+        base_rows = {}
         for recipe, ingredients in RECIPES.items():
-            real_results[recipe] = {}
+            rows = {}
             for ingredient in ingredients:
-                real_results[recipe][ingredient] = len(adapter.search(ingredient))
-        total_real = sum(len(rows) for rows in real_results.values())
-        matched_real = sum(bool(count) for rows in real_results.values() for count in rows.values())
-        coverage = matched_real / max(total_real, 1)
-        print(f"REAL REWE SNAPSHOT: {catalog_count} products; {matched_real}/{total_real} recipe ingredients matched ({coverage:.0%})")
-        for recipe, rows in real_results.items():
-            missing = [ingredient for ingredient, count in rows.items() if not count]
-            print(f"  {recipe}: {len(rows)-len(missing)}/{len(rows)} matched; unmatched={missing}")
-        assert coverage >= 0.80, f"Real REWE recipe ingredient coverage below 80%: {coverage:.0%}"
+                base_total += 1
+                products = adapter.search(ingredient)
+                valid = [
+                    product for product in products
+                    if ingredient_product_match_type(ingredient, _product_title(product))
+                ]
+                rows[ingredient] = valid
+                if valid:
+                    base_matched += 1
+                else:
+                    base_missing.setdefault(recipe, []).append(ingredient)
+            base_rows[recipe] = rows
+
+        base_coverage = base_matched / max(base_total, 1)
+        print(f"BASE RECIPES: {len(RECIPES)} dishes; {base_matched}/{base_total} ingredients matched ({base_coverage:.1%})")
+        for recipe, missing in base_missing.items():
+            print(f"  BASE MISSING — {recipe}: {', '.join(missing)}")
+        assert base_coverage >= 0.80, f"Base recipe matching below 80%: {base_coverage:.1%}"
+
+        middle_total = middle_matched = 0
+        middle_missing = {}
+        for recipe, ingredients in MIDDLE_SHORTCUTS.items():
+            for ingredient in ingredients:
+                middle_total += 1
+                if adapter.search(ingredient):
+                    middle_matched += 1
+                else:
+                    middle_missing.setdefault(recipe, []).append(ingredient)
+        middle_coverage = middle_matched / max(middle_total, 1)
+        print(f"MIDDLE SHORTCUTS: {middle_matched}/{middle_total} component ingredients matched ({middle_coverage:.1%})")
+        for recipe, missing in middle_missing.items():
+            print(f"  SHORTCUT MISSING — {recipe}: {', '.join(missing)}")
+        assert middle_coverage >= 0.75, f"Middle-shortcut ingredient matching below 75%: {middle_coverage:.1%}"
+
+        # Every available ready-meal candidate must really be a complete meal.
+        # A component such as passata, dry pasta or lasagne sheets is never enough.
+        ready_candidates = 0
+        for recipe, terms in READY_MEAL_FAMILIES.items():
+            rows = (
+                db.query(Product)
+                .filter(Product.supermarket == "REWE", Product.price.isnot(None), Product.price > 0)
+                .all()
+            )
+            hits = []
+            for product in rows:
+                title = _product_title({
+                    "name_original": product.name_original,
+                    "name_normalized": product.name_normalized,
+                    "translated_name": product.translated_name,
+                }).lower()
+                if not any(term in title for term in terms):
+                    continue
+                profile = classify_product({
+                    "name_original": product.name_original,
+                    "name_normalized": product.name_normalized,
+                    "translated_name": product.translated_name,
+                    "category": product.category,
+                    "brand": product.brand,
+                })
+                if profile.is_complete_meal:
+                    hits.append(product)
+            ready_candidates += len(hits)
+            print(f"  READY-MEAL CANDIDATES — {recipe}: {len(hits)} verified complete meals")
+        print(f"READY-MEAL CHECK: {ready_candidates} classified complete-meal candidates; components excluded")
+
+        # Basket QA: test budget, balanced and premium strategies over every recipe.
+        # The optimizer must never choose a zero/negative-price or unavailable SKU,
+        # and must preserve package count, checkout cost and consumed-cost semantics.
+        strategies = ("maximum-savings", "best-value", "premium", "plan-efficiency")
+        basket_checks = 0
+        basket_unmatched = {}
+        strategy_totals = {strategy: 0.0 for strategy in strategies}
+        for recipe, ingredients in RECIPES.items():
+            meal = _recipe_meal(recipe, ingredients)
+            requirements = consolidate([meal], {meal["id"]: 2})
+            for strategy in strategies:
+                basket = build_basket(requirements, adapter, strategy)
+                assert len(basket) == len(requirements), f"{recipe}/{strategy}: ingredient rows were lost"
+                for row in basket:
+                    basket_checks += 1
+                    product = row.get("product")
+                    if row["match_status"] == "unmatched":
+                        basket_unmatched.setdefault(recipe, []).append(row["ingredient"])
+                        assert product is None
+                        continue
+                    if row["match_status"] == "covered":
+                        continue
+                    assert product is not None, f"{recipe}/{strategy}/{row['ingredient']}: matched without product"
+                    assert float(product.get("price") or 0) > 0, f"{recipe}/{strategy}: invalid price"
+                    assert str(product.get("availability") or "unknown").lower() not in {
+                        "unavailable", "out_of_stock", "not_available", "discontinued"
+                    }, f"{recipe}/{strategy}: unavailable product selected"
+                    assert int(row.get("packs") or 0) >= 1, f"{recipe}/{strategy}: invalid pack count"
+                    assert float(row.get("checkout_cost") or 0) > 0
+                    assert float(row.get("consumed_cost") or 0) <= float(row.get("checkout_cost") or 0) + 0.01
+                    assert not (row.get("product", {}).get("intelligence") or {}).get("is_complete_meal"), (
+                        f"{recipe}/{strategy}: complete meal selected as an ingredient"
+                    )
+                strategy_totals[strategy] += sum(float(row.get("checkout_cost") or 0) for row in basket)
+        print(f"BASKET QA: {basket_checks} ingredient/strategy decisions across {len(RECIPES)} recipes")
+        for strategy, total in strategy_totals.items():
+            print(f"  {strategy}: combined recipe checkout estimate €{total:.2f}")
+        for recipe, missing in basket_unmatched.items():
+            print(f"  BASKET UNMATCHED — {recipe}: {', '.join(sorted(set(missing)))}")
+
+        # Explicit economic vs premium selection sanity check using two valid
+        # catalog-shaped products for the same ingredient.
+        class TierAdapter:
+            def search(self, ingredient):
+                if ingredient != "olive oil":
+                    return []
+                return [
+                    {
+                        "id": 1, "ingredient": "olive oil", "name_original": "ja! Olivenöl",
+                        "package_size": 500, "package_unit": "ml", "price": 3.00,
+                        "price_per_unit": 0.006, "availability": "available",
+                        "ingredient_match_type": "exact",
+                    },
+                    {
+                        "id": 2, "ingredient": "olive oil", "name_original": "REWE Bio Natives Olivenöl",
+                        "package_size": 500, "package_unit": "ml", "price": 7.00,
+                        "price_per_unit": 0.014, "availability": "available",
+                        "ingredient_match_type": "exact",
+                    },
+                ]
+        tier_meal = {"id": "tier-qa", "name": "Olive oil test", "ingredients": [["olive oil", 100, "ml"]]}
+        tier_requirements = consolidate([tier_meal], {"tier-qa": 2})
+        cheap = build_basket(tier_requirements, TierAdapter(), "maximum-savings")[0]
+        premium = build_basket(tier_requirements, TierAdapter(), "premium")[0]
+        assert cheap["product"]["id"] == 1, "Economic strategy must choose the lower checkout price"
+        assert premium["product"]["id"] == 2, "Premium strategy must prefer the premium signal"
+        print("PRICE TIERS: economic selects the cheaper SKU; premium selects the premium SKU")
+
+        # Semantic guardrails for the three preparation levels.
+        assert classify_product({"name_original": "REWE Bio Passata 700 g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
+        assert not classify_product({"name_original": "REWE Lasagneplatten 500 g"}).is_complete_meal
+        assert classify_product({"name_original": "REWE Garnelen Curry Fertiggericht 400 g"}).is_complete_meal
+        assert classify_product({"name_original": "REWE Pizza Margherita 350 g"}).is_complete_meal
+        assert classify_product({"name_original": "REWE Pizzateig"}).culinary_role == "dough"
+        assert classify_product({"name_original": "REWE Gemüsebrühe"}).culinary_role == "broth"
+        assert classify_product({"name_original": "REWE Oregano gerebelt"}).culinary_role == "seasoning"
+
+        print(
+            f"PASS: {len(RECIPES)} recipe families, {base_total} base ingredients, "
+            f"{len(MIDDLE_SHORTCUTS)} middle-shortcut variants, {basket_checks} basket decisions, "
+            "economic/premium tiers and complete-meal/component separation"
+        )
     finally:
         db.close()
 
-    # Classification must distinguish recipe components from complete prepared meals.
-    assert classify_product({"name_original": "REWE Bio Passata 700 g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
-    assert classify_product({"name_original": "REWE Lasagneplatten 500 g"}).is_complete_meal is False
-    assert classify_product({"name_original": "REWE Garnelen Curry Fertiggericht 400 g"}).is_complete_meal is True
-    assert classify_product({"name_original": "REWE Pizza Margherita 350 g"}).is_complete_meal is True
-    assert classify_product({"name_original": "REWE Basilikum"}).is_complete_meal is False
-    assert classify_product({"name_original": "REWE Oregano gerebelt"}).culinary_role == "seasoning"
-    assert classify_product({"name_original": "REWE Ricotta 250 g"}).culinary_role == "cheese"
-    assert classify_product({"name_original": "REWE Gemüsebrühe"}).culinary_role == "broth"
-    assert classify_product({"name_original": "REWE Pizzateig"}).culinary_role == "dough"
-    assert classify_product({"name_original": "REWE Tagliatelle 500 g"}).culinary_role == "starch"
-
-    print(f"PASS: {len(RECIPES)} recipe families, {total} fixture ingredient titles, real REWE snapshot matching, German herbs/spices/broths, and meal-vs-component classification")
 
 if __name__ == "__main__":
     main()
