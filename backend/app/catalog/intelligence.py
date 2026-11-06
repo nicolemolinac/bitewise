@@ -61,10 +61,15 @@ def classify_product(product: dict) -> ProductProfile:
         "pizza ", "curry mit reis", "reisgericht", "nudelgericht", "pasta bolognese", "mahlzeit",
     )
     dry_lasagne_sheets = any(term in name for term in ("lasagneplatten", "lasagne platten", "lasagne blätter", "lasagneblaetter"))
-    meal_hit = None if dry_lasagne_sheets else next((term for term in meal_markers if term in name), None)
+    # "Bowl" alone is not proof of a complete meal: REWE also lists toppings,
+    # crunchy garnishes and sauces with "bowl" in their title.
+    bowl_topping = "bowl topping" in name or "topping bowl" in name
+    meal_hit = None if dry_lasagne_sheets or bowl_topping else next(
+        (term for term in meal_markers if term in name), None
+    )
     # The REWE aisle also contains canned ingredients and sauces; category alone
     # is not enough evidence that a product is a complete meal.
-    category_meal = "fertiggerichte" in category and any(
+    category_meal = "fertiggerichte" in category and not bowl_topping and any(
         term in name for term in ("gericht", "menü", "menu", "bolognese", "lasagne", "lasagna", "curry", "pizza", "bowl")
     )
     if meal_hit or category_meal:
