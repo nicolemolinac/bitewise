@@ -309,6 +309,16 @@ def _build_convenience_options(db, recipe: dict) -> dict:
             .all()
         )
 
+    required_title_groups = []
+    if any(term in ingredient_text for term in ("chicken", "hähnchen")):
+        required_title_groups.append(("hähnchen", "haehnchen", "chicken"))
+    if any(term in ingredient_text for term in ("ground beef", "beef", "rind")):
+        required_title_groups.append(("rind", "rinder", "beef", "hackfleisch", "bolognese"))
+    if any(term in ingredient_text for term in ("lentil", "lentils", "linse", "linsen")):
+        required_title_groups.append(("linse", "linsen", "lentil", "vegan", "vegetar"))
+    if any(term in ingredient_text for term in ("salmon", "shrimp", "fish", "tuna")):
+        required_title_groups.append(("lachs", "salmon", "garnelen", "shrimp", "fisch", "fish", "thunfisch", "tuna"))
+
     ready_products = []
     if ready_terms:
         for product in catalog_rows:
@@ -316,8 +326,13 @@ def _build_convenience_options(db, recipe: dict) -> dict:
                 continue
             profile = profile_of(product)
             title = title_of(product).lower()
-            if profile.is_complete_meal and any(term in title for term in ready_terms):
-                ready_products.append(serialize(product, profile))
+            if not profile.is_complete_meal or not any(term in title for term in ready_terms):
+                continue
+            if required_title_groups and not all(
+                any(term in title for term in group) for group in required_title_groups
+            ):
+                continue
+            ready_products.append(serialize(product, profile))
         ready_products.sort(key=lambda item: (float(item.get("price") or 1e12), item["name"].lower()))
 
     shortcut_products = []
