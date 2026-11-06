@@ -319,6 +319,31 @@ def main():
         for recipe, missing in basket_unmatched.items():
             print(f"  BASKET UNMATCHED — {recipe}: {', '.join(sorted(set(missing)))}")
 
+        # The product-alternatives route must use the recipe ingredient and the
+        # same full-catalog matcher, not Product.ingredient equality/category caps.
+        olive_products = [
+            product for product in adapter.search("olive oil")
+            if product.get("id") and float(product.get("price") or 0) > 0
+            and product.get("package_unit") == "ml"
+        ]
+        if olive_products:
+            current_product = olive_products[0]
+            alternative_result = production_server.main_module.alternatives(
+                current_product["id"], needed_qty=100, unit="ml", ingredient="olive oil"
+            )
+            alternatives = alternative_result["alternatives"]
+            assert all(item.get("ingredient_match_type") in {"exact", "substitute"} for item in alternatives)
+            assert all(float(item.get("price") or 0) > 0 for item in alternatives)
+            assert all(item.get("supermarket") == "REWE" for item in alternatives)
+            assert all(not (item.get("intelligence") or {}).get("is_complete_meal") for item in alternatives)
+            assert all(
+                alternatives[index]["price_per_package_unit"] <= alternatives[index+1]["price_per_package_unit"]
+                for index in range(len(alternatives)-1)
+            ), "Product alternatives must be ordered by comparable unit price"
+            print(f"PRODUCT ALTERNATIVES: {len(alternatives)} compatible priced olive-oil alternatives, sorted by unit price")
+        else:
+            print("PRODUCT ALTERNATIVES: no priced olive-oil product in this snapshot; route fixture skipped")
+
         # Explicit economic vs premium selection sanity check using two valid
         # catalog-shaped products for the same ingredient.
         class TierAdapter:
