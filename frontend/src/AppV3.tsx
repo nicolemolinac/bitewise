@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { parseApiResponse } from './apiResponse.js';
 import { isCanonicalReweProductUrl } from './reweUrl.js';
 import {
@@ -477,22 +477,55 @@ function RecipeSteps({meal,appliances}:{meal:Meal;appliances:string[]}){
   const steps=meal.steps?.length?meal.steps:fallbackSteps(meal,appliances);
   const storageKey=`cooking:${meal.id}`;
   const [session,setSession]=useState<CookingSessionState>(()=>read(storageKey,{completed:[],timers:{}}));
+  const [alertsEnabled,setAlertsEnabled]=useState(()=>read('cookingAlerts',false));
+  const audioContextRef=useRef<AudioContext|null>(null);
   useEffect(()=>{save(storageKey,session);},[storageKey,session]);
+  const enableAlerts=async()=>{
+    if(typeof Notification!=='undefined'&&Notification.permission==='default'){
+      try{await Notification.requestPermission();}catch{}
+    }
+    try{
+      const AudioContextClass=window.AudioContext;
+      if(AudioContextClass){const context=audioContextRef.current??new AudioContextClass();await context.resume();audioContextRef.current=context;}
+    }catch{}
+    setAlertsEnabled(true);save('cookingAlerts',true);
+  };
+  const alertTimerFinished=(stepIndex:number,stepText:string)=>{
+    if(!alertsEnabled)return;
+    if(typeof Notification!=='undefined'&&Notification.permission==='granted'){
+      try{new Notification('Bitewise timer finished',{body:`Step ${stepIndex}: ${stepText}`});}catch{}
+    }
+    const context=audioContextRef.current;
+    if(context&&context.state==='running'){
+      [0,1,2].forEach((_,i)=>{
+        const oscillator=context.createOscillator();const gain=context.createGain();
+        oscillator.type='sine';oscillator.frequency.value=i===1?880:660;
+        gain.gain.setValueAtTime(0.0001,context.currentTime+i*0.28);
+        gain.gain.exponentialRampToValueAtTime(0.16,context.currentTime+i*0.28+0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001,context.currentTime+i*0.28+0.2);
+        oscillator.connect(gain);gain.connect(context.destination);
+        oscillator.start(context.currentTime+i*0.28);oscillator.stop(context.currentTime+i*0.28+0.22);
+      });
+    }
+    try{navigator.vibrate?.([180,90,180]);}catch{}
+  };
   const done=session.completed.length;
   const toggleStep=(index:number)=>setSession(current=>({...current,completed:current.completed.includes(index)?current.completed.filter(x=>x!==index):[...current.completed,index]}));
   const saveTimer=(index:number,timer:CookingTimerState)=>setSession(current=>({...current,timers:{...current.timers,[index]:timer}}));
   return <section className="mt-6 rounded-[24px] bg-[#f3f1eb] p-4 sm:p-5">
-    <div className="flex items-center justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-[.16em] text-[#18392b]/40">Cooking mode</div><h3 className="mt-1 text-xl font-black">Let's cook</h3></div><div className="rounded-full bg-white px-3 py-1.5 text-xs font-black tabular-nums">{done}/{steps.length} done</div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-[.16em] text-[#18392b]/40">Cooking mode</div><h3 className="mt-1 text-xl font-black">Let's cook</h3></div><div className="flex items-center gap-2"><div className="rounded-full bg-white px-3 py-1.5 text-xs font-black tabular-nums">{done}/{steps.length} done</div><button type="button" onClick={enableAlerts} className={`rounded-full px-3 py-1.5 text-[11px] font-black ${alertsEnabled?'bg-[#dff2df] text-[#18392b]':'bg-white text-[#18392b]/65'}`}>{alertsEnabled?'Alerts enabled':'Enable alerts'}</button></div></div>
     <div className="mt-3 h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-[#18392b] transition-all" style={{width:`${steps.length?done/steps.length*100:0}%`}}/></div>
-    <div className="mt-4 space-y-3">{steps.map((step,i)=><CookingStep key={i} index={i+1} step={step} completed={session.completed.includes(i)} onToggle={()=>toggleStep(i)} savedTimer={session.timers[i]} onTimerChange={timer=>saveTimer(i,timer)}/>)}</div>
+    <div className="mt-4 space-y-3">{steps.map((step,i)=><CookingStep key={i} index={i+1} step={step} completed={session.completed.includes(i)} onToggle={()=>toggleStep(i)} savedTimer={session.timers[i]} onTimerChange={timer=>saveTimer(i,timer)} onTimerFinished={()=>alertTimerFinished(i+1,step.text)}/>)}</div>
     {done===steps.length&&<div className="mt-4 rounded-xl bg-[#dff2df] p-3 text-sm font-black text-[#18392b]">All steps completed. Enjoy your meal!</div>}
+    <p className="mt-3 text-[10px] leading-relaxed text-[#18392b]/40">Alerts work when the browser allows them. Mobile browsers may pause timers and notifications while Bitewise is fully suspended.</p>
   </section>;
 }
-function CookingStep({index,step,completed,onToggle,savedTimer,onTimerChange}:{index:number;step:{text:string;minutes?:number|null};completed:boolean;onToggle:()=>void;savedTimer?:CookingTimerState;onTimerChange:(timer:CookingTimerState)=>void}){
+function CookingStep({index,step,completed,onToggle,savedTimer,onTimerChange,onTimerFinished}:{index:number;step:{text:string;minutes?:number|null};completed:boolean;onToggle:()=>void;savedTimer?:CookingTimerState;onTimerChange:(timer:CookingTimerState)=>void;onTimerFinished:()=>void}){
+  const alertedEndAt=useRef<number|null>(null);
   const [minutes,setMinutes]=useState(savedTimer?.minutes??String(step.minutes??''));
   const [remaining,setRemaining]=useState(()=>savedTimer?.endsAt?Math.max(0,Math.ceil((savedTimer.endsAt-Date.now())/1000)):savedTimer?.remaining??Math.max(0,Number(step.minutes)||0)*60);
   const [endsAt,setEndsAt]=useState<number|null>(savedTimer?.endsAt??null);
-  useEffect(()=>{if(endsAt===null)return;const tick=()=>{const next=Math.max(0,Math.ceil((endsAt-Date.now())/1000));setRemaining(next);if(next===0){setEndsAt(null);onTimerChange({minutes,remaining:0,endsAt:null});}};tick();const timer=window.setInterval(tick,250);return()=>window.clearInterval(timer);},[endsAt]);
+  useEffect(()=>{if(endsAt===null)return;const tick=()=>{const next=Math.max(0,Math.ceil((endsAt-Date.now())/1000));setRemaining(next);if(next===0){if(alertedEndAt.current!==endsAt){alertedEndAt.current=endsAt;onTimerFinished();}setEndsAt(null);onTimerChange({minutes,remaining:0,endsAt:null});}};tick();const timer=window.setInterval(tick,250);return()=>window.clearInterval(timer);},[endsAt]);
   const running=endsAt!==null;
   const validMinutes=Number(minutes)>0&&Number.isFinite(Number(minutes))&&Number(minutes)<=240;
   const display=`${Math.floor(remaining/60).toString().padStart(2,'0')}:${(remaining%60).toString().padStart(2,'0')}`;
