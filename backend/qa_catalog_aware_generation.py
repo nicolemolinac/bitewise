@@ -56,6 +56,19 @@ def seed_catalog():
                 name_original="Vegetable Stock", name_normalized="vegetable stock",
                 package_size=1, package_unit="unit", price=1.29, availability="available",
             ),
+            Product(
+                supermarket="REWE", external_id="qa-passata-1", ingredient="passata",
+                name_original="REWE Bio Passata 700 g", name_normalized="rewe bio passata",
+                category="fertiggerichte-konserven", package_size=700, package_unit="g",
+                price=1.59, availability="available",
+            ),
+            Product(
+                supermarket="REWE", external_id="qa-ready-meal-1", ingredient="shrimp",
+                name_original="REWE Garnelen Curry Fertiggericht 400 g",
+                name_normalized="rewe garnelen curry fertiggericht",
+                category="fertiggerichte-konserven", package_size=400, package_unit="g",
+                price=3.99, availability="available",
+            ),
         ])
         db.commit()
     finally:
@@ -81,7 +94,16 @@ def main():
     assert "Norwegisches" not in context and "6.99" not in context, (
         "Gemini receives compact ingredient labels, not SKU titles or product prices"
     )
-    assert len(context.split(", ")) == 2, "Duplicate product rows must collapse to one ingredient"
+    assert "passata" in context
+    assert "shrimp" not in context, "A complete ready meal must not be exposed as a recipe ingredient"
+    assert len(context.split(", ")) == 3, "Duplicate product rows must collapse to canonical ingredients"
+
+    ingredient_context, convenience_context = _catalog_context(
+        "salmon rice bowl", limit=10, include_intelligence=True
+    )
+    assert ingredient_context == context
+    assert "prepared components: passata" in convenience_context
+    assert "complete ready meals: shrimp" in convenience_context
 
     service = object.__new__(GeminiService)
     service.key = "qa-key"
