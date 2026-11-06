@@ -46,7 +46,7 @@ def classify_product(product: dict) -> ProductProfile:
     complete = False
     confidence = 0.58
 
-    frozen = any(x in category or x in name for x in ("tiefkühl", "frozen", "tk-"))
+    frozen = any(x in category or x in name for x in ("tiefkühl", "tiefkuehl", "frozen", "tk-"))
     chilled = any(x in category for x in ("molkerei", "fleisch", "wurst", "käse")) or any(
         x in name for x in ("gekühlt", "frisch", "refrigerated"))
     storage = "frozen" if frozen else ("chilled" if chilled else "ambient")
