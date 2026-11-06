@@ -311,7 +311,9 @@ async def expand_ai_recipe(request: Request):
                 overrides=overrides,
                 pantry=main_module.pantry_snapshot(db),
             )
-            matched_rows = [row for row in basket if row.get("match_status") == "matched"]
+            matched_rows = [row for row in basket if row.get("match_status") in {"matched", "substituted"}]
+            exact_rows = [row for row in basket if row.get("match_status") == "matched"]
+            substituted_rows = [row for row in basket if row.get("match_status") == "substituted"]
             checkout_total = round(sum(float(row.get("checkout_cost") or 0) for row in matched_rows), 2)
             consumed_total = round(sum(float(row.get("consumed_cost") or 0) for row in matched_rows), 2)
             unmatched = [
@@ -322,7 +324,8 @@ async def expand_ai_recipe(request: Request):
             recipe["product_matches"] = basket
             recipe["costing"] = {
                 "strategy": "best-value",
-                "matched_ingredients": len(matched_rows),
+                "matched_ingredients": len(exact_rows),
+                "substituted_ingredients": len(substituted_rows),
                 "unmatched_ingredients": len(unmatched),
                 "total_ingredients": len(basket),
                 "catalog_ready": db.query(main_module.Product).filter(main_module.Product.supermarket == "REWE").count() > 0,
