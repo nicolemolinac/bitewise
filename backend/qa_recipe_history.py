@@ -135,7 +135,7 @@ def main():
         # Pin the test ingredient to its fixture product so a larger imported catalog
         # cannot make this assertion depend on whichever rice is cheapest today.
         conn.execute(
-            "INSERT INTO product_overrides (ingredient, product_id) VALUES (?, ?)",
+            "INSERT INTO product_overrides (ingredient, product_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
             ("rice", cursor.lastrowid),
         )
         conn.commit()
