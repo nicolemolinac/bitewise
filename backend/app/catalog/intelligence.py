@@ -101,7 +101,7 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep, convenience = "prepared_component", "protein", "ready_to_eat", 4
             confidence = 0.88
             evidence.append("cooked-protein-component")
-        elif any(x in name for x in ("nudeln", "pasta", "spaghetti", "penne", "fusilli", "trofie")):
+        elif any(x in name for x in ("nudeln", "pasta", "spaghetti", "penne", "fusilli", "trofie", "tagliatelle", "linguine", "tortellini", "ravioli")):
             product_type, role, prep, convenience = "ingredient", "starch", "dry", 1
             confidence = 0.91
             evidence.append("dry-pasta-ingredient")
@@ -113,6 +113,23 @@ def classify_product(product: dict) -> ProductProfile:
             confidence = 0.84
             evidence.append("rice-staple")
             families.append("rice_bowl")
+        elif any(x in name for x in ("pizzateig", "pizza dough")):
+            product_type, role, prep, convenience = "ingredient", "dough", "ready_to_bake", 2
+            confidence = 0.88
+            evidence.append("pizza-dough")
+            families.append("pizza")
+        elif any(x in name for x in ("gemüsebrühe", "gemuesebruehe", "hühnerbrühe", "huehnerbruehe", "bouillon", "stock cube", "brühwürfel")):
+            product_type, role, prep, convenience = "prepared_component", "broth", "ready_to_use", 3
+            confidence = 0.86
+            evidence.append("cooking-broth")
+        elif any(x in name for x in ("chiliflocken", "chili flocken", "chilipulver", "oregano", "thymian", "basilikum", "rosmarin", "petersilie", "muskat", "pfeffer", "salz", "kräuter", "kraeuter", "paprikapulver")):
+            product_type, role, prep, convenience = "ingredient", "seasoning", "ready_to_use", 1
+            confidence = 0.86
+            evidence.append("herb-or-seasoning")
+        elif any(x in name for x in ("ricotta", "mozzarella", "parmesan", "parmigiano", "grana padano", "feta")):
+            product_type, role, prep, convenience = "ingredient", "cheese", "ready_to_use", 1
+            confidence = 0.88
+            evidence.append("cheese-ingredient")
         elif any(x in name for x in ("gemüse", "brokkoli", "spinat", "paprika", "tomaten", "zucchini")):
             product_type, role = "ingredient", "vegetable"
             prep = "frozen" if frozen else "raw"
