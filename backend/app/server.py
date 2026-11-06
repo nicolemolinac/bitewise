@@ -50,7 +50,7 @@ def _multilingual_catalog_search(self, ingredient):
 
     rows = self.db.query(Product).filter(
         Product.supermarket == "REWE"
-    ).filter(or_(*clauses)).limit(240).all()
+    ).filter(or_(*clauses)).all()
     if rows:
         # Search columns improve recall, but the actual product title must independently
         # confirm compatibility. Catalog ingredient labels can be broad or misclassified.
