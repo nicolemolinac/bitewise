@@ -238,6 +238,12 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         if chosen["selected_by_user"]:
             badge = "✓ Your choice"
         selected_match_type = chosen["product"].get("ingredient_match_type") or "exact"
+        availability_status = str(chosen["product"].get("availability") or "unknown").lower()
+        availability_note = (
+            "Stock not verified — this is a recent catalog listing, not live inventory."
+            if availability_status not in {"available", "in_stock"}
+            else "Catalog currently marks this product as available."
+        )
         base.update({
             "product": chosen["product"],
             "packs": chosen["packs"],
@@ -253,8 +259,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "match_reason": (
                 "Used a curated culinary substitute because an exact catalog match was not selected."
                 if selected_match_type == "substitute"
-                else "Matched against a priced, available catalog product using compatible units."
+                else "Matched against a priced catalog product using compatible units."
             ),
+            "availability_status": availability_status,
+            "availability_note": availability_note,
             "why": f"Used in {len(requirement.get('source_meals', []))} meal(s); {round(chosen['waste_ratio'] * 100)}% estimated package leftover.",
             "badge": badge,
             "selected_by_user": chosen["selected_by_user"],
