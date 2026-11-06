@@ -18,6 +18,7 @@ from .recommendations.engine import score_meal
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
+from .ingredient_aliases import ingredient_product_match_type
 from .shopping.optimizer import STRATEGIES, build_basket, consolidate
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
@@ -259,10 +260,20 @@ def replace_product(payload:ProductOverrideIn):
  try:
   product=db.get(Product,payload.product_id)
   if not product:raise HTTPException(404,'Product not found')
+  if str(product.supermarket or '').strip().lower()!='rewe':
+   raise HTTPException(422,'Only REWE catalog products can be selected for a REWE ingredient')
+  if product.price is None or product.price<=0:
+   raise HTTPException(422,'Selected product has no valid price and cannot be used in the shopping basket')
+  if str(product.availability or '').strip().lower() in {'unavailable','out_of_stock','not_available','discontinued'}:
+   raise HTTPException(422,'Selected product is marked unavailable')
+  product_title=' '.join(str(value or '') for value in (product.name_original,product.name_normalized,product.translated_name))
+  match_type=ingredient_product_match_type(ingredient,product_title)
+  if not match_type:
+   raise HTTPException(422,'Selected product is not a compatible exact match or curated culinary substitute')
   row=db.query(ProductOverride).filter_by(ingredient=ingredient).first()
   if row:row.product_id=product.id
   else:db.add(ProductOverride(ingredient=ingredient,product_id=product.id))
-  db.commit();return {'ok':True,'product':product_dict(product),'ingredient':ingredient}
+  db.commit();return {'ok':True,'product':product_dict(product),'ingredient':ingredient,'match_type':match_type}
  finally:db.close()
 @app.delete('/api/products/replace/{ingredient}')
 def restore_product(ingredient:str):
