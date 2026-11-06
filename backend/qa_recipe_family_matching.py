@@ -138,12 +138,29 @@ READY_MEAL_FAMILIES = {
 }
 
 
+def _qa_quantity(ingredient):
+    """Use realistic compatible recipe units so basket QA tests package matching, not bad fixtures."""
+    name = ingredient.lower()
+    if name in {"eggs", "tortilla", "garlic", "lemon", "lime", "banana", "lettuce"}:
+        return (2 if name in {"eggs", "tortilla", "garlic"} else 1, "unit")
+    if name in {"olive oil", "soy sauce", "milk", "cream", "coconut milk"}:
+        return (20 if name in {"olive oil", "soy sauce"} else 100, "ml")
+    if name in {"salt", "black pepper", "oregano", "thyme", "nutmeg", "paprika powder", "chili flakes", "cinnamon", "baking powder"}:
+        return (2, "g")
+    if name == "honey":
+        return (20, "g")
+    return (100, "g")
+
+
 def _recipe_meal(name, ingredients):
     return {
         "id": "qa-" + str(abs(hash(name))),
         "name": name,
         "base_servings": 2,
-        "ingredients": [[ingredient, 100, "g"] for ingredient in ingredients],
+        "ingredients": [
+            [ingredient, *_qa_quantity(ingredient)]
+            for ingredient in ingredients
+        ],
     }
 
 
@@ -311,13 +328,13 @@ def main():
                 return [
                     {
                         "id": 1, "ingredient": "olive oil", "name_original": "ja! Olivenöl",
-                        "package_size": 500, "package_unit": "ml", "price": 3.00,
+                        "package_size": 100, "package_unit": "ml", "price": 3.00,
                         "price_per_unit": 0.006, "availability": "available",
                         "ingredient_match_type": "exact",
                     },
                     {
                         "id": 2, "ingredient": "olive oil", "name_original": "REWE Bio Natives Olivenöl",
-                        "package_size": 500, "package_unit": "ml", "price": 7.00,
+                        "package_size": 100, "package_unit": "ml", "price": 7.00,
                         "price_per_unit": 0.014, "availability": "available",
                         "ingredient_match_type": "exact",
                     },
