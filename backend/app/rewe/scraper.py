@@ -137,6 +137,53 @@ def _cart_add_status(confirmation_seen: bool, packs_requested: int) -> str:
     return "added" if int(packs_requested) == 1 else "quantity_unconfirmed"
 
 
+def _image_url_from_card(box, anchor, base_url: str):
+    """Read the real product image from REWE cards, including lazy-loaded variants."""
+    nodes = []
+    for scope in (box, anchor):
+        if scope is not None:
+            nodes.extend(scope.select("img"))
+            nodes.extend(scope.select("picture source"))
+    seen = set()
+    for node in nodes:
+        if id(node) in seen:
+            continue
+        seen.add(id(node))
+        candidates = [
+            node.get("src"),
+            node.get("data-src"),
+            node.get("data-lazy-src"),
+            node.get("data-original"),
+            node.get("data-image"),
+            node.get("data-zoom-image"),
+            node.get("data-srcset"),
+            node.get("srcset"),
+        ]
+        for candidate in candidates:
+            if not candidate:
+                continue
+            # Pick the largest declared srcset candidate when available.
+            candidate = str(candidate).strip()
+            if "," in candidate:
+                choices = []
+                for item in candidate.split(","):
+                    bits = item.strip().split()
+                    if bits:
+                        descriptor = bits[1] if len(bits) > 1 else "1x"
+                        match = re.match(r"(\\d+(?:\\.\\d+)?)(w|x)", descriptor)
+                        score = float(match.group(1)) if match else 1.0
+                        choices.append((score, bits[0]))
+                if choices:
+                    candidate = max(choices)[1]
+            if candidate.startswith("//"):
+                candidate = "https:" + candidate
+            absolute = urljoin(base_url, candidate)
+            parsed = urlsplit(absolute)
+            if parsed.scheme in {"http", "https"} and parsed.netloc:
+                return absolute
+    return None
+
+
 def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
     rows = []
     for script in soup.select('script[type="application/ld+json"]'):
@@ -486,15 +533,7 @@ class ReweCatalogScraper:
                 pdp_by_name[name_key] = href
             size, unit = package(raw)
             cost, unit_cost = price_details(raw, size, unit)
-            image_node = box.select_one("img")
-            image_src = None
-            if image_node:
-                image_src = (image_node.get("src") or image_node.get("data-src") or image_node.get("data-lazy-src") or "")
-                if not image_src and image_node.get("srcset"):
-                    image_src = image_node.get("srcset").split(",")[0].strip().split(" ")[0]
-            image_url = urljoin(url, image_src) if image_src else None
-            if image_url and urlsplit(image_url).scheme not in {"http", "https"}:
-                image_url = None
+            image_url = _image_url_from_card(box, anchor, url)
             external_id = href.rstrip("/").rsplit("/", 1)[-1].split("?")[0] or hashlib.sha256((product_name + href).encode()).hexdigest()[:20]
             anchor_products.append({
                 "external_id": external_id,
@@ -530,14 +569,12 @@ class ReweCatalogScraper:
             if current is None:
                 unique[product["external_id"]] = product
                 continue
-            candidate_is_better = (
-                (not current.get("product_url") and product.get("product_url"))
-                or (not current.get("image_url") and product.get("image_url"))
-                or (current.get("price") is None and product.get("price") is not None)
-            )
-            if candidate_is_better:
-                merged = {**current, **{k: v for k, v in product.items() if v is not None}}
-                unique[product["external_id"]] = merged
+            # Merge complementary data instead of discarding a later image-bearing card.
+            merged = dict(current)
+            for key, value in product.items():
+                if value is not None and (merged.get(key) is None or merged.get(key) == ""):
+                    merged[key] = value
+            unique[product["external_id"]] = merged
         return list(unique.values())
 
     def _location_scopes(self, page):
@@ -856,11 +893,12 @@ class ReweCatalogScraper:
                             report["pages_processed"] += 1
                             for product in self.extract(html, page_url, category):
                                 current = by_id.get(product["external_id"])
-                                if current is None or (
-                                    (not current.get("product_url") and product.get("product_url"))
-                                    or (current.get("price") is None and product.get("price") is not None)
-                                ):
+                                if current is None:
                                     by_id[product["external_id"]] = product
+                                else:
+                                    for key, value in product.items():
+                                        if value is not None and (current.get(key) is None or current.get(key) == ""):
+                                            current[key] = value
 
                         products = list(by_id.values())
                         if not products:
@@ -907,8 +945,12 @@ class ReweCatalogScraper:
                     report["pages_processed"] += 1
                     for product in self.extract(html, url, category):
                         current = by_id.get(product["external_id"])
-                        if current is None or (not current.get("product_url") and product.get("product_url")):
+                        if current is None:
                             by_id[product["external_id"]] = product
+                        else:
+                            for key, value in product.items():
+                                if value is not None and (current.get(key) is None or current.get(key) == ""):
+                                    current[key] = value
                 products = list(by_id.values())
                 if not products:
                     raise RuntimeError("No products found")
