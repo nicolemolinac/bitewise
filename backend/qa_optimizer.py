@@ -7,7 +7,7 @@ class FakeAdapter:
         self.products = products
 
     def search(self, ingredient):
-        return self.products.get(ingredient, [])
+        return self.products.get(ingredient, [])[:1]  # Simulate the adapter's capped search result.
 
     def get_by_id(self, product_id):
         for rows in self.products.values():
