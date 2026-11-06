@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 # Deterministic, token-free English <-> German ingredient aliases for REWE matching.
 # Keep canonical recipe ingredients in English; expand only at catalog-search time.
@@ -12,7 +13,7 @@ _ALIAS_GROUPS = [
     ("greek yogurt", "greek yoghurt", "griechischer joghurt", "griechischer yoghurt"),
     ("quark", "quark", "speisequark"),
     ("mozzarella", "mozzarella"),
-    ("parmesan", "parmesan", "parmigiano", "parmigiano reggiano", "grana padano"),
+    ("parmesan", "parmesan", "parmigiano", "parmigiano reggiano"),
     ("feta", "feta", "hirtenkäse", "hirtenkaese"),
     ("chicken", "hähnchen", "haehnchen", "huhn", "hühner", "huehner"),
     ("chicken breast", "hähnchenbrust", "haehnchenbrust"),
@@ -147,6 +148,24 @@ _SUBSTITUTION_GROUPS = {
     "trofie pasta": ("fusilli", "penne", "farfalle", "rigatoni", "casarecce", "orecchiette", "short pasta"),
     "parmesan": ("grana padano",),
     "pine nuts": ("sunflower seeds", "pumpkin seeds"),
+    "parmesan": ("grana padano",),
+    "heavy cream": ("schlagsahne", "sahne", "kochcreme"),
+    "sour cream": ("schmand", "saure sahne", "crème fraîche"),
+    "buttermilk": ("buttermilch",),
+    "ricotta": ("frischkäse", "hüttenkäse"),
+    "shallot": ("rote zwiebel", "zwiebel"),
+    "red wine vinegar": ("balsamico", "rotweinessig"),
+    "white wine vinegar": ("weißweinessig", "weissweinessig"),
+    "panko": ("semmelbrösel", "paniermehl"),
+    "cilantro": ("koriander", "petersilie"),
+    "coriander leaves": ("koriander",),
+    "arugula": ("rucola",),
+    "rocket": ("rucola",),
+    "crème fraîche": ("schmand", "saure sahne"),
+    "mascarpone": ("frischkäse",),
+    "brown rice": ("naturreis", "vollkornreis"),
+    "vegetable stock": ("gemüsebrühe", "gemuesebruehe"),
+    "chicken stock": ("hühnerbrühe", "huehnerbruehe"),
 }
 
 
