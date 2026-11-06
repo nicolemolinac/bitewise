@@ -119,7 +119,7 @@ def classify_product(product: dict) -> ProductProfile:
             convenience = 2 if frozen else 1
             confidence = 0.72
             evidence.append("vegetable-ingredient")
-        elif any(x in name for x in ("hähnchen", "huhn", "chicken", "lachs", "fisch", "tofu", "hackfleisch")):
+        elif any(x in name for x in ("hähnchen", "huhn", "chicken", "lachs", "fisch", "tofu", "hackfleisch", "shrimp", "prawn", "garnele", "garnelen")):
             product_type, role, prep = "ingredient", "protein", "raw"
             confidence = 0.76
             evidence.append("protein-ingredient")
