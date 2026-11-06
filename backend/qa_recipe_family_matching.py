@@ -553,6 +553,90 @@ def main():
         )
         print("PRICE TIERS: economic selects the cheaper SKU; premium selects the premium SKU")
 
+        # Quantity, pantry and override regressions: test the actual basket
+        # optimizer with known package sizes, not only that it returns a row.
+        class QuantityAdapter:
+            def search(self, ingredient):
+                rows = {
+                    "rice": [{
+                        "id": 10, "name_original": "Rice 500 g", "package_size": 500,
+                        "package_unit": "g", "price": 1.50, "price_per_unit": 0.003,
+                        "availability": "available", "ingredient_match_type": "exact",
+                    }],
+                    "milk": [{
+                        "id": 11, "name_original": "Milk 500 ml", "package_size": 500,
+                        "package_unit": "ml", "price": 0.90, "price_per_unit": 0.0018,
+                        "availability": "available", "ingredient_match_type": "exact",
+                    }],
+                    "parmesan": [
+                        {
+                            "id": 12, "name_original": "Grana Padano 200 g",
+                            "package_size": 200, "package_unit": "g", "price": 1.80,
+                            "price_per_unit": 0.009, "availability": "available",
+                            "ingredient_match_type": "substitute",
+                        },
+                        {
+                            "id": 13, "name_original": "Parmigiano Reggiano 200 g",
+                            "package_size": 200, "package_unit": "g", "price": 3.50,
+                            "price_per_unit": 0.0175, "availability": "available",
+                            "ingredient_match_type": "exact",
+                        },
+                    ],
+                    "pine nuts": [{
+                        "id": 14, "name_original": "REWE Kürbiskerne 200 g",
+                        "package_size": 200, "package_unit": "g", "price": 1.20,
+                        "price_per_unit": 0.006, "availability": "available",
+                        "ingredient_match_type": "substitute",
+                    }],
+                }
+                return rows.get(ingredient, [])
+
+            def get_by_id(self, product_id):
+                for ingredient in ("rice", "milk", "parmesan", "pine nuts"):
+                    for product in self.search(ingredient):
+                        if product["id"] == product_id:
+                            return product
+                return None
+
+        qa_adapter = QuantityAdapter()
+        quantity_cases = [
+            ({"ingredient": "rice", "quantity": 1, "unit": "kg", "source_meals": ["Rice bowl"]},
+             {"rice": {"quantity": 0.25, "unit": "kg"}}, 2, 1.5, 10),
+            ({"ingredient": "milk", "quantity": 1, "unit": "l", "source_meals": ["Pancakes"]},
+             {}, 2, 1.8, 11),
+        ]
+        for requirement, pantry_data, expected_packs, expected_cost, expected_id in quantity_cases:
+            row = build_basket([requirement], qa_adapter, "maximum-savings", pantry=pantry_data)[0]
+            assert row["match_status"] == "matched"
+            assert row["product"]["id"] == expected_id
+            assert row["packs"] == expected_packs, (
+                f"{requirement['ingredient']}: expected {expected_packs} packs, got {row['packs']}"
+            )
+            assert abs(row["checkout_cost"] - expected_cost) < 0.01
+        assert abs(build_basket([quantity_cases[0][0]], qa_adapter, "maximum-savings",
+                                pantry=quantity_cases[0][1])[0]["pantry_used"] - 250) < 0.01
+
+        # Exact culinary match must outrank a cheaper substitute; substitutions
+        # must remain explicitly labeled and a user override must be respected.
+        parmesan_requirement = {"ingredient": "parmesan", "quantity": 40, "unit": "g", "source_meals": ["Pasta"]}
+        exact_parmesan = build_basket([parmesan_requirement], qa_adapter, "maximum-savings")[0]
+        assert exact_parmesan["product"]["id"] == 13
+        assert exact_parmesan["match_status"] == "matched"
+        pine_requirement = {"ingredient": "pine nuts", "quantity": 30, "unit": "g", "source_meals": ["Pesto"]}
+        pine = build_basket([pine_requirement], qa_adapter, "maximum-savings")[0]
+        assert pine["product"]["id"] == 14 and pine["match_status"] == "substituted"
+        override = build_basket(
+            [{"ingredient": "olive oil", "quantity": 100, "unit": "ml", "source_meals": ["Test"]}],
+            TierAdapter(), "maximum-savings", overrides={"olive oil": 2},
+        )[0]
+        assert override["product"]["id"] == 2 and override["selected_by_user"]
+        incompatible = build_basket(
+            [{"ingredient": "rice", "quantity": 100, "unit": "ml", "source_meals": ["Invalid unit"]}],
+            qa_adapter, "maximum-savings",
+        )[0]
+        assert incompatible["match_status"] == "unmatched", "Mass/volume must never be guessed"
+        print("QUANTITY QA: kg↔g, l↔ml, pantry deduction, exact-vs-substitute, user override and incompatible units passed")
+
         # Semantic guardrails for the three preparation levels.
         assert classify_product({"name_original": "REWE Bio Passata 700 g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
         assert not classify_product({"name_original": "REWE Lasagneplatten 500 g"}).is_complete_meal
