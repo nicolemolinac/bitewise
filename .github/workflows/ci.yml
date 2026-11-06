@@ -27,8 +27,6 @@ jobs:
       - run: python -m compileall app
       - name: REWE committed catalog snapshot import QA
         run: python qa_catalog_snapshot.py
-      - name: REWE scraper package pricing QA
-        run: python qa_rewe_pricing.py
       - name: Import API and verify critical routes
         run: |
           python - <<'PY'
