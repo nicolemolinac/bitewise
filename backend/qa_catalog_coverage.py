@@ -47,6 +47,8 @@ def main():
         ingredients = Counter(str(row.ingredient or "unclassified") for row in products)
         names = Counter(str(row.name_normalized or row.name_original or "").strip().lower() for row in products)
         duplicate_name_rows = sum(count - 1 for count in names.values() if count > 1)
+        with_product_url = sum(bool(str(row.product_url or "").strip()) for row in products)
+        with_image_url = sum(bool(str(row.image_url or "").strip()) for row in products)
         invalid_packages = sum(
             row.package_size is None or float(row.package_size) <= 0 or not row.package_unit
             for row in products
@@ -84,6 +86,8 @@ def main():
         print(f"Missing/zero prices: {missing_price} ({missing_price / total:.1%})")
         print(f"Stale or never checked (>30 days): {stale} ({stale / total:.1%})")
         print(f"Duplicate normalized-name rows: {duplicate_name_rows}")
+        print(f"Products with REWE product URL: {with_product_url} ({with_product_url / total:.1%})")
+        print(f"Products with image URL: {with_image_url} ({with_image_url / total:.1%})")
         print(f"Invalid package sizes/units: {invalid_packages}")
         print(f"Availability distribution: {dict(availability)}")
         print(f"Sample coverage ({len(coverage)} common ingredients): {dict(counts)}")
