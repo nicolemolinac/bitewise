@@ -17,7 +17,7 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 from app.database import Product, SessionLocal
 # Import the production entrypoint first: it installs the strict multilingual
 # CatalogAdapter used by app.server:app and deliberately disables demo fallbacks.
-import app.server  # noqa: F401
+import app.server as production_server  # noqa: F401
 from app.main import CatalogAdapter
 from app.catalog.intelligence import classify_product
 from app.ingredient_aliases import ingredient_product_match_type
@@ -199,6 +199,37 @@ def main():
         for recipe, missing in middle_missing.items():
             print(f"  SHORTCUT MISSING — {recipe}: {', '.join(missing)}")
         assert middle_coverage >= 0.75, f"Middle-shortcut ingredient matching below 75%: {middle_coverage:.1%}"
+
+        # The exact three-level convenience payload consumed by AppV3 is also
+        # checked against the real catalog for every recipe. Homemade stays the
+        # original recipe; middle shortcuts must be components; ready-made must
+        # be a genuine complete meal, never a sauce or ingredient.
+        convenience_shortcuts = convenience_ready = 0
+        for recipe, ingredients in RECIPES.items():
+            options = production_server._build_convenience_options(
+                db,
+                {"name": recipe, "ingredients": [[name, 100, "g"] for name in ingredients]},
+            )
+            for product in options["shortcuts"]:
+                convenience_shortcuts += 1
+                assert not product["is_complete_meal"], (
+                    f"{recipe}: complete meal leaked into middle shortcuts: {product['name']}"
+                )
+                assert (
+                    product["product_type"] == "prepared_component"
+                    or product["storage_type"] == "frozen"
+                    or product["convenience_level"] >= 2
+                ), f"{recipe}: unsuitable shortcut candidate: {product['name']}"
+            for product in options["ready_made"]:
+                convenience_ready += 1
+                assert product["is_complete_meal"], (
+                    f"{recipe}: component leaked into ready-made alternatives: {product['name']}"
+                )
+        print(
+            f"CONVENIENCE LEVELS: {len(RECIPES)} homemade baselines; "
+            f"{convenience_shortcuts} verified middle-shortcut products; "
+            f"{convenience_ready} verified complete ready meals"
+        )
 
         # Every available ready-meal candidate must really be a complete meal.
         # A component such as passata, dry pasta or lasagne sheets is never enough.
