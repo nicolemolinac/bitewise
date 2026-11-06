@@ -108,6 +108,9 @@ def main():
             "meal_ids": ["ai-qa-taco-bowl"], "servings": {"ai-qa-taco-bowl": 2}, "owned": [], "mode": "best-value"
         })
         assert ai_basket["servings"] == 2 and ai_basket["total"] >= 0, "AI meal did not integrate into shopping"
+        assert ai_basket["checkout_total"] == ai_basket["total"]
+        assert ai_basket["checkout_cost_per_serving"] == ai_basket["cost_per_serving"]
+        assert ai_basket["consumed_cost_per_serving"] <= ai_basket["checkout_cost_per_serving"]
 
         fractional_basket = call("POST", "/api/shopping", {
             "meal_ids": ["ai-qa-taco-bowl"], "servings": {"ai-qa-taco-bowl": 0.85}, "owned": [], "mode": "best-value"
