@@ -337,11 +337,26 @@ def _auto_import_rewe_csv_snapshot() -> None:
         postcode = setting_row.value if setting_row and setting_row.value else "13353"
         now = datetime.utcnow()
         products = []
+        expected_columns = [
+            "id", "supermarket", "ingredient", "name_original", "name_normalized",
+            "translated_name", "brand", "category", "package_size", "package_unit",
+            "price", "price_per_unit", "currency", "availability", "last_seen_at",
+            "last_checked_at",
+        ]
+        required = {"id", "supermarket", "ingredient", "name_original", "name_normalized"}
         with snapshot_path.open("r", encoding="utf-8-sig", newline="") as handle:
-            reader = csv.DictReader(handle)
-            required = {"id", "supermarket", "ingredient", "name_original", "name_normalized"}
-            if not required.issubset(set(reader.fieldnames or [])):
-                raise ValueError("REWE CSV snapshot is missing required columns")
+            first_row = next(csv.reader(handle), [])
+            handle.seek(0)
+            # Accept both proper headered CSV and the existing sqlite3 export,
+            # which contains the selected columns but no header row.
+            if required.issubset(set(first_row)):
+                reader = csv.DictReader(handle)
+            else:
+                if len(first_row) != len(expected_columns):
+                    raise ValueError(
+                        f"REWE CSV snapshot has {len(first_row)} columns; expected {len(expected_columns)}"
+                    )
+                reader = csv.DictReader(handle, fieldnames=expected_columns)
 
             for row in reader:
                 supermarket = str(row.get("supermarket") or "REWE").strip().upper()
