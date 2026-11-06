@@ -201,11 +201,13 @@ export default function AppV3(){
       const recipeRows=records.filter((x:any)=>x.record_type==='recipe'&&['saved','cooked'].includes(x.status)&&x.meal);
       const savedRecipes=recipeRows.map((row:any)=>{
         const meal={...row.meal};
-        const conceptId=String(meal.source_concept_id||String(row.record_key||'').replace(/^recipe:/,''));
-        // Migrate old history rows created before recipe IDs were namespaced by concept.
+        const keyId=String(row.record_key||'').replace(/^recipe:/,'');
+        // Only AI-expanded recipes need concept-based namespacing. Seed recipes
+        // saved as Picks must keep their original IDs so calendar assignments survive.
+        const conceptId=String(meal.source_concept_id||(keyId&&keyId!==String(meal.id||'')?keyId:''));
         if(conceptId&&!meal.source_concept_id){
           meal.source_concept_id=conceptId;
-          meal.id=`${meal.id||'recipe'}-${conceptId}`;
+          if(!String(meal.id||'').endsWith('-'+conceptId))meal.id=(meal.id||'recipe')+'-'+conceptId;
         }
         return meal as Meal;
       });
@@ -304,7 +306,7 @@ export default function AppV3(){
       const saved=await api('/recipe-history',{method:'POST',body:JSON.stringify({records:requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal}))})});
       if(!saved.ok)throw new Error('Bitewise could not save this discovery to your permanent history.');
       setHistory(prev=>[...requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal})),...prev]);
-      setMeals(requestedMeals);setFilter('all');void attachFreePhotos(requestedMeals);
+      setMeals(current=>{const byId=new Map(current.map(meal=>[meal.id,meal]));requestedMeals.forEach(meal=>byId.set(meal.id,meal));return [...byId.values()]});setFilter('all');void attachFreePhotos(requestedMeals);
     }catch(e:any){setError(e.message)}finally{setLoading(false)}
   }
   async function react(meal:Meal,action:'like'|'skip'|'dislike'){
@@ -332,6 +334,16 @@ export default function AppV3(){
       try{await api(`/recipe-history/${encodeURIComponent(meal.id)}`,{method:'PATCH',body:JSON.stringify({status:nextStatus})})}catch(e:any){setError('Could not update permanent history: '+e.message)}
       setHistory(prev=>prev.map(row=>row.record_key===meal.id?{...row,status:nextStatus}:row));
     }else{
+      if(action==='like'){
+        // Persist ordinary catalog meals just like AI-expanded recipes so Picks
+        // remain available to the calendar and shopping basket after a reload.
+        const recordKey='recipe:'+meal.id;
+        const saved=await api('/recipe-history',{method:'POST',body:JSON.stringify({records:[{
+          record_key:recordKey,record_type:'recipe',status:'saved',meal
+        }]})});
+        if(!saved?.ok||Number(saved.saved||0)<1)throw new Error('Could not save this Pick permanently. Please try again.');
+        setHistory(current=>[{record_key:recordKey,record_type:'recipe',status:'saved',meal},...current.filter(row=>row.record_key!==recordKey)]);
+      }
       try{await api('/events',{method:'POST',body:JSON.stringify({meal_id:meal.id,action})})}catch{}
     }
     if(action==='like')setLiked(x=>x.some(a=>a.id===meal.id)?x:[...x,meal]);
@@ -340,15 +352,13 @@ export default function AppV3(){
   function servingTotals(includeUnplannedPicks=false){const totals:Record<string,number>={};weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(s.meal)totals[s.meal.id]=(totals[s.meal.id]||0)+factor*(dayContexts[idx]?.people||1)}));if(!Object.keys(totals).length&&includeUnplannedPicks)liked.forEach(m=>totals[m.id]=factor);return totals}
   async function removePick(meal:Meal){
     setLiked(current=>current.filter(item=>item.id!==meal.id));
-    const sourceConceptId=(meal as any).source_concept_id;
-    if(sourceConceptId){
-      try{
-        await api(`/recipe-history/${encodeURIComponent(`recipe:${sourceConceptId}`)}`,{
-          method:'PATCH',body:JSON.stringify({status:'removed'})
-        });
-        setHistory(current=>current.map(row=>row.record_key===`recipe:${sourceConceptId}`?{...row,status:'removed'}:row));
-      }catch(e:any){setError('Pick removed locally but could not update permanent history: '+e.message)}
-    }
+    const recordKey='recipe:'+String((meal as any).source_concept_id||meal.id);
+    try{
+      await api('/recipe-history/'+encodeURIComponent(recordKey),{
+        method:'PATCH',body:JSON.stringify({status:'removed'})
+      });
+      setHistory(current=>current.map(row=>row.record_key===recordKey?{...row,status:'removed'}:row));
+    }catch(e:any){setError('Pick removed locally but could not update permanent history: '+e.message)}
   }
 
   async function makeBasket(nextStrategy:Strategy=strategy,selectedExtras:ExtraItem[]=extras,selectedOwned:string[]=owned,includeUnplannedPicks=basketUsesUnplannedPicks){if(!liked.length&&!selectedExtras.length){setBasketUsesUnplannedPicks(false);setBasket([]);setSummary({recipe_total:0,extras_total:0,total:0});return;}setBasketUsesUnplannedPicks(includeUnplannedPicks);setLoading(true);setError('');try{const servings=servingTotals(includeUnplannedPicks);const d=Object.keys(servings).length?await api('/shopping',{method:'POST',body:JSON.stringify({meal_ids:Object.keys(servings),servings,owned:selectedOwned,mode:nextStrategy})}):{items:[],total:0};const recipeItems:BasketItem[]=d.items||d.basket||[];const extraItems:BasketItem[]=selectedExtras.map(extra=>{const requested=Math.max(0,Math.ceil(Number(extra.weeklyQuantity??1)||0));const onHand=Math.max(0,Math.floor(Number(extra.onHand)||0));const packs=Math.max(0,requested-onHand);const priced=Boolean(extra.product?.id&&extra.product?.price!==null&&extra.product?.price!==undefined);return {ingredient:`extra:${extra.id}`,quantity:requested,needed_quantity:packs,unit:'pack',product:extra.product,packs,total:priced?Number((packs*Number(extra.product!.price)).toFixed(2)):0,pantry_used:onHand,badge:extra.kind==='freezer-meal'?'Quick freezer meal':extra.kind==='beverage'?'Beverage':'Household extra',match_status:priced?'matched':'unmatched'} as BasketItem;}).filter(item=>item.needed_quantity!>0);const combined=[...recipeItems,...extraItems];const extrasTotal=extraItems.reduce((sum,item)=>sum+Number(item.total||0),0);setBasket(combined);setSummary({...d,recipe_total:d.total,extras_total:Number(extrasTotal.toFixed(2)),total:Number((Number(d.total||0)+extrasTotal).toFixed(2))});setTab('basket')}catch(e:any){setError(e.message)}finally{setLoading(false)}}
