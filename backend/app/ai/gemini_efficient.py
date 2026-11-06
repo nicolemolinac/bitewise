@@ -58,7 +58,7 @@ def _pantry_context() -> list[str]:
         db.close()
 
 
-def _catalog_context(query: str = "", limit: int = 90) -> str:
+def _catalog_context(query: str = "", limit: int = 60) -> str:
     """Return a compact list of canonical ingredients backed by priced REWE products.
 
     The complete catalog stays in SQLite. We validate each candidate ingredient
@@ -114,7 +114,7 @@ def _catalog_context(query: str = "", limit: int = 90) -> str:
             total = stats["exact"] + stats["substitute"]
             return (-phrase_match, -overlap, -stats["exact"], -total, ingredient)
 
-        selected = sorted(coverage.items(), key=rank)[:max(1, min(int(limit), 120))]
+        selected = sorted(coverage.items(), key=rank)[:max(1, min(int(limit), 80))]
         return ", ".join(ingredient for ingredient, _ in selected)
     finally:
         db.close()
