@@ -363,6 +363,12 @@ def _auto_import_rewe_csv_snapshot() -> None:
     catalog: postcode-specific live REWE data and existing user overrides take priority.
     """
     snapshot_path = BACKEND_DIR / "data" / "catalog" / "rewe_products.csv"
+    explicit_db_path = bool(_configured_local_db)
+    import_override = os.getenv("BITEWISE_IMPORT_CATALOG_SNAPSHOT", "").strip().lower()
+    if explicit_db_path and import_override not in {"1", "true", "yes", "on"}:
+        # Tests and isolated workspaces use BITEWISE_LOCAL_DB_PATH to guarantee
+        # clean databases. They must opt in explicitly when testing this importer.
+        return
     if not snapshot_path.is_file() or snapshot_path.stat().st_size < 100:
         return
 
