@@ -3,6 +3,7 @@ import json
 import math
 import os
 import re
+import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -98,14 +99,24 @@ def get_meal(meal_id:str):
  if not meal:raise HTTPException(404,'Meal not found')
  return meal
 @app.post('/api/events')
-def add_event(payload:EventIn):
+def add_event(payload:EventIn,request:Request):
  action=payload.action or payload.event
  if action not in {'like','skip','dislike','cooked','eaten','undo-dislike'}:raise HTTPException(422,'Unsupported event')
- if not meal_by_id(payload.meal_id):raise HTTPException(404,'Meal not found')
  db=SessionLocal()
  try:
-  if action=='undo-dislike':db.query(UserEvent).filter(UserEvent.meal_id==payload.meal_id,UserEvent.action=='dislike').delete()
-  else:db.add(UserEvent(meal_id=payload.meal_id,action=action))
+  # AI concepts are persisted independently from the static seed-meal list.
+  user=getattr(request.state,'bitewise_user',None) or {}
+  owner=str(user.get('id') or user.get('email') or 'local')[:160]
+  history=db.query(RecipeHistory).filter_by(user_id=owner,record_key=payload.meal_id).first()
+  if not meal_by_id(payload.meal_id) and history is None:raise HTTPException(404,'Meal not found')
+  if action=='undo-dislike':
+   db.query(UserEvent).filter(UserEvent.meal_id==payload.meal_id,UserEvent.action=='dislike').delete()
+   if history:history.status='discovered'
+  else:
+   db.add(UserEvent(meal_id=payload.meal_id,action=action))
+   if history:
+    history.status={'like':'saved','skip':'skipped','dislike':'disliked','cooked':'cooked','eaten':'cooked'}.get(action,history.status)
+    history.updated_at=datetime.utcnow()
   db.commit()
  finally:db.close()
  return {'ok':True,'action':action}
@@ -572,18 +583,44 @@ def today(plan_id:int|None=Query(default=None)):
   return {'plan':{'id':plan.id,'strategy':plan.strategy,'budget':plan.budget},'date':date.today().isoformat(),'day_index':day_index,'meals':serialized}
  finally:db.close()
 @app.post('/api/ai/meals')
-def ai_meals(payload:BrainDumpIn):
+def ai_meals(payload:BrainDumpIn,request:Request):
  prompt=payload.prompt.strip()
  if not prompt:raise HTTPException(422,'Describe what you feel like eating first')
  try:
   # Gemini creates the meal ideas; the local engine then personalizes their order.
   generated=GeminiService().generate_meals(prompt)
   intent=brain_dump(payload)
+  user=getattr(request.state,'bitewise_user',None) or {}
+  owner=str(user.get('id') or user.get('email') or 'local')[:160]
   db=SessionLocal()
   try:
+   # Persist concepts so likes/skips survive restarts and become future learning signals.
+   for meal in generated:
+    key=str(meal.get('id') or '').strip()[:180]
+    if not key:continue
+    row=db.query(RecipeHistory).filter_by(user_id=owner,record_key=key).first()
+    record_type='concept' if meal.get('is_concept') else 'recipe'
+    if row is None:
+     row=RecipeHistory(id=str(uuid.uuid5(uuid.NAMESPACE_URL,f'bitewise:{owner}:{key}')),user_id=owner,record_key=key,record_type=record_type,status='discovered',name=str(meal.get('name') or 'Meal')[:180],prompt=prompt[:4000],meal_json=json.dumps(meal,ensure_ascii=False))
+     db.add(row)
+    else:
+     row.record_type=record_type
+     row.name=str(meal.get('name') or row.name)[:180]
+     row.prompt=prompt[:4000]
+     row.meal_json=json.dumps(meal,ensure_ascii=False)
+     row.updated_at=datetime.utcnow()
+   db.commit()
    events=db.query(UserEvent).all()
    pantry=db.query(PantryItem).filter(PantryItem.quantity>0).all()
-   profile=build_preference_profile(events,MEALS)
+   history_rows=db.query(RecipeHistory).filter_by(user_id=owner).all()
+   preference_pool=list(MEALS)
+   for row in history_rows:
+    try:
+     stored=json.loads(row.meal_json)
+     if isinstance(stored,dict) and stored.get('id'):preference_pool.append(stored)
+    except Exception:continue
+   preference_pool.extend(generated)
+   profile=build_preference_profile(events,preference_pool)
    ranked=rank_meals(generated,events,pantry,intent.get('mode'),profile=profile)
    for meal in ranked:
     meal['recommendation_score']=round(score_meal(meal,events,pantry,intent.get('mode'),profile),3)
@@ -592,9 +629,6 @@ def ai_meals(payload:BrainDumpIn):
     if profile['cuisines'].get(cuisine,0)>0:reasons.append('Matches cuisines you have liked before')
     liked_tags=[str(tag).lower() for tag in meal.get('tags') or [] if profile['tags'].get(str(tag).lower(),0)>0]
     if liked_tags:reasons.append('Fits food styles you tend to enjoy: '+', '.join(liked_tags[:2]))
-    ingredients={str(row[0]).lower() for row in meal.get('ingredients') or [] if isinstance(row,(list,tuple)) and row}
-    pantry_names={str(item.ingredient).lower() for item in pantry}
-    if ingredients & pantry_names:reasons.append('Uses ingredients already listed in your pantry')
     if intent.get('mode')=='quick' and (meal.get('time') or 999)<=30:reasons.append('Fits your quick-meal request')
     if not reasons:reasons.append('Selected for fit with your request and variety')
     meal['recommendation_reasons']=reasons
