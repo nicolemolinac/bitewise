@@ -117,6 +117,9 @@ def _pantry_unit_base(unit):
   'kg':('mass',1000.0),'kilogram':('mass',1000.0),'kilograms':('mass',1000.0),
   'ml':('volume',1.0),'milliliter':('volume',1.0),'milliliters':('volume',1.0),
   'l':('volume',1000.0),'liter':('volume',1000.0),'liters':('volume',1000.0),
+  'tbsp':('volume',15.0),'tablespoon':('volume',15.0),'tablespoons':('volume',15.0),
+  'tsp':('volume',5.0),'teaspoon':('volume',5.0),'teaspoons':('volume',5.0),
+  'cup':('volume',250.0),'cups':('volume',250.0),
   'piece':('count',1.0),'pieces':('count',1.0),'pc':('count',1.0),'pcs':('count',1.0),
   'unit':('count',1.0),'units':('count',1.0),'stk':('count',1.0),'st':('count',1.0),
  }
