@@ -3,8 +3,17 @@
 Run from backend/: python qa_recipe_expansion_regression.py
 """
 import json
+import os
+from pathlib import Path
+import tempfile
 from datetime import date, datetime, timezone
 from decimal import Decimal
+
+_QA_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-expansion-regression-qa-")
+os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_TEMP.name) / "qa.sqlite")
+os.environ["BITEWISE_AI_MEALS_PATH"] = str(Path(_QA_TEMP.name) / "ai_meals.json")
+os.environ["DATABASE_URL"] = ""
+os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 
 from app.server import _assign_expanded_recipe_identity, _json_safe
 
