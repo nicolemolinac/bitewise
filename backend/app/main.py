@@ -14,7 +14,7 @@ from sqlalchemy import or_
 
 from .ai.gemini import GeminiService
 from .ai.image_resolver import resolve_meal_images
-from .database import AppSetting, CatalogRun, PantryConsumption, PantryItem, Plan, PlannedMeal, Product, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
+from .database import AppSetting, CatalogRun, PantryConsumption, PantryItem, Plan, PlannedMeal, Product, ProductDetails, ProductIntelligence, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
 from .recommendations.engine import rank_meals
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
@@ -241,6 +241,44 @@ def products(q:str='',ingredient:str|None=None):
  finally:db.close()
 @app.get('/api/products/search')
 def search_products(q:str='',ingredient:str|None=None):return products(q=q,ingredient=ingredient)
+
+@app.get('/api/products/intelligence')
+def products_intelligence(role:str|None=None,family:str|None=None,complete_meals:bool|None=None,limit:int=40):
+ db=SessionLocal()
+ try:
+  query=db.query(Product,ProductIntelligence).join(ProductIntelligence,ProductIntelligence.product_id==Product.id)
+  if role:query=query.filter(ProductIntelligence.culinary_role==role.strip().lower())
+  if family:query=query.filter(ProductIntelligence.dish_families_json.ilike(f'%"{family.strip().lower()}"%'))
+  if complete_meals is not None:query=query.filter(ProductIntelligence.is_complete_meal==complete_meals)
+  rows=query.order_by(ProductIntelligence.confidence.desc(),Product.price.asc()).limit(max(1,min(limit,100))).all()
+  items=[]
+  for product,profile in rows:
+   item=product_dict(product)
+   item['intelligence']={'product_type':profile.product_type,'culinary_role':profile.culinary_role,'dish_families':json.loads(profile.dish_families_json or '[]'),'preparation_state':profile.preparation_state,'storage_type':profile.storage_type,'convenience_level':profile.convenience_level,'is_complete_meal':profile.is_complete_meal,'confidence':profile.confidence,'evidence':json.loads(profile.evidence_json or '[]'),'classifier_version':profile.classifier_version}
+   items.append(item)
+  return {'items':items,'count':len(items),'filters':{'role':role,'family':family,'complete_meals':complete_meals}}
+ finally:db.close()
+@app.get('/api/catalog/intelligence/status')
+def catalog_intelligence_status():
+ db=SessionLocal()
+ try:
+  total=db.query(Product).filter(Product.supermarket=='REWE').count()
+  classified=db.query(ProductIntelligence).join(Product,Product.id==ProductIntelligence.product_id).filter(Product.supermarket=='REWE').count()
+  meals=db.query(ProductIntelligence).join(Product,Product.id==ProductIntelligence.product_id).filter(Product.supermarket=='REWE',ProductIntelligence.is_complete_meal.is_(True)).count()
+  details=db.query(ProductDetails).join(Product,Product.id==ProductDetails.product_id).filter(Product.supermarket=='REWE').count()
+  return {'products':total,'classified':classified,'classification_pending':max(0,total-classified),'complete_meal_candidates':meals,'product_details_records':details,'details_scraping_started':False}
+ finally:db.close()
+@app.get('/api/products/{product_id}/details')
+def product_details(product_id:int):
+ db=SessionLocal()
+ try:
+  product=db.get(Product,product_id)
+  if not product:raise HTTPException(404,'Product not found')
+  details=db.query(ProductDetails).filter_by(product_id=product_id).first()
+  if not details:return {'product_id':product_id,'status':'pending','nutrition':None,'ingredients':None,'allergens':None}
+  return {'product_id':product_id,'status':details.details_status,'source':details.source,'source_url':details.source_url,'ean':details.ean,'ingredients':details.ingredients_text,'allergens':json.loads(details.allergens_json) if details.allergens_json else None,'traces':json.loads(details.traces_json) if details.traces_json else None,'additives':json.loads(details.additives_json) if details.additives_json else None,'nutrition':{'basis':details.nutrition_basis,'energy_kj':details.energy_kj,'energy_kcal':details.energy_kcal,'fat_g':details.fat_g,'saturated_fat_g':details.saturated_fat_g,'carbohydrates_g':details.carbohydrates_g,'sugars_g':details.sugars_g,'fibre_g':details.fibre_g,'protein_g':details.protein_g,'salt_g':details.salt_g},'preparation':json.loads(details.preparation_json) if details.preparation_json else None,'storage_instructions':details.storage_instructions,'origin':details.origin,'fetched_at':details.fetched_at}
+ finally:db.close()
+
 @app.get('/api/products/validate')
 def validate_product(product_id:int):
  db=SessionLocal()
