@@ -20,7 +20,7 @@ from .recommendations.engine import build_preference_profile, rank_meals, score_
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
-from .ingredient_aliases import ingredient_product_match_type, ingredient_search_terms
+from .ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type, ingredient_search_terms
 from .catalog.intelligence import classify_product
 from .shopping.optimizer import STRATEGIES, _convert_quantity, build_basket, consolidate
 
@@ -372,43 +372,76 @@ def validate_product(product_id:int):
   return {'valid':True,'product':product_dict(product)}
  finally:db.close()
 @app.get('/api/products/{product_id}/alternatives')
-def alternatives(product_id:int,needed_qty:float|None=None,unit:str|None=None):
+def alternatives(product_id:int,needed_qty:float|None=None,unit:str|None=None,ingredient:str|None=None):
  db=SessionLocal()
  try:
   current=db.get(Product,product_id)
   if not current:raise HTTPException(404,'Product not found')
-  query=db.query(Product).filter(Product.id!=product_id).filter(or_(Product.ingredient==current.ingredient,Product.category==current.category));prs=query.limit(100).all()
   requested_unit=unit or current.package_unit
-  ingredient=normalize_ingredient(current.ingredient)
+  # Product.ingredient is often a normalized SKU title, not a canonical ingredient.
+  # Prefer the recipe ingredient supplied by AppV3; otherwise infer the most specific
+  # culinary term from the selected product title.
+  ingredient_key=normalize_ingredient(ingredient or '')
+  if not ingredient_key:
+   title=' '.join(str(value or '') for value in (
+    current.name_original,current.name_normalized,current.translated_name
+   ))
+   inferred=canonical_ingredient_terms(title)
+   ingredient_key=inferred[0] if inferred else normalize_ingredient(current.ingredient)
+  if not ingredient_key:
+   raise HTTPException(422,'Could not identify the recipe ingredient for product alternatives')
+  # Reuse the same full-catalog, title-validated matcher as recipe costing.
+  # Do not query by Product.ingredient equality or truncate by aisle/category.
+  candidates=CatalogAdapter(db).search(ingredient_key)
   compatible=[]
-  for candidate in prs:
-   if str(candidate.supermarket or '').strip().lower()!='rewe':
+  for candidate in candidates:
+   if str(candidate.get('supermarket') or '').strip().lower()!='rewe':
     continue
-   if candidate.price is None or candidate.price<=0 or not candidate.package_size or candidate.package_size<=0:
+   if candidate.get('id') is None or str(candidate.get('id'))==str(product_id):
     continue
-   if str(candidate.availability or '').strip().lower() in {'unavailable','out_of_stock','not_available','discontinued'}:
+   try:
+    price=float(candidate.get('price'))
+    package_size=float(candidate.get('package_size') or 0)
+   except (TypeError,ValueError,OverflowError):
     continue
-   title=' '.join(str(value or '') for value in (candidate.name_original,candidate.name_normalized,candidate.translated_name))
-   match_type=ingredient_product_match_type(ingredient,title)
+   if price<=0 or package_size<=0:
+    continue
+   if str(candidate.get('availability') or '').strip().lower() in {'unavailable','out_of_stock','not_available','discontinued'}:
+    continue
+   if _convert_quantity(1,requested_unit,candidate.get('package_unit')) is None:
+    continue
+   title=' '.join(str(value or '') for value in (
+    candidate.get('name_original'),candidate.get('name_normalized'),candidate.get('translated_name')
+   ))
+   match_type=ingredient_product_match_type(ingredient_key,title)
    if not match_type:
     continue
-   if _convert_quantity(1,requested_unit,candidate.package_unit) is None:
+   intelligence=candidate.get('intelligence') or {}
+   if intelligence.get('is_complete_meal'):
     continue
-   compatible.append((candidate,match_type))
-  def estimate(entry):
-   row=entry[0]
-   quantity=float(needed_qty) if needed_qty is not None else float(current.package_size or row.package_size or 1)
-   converted=_convert_quantity(quantity,requested_unit,row.package_unit)
+   quantity=float(needed_qty) if needed_qty is not None else float(current.package_size or 1)
+   converted=_convert_quantity(quantity,requested_unit,candidate.get('package_unit'))
    if converted is None:
-    return float('inf')
-   packs=max(1,math.ceil(converted/row.package_size))
-   waste=max(0.0,packs*row.package_size-converted)
-   return packs*float(row.price)+waste/max(converted,1.0)
-  compatible.sort(key=estimate)
-  alternatives=[]
-  for candidate,match_type in compatible[:20]:
-   item=product_dict(candidate);item['ingredient_match_type']=match_type;alternatives.append(item)
-  return {'current':product_dict(current),'alternatives':alternatives}
+    continue
+   packs=max(1,math.ceil(converted/package_size))
+   purchased=packs*package_size
+   checkout=packs*price
+   consumed=checkout*min(1.0,converted/purchased)
+   unit_price=float(candidate.get('price_per_unit') or price/package_size)
+   compatible.append({
+    **candidate,
+    'ingredient_match_type':match_type,
+    'packs_for_quantity':packs,
+    'estimated_checkout_cost':round(checkout,2),
+    'estimated_consumed_cost':round(consumed,2),
+    'price_per_package_unit':unit_price,
+   })
+  compatible.sort(key=lambda item:(
+   item.get('price_per_package_unit',float('inf')),
+   item.get('estimated_checkout_cost',float('inf')),
+   item.get('name_original') or ''
+  ))
+  return {'current':product_dict(current),'ingredient':ingredient_key,'alternatives':compatible[:20]}
  finally:db.close()
 @app.post('/api/products/replace')
 def replace_product(payload:ProductOverrideIn):
