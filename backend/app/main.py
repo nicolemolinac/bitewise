@@ -15,7 +15,7 @@ from sqlalchemy import or_
 from .ai.gemini import GeminiService
 from .ai.image_resolver import resolve_meal_images
 from .database import AppSetting, CatalogRun, PantryConsumption, PantryItem, Plan, PlannedMeal, Product, ProductDetails, ProductIntelligence, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
-from .recommendations.engine import rank_meals
+from .recommendations.engine import build_preference_profile, rank_meals, score_meal
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
@@ -573,5 +573,31 @@ def today(plan_id:int|None=Query(default=None)):
  finally:db.close()
 @app.post('/api/ai/meals')
 def ai_meals(payload:BrainDumpIn):
- try:return {'meals':GeminiService().generate_meals(payload.prompt)}
+ prompt=payload.prompt.strip()
+ if not prompt:raise HTTPException(422,'Describe what you feel like eating first')
+ try:
+  # Gemini creates the meal ideas; the local engine then personalizes their order.
+  generated=GeminiService().generate_meals(prompt)
+  intent=brain_dump(payload)
+  db=SessionLocal()
+  try:
+   events=db.query(UserEvent).all()
+   pantry=db.query(PantryItem).filter(PantryItem.quantity>0).all()
+   profile=build_preference_profile(events,MEALS)
+   ranked=rank_meals(generated,events,pantry,intent.get('mode'),profile=profile)
+   for meal in ranked:
+    meal['recommendation_score']=round(score_meal(meal,events,pantry,intent.get('mode'),profile),3)
+    reasons=[]
+    cuisine=str(meal.get('cuisine') or '').lower()
+    if profile['cuisines'].get(cuisine,0)>0:reasons.append('Matches cuisines you have liked before')
+    liked_tags=[str(tag).lower() for tag in meal.get('tags') or [] if profile['tags'].get(str(tag).lower(),0)>0]
+    if liked_tags:reasons.append('Fits food styles you tend to enjoy: '+', '.join(liked_tags[:2]))
+    ingredients={str(row[0]).lower() for row in meal.get('ingredients') or [] if isinstance(row,(list,tuple)) and row}
+    pantry_names={str(item.ingredient).lower() for item in pantry}
+    if ingredients & pantry_names:reasons.append('Uses ingredients already listed in your pantry')
+    if intent.get('mode')=='quick' and (meal.get('time') or 999)<=30:reasons.append('Fits your quick-meal request')
+    if not reasons:reasons.append('Selected for fit with your request and variety')
+    meal['recommendation_reasons']=reasons
+   return {'meals':ranked,'intent':intent.get('constraints',{}),'ranking':'personalized_hybrid','ideas_generated_by':'gemini'}
+  finally:db.close()
  except Exception as exc:raise HTTPException(502,f'Gemini generation failed: {str(exc)[:300]}')
