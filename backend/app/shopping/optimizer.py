@@ -205,7 +205,11 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                     raw_products.append(selected_override)
         for product in raw_products:
             price = product.get("price")
-            if price is None or str(product.get("availability") or "").lower() in {
+            try:
+                price_value = float(price)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if not math.isfinite(price_value) or price_value <= 0 or str(product.get("availability") or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
             }:
                 continue
@@ -216,10 +220,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             packs = max(1, math.ceil(needed_in_pack_unit / pack_qty))
             purchased_quantity = packs * pack_qty
             waste_in_pack_unit = max(0.0, purchased_quantity - needed_in_pack_unit)
-            checkout_cost = packs * float(price)
+            checkout_cost = packs * price_value
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
             waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1.0)
-            unit_price = _number(product, "unit_price", "price_per_unit", default=float(price) / pack_qty)
+            unit_price = _number(product, "unit_price", "price_per_unit", default=price_value / pack_qty)
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             # Exact matches win over substitutions; a substitute is used only when
             # no exact priced/available option is present.
