@@ -139,3 +139,39 @@ def ingredient_name_matches(ingredient: str, product_name: str) -> bool:
         if padded_alias in padded_title:
             return True
     return False
+
+
+# Explicit culinary substitutions are separate from exact aliases. They are surfaced
+# as substitutions in the basket instead of being silently presented as exact matches.
+_SUBSTITUTION_GROUPS = {
+    "trofie pasta": ("fusilli", "penne", "farfalle", "rigatoni", "casarecce", "orecchiette", "short pasta"),
+    "parmesan": ("grana padano",),
+    "pine nuts": ("sunflower seeds", "pumpkin seeds"),
+}
+
+
+def ingredient_search_terms(value: str) -> list[str]:
+    """Exact aliases plus a small curated set of substitution search terms."""
+    needle = _norm(value)
+    terms = set(ingredient_aliases(value))
+    for canonical, substitutes in _SUBSTITUTION_GROUPS.items():
+        if needle == _norm(canonical):
+            terms.update(_norm(term) for term in substitutes)
+    return sorted((term for term in terms if term), key=lambda term: (-len(term), term))
+
+
+def ingredient_product_match_type(ingredient: str, product_name: str) -> str | None:
+    """Classify a catalog title as exact, culinary substitute, or no match."""
+    title = _norm(product_name)
+    if not title:
+        return None
+    padded_title = " " + title + " "
+    exact_terms = ingredient_aliases(ingredient)
+    if any((" " + _norm(term) + " ") in padded_title for term in exact_terms):
+        return "exact"
+    needle = _norm(ingredient)
+    for canonical, substitutes in _SUBSTITUTION_GROUPS.items():
+        if needle == _norm(canonical):
+            if any((" " + _norm(term) + " ") in padded_title for term in substitutes):
+                return "substitute"
+    return None
