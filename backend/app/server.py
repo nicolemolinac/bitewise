@@ -444,6 +444,72 @@ async def expand_ai_recipe(request: Request):
             }
         finally:
             db.close()
+            # Lightweight convenience suggestions: local catalog lookup only, no extra AI call.
+            recipe_name = str(recipe.get("name") or "").lower()
+            ready_terms = []
+            for pattern, terms in [
+                (r"lasagne|lasagna", ["lasagne", "lasagna"]),
+                (r"pizza", ["pizza"]),
+                (r"curry", ["curry"]),
+                (r"bolognese", ["bolognese"]),
+                (r"burger", ["burger"]),
+                (r"auflauf|casserole", ["auflauf"]),
+            ]:
+                if __import__("re").search(pattern, recipe_name):
+                    ready_terms.extend(terms)
+            ready_products = []
+            if ready_terms:
+                ready_products = (
+                    db.query(main_module.Product)
+                    .filter(
+                        main_module.Product.supermarket == "REWE",
+                        main_module.Product.category.in_(["fertiggerichte-konserven", "tiefkuehlkost"]),
+                        main_module.Product.price.isnot(None),
+                        main_module.Product.price > 0,
+                        main_module.Product.name_normalized.notilike("%baby%"),
+                    )
+                    .all()
+                )
+                ready_products = [
+                    p for p in ready_products
+                    if any(term in " ".join(str(v or "").lower() for v in
+                        (p.name_original, p.name_normalized, p.translated_name)) for term in ready_terms)
+                ][:4]
+            shortcut_products = []
+            ingredient_text = " ".join(str(x[0] if isinstance(x, (list, tuple)) and x else x).lower()
+                                       for x in recipe.get("ingredients", []))
+            shortcut_patterns = []
+            if any(x in ingredient_text for x in ("tomato", "tomate", "bolognese", "sauce", "salsa")):
+                shortcut_patterns.append(r"tomatensauce|tomatensoße|bolognese|pastasauce|pesto")
+            if any(x in ingredient_text for x in ("vegetable", "vegetables", "verdura", "carrot", "broccoli", "pepper", "onion")):
+                shortcut_patterns.append(r"gemüse|gemuese|broccoli|paprika|zwiebel|möhren|karotten")
+            if shortcut_patterns:
+                candidates = (
+                    db.query(main_module.Product)
+                    .filter(
+                        main_module.Product.supermarket == "REWE",
+                        main_module.Product.price.isnot(None),
+                        main_module.Product.price > 0,
+                        main_module.Product.category.in_(["fertiggerichte-konserven", "tiefkuehlkost", "obst-gemuese"]),
+                    )
+                    .limit(500).all()
+                )
+                shortcut_products = [
+                    p for p in candidates
+                    if any(__import__("re").search(pattern, " ".join(str(v or "").lower() for v in
+                        (p.name_original, p.name_normalized, p.translated_name))) for pattern in shortcut_patterns)
+                ][:5]
+            def _convenience_product(p):
+                return {
+                    "id": p.id, "name": p.name_original, "price": p.price,
+                    "package_size": p.package_size, "package_unit": p.package_unit,
+                    "category": p.category, "availability": p.availability,
+                }
+            recipe["convenience_options"] = {
+                "ready_made": [_convenience_product(p) for p in ready_products],
+                "shortcuts": [_convenience_product(p) for p in shortcut_products],
+                "stock_note": "Catalog listing only; live availability is unknown.",
+            }
         # Normalize every nested value (notably REWE last_checked_at datetimes) before
         # either database persistence or the FastAPI response encoder sees the payload.
         recipe = _json_safe(recipe)
