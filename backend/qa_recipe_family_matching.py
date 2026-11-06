@@ -531,6 +531,10 @@ def main():
                         "ingredient_match_type": "exact",
                     },
                 ]
+
+            def get_by_id(self, product_id):
+                return next((product for product in self.search("olive oil") if product["id"] == product_id), None)
+
         tier_meal = {"id": "tier-qa", "name": "Olive oil test", "ingredients": [["olive oil", 100, "ml"]]}
         tier_requirements = consolidate([tier_meal], {"tier-qa": 2})
         cheap = build_basket(tier_requirements, TierAdapter(), "maximum-savings")[0]
