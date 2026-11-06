@@ -223,7 +223,7 @@ def _build_convenience_options(db, recipe: dict) -> dict:
         (r"bolognese", ["bolognese"]),
         (r"burger", ["burger"]),
         (r"auflauf|casserole|gratin", ["auflauf", "gratin"]),
-        (r"rice bowl|reis bowl|bowl", ["bowl"]),
+        (r"rice bowl|reis bowl", ["rice bowl", "reis bowl"]),
     ]:
         if re.search(pattern, recipe_name):
             ready_terms.extend(terms)
