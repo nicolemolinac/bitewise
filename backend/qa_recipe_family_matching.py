@@ -190,6 +190,29 @@ def main():
             base_rows[recipe] = rows
 
         base_coverage = base_matched / max(base_total, 1)
+        if base_missing:
+            # Distinguish a missing product from an alias/query bug by showing
+            # the real REWE titles that contain likely German search stems.
+            for recipe, missing in base_missing.items():
+                for ingredient in missing:
+                    stems = {
+                        "paprika powder": ("paprika", "paprik"),
+                        "ginger": ("ingwer", "ginger"),
+                        "soy sauce": ("soja", "soy"),
+                    }.get(ingredient, tuple(ingredient.split()))
+                    candidates = (
+                        db.query(Product)
+                        .filter(Product.supermarket == "REWE")
+                        .filter(or_(*[
+                            getattr(Product, field).ilike(f"%{stem}%")
+                            for field in ("name_original", "name_normalized", "translated_name")
+                            for stem in stems
+                        ]))
+                        .limit(20).all()
+                    )
+                    print(f"  CATALOG DIAGNOSTIC — {ingredient}: " + " | ".join(
+                        str(product.name_original or product.name_normalized or "") for product in candidates
+                    ))
         print(f"BASE RECIPES: {len(RECIPES)} dishes; {base_matched}/{base_total} ingredients matched ({base_coverage:.1%})")
         for recipe, missing in base_missing.items():
             print(f"  BASE MISSING — {recipe}: {', '.join(missing)}")
@@ -218,7 +241,7 @@ def main():
         for recipe, ingredients in RECIPES.items():
             options = production_server._build_convenience_options(
                 db,
-                {"name": recipe, "ingredients": [[name, 100, "g"] for name in ingredients]},
+                {"name": recipe, "ingredients": [_ingredient_quantity_unit(name) for name in ingredients]},
             )
             for product in options["shortcuts"]:
                 convenience_shortcuts += 1
@@ -340,8 +363,22 @@ def main():
         tier_requirements = consolidate([tier_meal], {"tier-qa": 2})
         cheap = build_basket(tier_requirements, TierAdapter(), "maximum-savings")[0]
         premium = build_basket(tier_requirements, TierAdapter(), "premium")[0]
-        assert cheap["product"]["id"] == 1, "Economic strategy must choose the lower checkout price"
-        assert premium["product"]["id"] == 2, "Premium strategy must prefer the premium signal"
+        from app.shopping.optimizer import _candidate_score, _premium_signal
+        cheap_product = next(p for p in TierAdapter().search("olive oil") if p["id"] == 1)
+        premium_product = next(p for p in TierAdapter().search("olive oil") if p["id"] == 2)
+        assert _premium_signal(cheap_product) < 0, "Discount SKU fixture must carry a discount signal"
+        assert _premium_signal(premium_product) > 0, "Bio SKU fixture must carry a premium signal"
+        cheap_score = _candidate_score("premium", 3.0, 0.0, 0.006, 1, cheap_product)
+        premium_score = _candidate_score("premium", 7.0, 0.0, 0.014, 1, premium_product)
+        assert premium_score < cheap_score, (
+            f"Premium scoring must prefer the premium signal: bio={premium_score}, discount={cheap_score}"
+        )
+        assert cheap["product"]["id"] == 1, (
+            f"Economic strategy must choose lower checkout price; got {cheap['product']}"
+        )
+        assert premium["product"]["id"] == 2, (
+            f"Premium strategy must prefer premium signal; got {premium['product']}"
+        )
         print("PRICE TIERS: economic selects the cheaper SKU; premium selects the premium SKU")
 
         # Semantic guardrails for the three preparation levels.
