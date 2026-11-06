@@ -30,6 +30,13 @@ def main():
     try:
         first_count = db.query(Product).filter(Product.supermarket == "REWE").count()
         assert first_count >= 1000, f"Expected a populated REWE snapshot, got {first_count}"
+        sample = db.query(Product).filter(
+            Product.name_original.ilike("%Alete bewusst Kinderkeks Schoko 180g%")
+        ).first()
+        assert sample is not None, "Expected a known package-price sample in the snapshot"
+        assert sample.price is not None and abs(sample.price - 1.99) < 0.02, sample.price
+        assert sample.price_per_unit is not None and abs(sample.price_per_unit - 0.01106) < 0.0001
+        assert sample.availability == "unknown", "Snapshot stock must not be represented as live-confirmed"
         run = db.query(CatalogRun).order_by(CatalogRun.id.desc()).first()
         assert run is not None and run.status == "snapshot"
         source = db.get(AppSetting, "rewe_snapshot_source")
