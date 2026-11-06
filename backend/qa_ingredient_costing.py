@@ -3,7 +3,7 @@
 Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import build_basket, consolidate
-from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type
+from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name
 
 
 class FakeCatalog:
@@ -22,10 +22,13 @@ def run():
     assert ingredient_name_matches("parmesan", "Parmigiano Reggiano") is True
     assert ingredient_name_matches("parmesan", "Käse-Wiener") is False
     assert ingredient_name_matches("fresh basil pesto", "Basilikum Pesto") is True
+    assert ingredient_name_matches("fresh basil pesto", "Basilikum-Pesto 190g") is True
     assert ingredient_name_matches("pine nuts", "Pinienkerne natur") is True
     assert ingredient_product_match_type("trofie pasta", "REWE Fusilli") == "substitute"
     assert ingredient_product_match_type("trofie pasta", "REWE Udon Nudeln") is None
     assert ingredient_product_match_type("parmesan", "Grana Padano") == "substitute"
+    assert ingredient_product_match_type("pine nuts", "Sonnenblumenkerne 200g") == "substitute"
+    assert ingredient_substitution_name("pine nuts", "REWE Bio Sonnenblumenkerne 200g") == "sunflower seeds"
 
     catalog = FakeCatalog({
         "rice": [{
@@ -44,6 +47,13 @@ def run():
         "unpriced": [{
             "id": 4, "name_original": "No price", "package_size": 100,
             "package_unit": "g", "price": None, "availability": "available",
+        }],
+        "pine nuts": [{
+            "id": 5, "ingredient": "sunflower seeds", "ingredient_match_type": "substitute",
+            "ingredient_substitute": "sunflower seeds",
+            "name_original": "REWE Bio Sonnenblumenkerne 200g",
+            "package_size": 200, "package_unit": "g", "price": 1.29,
+            "availability": "available",
         }],
     })
     requirements = [
@@ -67,6 +77,14 @@ def run():
     assert unknown["checkout_cost"] == 0
     assert unpriced["match_status"] == "unmatched"
     assert unpriced["checkout_cost"] == 0
+
+    substitute_basket = build_basket(
+        [{"ingredient": "pine nuts", "quantity": 30, "unit": "g", "source_meals": ["Pesto pasta"]}],
+        catalog,
+    )
+    assert substitute_basket[0]["match_status"] == "substituted"
+    assert substitute_basket[0]["product"]["ingredient_substitute"] == "sunflower seeds"
+    assert substitute_basket[0]["checkout_cost"] == 1.29
 
     pantry_basket = build_basket(
         [{"ingredient": "rice", "quantity": 1, "unit": "kg", "source_meals": ["Meal"]}],
@@ -116,7 +134,7 @@ def run():
     ], {"four": 4})
     assert four_servings[0]["quantity"] == 300
 
-    print("PASS: strict title matching, portion scaling, unit conversions, pantry deductions, checkout vs consumed cost, and unmatched handling")
+    print("PASS: strict title matching, culinary substitutions, portion scaling, unit conversions, pantry deductions, checkout vs consumed cost, and unmatched handling")
 
 
 if __name__ == "__main__":
