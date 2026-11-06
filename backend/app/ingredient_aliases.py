@@ -8,7 +8,7 @@ _ALIAS_GROUPS = [
     ("milk", "milch", "vollmilch", "frischmilch"),
     ("butter", "butter"),
     ("cheese", "käse", "kaese"),
-    ("cream", "sahne", "schlagsahne", "kochcreme"),
+    ("cream", "sahne", "schlagsahne", "kochcreme", "kochsahne"),
     ("yogurt", "yoghurt", "joghurt"),
     ("greek yogurt", "greek yoghurt", "griechischer joghurt", "griechischer yoghurt", "joghurt griechischer art", "joghurt nach griechischer art", "griechischer art"),
     ("quark", "quark", "speisequark"),
