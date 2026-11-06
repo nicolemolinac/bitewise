@@ -285,6 +285,8 @@ QUALITY RULES:
 - The full search intent is mandatory. If the search says romantic + breakfast + simple, EVERY result must visibly satisfy all three.
 - For occasion/aesthetic searches, encode the aesthetic in the FOOD itself: heart-shaped toast or pancakes, strawberries/berries, croissants, waffles, eggs on toast, yogurt parfait, breakfast board/tray, fruit, cocoa/coffee. Do not just add words like elegant, cozy, sunrise, indulgent to an unrelated dish.
 - Use real catalog ingredient signals when they genuinely suit the dish, but do not restrict ideas to the list or force a match.
+- Product Intelligence may inspire optional convenience routes, but complete ready meals are never recipe ingredients and must not dominate a homemade-food search.
+- Convenience signals must never narrow the creative range or override the user's explicit dish and search intent.
 - The user's explicit search intent and culinary quality always outrank catalog coverage and historical preferences.
 - Avoid beverages as standalone meal cards unless the user explicitly asks for drinks.
 - Avoid pasta, salads, savory lunch/dinner dishes, or odd pantry hacks for a breakfast search unless explicitly requested.
