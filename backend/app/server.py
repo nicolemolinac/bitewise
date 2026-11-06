@@ -20,7 +20,7 @@ from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
-from .ingredient_aliases import ingredient_product_match_type, ingredient_search_terms
+from .ingredient_aliases import ingredient_product_match_type, ingredient_search_terms, ingredient_substitution_name
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -92,7 +92,16 @@ def _multilingual_catalog_search(self, ingredient):
 
         rows.sort(key=score, reverse=True)
         return [
-            {**main_module.product_dict(row), "ingredient_match_type": match_types.get(row.id)}
+            {
+                **main_module.product_dict(row),
+                "ingredient_match_type": match_types.get(row.id),
+                "ingredient_substitute": ingredient_substitution_name(
+                    ingredient,
+                    " ".join(str(value or "") for value in (
+                        row.name_original, row.name_normalized, row.translated_name
+                    )),
+                ) if match_types.get(row.id) == "substitute" else None,
+            }
             for row in rows[:40]
         ]
 
@@ -112,6 +121,53 @@ def _assign_expanded_recipe_identity(recipe: dict, concept_id: str) -> dict:
         recipe["id"] = f"{recipe.get('id') or 'recipe'}-{concept_id}"
     return recipe
 
+
+def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
+    """Apply explicit catalog substitutions to ingredients and cooking steps."""
+    import re
+
+    adaptations = []
+    replacements = []
+    for row in basket:
+        if row.get("match_status") != "substituted":
+            continue
+        product = row.get("product") or {}
+        original = str(row.get("ingredient") or "").strip()
+        replacement = str(product.get("ingredient_substitute") or product.get("ingredient") or product.get("name_normalized") or "").strip()
+        if not original or not replacement:
+            continue
+        replacements.append((original, replacement))
+        adaptations.append({
+            "ingredient": original,
+            "replacement": replacement,
+            "product_name": product.get("name_original"),
+            "reason": row.get("match_reason"),
+        })
+
+    if replacements:
+        adapted_ingredients = []
+        for item in recipe.get("ingredients") or []:
+            if isinstance(item, (list, tuple)) and len(item) >= 3:
+                name, quantity, unit = item[0], item[1], item[2]
+                for original, replacement in replacements:
+                    if str(name).strip().lower() == original.lower():
+                        name = replacement
+                        break
+                adapted_ingredients.append([name, quantity, unit])
+            else:
+                adapted_ingredients.append(item)
+        recipe["ingredients"] = adapted_ingredients
+
+        for step in recipe.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            step_text = str(step.get("text") or "")
+            for original, replacement in replacements:
+                step_text = re.sub(r"(?<![\\w])" + re.escape(original) + r"(?![\\w])", replacement, step_text, flags=re.IGNORECASE)
+            step["text"] = step_text
+
+    recipe["adaptations"] = adaptations
+    return adaptations
 
 def _json_history_default(value):
     """Convert common Python values to stable JSON-safe history values."""
@@ -352,6 +408,7 @@ async def expand_ai_recipe(request: Request):
                 for row in basket if row.get("match_status") == "unmatched"
             ]
             recipe["product_matches"] = basket
+            adaptations = _adapt_recipe_to_catalog(recipe, basket)
             recipe["costing"] = {
                 "strategy": "best-value",
                 "matched_ingredients": len(exact_rows),
@@ -366,6 +423,8 @@ async def expand_ai_recipe(request: Request):
                 "people": people,
                 "cost_per_serving": round(consumed_total / requested_servings, 2) if matched_rows and requested_servings > 0 else None,
                 "cost_scope": "matched_ingredients_only",
+                "shopping_ready": len(unmatched) == 0,
+                "catalog_coverage": round((len(matched_rows) + len(covered_rows)) / len(basket), 4) if basket else 1.0,
                 "currency": "EUR",
             }
         finally:
