@@ -355,11 +355,19 @@ def main():
         # original recipe; middle shortcuts must be components; ready-made must
         # be a genuine complete meal, never a sauce or ingredient.
         convenience_shortcuts = convenience_ready = 0
+        shortcut_recipe_coverage = ready_recipe_coverage = 0
+        convenience_counts = {}
         for recipe, ingredients in RECIPES.items():
             options = production_server._build_convenience_options(
                 db,
                 {"name": recipe, "ingredients": [[name, *_qa_quantity(name)] for name in ingredients]},
             )
+            convenience_counts[recipe] = {
+                "shortcuts": len(options["shortcuts"]),
+                "ready_made": len(options["ready_made"]),
+            }
+            shortcut_recipe_coverage += bool(options["shortcuts"])
+            ready_recipe_coverage += bool(options["ready_made"])
             for product in options["shortcuts"]:
                 convenience_shortcuts += 1
                 assert not product["is_complete_meal"], (
@@ -385,11 +393,21 @@ def main():
                         f"{recipe}: meat bolognese is not a lentil shortcut: {product['name']}"
                     )
         assert convenience_ready > 0, "Known ready-meal families should expose genuine complete-meal alternatives"
+        assert shortcut_recipe_coverage >= 20, (
+            f"Middle shortcuts should cover at least half the recipe families, got "
+            f"{shortcut_recipe_coverage}/{len(RECIPES)}: {convenience_counts}"
+        )
         print(
             f"CONVENIENCE LEVELS: {len(RECIPES)} homemade baselines; "
-            f"{convenience_shortcuts} verified middle-shortcut products; "
-            f"{convenience_ready} relevant complete ready meals"
+            f"{convenience_shortcuts} verified middle-shortcut products across "
+            f"{shortcut_recipe_coverage} recipes; {convenience_ready} relevant complete ready meals "
+            f"across {ready_recipe_coverage} recipes"
         )
+        for recipe, counts in convenience_counts.items():
+            print(
+                f"  CONVENIENCE COVERAGE — {recipe}: "
+                f"{counts['shortcuts']} middle shortcuts; {counts['ready_made']} complete meals"
+            )
 
         # Basket QA: test budget, balanced and premium strategies over every recipe.
         # The optimizer must never choose a zero/negative-price or unavailable SKU,
@@ -544,6 +562,10 @@ def main():
         assert classify_product({"name_original": "REWE Pizzateig"}).culinary_role == "dough"
         assert classify_product({"name_original": "REWE Gemüsebrühe"}).culinary_role == "broth"
         assert classify_product({"name_original": "REWE Oregano gerebelt"}).culinary_role == "seasoning"
+        assert classify_product({"name_original": "REWE Bio Räuchertofu"}).product_type == "prepared_component"
+        assert classify_product({"name_original": "REWE Bio Kichererbsen 400 g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
+        assert classify_product({"name_original": "REWE Kartoffelsalat 400 g"}).product_type == "prepared_component"
+        assert classify_product({"name_original": "REWE Quiche Lorraine"}).is_complete_meal
 
         print(
             f"PASS: {len(RECIPES)} recipe families, {base_total} base ingredients, "
