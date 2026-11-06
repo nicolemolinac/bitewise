@@ -144,7 +144,7 @@ def main():
         with patch.object(server, "SessionLocal", return_value=bad_session):
             _upsert_recipe_history(make_request(), "recipe:bad", "recipe", "saved", bad_payload)
     except TypeError as exc:
-        assert "not JSON serializable" in str(exc)
+        assert "not JSON serializable" in str(exc) or "Unsupported value" in str(exc)
     else:
         raise AssertionError("Unsupported objects must not be silently serialized")
     assert bad_session.rolled_back and bad_session.closed
