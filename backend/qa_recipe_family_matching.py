@@ -423,6 +423,22 @@ def main():
             print(f"  {strategy}: combined recipe checkout estimate €{total:.2f}")
         for recipe, missing in basket_unmatched.items():
             print(f"  BASKET UNMATCHED — {recipe}: {', '.join(sorted(set(missing)))}")
+            for ingredient in sorted(set(missing)):
+                candidates = [
+                    product for product in adapter.search(ingredient)
+                    if ingredient_product_match_type(ingredient, _product_title(product))
+                ]
+                for product in candidates[:8]:
+                    print(
+                        "    BASKET CANDIDATE — "
+                        f"{ingredient}: id={product.get('id')} "
+                        f"name={_product_title(product)} "
+                        f"price={product.get('price')} "
+                        f"package_size={product.get('package_size')} "
+                        f"package_unit={product.get('package_unit')} "
+                        f"price_per_unit={product.get('price_per_unit')} "
+                        f"availability={product.get('availability')}"
+                    )
         assert not basket_unmatched, (
             f"All recipe ingredients should resolve to priced, unit-compatible catalog products: {basket_unmatched}"
         )
