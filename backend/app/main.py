@@ -15,7 +15,7 @@ from sqlalchemy import or_
 from .ai.gemini import GeminiService
 from .ai.image_resolver import resolve_meal_images
 from .database import AppSetting, CatalogRun, PantryConsumption, PantryItem, Plan, PlannedMeal, Product, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
-from .recommendations.engine import score_meal
+from .recommendations.engine import rank_meals
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
@@ -91,7 +91,7 @@ class SwapMealIn(BaseModel):meal_id:str|None=None
 def health():return {'ok':True,'version':'2.0'}
 @app.get('/api/meals')
 def get_meals(mode:str='random'):
- events=rows(UserEvent);pantry=rows(PantryItem);meals=sorted(MEALS,key=lambda m:score_meal(m,events,pantry,mode),reverse=True);disliked={e.meal_id for e in events if e.action=='dislike'};seen={e.meal_id for e in events if e.action in ('like','skip','cooked','eaten')};eligible=[m for m in meals if m['id'] not in disliked];fresh=[m for m in eligible if m['id'] not in seen];return {'meals':(fresh+eligible)[:12],'mode':mode}
+ events=rows(UserEvent);pantry=rows(PantryItem);meals=rank_meals(MEALS,events,pantry,mode);disliked={e.meal_id for e in events if e.action=='dislike'};seen={e.meal_id for e in events if e.action in ('like','skip','cooked','eaten')};eligible=[m for m in meals if m['id'] not in disliked];fresh=[m for m in eligible if m['id'] not in seen];return {'meals':(fresh+eligible)[:12],'mode':mode}
 @app.get('/api/meals/{meal_id}')
 def get_meal(meal_id:str):
  meal=meal_by_id(meal_id)
@@ -405,7 +405,7 @@ def serialize_planned_meal(row):
 def serialize_plan(db,plan):
  meals=db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan.id).order_by(PlannedMeal.day_index,PlannedMeal.meal_type).all();return {'id':plan.id,'weeks':plan.weeks,'servings':plan.servings,'strategy':plan.strategy,'budget':plan.budget,'start_date':plan.start_date,'status':plan.status,'meals':[serialize_planned_meal(r) for r in meals]}
 def ranked_plan_candidates(db,requested_ids=None):
- events=db.query(UserEvent).all();pantry=db.query(PantryItem).all();pool=[m for m in MEALS if not requested_ids or m['id'] in requested_ids];disliked={e.meal_id for e in events if e.action=='dislike'};pool=[m for m in pool if m['id'] not in disliked];return sorted(pool,key=lambda m:score_meal(m,events,pantry,'random'),reverse=True)
+ events=db.query(UserEvent).all();pantry=db.query(PantryItem).all();pool=[m for m in MEALS if not requested_ids or m['id'] in requested_ids];disliked={e.meal_id for e in events if e.action=='dislike'};pool=[m for m in pool if m['id'] not in disliked];return rank_meals(pool,events,pantry,'random')
 @app.post('/api/plans')
 def create_plan(payload:PlanCreateIn):
  if payload.weeks not in (1,2,4):raise HTTPException(422,'Weeks must be 1, 2, or 4')
