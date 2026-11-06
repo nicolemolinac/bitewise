@@ -131,9 +131,10 @@ def main():
         })
         assert basket["servings"] == 2 and basket["pantry_savings_items"] >= 1
 
-        # Restore stock after the CRUD deletion checks before validating recipe consumption.
+        # Replenish after basket generation, which may already reserve pantry stock.
         call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 0.5, "unit": "kg"})
         call("POST", "/api/pantry", {"ingredient": "chicken breast", "quantity": 0.1, "unit": "kg"})
+
         eaten = call("POST", "/api/meals/teriyaki-chicken/eaten?servings=2")
         rice_used = next(row for row in eaten["consumed"] if row["ingredient"] == "rice")
         assert rice_used["unit"] == "g" and rice_used["quantity"] == 160
