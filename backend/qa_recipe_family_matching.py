@@ -429,6 +429,11 @@ def main():
                     if ingredient_product_match_type(ingredient, _product_title(product))
                 ]
                 for product in candidates[:8]:
+                    requirement = next((row for row in requirements if row["ingredient"] == ingredient), {})
+                    print(
+                        "    BASKET REQUIREMENT — "
+                        f"{ingredient}: qty={requirement.get('quantity')} unit={requirement.get('unit')}"
+                    )
                     print(
                         "    BASKET CANDIDATE — "
                         f"{ingredient}: id={product.get('id')} "
@@ -436,6 +441,7 @@ def main():
                         f"price={product.get('price')} "
                         f"package_size={product.get('package_size')} "
                         f"package_unit={product.get('package_unit')} "
+                        f"unit={product.get('unit')} "
                         f"price_per_unit={product.get('price_per_unit')} "
                         f"availability={product.get('availability')}"
                     )
