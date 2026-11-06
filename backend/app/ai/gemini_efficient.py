@@ -9,7 +9,8 @@ from .gemini import (
     _parse_json_array,
     _persist_generated,
 )
-from ..database import PantryItem, Product, SessionLocal, UserEvent
+from ..database import PantryItem, Product, ProductIntelligence, SessionLocal, UserEvent
+from ..catalog.intelligence import classify_product
 from ..recommendations.engine import build_preference_profile
 from ..ingredient_aliases import ingredient_product_match_type
 
@@ -82,7 +83,7 @@ def _taste_context() -> str:
         db.close()
 
 
-def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600) -> str:
+def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600, include_intelligence: bool = False):
     """Return a compact list of canonical ingredients backed by priced REWE products.
 
     The complete catalog stays in SQLite. We validate each candidate ingredient
@@ -93,39 +94,76 @@ def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600) ->
     db = SessionLocal()
     try:
         rows = (
-            db.query(
-                Product.ingredient,
-                Product.name_original,
-                Product.name_normalized,
-                Product.translated_name,
-                Product.price,
-                Product.availability,
-            )
+            db.query(Product, ProductIntelligence)
+            .outerjoin(ProductIntelligence, ProductIntelligence.product_id == Product.id)
             .filter(
                 Product.supermarket == "REWE",
                 Product.price.isnot(None),
                 Product.price > 0,
             )
-            .all()
+            .yield_per(500)
         )
         coverage = {}
+        intelligence_groups = {}
         excluded = {"unavailable", "out_of_stock", "not_available", "discontinued"}
-        for row in rows:
-            ingredient = str(row.ingredient or "").strip().lower()
-            if not ingredient or str(row.availability or "unknown").strip().lower() in excluded:
+        for product, stored_profile in rows:
+            ingredient = str(product.ingredient or "").strip().lower()
+            if not ingredient or str(product.availability or "unknown").strip().lower() in excluded:
                 continue
             title = " ".join(
                 str(value or "")
-                for value in (row.name_original, row.name_normalized, row.translated_name)
+                for value in (product.name_original, product.name_normalized, product.translated_name)
             )
             match_type = ingredient_product_match_type(ingredient, title)
             if not match_type:
                 continue
+
+            profile = stored_profile or classify_product({
+                "name_original": product.name_original,
+                "name_normalized": product.name_normalized,
+                "translated_name": product.translated_name,
+                "brand": product.brand,
+                "category": product.category,
+            })
+            if stored_profile:
+                product_type = stored_profile.product_type
+                preparation = stored_profile.preparation_state
+                storage = stored_profile.storage_type
+                complete_meal = stored_profile.is_complete_meal
+            else:
+                product_type = profile.product_type
+                preparation = profile.preparation_state
+                storage = profile.storage_type
+                complete_meal = profile.is_complete_meal
+
+            if complete_meal:
+                group = "complete ready meals"
+            elif product_type == "prepared_component":
+                group = "prepared components"
+            elif storage == "frozen":
+                group = "frozen shortcuts"
+            else:
+                group = None
+            if group:
+                labels = intelligence_groups.setdefault(group, set())
+                if len(labels) < 5 and len(ingredient) <= 48:
+                    labels.add(ingredient)
+
+            # Complete dishes are useful as optional convenience ideas, not as
+            # ingredient signals for a homemade recipe.
+            if complete_meal:
+                continue
             stats = coverage.setdefault(ingredient, {"exact": 0, "substitute": 0})
             stats[match_type] += 1
 
+        intelligence_context = "; ".join(
+            f"{group}: {', '.join(sorted(labels))}"
+            for group, labels in sorted(intelligence_groups.items()) if labels
+        ) or "No classified convenience products found in the current REWE catalog snapshot."
+
         if not coverage:
-            return "No verified priced REWE ingredient matches in the current catalog snapshot."
+            ingredient_context = "No verified priced REWE ingredient matches in the current catalog snapshot."
+            return (ingredient_context, intelligence_context) if include_intelligence else ingredient_context
 
         query_text = re.sub(r"[^a-z0-9äöüß]+", " ", str(query or "").lower())
         query_tokens = {token for token in query_text.split() if len(token) > 2}
@@ -155,7 +193,8 @@ def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600) ->
             used_chars += extra
             if len(selected) >= max_items:
                 break
-        return ", ".join(selected)
+        ingredient_context = ", ".join(selected)
+        return (ingredient_context, intelligence_context) if include_intelligence else ingredient_context
     finally:
         db.close()
 
@@ -214,7 +253,9 @@ class GeminiService(BaseGeminiService):
         pantry_context = ", ".join(pantry[:8]) if pantry else "none"
         # Local full-catalog retrieval, compressed to canonical ingredient names.
         # Gemini still invents the concepts; these signals only improve feasibility.
-        catalog_context = _catalog_context(user_request, limit=60, max_chars=1600)
+        catalog_context, product_intelligence_context = _catalog_context(
+            user_request, limit=60, max_chars=1600, include_intelligence=True
+        )
         taste_context = _taste_context()
 
         instruction = f"""You are Bitewise's visual discovery editor. Think like a strong Pinterest board curator, not a novelty recipe generator.
@@ -225,6 +266,7 @@ PRIMARY USER SEARCH (this controls the result set):
 SECONDARY CONTEXT ONLY — never let this override the search:
 Pantry hints: {pantry_context}
 REWE catalog ingredient signals (generic names only; not proof of live stock): {catalog_context}
+REWE Product Intelligence convenience signals (secondary only; not guaranteed stock): {product_intelligence_context}
 Learned taste signals from previous feedback: {taste_context}
 
 AVAILABILITY RULE:
@@ -318,8 +360,9 @@ These are examples of specificity and relevance, not a fixed list.
         description = str(concept.get("description") or "").strip()
         meal_type = str(concept.get("meal_type") or "dinner")
         image = _clean_image_url(concept.get("image"))
-        catalog_ingredients = _catalog_context(
-            f"{name} {description} {context or concept.get('discovery_prompt') or ''}"
+        catalog_ingredients, product_intelligence_context = _catalog_context(
+            f"{name} {description} {context or concept.get('discovery_prompt') or ''}",
+            include_intelligence=True,
         )
 
         instruction = f"""Create ONE complete Bitewise recipe for the selected meal concept.
@@ -331,6 +374,7 @@ ORIGINAL DISCOVERY CONTEXT: {context or concept.get('discovery_prompt') or 'none
 {cooking_preferences_instruction(appliances)}
 PANTRY: {', '.join(pantry[:30]) if pantry else 'none'}
 REWE CATALOG INGREDIENTS: {catalog_ingredients}
+REWE PRODUCT INTELLIGENCE CONVENIENCE SIGNALS: {product_intelligence_context}
 The REWE list contains canonical ingredient names that have at least one title-validated, positively priced REWE catalog product. It is a compact summary, not the full product database. Catalog prices and stock are snapshots, not live checkout guarantees.
 
 CATALOG-AWARE RECIPE RULES:
@@ -340,6 +384,8 @@ CATALOG-AWARE RECIPE RULES:
 - Pantry ingredients may be used even when they are not in the REWE list.
 - Normal small pantry staples such as salt, pepper, water and modest seasoning may be included even if not listed.
 - Avoid specialty or obscure ingredients that are not listed when a familiar listed ingredient works just as well.
+- Treat complete ready meals as optional no-cook alternatives only when the user's request explicitly favors ready-made food; never use a complete meal as an ingredient in a homemade recipe.
+- Treat prepared components and frozen shortcuts as optional convenience choices when they genuinely fit the dish and save effort; do not force them.
 - Do not force a bad substitution or damage the selected dish merely to increase catalog coverage.
 - Keep every ingredient needed for a good recipe; never omit an ingredient just to make the basket look complete.
 - Do not claim that a product is currently in stock or invent a price. Bitewise checks every generated ingredient against the full local catalog after generation.
