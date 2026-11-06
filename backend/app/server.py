@@ -163,7 +163,7 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
                 continue
             step_text = str(step.get("text") or "")
             for original, replacement in replacements:
-                step_text = re.sub(r"(?<![\\w])" + re.escape(original) + r"(?![\\w])", replacement, step_text, flags=re.IGNORECASE)
+                step_text = re.sub(r"(?<![\w])" + re.escape(original) + r"(?![\w])", replacement, step_text, flags=re.IGNORECASE)
             step["text"] = step_text
 
     recipe["adaptations"] = adaptations
