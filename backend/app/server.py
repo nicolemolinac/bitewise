@@ -119,7 +119,7 @@ def _multilingual_catalog_search(self, ingredient):
                 ) if match_types.get(row.id) == "substitute" else None,
                 "intelligence": profiles[row.id].as_dict(),
             }
-            for row in rows[:40]
+            for row in rows
         ]
 
     # Never substitute seed/demo products for a real REWE catalog match.
