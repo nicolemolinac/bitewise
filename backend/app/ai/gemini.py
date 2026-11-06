@@ -9,6 +9,7 @@ try:
 except Exception:
     genai = None
 
+from ..catalog.intelligence import classify_product
 from ..database import PantryItem, Product, ProductIntelligence, SessionLocal, UserEvent
 from ..recommendations.engine import build_preference_profile
 from ..recipes.seed import MEALS
@@ -162,31 +163,36 @@ def _shopping_context():
             f"{p.ingredient} ({p.quantity:g} {p.unit})"
             for p in db.query(PantryItem).filter(PantryItem.quantity > 0).limit(40).all()
         ]
+        # Scan the local catalog, but retain only a few representative products per
+        # culinary role. The full SKU set never leaves the database.
         query = (
             db.query(Product, ProductIntelligence)
             .outerjoin(ProductIntelligence, ProductIntelligence.product_id == Product.id)
             .filter(Product.supermarket == "REWE")
-            .order_by(Product.last_seen_at.desc(), Product.id.desc())
-            .limit(240)
+            .order_by(Product.id.asc())
+            .yield_per(500)
         )
         grouped = {}
-        for product, intelligence in query.all():
-            role = intelligence.culinary_role if intelligence else None
-            if not role:
-                category = (product.category or "").lower()
-                role = (
-                    "protein" if any(x in category for x in ("fleisch", "fisch", "wurst")) else
-                    "dairy" if any(x in category for x in ("milch", "käse", "molkerei")) else
-                    "vegetable" if any(x in category for x in ("obst", "gemüse")) else
-                    "pantry staple" if any(x in category for x in ("kochen", "backen", "konserve")) else
-                    "other"
-                )
+        excluded = ("toiletten", "kalklöser", "urinstein", "slipeinlagen", "kreide",
+                    "hundefutter", "katzenfutter", "tierbedarf", "wc aktiv")
+        for product, intelligence in query:
+            title = (product.name_original or product.name_normalized or "").strip()
+            if not title or any(term in title.lower() for term in excluded):
+                continue
+            profile = intelligence
+            role = profile.culinary_role if profile else classify_product({
+                "name_original": product.name_original,
+                "name_normalized": product.name_normalized,
+                "translated_name": product.translated_name,
+                "brand": product.brand,
+                "category": product.category,
+            }).culinary_role
+            if role not in {"protein", "dairy", "vegetable", "starch", "sauce",
+                            "complete_meal", "ingredient", "snack"}:
+                continue
             if role not in grouped:
                 grouped[role] = []
             if len(grouped[role]) >= 4:
-                continue
-            title = (product.name_original or product.name_normalized or "").strip()
-            if not title:
                 continue
             pack = ""
             if product.package_size and product.package_unit:
@@ -259,8 +265,10 @@ PANTRY: {', '.join(pantry) if pantry else 'none confirmed'}
 REAL REWE CATALOG EXAMPLES BY CULINARY ROLE (not a complete inventory; stock is not confirmed): {' | '.join(catalog) if catalog else 'catalog unavailable'}\nLEARNED USER PREFERENCES: {'; '.join(preference_context) if preference_context else 'not enough feedback yet'}
 Rules:
 - Respect cuisine, meal type, cheap/quick/fancy/healthy/high-protein constraints literally.
-- Prefer pantry/REWE ingredients when sensible.
-- Optimize for low effort and few dishes.
+- Your primary job is creative culinary ideation: invent attractive, varied meal concepts that answer the request. The catalog informs feasibility but must never limit you to only listed products.
+- Prefer pantry ingredients first when the user asks to use them. Otherwise use actual REWE examples when they genuinely fit; never force irrelevant products.
+- Catalog examples are listings, not proof of live stock. Never claim availability.
+- Optimize for taste, convenience, effort, cleanup and the user's learned preferences.
 - Each object: id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredients,steps,image.
 - meal_type is breakfast/lunch/dinner/dessert/snack.
 - ingredients: [normalized_english_ingredient, quantity, unit] using g/ml/unit/cloves.
