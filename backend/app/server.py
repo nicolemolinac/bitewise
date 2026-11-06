@@ -280,7 +280,7 @@ def _build_convenience_options(db, recipe: dict) -> dict:
 
     shortcut_patterns = []
     shortcut_terms = []
-    if any(term in ingredient_text for term in ("tomato", "tomate", "bolognese", "sauce", "salsa")):
+    if any(term in ingredient_text for term in ("tomato passata", "tomato sauce", "tomato paste", "passata", "bolognese", "sauce", "salsa")):
         shortcut_patterns.append(r"tomatensauce|tomatensoße|passata|bolognese|pastasauce|pesto")
         shortcut_terms.extend(["tomatensauce", "tomatensoße", "passata", "bolognese", "pastasauce", "pesto"])
     if any(term in ingredient_text for term in ("vegetable", "vegetables", "verdura", "carrot", "broccoli", "pepper", "onion", "spinach")):
@@ -304,6 +304,9 @@ def _build_convenience_options(db, recipe: dict) -> dict:
     if any(term in ingredient_text for term in ("chickpea", "chickpeas", "bean", "beans", "lentil", "lentils")):
         shortcut_patterns.append(r"kichererbsen|kichererbse|bohnen|linsen|chickpea|kidney.?bohnen|beans")
         shortcut_terms.extend(["kichererbsen", "kichererbse", "bohnen", "linsen", "chickpea", "kidney-bohnen"])
+    if any(term in ingredient_text for term in ("potato", "potatoes")):
+        shortcut_patterns.append(r"kartoffeln|kartoffelwürfel|kartoffelwuerfel|vorgekochte kartoffeln|kartoffelsalat|bratkartoffeln")
+        shortcut_terms.extend(["kartoffeln", "kartoffelwürfel", "kartoffelwuerfel", "kartoffelsalat", "bratkartoffeln"])
 
     # Query only titles relevant to this recipe's actual shortcut families. The
     # previous full-catalog scan classified every SKU for every expansion.
