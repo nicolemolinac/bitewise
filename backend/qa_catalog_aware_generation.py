@@ -102,7 +102,11 @@ def main():
     )
     assert "passata" in context
     assert "shrimp" not in context, "A complete ready meal must not be exposed as a recipe ingredient"
-    assert len(context.split(", ")) == 3, "Duplicate product rows must collapse to canonical ingredients"
+    canonical_context = context.split(", ") if context else []
+    assert len(canonical_context) == len(set(canonical_context)), "Duplicate product rows must collapse to canonical ingredients"
+    assert set(canonical_context) == {"salmon", "rice", "tomato passata", "vegetable broth"}, (
+        f"Expected four distinct, title-validated culinary ingredients; got {canonical_context}"
+    )
 
     ingredient_context, convenience_context = _catalog_context(
         "salmon rice bowl", limit=10, include_intelligence=True
