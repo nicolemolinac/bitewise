@@ -49,7 +49,7 @@ RECIPES = {
         "garlic": "REWE Knoblauch",
         "cream": "REWE Kochsahne",
         "nutmeg": "Muskatnuss gemahlen",
-        "parmesan": "Grana Padano gerieben",
+        "parmesan": "Parmigiano Reggiano gerieben",
     },
     "Creamy carbonara": {
         "spaghetti": "REWE Spaghetti 500 g",
