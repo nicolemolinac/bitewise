@@ -399,6 +399,7 @@ def main():
         assert not classify_product({"name_original": "REWE Lasagneplatten 500 g"}).is_complete_meal
         assert classify_product({"name_original": "REWE Garnelen Curry Fertiggericht 400 g"}).is_complete_meal
         assert classify_product({"name_original": "REWE Pizza Margherita 350 g"}).is_complete_meal
+        assert not classify_product({"name_original": "Bamboo Garden Bowl Topping 15g"}).is_complete_meal
         assert classify_product({"name_original": "REWE Pizzateig"}).culinary_role == "dough"
         assert classify_product({"name_original": "REWE Gemüsebrühe"}).culinary_role == "broth"
         assert classify_product({"name_original": "REWE Oregano gerebelt"}).culinary_role == "seasoning"
