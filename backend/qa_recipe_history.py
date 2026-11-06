@@ -123,6 +123,9 @@ def main():
         assert saved["saved"] == 5
         call("PATCH", "/api/recipe-history/" + concept["id"], {"status": "expanded"})
         call("PATCH", "/api/recipe-history/" + concept_two["id"], {"status": "expanded"})
+        # AI-generated concepts must accept feedback before/without being in the seed list.
+        call("POST", "/api/events", {"meal_id": concept["id"], "action": "like"})
+        call("POST", "/api/events", {"meal_id": concept_two["id"], "action": "skip"})
     finally:
         stop_api(proc)
 
@@ -150,6 +153,9 @@ def main():
     try:
         history = call("GET", "/api/recipe-history")
         assert history["count"] == 5
+        concept_status = {row["record_key"]: row["status"] for row in history["records"] if row["record_type"] == "concept"}
+        assert concept_status[concept["id"]] == "saved"
+        assert concept_status[concept_two["id"]] == "skipped"
         saved_recipe_ids = {row["meal"].get("id") for row in history["records"] if row["record_type"] == "recipe"}
         assert saved_recipe_ids == {first["id"], second["id"], "teriyaki-chicken"}, saved_recipe_ids
         basket = call("POST", "/api/shopping", {
