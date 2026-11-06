@@ -487,9 +487,18 @@ def today(plan_id:int|None=Query(default=None)):
   if not plan:return {'plan':None,'date':date.today().isoformat(),'meals':[]}
   start=date.fromisoformat(plan.start_date);day_index=(date.today()-start).days
   if day_index<0 or day_index>=plan.weeks*7:return {'plan':serialize_plan(db,plan),'date':date.today().isoformat(),'day_index':day_index,'meals':[]}
-  day_meals=db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan.id,PlannedMeal.day_index==day_index).all();pantry_names={p.ingredient.lower() for p in db.query(PantryItem).filter(PantryItem.quantity>0).all()};serialized=[]
+  day_meals=db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan.id,PlannedMeal.day_index==day_index).all();pantry=pantry_snapshot(db);serialized=[]
   for row in day_meals:
-   item=serialize_planned_meal(row);ingredients=item['meal']['ingredients'] if item['meal'] else [];covered=sum(1 for name,_,_ in ingredients if name.lower() in pantry_names);item['pantry_coverage_pct']=round(covered/len(ingredients)*100) if ingredients else 0;serialized.append(item)
+   item=serialize_planned_meal(row);ingredients=item['meal']['ingredients'] if item['meal'] else [];covered=0
+   for name,amount,unit in ingredients:
+    stock=pantry.get(str(name).lower())
+    if not stock:
+     continue
+    available=_convert_quantity(stock.get('quantity',0),stock.get('unit'),unit)
+    required=float(amount)*row.servings/2
+    if available is not None and available+1e-9>=required:
+     covered+=1
+   item['pantry_covered_ingredients']=covered;item['pantry_total_ingredients']=len(ingredients);item['pantry_coverage_pct']=round(covered/len(ingredients)*100) if ingredients else 0;serialized.append(item)
   return {'plan':{'id':plan.id,'strategy':plan.strategy,'budget':plan.budget},'date':date.today().isoformat(),'day_index':day_index,'meals':serialized}
  finally:db.close()
 @app.post('/api/ai/meals')
