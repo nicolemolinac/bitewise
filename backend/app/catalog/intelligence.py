@@ -57,7 +57,8 @@ def classify_product(product: dict) -> ProductProfile:
         "foodmaker", "youcook", "bowl ", "spaghetti bolognese", "lasagne", "lasagna",
         "pizza ", "curry mit reis", "reisgericht", "nudelgericht", "pasta bolognese", "mahlzeit",
     )
-    meal_hit = next((term for term in meal_markers if term in name), None)
+    dry_lasagne_sheets = any(term in name for term in ("lasagneplatten", "lasagne platten", "lasagne blätter", "lasagneblaetter"))
+    meal_hit = None if dry_lasagne_sheets else next((term for term in meal_markers if term in name), None)
     # The REWE aisle also contains canned ingredients and sauces; category alone
     # is not enough evidence that a product is a complete meal.
     category_meal = "fertiggerichte" in category and any(
@@ -82,7 +83,7 @@ def classify_product(product: dict) -> ProductProfile:
             prep = "ready_to_heat"
     else:
         # Components are useful shortcuts, but are not complete meals.
-        if any(x in name for x in ("passata", "pesto", "tomatensauce", "tomatensosse", "sugo", "cooking sauce")):
+        if any(x in name for x in ("passata", "passierte tomaten", "pesto", "tomatensauce", "tomatensosse", "sugo", "cooking sauce")):
             product_type, role, prep, convenience = "prepared_component", "sauce", "ready_to_use", 4
             confidence = 0.94
             evidence.append("sauce-component")
