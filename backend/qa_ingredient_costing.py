@@ -19,6 +19,7 @@ def run():
     assert ingredient_name_matches("trofie pasta", "REWE Trofie") is True
     assert ingredient_name_matches("trofie pasta", "REWE Fusilli") is False
     assert ingredient_name_matches("trofie pasta", "REWE Udon Nudeln") is False
+    assert ingredient_name_matches("rice", "REWE Beste Wahl Langkornreis 500g") is True
     assert ingredient_name_matches("parmesan", "Parmigiano Reggiano") is True
     assert ingredient_name_matches("parmesan", "Käse-Wiener") is False
     assert ingredient_name_matches("fresh basil pesto", "Basilikum Pesto") is True
