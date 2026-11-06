@@ -3,6 +3,7 @@
 Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import build_basket, consolidate
+from app.ingredient_aliases import ingredient_name_matches
 
 
 class FakeCatalog:
@@ -14,6 +15,15 @@ class FakeCatalog:
 
 
 def run():
+    # The actual product title, not a broad catalog label, must confirm the ingredient.
+    assert ingredient_name_matches("trofie pasta", "REWE Trofie") is True
+    assert ingredient_name_matches("trofie pasta", "REWE Fusilli") is False
+    assert ingredient_name_matches("trofie pasta", "REWE Udon Nudeln") is False
+    assert ingredient_name_matches("parmesan", "Parmigiano Reggiano") is True
+    assert ingredient_name_matches("parmesan", "Käse-Wiener") is False
+    assert ingredient_name_matches("fresh basil pesto", "Basilikum Pesto") is True
+    assert ingredient_name_matches("pine nuts", "Pinienkerne natur") is True
+
     catalog = FakeCatalog({
         "rice": [{
             "id": 1, "name_original": "REWE Rice 500g", "package_size": 500,
@@ -76,7 +86,20 @@ def run():
     assert milk_total["quantity"] == 600 and milk_total["unit"] == "ml"
     assert len(garlic_rows) == 2, "Cloves and whole units must not be silently merged"
 
-    print("PASS: kg/g and l/ml conversions, pantry deductions, checkout package cost, consumed cost, and unmatched handling")
+    # Recipe ingredient quantities are generated for 2 servings and scaled exactly once.
+    one_serving = consolidate([
+        {"id": "single", "name": "Single portion", "base_servings": 2,
+         "ingredients": [["rice", 150, "g"]]},
+    ], {"single": 1})
+    assert one_serving[0]["quantity"] == 75
+
+    four_servings = consolidate([
+        {"id": "four", "name": "Four portions", "base_servings": 2,
+         "ingredients": [["rice", 150, "g"]]},
+    ], {"four": 4})
+    assert four_servings[0]["quantity"] == 300
+
+    print("PASS: strict title matching, portion scaling, unit conversions, pantry deductions, checkout vs consumed cost, and unmatched handling")
 
 
 if __name__ == "__main__":
