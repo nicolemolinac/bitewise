@@ -183,6 +183,13 @@ export default function AppV3(){
   const [strategy,setStrategy]=useState<Strategy>(()=>read('strategy','best-value'));
   const [owned,setOwned]=useState<string[]>(()=>read('owned',[]));
   const [pantry,setPantry]=useState<any[]>([]);
+  const [pantryDraftId,setPantryDraftId]=useState<number|null>(null);
+  const [pantryIngredient,setPantryIngredient]=useState('');
+  const [pantryQuantity,setPantryQuantity]=useState('1');
+  const [pantryUnit,setPantryUnit]=useState('g');
+  const [pantryExpiry,setPantryExpiry]=useState('');
+  const [pantrySaving,setPantrySaving]=useState(false);
+  const [pantryError,setPantryError]=useState('');
   const [altItem,setAltItem]=useState<BasketItem|null>(null);
   const [alternatives,setAlternatives]=useState<Product[]>([]);
   const [altError,setAltError]=useState('');
@@ -375,6 +382,10 @@ export default function AppV3(){
   async function openAlternatives(item:BasketItem){setAltItem(item);setAltError('');setAlternatives([]);try{if(item.product?.id&&!item.ingredient.startsWith('extra:')){const d=await api(`/products/${item.product.id}/alternatives?needed_qty=${encodeURIComponent(String(item.needed_quantity??item.quantity))}&unit=${encodeURIComponent(item.unit)}`);setAlternatives(d.alternatives||[])}else{const query=item.ingredient.startsWith('extra:')?(item.product?.name_original||item.ingredient):item.ingredient;const d=await api(`/products/search?q=${encodeURIComponent(query)}`);setAlternatives(d.products||[])}}catch(e:any){setAltError(e.message||'Could not load alternatives')}}
   async function chooseAlternative(p:Product){if(!altItem||!p.id)return;setAltError('');try{if(altItem.ingredient.startsWith('extra:')){const id=altItem.ingredient.slice(6);const nextExtras=extras.map(extra=>extra.id===id?{...extra,product:p,label:p.name_original}:extra);setExtras(nextExtras);await makeBasket(strategy,nextExtras);setAltItem(null);return;}await api('/products/replace',{method:'POST',body:JSON.stringify({ingredient:altItem.ingredient,product_id:p.id})});await makeBasket(strategy);setAltItem(null)}catch(e:any){setAltError(e.message||'Could not save this product choice')}}
   async function purchase(item:BasketItem){if(item.ingredient.startsWith('extra:')){const id=item.ingredient.slice(6);const nextExtras=extras.map(extra=>extra.id===id?{...extra,onHand:(Number(extra.onHand)||0)+Math.max(1,Number(item.packs)||1)}:extra);setExtras(nextExtras);await makeBasket(strategy,nextExtras);return;}if(!item.product?.id)return;await api('/shopping/purchase',{method:'POST',body:JSON.stringify({product_id:item.product.id,packs:item.packs,ingredient:item.ingredient})});setPantry(await api('/pantry'));await makeBasket(strategy)}
+  function editPantryItem(item:any){setPantryDraftId(item.id);setPantryIngredient(item.ingredient||'');setPantryQuantity(String(item.quantity??1));setPantryUnit(item.unit||'g');setPantryExpiry(item.expiry_date||'');setPantryError('');}
+  function resetPantryDraft(){setPantryDraftId(null);setPantryIngredient('');setPantryQuantity('1');setPantryUnit('g');setPantryExpiry('');setPantryError('');}
+  async function savePantryDraft(){const ingredient=pantryIngredient.trim();const quantity=Number(pantryQuantity);if(!ingredient||!Number.isFinite(quantity)||quantity<0){setPantryError('Enter an ingredient and a valid quantity (zero or more).');return;}setPantrySaving(true);setPantryError('');try{const payload={ingredient,quantity,unit:pantryUnit.trim()||'unit',expiry_date:pantryExpiry||null};await api(pantryDraftId?'/pantry/'+pantryDraftId:'/pantry',{method:pantryDraftId?'PATCH':'POST',body:JSON.stringify(payload)});setPantry(await api('/pantry'));resetPantryDraft()}catch(e:any){setPantryError(e.message||'Could not save pantry item')}finally{setPantrySaving(false)}}
+  async function deletePantryItem(item:any){if(!window.confirm('Remove '+item.ingredient+' from your pantry?'))return;try{await api('/pantry/'+item.id,{method:'DELETE'});setPantry(await api('/pantry'));if(pantryDraftId===item.id)resetPantryDraft()}catch(e:any){setPantryError(e.message||'Could not remove pantry item')}}
   async function searchExtras(){if(!extraQuery.trim())return;const d=await api(`/products/search?q=${encodeURIComponent(extraQuery)}`);setExtraResults(d.products||[])}
   async function addExtra(p:Product){const id=`${extraKind}-${p.id||p.name_original}`;if(extras.some(x=>x.id===id)){setTab('basket');return;}const next=[...extras,{id,kind:extraKind,label:p.name_original,product:p,dailyUse:extraKind==='beverage'?1:0,weeklyQuantity:1,onHand:0}];setExtras(next);await makeBasket(strategy,next);}
   function updateDay(i:number,patch:Partial<DayContext>){setDayContexts(x=>x.map((d,idx)=>idx===i?{...d,...patch}:d))}
