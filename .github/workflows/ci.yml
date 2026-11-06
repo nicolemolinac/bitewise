@@ -9,9 +9,6 @@ on:
       - chatgpt/qa-bitewise
   pull_request:
 
-permissions:
-  contents: write
-
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -93,22 +90,12 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Regenerate lockfile from pinned dependencies
-        run: npm install --package-lock-only --ignore-scripts
-      - name: Upload regenerated lockfile for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: bitewise-frontend-lockfile
-          path: frontend/package-lock.json
-          if-no-files-found: error
-      - name: Verify clean reproducible install
+      - name: Install from committed lockfile
         run: npm ci
       - name: Fail on high-severity dependency vulnerabilities
         run: npm audit --audit-level=high
@@ -123,17 +110,3 @@ jobs:
           npm audit --json > npm-audit.json || true
           node -e "const a=JSON.parse(require('fs').readFileSync('npm-audit.json','utf8')); console.log('npm audit severity totals:', JSON.stringify(a.metadata?.vulnerabilities || {})); for (const [name,v] of Object.entries(a.vulnerabilities || {})) console.log(JSON.stringify({name,severity:v.severity,isDirect:v.isDirect,range:v.range,via:(v.via || []).map(x => typeof x === 'string' ? x : {title:x.title,url:x.url,range:x.range,severity:x.severity}),fixAvailable:v.fixAvailable}));"
       - run: npm run build
-      - name: Commit verified lockfile to the PR branch
-        if: success() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          BRANCH: ${{ github.head_ref }}
-        run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "Lockfile already matches the pinned manifest."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore(frontend): commit verified npm lockfile"
-          git push origin "HEAD:${BRANCH}"
