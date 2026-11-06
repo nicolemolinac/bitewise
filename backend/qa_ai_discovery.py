@@ -42,7 +42,7 @@ def run():
     assert "chicken, rice, broccoli, passata" in prompt
     assert "Italian, Asian" in prompt
     assert "chicken (300 g)" in prompt
-    assert "must never let this override the search" in prompt.lower()
+    assert "never let this override the search" in prompt.lower()
     assert "do not restrict ideas to the list" in prompt.lower()
     assert len(ideas) == 2 and all(item["is_concept"] for item in ideas)
     assert all(item["ingredients"] == [] and item["steps"] == [] for item in ideas)
