@@ -207,6 +207,26 @@ MIDDLE_SHORTCUTS = {
     "Lentil bolognese": ["spaghetti", "tomato sauce", "lentil", "parmesan"],
     "Tuna tomato pasta": ["spaghetti", "tomato sauce", "tuna", "olive oil"],
     "Shakshuka": ["eggs", "tomato passata", "bell pepper", "feta"],
+    "Chicken schnitzel with potato salad": ["chicken breast", "breadcrumbs", "potato", "yogurt"],
+    "Beef meatballs in tomato sauce": ["ground beef", "breadcrumbs", "tomato sauce", "parmesan"],
+    "Chili con carne": ["ground beef", "kidney beans", "corn", "tomato passata"],
+    "Vegetarian chickpea coconut curry": ["chickpea", "coconut milk", "spinach", "rice"],
+    "Greek village salad": ["feta", "cucumber", "tomato", "greek yogurt"],
+    "Roasted vegetable couscous": ["couscous", "chickpea", "zucchini", "vegetable broth"],
+    "Creamy pork mushroom medallions": ["pork", "mushroom", "cream", "potato"],
+    "Salmon fish tacos": ["tortilla", "salmon", "greek yogurt", "avocado"],
+    "Eggplant parmesan bake": ["eggplant", "tomato passata", "mozzarella", "parmesan"],
+    "Broccoli potato soup": ["broccoli", "vegetable broth", "cream", "cheese"],
+    "Miso-style tofu noodle bowl": ["tofu", "noodles", "soy sauce", "ginger"],
+    "Tuna avocado rice bowl": ["tuna", "rice", "avocado", "soy sauce"],
+    "Quiche lorraine": ["eggs", "cream", "bacon", "cheese"],
+    "Stuffed bell peppers": ["bell pepper", "rice", "ground beef", "tomato sauce"],
+    "Chicken noodle soup": ["chicken breast", "noodles", "carrot", "chicken broth"],
+    "Crispy tofu peanut noodles": ["tofu", "noodles", "peanut butter", "soy sauce"],
+    "Apple almond crumble": ["apple", "oats", "cinnamon", "almond"],
+    "Blueberry banana overnight oats": ["oats", "milk", "yogurt", "blueberry"],
+    "Sweet potato black bean bowls": ["sweet potato", "bean", "corn", "rice"],
+    "Turkey meatloaf": ["turkey", "breadcrumbs", "tomato paste", "potato"],
 }
 
 READY_MEAL_FAMILIES = {}
@@ -304,7 +324,12 @@ def main():
         for recipe, ingredients in MIDDLE_SHORTCUTS.items():
             for ingredient in ingredients:
                 middle_total += 1
-                if adapter.search(ingredient):
+                products = adapter.search(ingredient)
+                valid = [
+                    product for product in products
+                    if ingredient_product_match_type(ingredient, _product_title(product))
+                ]
+                if valid:
                     middle_matched += 1
                 else:
                     middle_missing.setdefault(recipe, []).append(ingredient)
