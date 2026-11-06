@@ -224,6 +224,13 @@ def _build_convenience_options(db, recipe: dict) -> dict:
         (r"burger", ["burger"]),
         (r"auflauf|casserole|gratin", ["auflauf", "gratin"]),
         (r"rice bowl|reis bowl", ["rice bowl", "reis bowl"]),
+        (r"chili con carne|chili", ["chili", "chili con carne"]),
+        (r"schnitzel", ["schnitzel"]),
+        (r"quiche", ["quiche"]),
+        (r"ramen", ["ramen", "nudelsuppe"]),
+        (r"soup", ["suppe", "soup"]),
+        (r"stuffed bell pepper", ["gefüllte paprika", "gefuellte paprika"]),
+        (r"meatballs", ["frikadellen", "hackbällchen", "hackbaellchen"]),
     ]:
         if re.search(pattern, recipe_name):
             ready_terms.extend(terms)
@@ -288,6 +295,15 @@ def _build_convenience_options(db, recipe: dict) -> dict:
     if "rice" in ingredient_text:
         shortcut_patterns.append(r"express.?reis|vorgegart.*reis|reis.*vorgegart|reis im beutel")
         shortcut_terms.extend(["expressreis", "express-reis", "vorgegart", "reis im beutel"])
+    if any(term in ingredient_text for term in ("salmon", "shrimp", "prawn", "fish", "tuna", "lachs", "garnelen")):
+        shortcut_patterns.append(r"lachs|salmon|garnelen|shrimp|prawn|fischfilet|thunfisch|tuna")
+        shortcut_terms.extend(["lachs", "salmon", "garnelen", "shrimp", "prawn", "fischfilet", "thunfisch", "tuna"])
+    if any(term in ingredient_text for term in ("tofu",)):
+        shortcut_patterns.append(r"tofu")
+        shortcut_terms.append("tofu")
+    if any(term in ingredient_text for term in ("chickpea", "chickpeas", "bean", "beans", "lentil", "lentils")):
+        shortcut_patterns.append(r"kichererbsen|kichererbse|bohnen|linsen|chickpea|kidney.?bohnen|beans")
+        shortcut_terms.extend(["kichererbsen", "kichererbse", "bohnen", "linsen", "chickpea", "kidney-bohnen"])
 
     # Query only titles relevant to this recipe's actual shortcut families. The
     # previous full-catalog scan classified every SKU for every expansion.
