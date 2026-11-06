@@ -159,6 +159,31 @@ def ingredient_aliases(value: str) -> list[str]:
     return sorted((x for x in aliases if x), key=lambda x: (-len(x), x))
 
 
+def canonical_ingredient_terms(product_name: str) -> list[str]:
+    """Extract known canonical ingredient names from a real catalog product title.
+
+    Product.ingredient in the imported REWE snapshot is often just a normalized
+    copy of the SKU title, not a reliable ingredient taxonomy. This function
+    derives only known ingredient concepts from the actual product name.
+    """
+    title = " " + _norm(product_name) + " "
+    hits = []
+    for group in _ALIAS_GROUPS:
+        canonical = _norm(group[0])
+        matched = [
+            _norm(alias) for alias in group
+            if (" " + _norm(alias) + " ") in title
+        ]
+        if matched:
+            hits.append((max(len(term.split()) for term in matched), max(map(len, matched)), canonical))
+    hits.sort(key=lambda item: (-item[0], -item[1], item[2]))
+    selected = []
+    for _words, _chars, canonical in hits:
+        if canonical not in selected:
+            selected.append(canonical)
+    return selected
+
+
 def ingredient_name_matches(ingredient: str, product_name: str) -> bool:
     """Require a complete compatible ingredient phrase in the actual product title."""
     title = _norm(product_name)
