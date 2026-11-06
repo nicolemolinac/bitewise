@@ -146,14 +146,26 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
 
     if replacements:
         adapted_ingredients = []
+        substitution_rows = {
+            str(row.get("ingredient") or "").strip().lower(): row
+            for row in basket if row.get("match_status") == "substituted"
+        }
         for item in recipe.get("ingredients") or []:
             if isinstance(item, (list, tuple)) and len(item) >= 3:
                 name, quantity, unit = item[0], item[1], item[2]
-                for original, replacement in replacements:
-                    if str(name).strip().lower() == original.lower():
-                        name = replacement
-                        break
-                adapted_ingredients.append([name, quantity, unit])
+                row = substitution_rows.get(str(name).strip().lower())
+                if row:
+                    replacement = str((row.get("product") or {}).get("ingredient_substitute") or "")
+                    pantry_used = float(row.get("pantry_used") or 0)
+                    needed = float(row.get("needed_quantity") or 0)
+                    if pantry_used > 0:
+                        adapted_ingredients.append([name, pantry_used, unit])
+                        if needed > 0:
+                            adapted_ingredients.append([replacement, needed, unit])
+                    else:
+                        adapted_ingredients.append([replacement, quantity, unit])
+                else:
+                    adapted_ingredients.append([name, quantity, unit])
             else:
                 adapted_ingredients.append(item)
         recipe["ingredients"] = adapted_ingredients
@@ -163,7 +175,10 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
                 continue
             step_text = str(step.get("text") or "")
             for original, replacement in replacements:
-                step_text = re.sub(r"(?<![\w])" + re.escape(original) + r"(?![\w])", replacement, step_text, flags=re.IGNORECASE)
+                row = substitution_rows.get(original.lower(), {})
+                pantry_used = float(row.get("pantry_used") or 0)
+                step_replacement = original + " and " + replacement if pantry_used > 0 else replacement
+                step_text = re.sub(r"(?<![\w])" + re.escape(original) + r"(?![\w])", step_replacement, step_text, flags=re.IGNORECASE)
             step["text"] = step_text
 
     recipe["adaptations"] = adaptations
