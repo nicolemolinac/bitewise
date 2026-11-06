@@ -16,8 +16,9 @@ def consolidate(meals, servings_map):
     grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": []})
     canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
     for meal in meals:
-        servings = servings_map.get(meal["id"], 2)
-        factor = servings / 2
+        servings = max(0.1, float(servings_map.get(meal["id"], 2) or 2))
+        base_servings = max(0.1, float(meal.get("base_servings", 2) or 2))
+        factor = servings / base_servings
         for name, quantity, unit in meal["ingredients"]:
             normalized_unit = _normal_unit(unit)
             unit_info = _UNIT_BASE.get(normalized_unit)
