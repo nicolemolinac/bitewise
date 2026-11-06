@@ -355,7 +355,7 @@ def _auto_import_rewe_csv_snapshot() -> None:
                 package_size = package_size if package_size and package_size > 0 else 1.0
                 products.append(Product(
                     supermarket="REWE",
-                    external_id=f"csv-snapshot-{source_id}",
+                    external_id=(str(row.get("external_id") or "").strip() or f"csv-snapshot-{source_id}"),
                     ingredient=str(row.get("ingredient") or "").strip()[:100] or "unknown",
                     name_original=name[:300],
                     name_normalized=str(row.get("name_normalized") or name.lower()).strip()[:300],
@@ -367,11 +367,14 @@ def _auto_import_rewe_csv_snapshot() -> None:
                     price=_snapshot_float(row.get("price")),
                     price_per_unit=_snapshot_float(row.get("price_per_unit")),
                     currency=str(row.get("currency") or "EUR").strip()[:6],
+                    product_url=(str(row.get("product_url") or "").strip() or None),
+                    image_url=(str(row.get("image_url") or "").strip() or None),
                     availability=str(row.get("availability") or "unknown").strip()[:30],
-                    postcode_context=postcode,
-                    first_seen_at=_parse_snapshot_dt(row.get("last_seen_at")) or now,
+                    postcode_context=(str(row.get("postcode_context") or postcode).strip()[:12]),
+                    first_seen_at=_parse_snapshot_dt(row.get("first_seen_at")) or _parse_snapshot_dt(row.get("last_seen_at")) or now,
                     last_seen_at=_parse_snapshot_dt(row.get("last_seen_at")) or now,
                     last_checked_at=_parse_snapshot_dt(row.get("last_checked_at")) or now,
+                    last_price=_snapshot_float(row.get("last_price")),
                 ))
 
         if not products:
