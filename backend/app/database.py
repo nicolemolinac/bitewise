@@ -1,3 +1,4 @@
+import csv
 import os
 import sqlite3
 from datetime import datetime
@@ -305,5 +306,110 @@ def _auto_restore_local_rewe_snapshot() -> None:
             target.close()
 
 
+
+def _snapshot_float(value, default=None):
+    if value is None or str(value).strip() == "":
+        return default
+    try:
+        return float(str(value).strip().replace(",", "."))
+    except (TypeError, ValueError):
+        return default
+
+
+def _auto_import_rewe_csv_snapshot() -> None:
+    """Seed an empty product table from the committed REWE CSV snapshot exactly once.
+
+    The CSV is a fallback baseline, not a live refresh. Never overwrite a non-empty
+    catalog: postcode-specific live REWE data and existing user overrides take priority.
+    """
+    snapshot_path = BACKEND_DIR / "data" / "catalog" / "rewe_products.csv"
+    if not snapshot_path.is_file() or snapshot_path.stat().st_size < 100:
+        return
+
+    db = None
+    try:
+        db = SessionLocal()
+        existing = db.query(Product).filter(Product.supermarket == "REWE").count()
+        if existing:
+            return
+
+        setting_row = db.get(AppSetting, "postcode")
+        postcode = setting_row.value if setting_row and setting_row.value else "13353"
+        now = datetime.utcnow()
+        products = []
+        with snapshot_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle)
+            required = {"id", "supermarket", "ingredient", "name_original", "name_normalized"}
+            if not required.issubset(set(reader.fieldnames or [])):
+                raise ValueError("REWE CSV snapshot is missing required columns")
+
+            for row in reader:
+                supermarket = str(row.get("supermarket") or "REWE").strip().upper()
+                name = str(row.get("name_original") or "").strip()
+                if supermarket != "REWE" or not name:
+                    continue
+                source_id = str(row.get("id") or "").strip()
+                if not source_id:
+                    source_id = str(len(products) + 1)
+                package_size = _snapshot_float(row.get("package_size"), 1.0)
+                package_size = package_size if package_size and package_size > 0 else 1.0
+                products.append(Product(
+                    supermarket="REWE",
+                    external_id=f"csv-snapshot-{source_id}",
+                    ingredient=str(row.get("ingredient") or "").strip()[:100] or "unknown",
+                    name_original=name[:300],
+                    name_normalized=str(row.get("name_normalized") or name.lower()).strip()[:300],
+                    translated_name=(str(row.get("translated_name") or "").strip()[:300] or None),
+                    brand=(str(row.get("brand") or "").strip()[:120] or None),
+                    category=(str(row.get("category") or "").strip()[:120] or None),
+                    package_size=package_size,
+                    package_unit=str(row.get("package_unit") or "unit").strip()[:20],
+                    price=_snapshot_float(row.get("price")),
+                    price_per_unit=_snapshot_float(row.get("price_per_unit")),
+                    currency=str(row.get("currency") or "EUR").strip()[:6],
+                    availability=str(row.get("availability") or "unknown").strip()[:30],
+                    postcode_context=postcode,
+                    first_seen_at=_parse_snapshot_dt(row.get("last_seen_at")) or now,
+                    last_seen_at=_parse_snapshot_dt(row.get("last_seen_at")) or now,
+                    last_checked_at=_parse_snapshot_dt(row.get("last_checked_at")) or now,
+                ))
+
+        if not products:
+            return
+        db.add_all(products)
+        db.add(CatalogRun(
+            provider="REWE",
+            status="snapshot",
+            products_seen=len(products),
+            errors=0,
+            categories_processed=0,
+            categories_successful=0,
+            categories_failed=0,
+            started_at=now,
+            finished_at=now,
+        ))
+        settings = {
+            "rewe_snapshot_source": "committed-csv-snapshot",
+            "rewe_snapshot_product_count": str(len(products)),
+            "rewe_snapshot_last_imported_at": now.isoformat(),
+        }
+        for key, value in settings.items():
+            setting = db.get(AppSetting, key)
+            if setting:
+                setting.value = value
+            else:
+                db.add(AppSetting(key=key, value=value))
+        db.commit()
+        print(f"Bitewise imported {len(products)} REWE products from {snapshot_path}.")
+    except Exception as exc:
+        if db:
+            db.rollback()
+        print(f"Bitewise could not import the committed REWE CSV snapshot: {exc}")
+    finally:
+        if db:
+            db.close()
+
+
 _migrate_sqlite()
 _auto_restore_local_rewe_snapshot()
+_auto_import_rewe_csv_snapshot()
