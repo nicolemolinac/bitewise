@@ -61,9 +61,14 @@ def main():
         # backed by real, title-validated products from this committed REWE snapshot.
         generation_context = _catalog_context("salmon rice bowl", limit=60)
         context_ingredients = [x.strip() for x in generation_context.split(",") if x.strip()]
-        assert len(context_ingredients) <= 60, "Generation context exceeded its ingredient cap"
-        assert 0 < len(generation_context) < 2500, "Generation context is empty or not compact enough"
         print(f"Catalog-aware Gemini context: {len(context_ingredients)} canonical ingredients / {len(generation_context)} chars")
+        assert len(context_ingredients) <= 60, "Generation context exceeded its ingredient cap"
+        assert 0 < len(generation_context) <= 1600, (
+            f"Generation context must fit the 1,600-character budget; got {len(generation_context)} chars"
+        )
+        assert all(len(value) <= 64 for value in context_ingredients), (
+            "Gemini context must contain canonical ingredient keys, not verbose product titles"
+        )
         print("Catalog-aware ingredient keys:", generation_context)
 
         adapter = server.main_module.CatalogAdapter(db)
