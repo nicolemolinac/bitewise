@@ -9,7 +9,8 @@ from .gemini import (
     _parse_json_array,
     _persist_generated,
 )
-from ..database import PantryItem, Product, SessionLocal
+from ..database import PantryItem, Product, SessionLocal, UserEvent
+from ..recommendations.engine import build_preference_profile
 from ..ingredient_aliases import ingredient_product_match_type
 
 
@@ -54,6 +55,29 @@ def _pantry_context() -> list[str]:
             f"{row.ingredient} ({row.quantity:g} {row.unit})"
             for row in db.query(PantryItem).filter(PantryItem.quantity > 0).limit(40).all()
         ]
+    finally:
+        db.close()
+
+
+def _taste_context() -> str:
+    """Compact preference signals from existing user feedback; no model training/call."""
+    db = SessionLocal()
+    try:
+        profile = build_preference_profile(db.query(UserEvent).all(), MEALS)
+        cuisines = sorted(
+            ((key, value) for key, value in profile["cuisines"].items() if value > 0),
+            key=lambda item: item[1], reverse=True
+        )[:3]
+        tags = sorted(
+            ((key, value) for key, value in profile["tags"].items() if value > 0),
+            key=lambda item: item[1], reverse=True
+        )[:5]
+        parts = []
+        if cuisines:
+            parts.append("cuisines: " + ", ".join(key for key, _ in cuisines))
+        if tags:
+            parts.append("food styles: " + ", ".join(key for key, _ in tags))
+        return "; ".join(parts) if parts else "not enough feedback yet"
     finally:
         db.close()
 
@@ -188,6 +212,10 @@ class GeminiService(BaseGeminiService):
         user_request = _base_user_request(prompt)
         pantry = _pantry_context()
         pantry_context = ", ".join(pantry[:8]) if pantry else "none"
+        # Local full-catalog retrieval, compressed to canonical ingredient names.
+        # Gemini still invents the concepts; these signals only improve feasibility.
+        catalog_context = _catalog_context(user_request, limit=60, max_chars=1600)
+        taste_context = _taste_context()
 
         instruction = f"""You are Bitewise's visual discovery editor. Think like a strong Pinterest board curator, not a novelty recipe generator.
 
@@ -196,6 +224,8 @@ PRIMARY USER SEARCH (this controls the result set):
 
 SECONDARY CONTEXT ONLY — never let this override the search:
 Pantry hints: {pantry_context}
+REWE catalog ingredient signals (generic names only; not proof of live stock): {catalog_context}
+Learned taste signals from previous feedback: {taste_context}
 
 AVAILABILITY RULE:
 - Choose familiar ingredients normally sold by mainstream German supermarkets such as REWE.
@@ -212,6 +242,8 @@ QUALITY RULES:
 - Use familiar food names. Prefer concepts people can instantly picture.
 - The full search intent is mandatory. If the search says romantic + breakfast + simple, EVERY result must visibly satisfy all three.
 - For occasion/aesthetic searches, encode the aesthetic in the FOOD itself: heart-shaped toast or pancakes, strawberries/berries, croissants, waffles, eggs on toast, yogurt parfait, breakfast board/tray, fruit, cocoa/coffee. Do not just add words like elegant, cozy, sunrise, indulgent to an unrelated dish.
+- Use real catalog ingredient signals when they genuinely suit the dish, but do not restrict ideas to the list or force a match.
+- The user's explicit search intent and culinary quality always outrank catalog coverage and historical preferences.
 - Avoid beverages as standalone meal cards unless the user explicitly asks for drinks.
 - Avoid pasta, salads, savory lunch/dinner dishes, or odd pantry hacks for a breakfast search unless explicitly requested.
 - Keep descriptions concrete and under 12 words.
