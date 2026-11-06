@@ -10,7 +10,7 @@ _ALIAS_GROUPS = [
     ("cheese", "käse", "kaese"),
     ("cream", "sahne", "schlagsahne", "kochcreme"),
     ("yogurt", "yoghurt", "joghurt"),
-    ("greek yogurt", "greek yoghurt", "griechischer joghurt", "griechischer yoghurt"),
+    ("greek yogurt", "greek yoghurt", "griechischer joghurt", "griechischer yoghurt", "joghurt griechischer art", "joghurt nach griechischer art", "griechischer art"),
     ("quark", "quark", "speisequark"),
     ("mozzarella", "mozzarella"),
     ("parmesan", "parmesan", "parmigiano", "parmigiano reggiano"),
@@ -40,7 +40,7 @@ _ALIAS_GROUPS = [
     ("potato", "potatoes", "kartoffel", "kartoffeln"),
     ("sweet potato", "sweet potatoes", "süßkartoffel", "süßkartoffeln", "suesskartoffel", "suesskartoffeln"),
     ("tomato", "tomatoes", "tomate", "tomaten"),
-    ("cherry tomato", "cherry tomatoes", "cherrytomate", "cherrytomaten"),
+    ("cherry tomato", "cherry tomatoes", "cherrytomate", "cherrytomaten", "kirschtomate", "kirschtomaten", "cocktailtomate", "cocktailtomaten", "datteltomate", "datteltomaten"),
     ("cucumber", "gurke", "salatgurke"),
     ("onion", "onions", "zwiebel", "zwiebeln"),
     ("red onion", "rote zwiebel", "rote zwiebeln"),
@@ -167,6 +167,7 @@ _SUBSTITUTION_GROUPS = {
     "brown rice": ("naturreis", "vollkornreis"),
     "vegetable stock": ("gemüsebrühe", "gemuesebruehe"),
     "chicken stock": ("hühnerbrühe", "huehnerbruehe"),
+    "greek yogurt": ("skyr", "protein joghurt"),
 }
 
 
