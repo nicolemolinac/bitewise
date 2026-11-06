@@ -12,6 +12,10 @@ def run():
     passata = profile("REWE Bio Passata 700 g", "oele-sossen-gewuerze")
     assert not passata.is_complete_meal
     assert passata.product_type == "prepared_component" and passata.culinary_role == "sauce"
+    canned_tomatoes = profile("REWE gehackte Tomaten 400 g", "fertiggerichte-konserven")
+    assert not canned_tomatoes.is_complete_meal, "Canned aisle membership must not imply a ready meal"
+    lasagne_sheets = profile("ja! Lasagneplatten 500 g", "kochen-backen")
+    assert not lasagne_sheets.is_complete_meal and lasagne_sheets.culinary_role == "starch"
 
     pasta = profile("Barilla Penne Rigate 500 g", "kochen-backen")
     assert not pasta.is_complete_meal and pasta.culinary_role == "starch"
