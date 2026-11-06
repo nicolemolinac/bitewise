@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 # Deterministic, token-free English <-> German ingredient aliases for REWE matching.
 # Keep canonical recipe ingredients in English; expand only at catalog-search time.
@@ -9,10 +10,10 @@ _ALIAS_GROUPS = [
     ("cheese", "käse", "kaese"),
     ("cream", "sahne", "schlagsahne", "kochcreme"),
     ("yogurt", "yoghurt", "joghurt"),
-    ("greek yogurt", "greek yoghurt", "griechischer joghurt", "griechischer yoghurt"),
+    ("greek yogurt", "greek yoghurt", "griechischer joghurt", "griechischer yoghurt", "joghurt griechischer art", "joghurt nach griechischer art", "griechischer art"),
     ("quark", "quark", "speisequark"),
     ("mozzarella", "mozzarella"),
-    ("parmesan", "parmesan", "parmigiano"),
+    ("parmesan", "parmesan", "parmigiano", "parmigiano reggiano"),
     ("feta", "feta", "hirtenkäse", "hirtenkaese"),
     ("chicken", "hähnchen", "haehnchen", "huhn", "hühner", "huehner"),
     ("chicken breast", "hähnchenbrust", "haehnchenbrust"),
@@ -27,8 +28,11 @@ _ALIAS_GROUPS = [
     ("toast", "toast", "toastbrot"),
     ("flour", "mehl", "weizenmehl"),
     ("oats", "oat", "haferflocken", "hafer"),
-    ("rice", "reis"),
+    ("rice", "reis", "langkornreis", "basmatireis", "jasminreis", "vollkornreis", "naturreis"),
     ("pasta", "nudeln", "pasta"),
+    ("trofie pasta", "trofie"),
+    ("fresh basil pesto", "basil pesto", "pesto alla genovese", "pesto genovese", "basilikum pesto", "basilikum-pesto"),
+    ("pine nuts", "pinienkerne", "pinienkerne natur"),
     ("spaghetti", "spaghetti"),
     ("noodles", "nudeln"),
     ("couscous", "couscous"),
@@ -36,7 +40,7 @@ _ALIAS_GROUPS = [
     ("potato", "potatoes", "kartoffel", "kartoffeln"),
     ("sweet potato", "sweet potatoes", "süßkartoffel", "süßkartoffeln", "suesskartoffel", "suesskartoffeln"),
     ("tomato", "tomatoes", "tomate", "tomaten"),
-    ("cherry tomato", "cherry tomatoes", "cherrytomate", "cherrytomaten"),
+    ("cherry tomato", "cherry tomatoes", "cherrytomate", "cherrytomaten", "kirschtomate", "kirschtomaten", "cocktailtomate", "cocktailtomaten", "datteltomate", "datteltomaten"),
     ("cucumber", "gurke", "salatgurke"),
     ("onion", "onions", "zwiebel", "zwiebeln"),
     ("red onion", "rote zwiebel", "rote zwiebeln"),
@@ -75,7 +79,7 @@ _ALIAS_GROUPS = [
     ("maple syrup", "ahornsirup"),
     ("sugar", "zucker"),
     ("brown sugar", "brauner zucker", "rohrzucker"),
-    ("salt", "salz"),
+    ("salt", "salz", "speisesalz", "meersalz", "jodsalz", "table salt"),
     ("black pepper", "schwarzer pfeffer", "pfeffer"),
     ("paprika powder", "paprikapulver"),
     ("cinnamon", "zimt"),
@@ -98,7 +102,9 @@ _ALIAS_GROUPS = [
 
 
 def _norm(value: str) -> str:
-    return re.sub(r"\s+", " ", (value or "").lower().strip())
+    text = unicodedata.normalize("NFC", str(value or "").lower())
+    text = re.sub(r"[^a-z0-9äöüß]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 _ALIAS_INDEX: dict[str, set[str]] = {}
@@ -122,8 +128,88 @@ def ingredient_aliases(value: str) -> list[str]:
         aliases.add(needle[:-1])
     else:
         aliases.add(needle + "s")
-    # If a generated ingredient contains a known phrase, inherit that group's aliases.
-    for known, group in _ALIAS_INDEX.items():
-        if known in needle or needle in known:
-            aliases.update(group)
     return sorted((x for x in aliases if x), key=lambda x: (-len(x), x))
+
+
+def ingredient_name_matches(ingredient: str, product_name: str) -> bool:
+    """Require a complete compatible ingredient phrase in the actual product title."""
+    title = _norm(product_name)
+    if not title:
+        return False
+    padded_title = " " + title + " "
+    for alias in ingredient_aliases(ingredient):
+        padded_alias = " " + _norm(alias) + " "
+        if padded_alias in padded_title:
+            return True
+    return False
+
+
+# Explicit culinary substitutions are separate from exact aliases. They are surfaced
+# as substitutions in the basket instead of being silently presented as exact matches.
+_SUBSTITUTION_GROUPS = {
+    "trofie pasta": ("fusilli", "penne", "farfalle", "rigatoni", "casarecce", "orecchiette", "short pasta"),
+    "parmesan": ("grana padano",),
+    "pine nuts": ("sunflower seeds", "sonnenblumenkerne", "pumpkin seeds", "kürbiskerne"),
+    "heavy cream": ("schlagsahne", "sahne", "kochcreme"),
+    "sour cream": ("schmand", "saure sahne", "crème fraîche"),
+    "buttermilk": ("buttermilch",),
+    "ricotta": ("frischkäse", "hüttenkäse"),
+    "shallot": ("rote zwiebel", "zwiebel"),
+    "red wine vinegar": ("balsamico", "rotweinessig"),
+    "white wine vinegar": ("weißweinessig", "weissweinessig"),
+    "panko": ("semmelbrösel", "paniermehl"),
+    "cilantro": ("koriander", "petersilie"),
+    "coriander leaves": ("koriander",),
+    "arugula": ("rucola",),
+    "rocket": ("rucola",),
+    "crème fraîche": ("schmand", "saure sahne"),
+    "mascarpone": ("frischkäse",),
+    "brown rice": ("naturreis", "vollkornreis"),
+    "vegetable stock": ("gemüsebrühe", "gemuesebruehe"),
+    "chicken stock": ("hühnerbrühe", "huehnerbruehe"),
+    "greek yogurt": ("skyr", "protein joghurt"),
+}
+
+
+def ingredient_search_terms(value: str) -> list[str]:
+    """Exact aliases plus a small curated set of substitution search terms."""
+    needle = _norm(value)
+    terms = set(ingredient_aliases(value))
+    for canonical, substitutes in _SUBSTITUTION_GROUPS.items():
+        if needle == _norm(canonical):
+            terms.update(_norm(term) for term in substitutes)
+    return sorted((term for term in terms if term), key=lambda term: (-len(term), term))
+
+
+def ingredient_product_match_type(ingredient: str, product_name: str) -> str | None:
+    """Classify a catalog title as exact, culinary substitute, or no match."""
+    title = _norm(product_name)
+    if not title:
+        return None
+    padded_title = " " + title + " "
+    exact_terms = ingredient_aliases(ingredient)
+    if any((" " + _norm(term) + " ") in padded_title for term in exact_terms):
+        return "exact"
+    needle = _norm(ingredient)
+    for canonical, substitutes in _SUBSTITUTION_GROUPS.items():
+        if needle == _norm(canonical):
+            if any((" " + _norm(term) + " ") in padded_title for term in substitutes):
+                return "substitute"
+    return None
+
+
+def ingredient_substitution_name(ingredient: str, product_name: str) -> str | None:
+    """Return the specific curated replacement phrase present in a product title."""
+    title = " " + _norm(product_name) + " "
+    needle = _norm(ingredient)
+    for canonical, substitutes in _SUBSTITUTION_GROUPS.items():
+        if needle != _norm(canonical):
+            continue
+        for substitute in sorted(substitutes, key=lambda value: -len(_norm(value))):
+            if (" " + _norm(substitute) + " ") in title:
+                labels = {
+                    "sonnenblumenkerne": "sunflower seeds",
+                    "kürbiskerne": "pumpkin seeds",
+                }
+                return labels.get(_norm(substitute), substitute)
+    return None

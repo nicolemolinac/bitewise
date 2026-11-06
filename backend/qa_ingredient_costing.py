@@ -3,6 +3,7 @@
 Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import build_basket, consolidate
+from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name
 
 
 class FakeCatalog:
@@ -14,6 +15,25 @@ class FakeCatalog:
 
 
 def run():
+    # The actual product title, not a broad catalog label, must confirm the ingredient.
+    assert ingredient_name_matches("trofie pasta", "REWE Trofie") is True
+    assert ingredient_name_matches("trofie pasta", "REWE Fusilli") is False
+    assert ingredient_name_matches("trofie pasta", "REWE Udon Nudeln") is False
+    assert ingredient_name_matches("rice", "REWE Beste Wahl Langkornreis 500g") is True
+    assert ingredient_name_matches("parmesan", "Parmigiano Reggiano") is True
+    assert ingredient_name_matches("parmesan", "Käse-Wiener") is False
+    assert ingredient_name_matches("fresh basil pesto", "Basilikum Pesto") is True
+    assert ingredient_name_matches("fresh basil pesto", "Basilikum-Pesto 190g") is True
+    assert ingredient_name_matches("cherry tomato", "REWE Cocktailtomaten 250g") is True
+    assert ingredient_name_matches("greek yogurt", "Joghurt griechischer Art 500g") is True
+    assert ingredient_product_match_type("greek yogurt", "Skyr Natur 500g") == "substitute"
+    assert ingredient_name_matches("pine nuts", "Pinienkerne natur") is True
+    assert ingredient_product_match_type("trofie pasta", "REWE Fusilli") == "substitute"
+    assert ingredient_product_match_type("trofie pasta", "REWE Udon Nudeln") is None
+    assert ingredient_product_match_type("parmesan", "Grana Padano") == "substitute"
+    assert ingredient_product_match_type("pine nuts", "Sonnenblumenkerne 200g") == "substitute"
+    assert ingredient_substitution_name("pine nuts", "REWE Bio Sonnenblumenkerne 200g") == "sunflower seeds"
+
     catalog = FakeCatalog({
         "rice": [{
             "id": 1, "name_original": "REWE Rice 500g", "package_size": 500,
@@ -31,6 +51,13 @@ def run():
         "unpriced": [{
             "id": 4, "name_original": "No price", "package_size": 100,
             "package_unit": "g", "price": None, "availability": "available",
+        }],
+        "pine nuts": [{
+            "id": 5, "ingredient": "sunflower seeds", "ingredient_match_type": "substitute",
+            "ingredient_substitute": "sunflower seeds",
+            "name_original": "REWE Bio Sonnenblumenkerne 200g",
+            "package_size": 200, "package_unit": "g", "price": 1.29,
+            "availability": "available",
         }],
     })
     requirements = [
@@ -55,6 +82,14 @@ def run():
     assert unpriced["match_status"] == "unmatched"
     assert unpriced["checkout_cost"] == 0
 
+    substitute_basket = build_basket(
+        [{"ingredient": "pine nuts", "quantity": 30, "unit": "g", "source_meals": ["Pesto pasta"]}],
+        catalog,
+    )
+    assert substitute_basket[0]["match_status"] == "substituted"
+    assert substitute_basket[0]["product"]["ingredient_substitute"] == "sunflower seeds"
+    assert substitute_basket[0]["checkout_cost"] == 1.29
+
     pantry_basket = build_basket(
         [{"ingredient": "rice", "quantity": 1, "unit": "kg", "source_meals": ["Meal"]}],
         catalog, pantry={"rice": {"quantity": 250, "unit": "g"}},
@@ -76,7 +111,34 @@ def run():
     assert milk_total["quantity"] == 600 and milk_total["unit"] == "ml"
     assert len(garlic_rows) == 2, "Cloves and whole units must not be silently merged"
 
-    print("PASS: kg/g and l/ml conversions, pantry deductions, checkout package cost, consumed cost, and unmatched handling")
+    substitute_catalog = FakeCatalog({
+        "trofie pasta": [{
+            "id": 5, "name_original": "REWE Fusilli 500g", "package_size": 500,
+            "package_unit": "g", "price": 1.50, "price_per_unit": 0.003,
+            "availability": "available", "ingredient_match_type": "substitute",
+        }],
+    })
+    substitute_basket = build_basket(
+        [{"ingredient": "trofie pasta", "quantity": 200, "unit": "g", "source_meals": ["Pasta"]}],
+        substitute_catalog, mode="cheapest",
+    )
+    assert substitute_basket[0]["match_status"] == "substituted"
+    assert substitute_basket[0]["checkout_cost"] == 1.5
+
+    # Recipe ingredient quantities are generated for 2 servings and scaled exactly once.
+    one_serving = consolidate([
+        {"id": "single", "name": "Single portion", "base_servings": 2,
+         "ingredients": [["rice", 150, "g"]]},
+    ], {"single": 1})
+    assert one_serving[0]["quantity"] == 75
+
+    four_servings = consolidate([
+        {"id": "four", "name": "Four portions", "base_servings": 2,
+         "ingredients": [["rice", 150, "g"]]},
+    ], {"four": 4})
+    assert four_servings[0]["quantity"] == 300
+
+    print("PASS: strict title matching, culinary substitutions, portion scaling, unit conversions, pantry deductions, checkout vs consumed cost, and unmatched handling")
 
 
 if __name__ == "__main__":

@@ -97,8 +97,12 @@ def rewe_refresh_safe():
                 if existing.price != incoming_price:
                     existing.last_price = existing.price
                 for key, value in data.items():
-                    if hasattr(existing, key):
-                        setattr(existing, key, value)
+                    if not hasattr(existing, key):
+                        continue
+                    # Missing fields from a partial card must never erase saved catalog data.
+                    if key in {"image_url", "product_url"} and not value:
+                        continue
+                    setattr(existing, key, value)
                 existing.postcode_context = current_postcode
                 existing.last_seen_at = now
                 existing.last_checked_at = now

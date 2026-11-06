@@ -123,7 +123,7 @@ def main():
 
     # Seed one real catalog row, then verify the restarted app matches the recipe to it.
     with sqlite3.connect(DB) as conn:
-        conn.execute("""INSERT INTO products (
+        cursor = conn.execute("""INSERT INTO products (
             supermarket, external_id, ingredient, name_original, name_normalized,
             brand, category, package_size, package_unit, price, price_per_unit,
             currency, product_url, availability, postcode_context, first_seen_at,
@@ -132,6 +132,12 @@ def main():
         ("REWE", "qa-rice-500g", "rice", "REWE Beste Wahl Langkornreis 500g", "langkornreis",
          "REWE Beste Wahl", "Rice", 500, "g", 1.49, 0.00298, "EUR",
          "https://www.rewe.de/shop/p/rewe-beste-wahl-langkornreis-500g/123456", "available", "13353", 1.49))
+        # Pin the test ingredient to its fixture product so a larger imported catalog
+        # cannot make this assertion depend on whichever rice is cheapest today.
+        conn.execute(
+            "INSERT INTO product_overrides (ingredient, product_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            ("rice", cursor.lastrowid),
+        )
         conn.commit()
 
     # A fresh server process must see the same durable history and REWE product row.

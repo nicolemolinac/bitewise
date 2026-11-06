@@ -53,11 +53,17 @@ def normalize(value: str) -> str:
 
 
 def package(text: str):
-    match = re.search(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)", text, re.I)
+    # Preserve multipack quantity: 2x200ml is 400ml, not 200ml.
+    match = re.search(
+        r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)",
+        text,
+        re.I,
+    )
     if not match:
         return None, None
-    amount = float(match.group(1).replace(",", "."))
-    unit = match.group(2).lower()
+    multiplier = int(match.group(1) or 1)
+    amount = float(match.group(2).replace(",", ".")) * multiplier
+    unit = match.group(3).lower()
     if unit == "kg":
         return amount * 1000, "g"
     if unit == "l":
@@ -67,12 +73,50 @@ def package(text: str):
     return amount, unit
 
 
-def price(text: str):
-    for pattern in (r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})", r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)"):
+def _displayed_unit_price(text: str):
+    """Read REWE's reference price (€/kg or €/l), not the checkout pack price."""
+    match = re.search(
+        r"\b1\s*(kg|l)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
+        text,
+        re.I,
+    )
+    if not match:
+        return None, None
+    amount = float(match.group(2).replace(",", "."))
+    return amount, "g" if match.group(1).lower() == "kg" else "ml"
+
+
+def price_details(text: str, package_size=None, package_unit=None):
+    """Return (pack checkout price, price per normalized g/ml/unit).
+
+    REWE cards often show only a reference price such as '1 kg = 11,06 €'.
+    Treating that as the package price inflates checkout totals by 1,000x.
+    """
+    reference_price, reference_unit = _displayed_unit_price(text)
+    if reference_price is not None:
+        if package_size and package_unit == reference_unit:
+            pack_price = reference_price * float(package_size) / 1000.0
+            return round(pack_price, 2), reference_price / 1000.0
+
+    for pattern in (
+        r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})",
+        r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
+    ):
         match = re.search(pattern, text, re.I)
         if match:
-            return float(match.group(1).replace(",", "."))
-    return None
+            pack_price = float(match.group(1).replace(",", "."))
+            per_unit = (
+                pack_price / float(package_size)
+                if package_size and float(package_size) > 0
+                else None
+            )
+            return round(pack_price, 2), per_unit
+    return None, None
+
+
+def price(text: str):
+    # Backwards-compatible helper: price now means checkout price per package.
+    return price_details(text)[0]
 
 
 def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
@@ -91,6 +135,53 @@ def _cart_add_status(confirmation_seen: bool, packs_requested: int) -> str:
     if not confirmation_seen:
         return "submitted_unverified"
     return "added" if int(packs_requested) == 1 else "quantity_unconfirmed"
+
+
+def _image_url_from_card(box, anchor, base_url: str):
+    """Read the real product image from REWE cards, including lazy-loaded variants."""
+    nodes = []
+    for scope in (box, anchor):
+        if scope is not None:
+            nodes.extend(scope.select("img"))
+            nodes.extend(scope.select("picture source"))
+    seen = set()
+    for node in nodes:
+        if id(node) in seen:
+            continue
+        seen.add(id(node))
+        candidates = [
+            node.get("data-srcset"),
+            node.get("srcset"),
+            node.get("data-src"),
+            node.get("data-lazy-src"),
+            node.get("data-original"),
+            node.get("data-image"),
+            node.get("data-zoom-image"),
+            node.get("src"),
+        ]
+        for candidate in candidates:
+            if not candidate:
+                continue
+            # Pick the largest declared srcset candidate when available.
+            candidate = str(candidate).strip()
+            if "," in candidate:
+                choices = []
+                for item in candidate.split(","):
+                    bits = item.strip().split()
+                    if bits:
+                        descriptor = bits[1] if len(bits) > 1 else "1x"
+                        match = re.match(r"(\d+(?:\.\d+)?)(w|x)", descriptor)
+                        score = float(match.group(1)) if match else 1.0
+                        choices.append((score, bits[0]))
+                if choices:
+                    candidate = max(choices)[1]
+            if candidate.startswith("//"):
+                candidate = "https:" + candidate
+            absolute = urljoin(base_url, candidate)
+            parsed = urlsplit(absolute)
+            if parsed.scheme in {"http", "https"} and parsed.netloc:
+                return absolute
+    return None
 
 
 def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
@@ -131,7 +222,12 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
                 except Exception:
                     offer_price = None
-                size, unit = package(f"{name} {candidate.get('description') or ''}")
+                price_text = f"{name} {candidate.get('description') or ''}"
+                size, unit = package(price_text)
+                normalized_price, normalized_price_per_unit = price_details(price_text, size, unit)
+                if normalized_price is None and offer_price is not None:
+                    normalized_price = offer_price
+                    normalized_price_per_unit = offer_price / size if size else None
                 external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
                 if not external_id:
                     external_id = hashlib.sha256(f"{name}|{product_url or raw_url}".encode()).hexdigest()[:20]
@@ -147,8 +243,8 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     "category": category,
                     "package_size": size or 1,
                     "package_unit": unit or "unit",
-                    "price": offer_price,
-                    "price_per_unit": (offer_price / size) if offer_price is not None and size else None,
+                    "price": normalized_price,
+                    "price_per_unit": normalized_price_per_unit,
                     "product_url": product_url,
                     "image_url": image_url,
                     "availability": "available" if offers else "unknown",
@@ -436,16 +532,8 @@ class ReweCatalogScraper:
             if name_key:
                 pdp_by_name[name_key] = href
             size, unit = package(raw)
-            cost = price(raw)
-            image_node = box.select_one("img")
-            image_src = None
-            if image_node:
-                image_src = (image_node.get("src") or image_node.get("data-src") or image_node.get("data-lazy-src") or "")
-                if not image_src and image_node.get("srcset"):
-                    image_src = image_node.get("srcset").split(",")[0].strip().split(" ")[0]
-            image_url = urljoin(url, image_src) if image_src else None
-            if image_url and urlsplit(image_url).scheme not in {"http", "https"}:
-                image_url = None
+            cost, unit_cost = price_details(raw, size, unit)
+            image_url = _image_url_from_card(box, anchor, url)
             external_id = href.rstrip("/").rsplit("/", 1)[-1].split("?")[0] or hashlib.sha256((product_name + href).encode()).hexdigest()[:20]
             anchor_products.append({
                 "external_id": external_id,
@@ -457,7 +545,7 @@ class ReweCatalogScraper:
                 "package_size": size or 1,
                 "package_unit": unit or "unit",
                 "price": cost,
-                "price_per_unit": (cost / size) if cost is not None and size else None,
+                "price_per_unit": unit_cost if unit_cost is not None else ((cost / size) if cost is not None and size else None),
                 "product_url": href,
                 "image_url": image_url,
                 "availability": "unknown",
@@ -481,14 +569,12 @@ class ReweCatalogScraper:
             if current is None:
                 unique[product["external_id"]] = product
                 continue
-            candidate_is_better = (
-                (not current.get("product_url") and product.get("product_url"))
-                or (not current.get("image_url") and product.get("image_url"))
-                or (current.get("price") is None and product.get("price") is not None)
-            )
-            if candidate_is_better:
-                merged = {**current, **{k: v for k, v in product.items() if v is not None}}
-                unique[product["external_id"]] = merged
+            # Merge complementary data instead of discarding a later image-bearing card.
+            merged = dict(current)
+            for key, value in product.items():
+                if value is not None and (merged.get(key) is None or merged.get(key) == ""):
+                    merged[key] = value
+            unique[product["external_id"]] = merged
         return list(unique.values())
 
     def _location_scopes(self, page):
@@ -807,11 +893,12 @@ class ReweCatalogScraper:
                             report["pages_processed"] += 1
                             for product in self.extract(html, page_url, category):
                                 current = by_id.get(product["external_id"])
-                                if current is None or (
-                                    (not current.get("product_url") and product.get("product_url"))
-                                    or (current.get("price") is None and product.get("price") is not None)
-                                ):
+                                if current is None:
                                     by_id[product["external_id"]] = product
+                                else:
+                                    for key, value in product.items():
+                                        if value is not None and (current.get(key) is None or current.get(key) == ""):
+                                            current[key] = value
 
                         products = list(by_id.values())
                         if not products:
@@ -858,8 +945,12 @@ class ReweCatalogScraper:
                     report["pages_processed"] += 1
                     for product in self.extract(html, url, category):
                         current = by_id.get(product["external_id"])
-                        if current is None or (not current.get("product_url") and product.get("product_url")):
+                        if current is None:
                             by_id[product["external_id"]] = product
+                        else:
+                            for key, value in product.items():
+                                if value is not None and (current.get(key) is None or current.get(key) == ""):
+                                    current[key] = value
                 products = list(by_id.values())
                 if not products:
                     raise RuntimeError("No products found")

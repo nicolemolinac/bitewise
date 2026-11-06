@@ -20,7 +20,7 @@ from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
-from .ingredient_aliases import ingredient_aliases
+from .ingredient_aliases import ingredient_product_match_type, ingredient_search_terms, ingredient_substitution_name
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -30,7 +30,7 @@ main_module.GeminiService = EfficientGeminiService
 
 def _multilingual_catalog_search(self, ingredient):
     """Match English recipe ingredients against the German REWE catalog without LLM calls."""
-    aliases = ingredient_aliases(ingredient)
+    aliases = ingredient_search_terms(ingredient)
     if not aliases:
         return []
 
@@ -47,7 +47,20 @@ def _multilingual_catalog_search(self, ingredient):
             ]
         )
 
-    rows = self.db.query(Product).filter(or_(*clauses)).limit(120).all()
+    rows = self.db.query(Product).filter(or_(*clauses)).limit(240).all()
+    if rows:
+        # Search columns improve recall, but the actual product title must independently
+        # confirm compatibility. Catalog ingredient labels can be broad or misclassified.
+        match_types = {
+            row.id: ingredient_product_match_type(
+                ingredient,
+                " ".join(str(value or "") for value in (
+                    row.name_original, row.name_normalized, row.translated_name
+                )),
+            )
+            for row in rows
+        }
+        rows = [row for row in rows if match_types.get(row.id)]
     if rows:
         alias_set = {x.lower() for x in aliases}
 
@@ -67,6 +80,10 @@ def _multilingual_catalog_search(self, ingredient):
                         best = max(best, 80)
                     elif alias in field:
                         best = max(best, 60 if len(alias) >= 4 else 40)
+            if match_types.get(row.id) == "exact":
+                best += 1000
+            elif match_types.get(row.id) == "substitute":
+                best -= 100
             if row.price is not None:
                 best += 10
             if str(row.availability or "").lower() == "available":
@@ -74,7 +91,19 @@ def _multilingual_catalog_search(self, ingredient):
             return best
 
         rows.sort(key=score, reverse=True)
-        return [main_module.product_dict(row) for row in rows[:40]]
+        return [
+            {
+                **main_module.product_dict(row),
+                "ingredient_match_type": match_types.get(row.id),
+                "ingredient_substitute": ingredient_substitution_name(
+                    ingredient,
+                    " ".join(str(value or "") for value in (
+                        row.name_original, row.name_normalized, row.translated_name
+                    )),
+                ) if match_types.get(row.id) == "substitute" else None,
+            }
+            for row in rows[:40]
+        ]
 
     # Never substitute seed/demo products for a real REWE catalog match.
     # An empty result is more honest than displaying invented availability or prices.
@@ -93,6 +122,68 @@ def _assign_expanded_recipe_identity(recipe: dict, concept_id: str) -> dict:
     return recipe
 
 
+def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
+    """Apply explicit catalog substitutions to ingredients and cooking steps."""
+    import re
+
+    adaptations = []
+    replacements = []
+    for row in basket:
+        if row.get("match_status") != "substituted":
+            continue
+        product = row.get("product") or {}
+        original = str(row.get("ingredient") or "").strip()
+        replacement = str(product.get("ingredient_substitute") or product.get("ingredient") or product.get("name_normalized") or "").strip()
+        if not original or not replacement:
+            continue
+        replacements.append((original, replacement))
+        adaptations.append({
+            "ingredient": original,
+            "replacement": replacement,
+            "product_name": product.get("name_original"),
+            "reason": row.get("match_reason"),
+        })
+
+    if replacements:
+        adapted_ingredients = []
+        substitution_rows = {
+            str(row.get("ingredient") or "").strip().lower(): row
+            for row in basket if row.get("match_status") == "substituted"
+        }
+        for item in recipe.get("ingredients") or []:
+            if isinstance(item, (list, tuple)) and len(item) >= 3:
+                name, quantity, unit = item[0], item[1], item[2]
+                row = substitution_rows.get(str(name).strip().lower())
+                if row:
+                    replacement = str((row.get("product") or {}).get("ingredient_substitute") or "")
+                    pantry_used = float(row.get("pantry_used") or 0)
+                    needed = float(row.get("needed_quantity") or 0)
+                    if pantry_used > 0:
+                        adapted_ingredients.append([name, pantry_used, unit])
+                        if needed > 0:
+                            adapted_ingredients.append([replacement, needed, unit])
+                    else:
+                        adapted_ingredients.append([replacement, quantity, unit])
+                else:
+                    adapted_ingredients.append([name, quantity, unit])
+            else:
+                adapted_ingredients.append(item)
+        recipe["ingredients"] = adapted_ingredients
+
+        for step in recipe.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            step_text = str(step.get("text") or "")
+            for original, replacement in replacements:
+                row = substitution_rows.get(original.lower(), {})
+                pantry_used = float(row.get("pantry_used") or 0)
+                step_replacement = original + " and " + replacement if pantry_used > 0 else replacement
+                step_text = re.sub(r"(?<![\w])" + re.escape(original) + r"(?![\w])", step_replacement, step_text, flags=re.IGNORECASE)
+            step["text"] = step_text
+
+    recipe["adaptations"] = adaptations
+    return adaptations
+
 def _json_history_default(value):
     """Convert common Python values to stable JSON-safe history values."""
     if isinstance(value, (datetime, date)):
@@ -101,7 +192,36 @@ def _json_history_default(value):
         return float(value)
     if isinstance(value, set):
         return sorted(value, key=str)
+    if hasattr(value, "model_dump"):
+        return _json_safe(value.model_dump(mode="json"))
+    if hasattr(value, "dict") and callable(value.dict):
+        return _json_safe(value.dict())
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def _json_safe(value):
+    """Recursively remove non-JSON Python objects before persistence or API response.
+
+    This is deliberately applied to the complete expanded recipe (including catalog
+    product metadata) rather than relying on FastAPI or a single json.dumps call.
+    """
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, set):
+        return [_json_safe(item) for item in sorted(value, key=str)]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if hasattr(value, "model_dump"):
+        return _json_safe(value.model_dump(mode="json"))
+    if hasattr(value, "isoformat") and callable(value.isoformat):
+        return value.isoformat()
+    raise TypeError(f"Unsupported value in recipe payload: {type(value).__name__}")
 
 
 def _history_owner(request: Request) -> str:
@@ -129,7 +249,7 @@ def _upsert_recipe_history(request: Request, record_key: str, record_type: str, 
                 status=status,
                 name=name,
                 prompt=str(prompt or "")[:4000] or None,
-                meal_json=json.dumps(meal, ensure_ascii=False, default=_json_history_default),
+                meal_json=json.dumps(_json_safe(meal), ensure_ascii=False, default=_json_history_default),
             )
             db.add(row)
         else:
@@ -137,7 +257,7 @@ def _upsert_recipe_history(request: Request, record_key: str, record_type: str, 
             row.status = status
             row.name = name
             row.prompt = str(prompt or row.prompt or "")[:4000] or None
-            row.meal_json = json.dumps(meal, ensure_ascii=False, default=_json_history_default)
+            row.meal_json = json.dumps(_json_safe(meal), ensure_ascii=False, default=_json_history_default)
             row.updated_at = datetime.utcnow()
         db.commit()
     except Exception:
@@ -242,6 +362,13 @@ async def expand_ai_recipe(request: Request):
     concept = payload.get("concept") if isinstance(payload, dict) else None
     context = payload.get("context", "") if isinstance(payload, dict) else ""
     appliances = payload.get("appliances", []) if isinstance(payload, dict) else []
+    try:
+        requested_servings = float(payload.get("servings", 2)) if isinstance(payload, dict) else 2.0
+        people = int(payload.get("people", 1)) if isinstance(payload, dict) else 1
+    except (TypeError, ValueError):
+        raise HTTPException(422, "servings and people must be numeric")
+    if not 0.1 <= requested_servings <= 12 or not 1 <= people <= 12:
+        raise HTTPException(422, "servings must be 0.1–12 and people must be 1–12")
     if not isinstance(concept, dict) or not str(concept.get("name") or "").strip():
         raise HTTPException(422, "A meal concept with a name is required")
     concept_id = str(concept.get("id") or "").strip()
@@ -270,10 +397,12 @@ async def expand_ai_recipe(request: Request):
             # Gemini may reuse a generic recipe ID across separate ideas. Give
             # each expansion a stable ID derived from its originating concept.
             _assign_expanded_recipe_identity(recipe, concept_id)
+        # Generated quantities use a stable 2-serving baseline; scale locally for the requested people.
+        recipe["base_servings"] = 2
         # Product matching and costing are deterministic backend work: no second Gemini call.
         db = SessionLocal()
         try:
-            requirements = main_module.consolidate([recipe], {recipe["id"]: 2})
+            requirements = main_module.consolidate([recipe], {recipe["id"]: requested_servings})
             overrides = {row.ingredient: row.product_id for row in db.query(main_module.ProductOverride).all()}
             basket = main_module.build_basket(
                 requirements,
@@ -282,7 +411,10 @@ async def expand_ai_recipe(request: Request):
                 overrides=overrides,
                 pantry=main_module.pantry_snapshot(db),
             )
-            matched_rows = [row for row in basket if row.get("match_status") == "matched"]
+            matched_rows = [row for row in basket if row.get("match_status") in {"matched", "substituted"}]
+            exact_rows = [row for row in basket if row.get("match_status") == "matched"]
+            substituted_rows = [row for row in basket if row.get("match_status") == "substituted"]
+            covered_rows = [row for row in basket if row.get("match_status") == "covered"]
             checkout_total = round(sum(float(row.get("checkout_cost") or 0) for row in matched_rows), 2)
             consumed_total = round(sum(float(row.get("consumed_cost") or 0) for row in matched_rows), 2)
             unmatched = [
@@ -291,20 +423,32 @@ async def expand_ai_recipe(request: Request):
                 for row in basket if row.get("match_status") == "unmatched"
             ]
             recipe["product_matches"] = basket
+            adaptations = _adapt_recipe_to_catalog(recipe, basket)
             recipe["costing"] = {
                 "strategy": "best-value",
-                "matched_ingredients": len(matched_rows),
+                "matched_ingredients": len(exact_rows),
+                "substituted_ingredients": len(substituted_rows),
+                "covered_ingredients": len(covered_rows),
                 "unmatched_ingredients": len(unmatched),
                 "total_ingredients": len(basket),
                 "catalog_ready": db.query(main_module.Product).filter(main_module.Product.supermarket == "REWE").count() > 0,
                 "checkout_total": checkout_total if matched_rows else None,
                 "consumed_cost": consumed_total if matched_rows else None,
+                "servings": requested_servings,
+                "people": people,
+                "cost_per_serving": round(consumed_total / requested_servings, 2) if matched_rows and requested_servings > 0 else None,
+                "cost_scope": "matched_ingredients_only",
+                "shopping_ready": len(unmatched) == 0,
+                "catalog_coverage": round((len(matched_rows) + len(covered_rows)) / len(basket), 4) if basket else 1.0,
                 "currency": "EUR",
             }
         finally:
             db.close()
+        # Normalize every nested value (notably REWE last_checked_at datetimes) before
+        # either database persistence or the FastAPI response encoder sees the payload.
+        recipe = _json_safe(recipe)
         if concept_id:
-            _upsert_recipe_history(request, concept_id, "concept", "expanded", concept, str(context or ""))
+            _upsert_recipe_history(request, concept_id, "concept", "expanded", _json_safe(concept), str(context or ""))
             _upsert_recipe_history(request, f"recipe:{concept_id}", "recipe", "saved", recipe, str(context or ""))
         return {"meal": recipe}
     except Exception as exc:
