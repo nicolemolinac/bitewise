@@ -13,7 +13,7 @@ from sqlalchemy import or_
 
 from .ai.gemini import GeminiService
 from .ai.image_resolver import resolve_meal_images
-from .database import AppSetting, CatalogRun, PantryItem, Plan, PlannedMeal, Product, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
+from .database import AppSetting, CatalogRun, PantryConsumption, PantryItem, Plan, PlannedMeal, Product, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
 from .recommendations.engine import score_meal
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
@@ -444,10 +444,18 @@ def planned_meal_status(plan_id:int,planned_meal_id:int,payload:PlannedMealStatu
  try:
   row=db.get(PlannedMeal,planned_meal_id)
   if not row or row.plan_id!=plan_id:raise HTTPException(404,'Planned meal not found')
-  previous=row.status;row.status=payload.status;consumed=[]
-  if payload.status in ('cooked','eaten') and previous not in ('cooked','eaten'):
-   meal=meal_by_id(row.meal_id);consumed=consume_meal_from_pantry(db,meal,row.servings);db.add(UserEvent(meal_id=row.meal_id,action=payload.status))
-  db.commit();return {**serialize_planned_meal(row),'consumed':consumed}
+  previous=row.status;row.status=payload.status;consumed=[];already_consumed=False
+  if payload.status in ('cooked','eaten'):
+   ledger=db.query(PantryConsumption).filter_by(planned_meal_id=row.id).first()
+   if ledger:
+    already_consumed=True
+   else:
+    meal=meal_by_id(row.meal_id)
+    if meal:
+     consumed=consume_meal_from_pantry(db,meal,row.servings)
+     db.add(PantryConsumption(planned_meal_id=row.id,meal_id=row.meal_id,consumed_json=json.dumps(consumed,ensure_ascii=False)))
+     db.add(UserEvent(meal_id=row.meal_id,action=payload.status))
+  db.commit();return {**serialize_planned_meal(row),'consumed':consumed,'already_consumed':already_consumed}
  finally:db.close()
 @app.get('/api/today')
 def today(plan_id:int|None=Query(default=None)):
