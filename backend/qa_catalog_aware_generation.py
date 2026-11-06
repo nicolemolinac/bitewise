@@ -19,7 +19,7 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "false"
 
 from app.database import Product, SessionLocal
 from app.ai.gemini_efficient import GeminiService, _catalog_context
-from app.ingredient_aliases import ingredient_product_match_type
+from app.ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type
 
 
 def seed_catalog():
@@ -77,6 +77,12 @@ def seed_catalog():
 
 def main():
     seed_catalog()
+
+    # Imported Product.ingredient values may be full SKU names, so AI context
+    # must derive short canonical terms from the actual title instead.
+    assert canonical_ingredient_terms("REWE Bio Passata 700 g") == ["tomato passata"]
+    assert canonical_ingredient_terms("00 Null Null WC Aktivgel 750 ml") == []
+    assert "pasta" in canonical_ingredient_terms("3 Glocken Die Mag Ich Fadennudeln 250 g")
 
     # German REWE titles frequently combine ingredient words into one compound.
     assert ingredient_product_match_type("salmon", "REWE Norwegisches Lachsfilet") == "exact"
