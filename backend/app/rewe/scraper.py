@@ -53,11 +53,17 @@ def normalize(value: str) -> str:
 
 
 def package(text: str):
-    match = re.search(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)", text, re.I)
+    # Preserve multipack quantity: 2x200ml is 400ml, not 200ml.
+    match = re.search(
+        r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)",
+        text,
+        re.I,
+    )
     if not match:
         return None, None
-    amount = float(match.group(1).replace(",", "."))
-    unit = match.group(2).lower()
+    multiplier = int(match.group(1) or 1)
+    amount = float(match.group(2).replace(",", ".")) * multiplier
+    unit = match.group(3).lower()
     if unit == "kg":
         return amount * 1000, "g"
     if unit == "l":
@@ -67,12 +73,50 @@ def package(text: str):
     return amount, unit
 
 
-def price(text: str):
-    for pattern in (r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})", r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)"):
+def _displayed_unit_price(text: str):
+    """Read REWE's reference price (€/kg or €/l), not the checkout pack price."""
+    match = re.search(
+        r"\b1\s*(kg|l)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
+        text,
+        re.I,
+    )
+    if not match:
+        return None, None
+    amount = float(match.group(2).replace(",", "."))
+    return amount, "g" if match.group(1).lower() == "kg" else "ml"
+
+
+def price_details(text: str, package_size=None, package_unit=None):
+    """Return (pack checkout price, price per normalized g/ml/unit).
+
+    REWE cards often show only a reference price such as '1 kg = 11,06 €'.
+    Treating that as the package price inflates checkout totals by 1,000x.
+    """
+    reference_price, reference_unit = _displayed_unit_price(text)
+    if reference_price is not None:
+        if package_size and package_unit == reference_unit:
+            pack_price = reference_price * float(package_size) / 1000.0
+            return round(pack_price, 2), reference_price / 1000.0
+
+    for pattern in (
+        r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})",
+        r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
+    ):
         match = re.search(pattern, text, re.I)
         if match:
-            return float(match.group(1).replace(",", "."))
-    return None
+            pack_price = float(match.group(1).replace(",", "."))
+            per_unit = (
+                pack_price / float(package_size)
+                if package_size and float(package_size) > 0
+                else None
+            )
+            return round(pack_price, 2), per_unit
+    return None, None
+
+
+def price(text: str):
+    # Backwards-compatible helper: price now means checkout price per package.
+    return price_details(text)[0]
 
 
 def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
@@ -132,6 +176,11 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 except Exception:
                     offer_price = None
                 size, unit = package(f"{name} {candidate.get('description') or ''}")
+                offer_unit_price, offer_unit = _displayed_unit_price(
+                    f"{name} {candidate.get('description') or ''}"
+                )
+                if offer_price is not None and size and unit in {"g", "ml"} and offer_unit == unit:
+                    offer_price = round(offer_unit_price * size / 1000.0, 2)
                 external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
                 if not external_id:
                     external_id = hashlib.sha256(f"{name}|{product_url or raw_url}".encode()).hexdigest()[:20]
@@ -436,7 +485,7 @@ class ReweCatalogScraper:
             if name_key:
                 pdp_by_name[name_key] = href
             size, unit = package(raw)
-            cost = price(raw)
+            cost, unit_cost = price_details(raw, size, unit)
             image_node = box.select_one("img")
             image_src = None
             if image_node:
@@ -457,7 +506,7 @@ class ReweCatalogScraper:
                 "package_size": size or 1,
                 "package_unit": unit or "unit",
                 "price": cost,
-                "price_per_unit": (cost / size) if cost is not None and size else None,
+                "price_per_unit": unit_cost if unit_cost is not None else ((cost / size) if cost is not None and size else None),
                 "product_url": href,
                 "image_url": image_url,
                 "availability": "unknown",
