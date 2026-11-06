@@ -1,5 +1,6 @@
 """End-to-end regression QA for Discover -> expand -> history -> Picks -> basket."""
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 import tempfile
 from unittest.mock import Mock, patch
@@ -57,7 +58,8 @@ GENERATED_RECIPE = {
 def main():
     client = TestClient(server.app)
     service = Mock()
-    service.expand_concept.return_value = dict(GENERATED_RECIPE)
+    second_recipe = {**GENERATED_RECIPE, "name": "Creamy tomato pasta", "generated_at": datetime(2026, 11, 6, 13, 45, tzinfo=timezone.utc)}
+    service.expand_concept.side_effect = [dict(GENERATED_RECIPE), second_recipe]
 
     # The first selection expands once, namespaces the recipe ID, and writes both
     # the expanded concept and saved full recipe to durable history.
@@ -77,6 +79,21 @@ def main():
         service.expand_concept.assert_called_once_with(
             CONCEPT, "lunch with salmon", ["air fryer", "microwave"]
         )
+
+        # A second, different concept must expand independently after the first
+        # recipe was saved. Nested datetime metadata must be normalized too.
+        second_concept = {**CONCEPT, "id": "concept-tomato-pasta-qa-002", "name": "Creamy tomato pasta"}
+        second_response = client.post("/api/ai/recipe", json={
+            "concept": second_concept,
+            "context": "quick pasta",
+            "appliances": ["stovetop"],
+        })
+        assert second_response.status_code == 200, second_response.text
+        second_expanded = second_response.json()["meal"]
+        assert second_expanded["id"] != recipe["id"]
+        assert second_expanded["source_concept_id"] == second_concept["id"]
+        assert second_expanded["generated_at"] == "2026-11-06T13:45:00+00:00"
+        assert service.expand_concept.call_count == 2
 
         # Simulate a double tap / client retry: reuse the persisted recipe and do
         # not make a second expensive Gemini call.
@@ -98,6 +115,8 @@ def main():
     assert concept_row["status"] == "expanded"
     assert recipe_row["status"] == "saved"
     assert recipe_row["meal"]["id"] == recipe["id"]
+    second_recipe_row = next(row for row in records if row["record_key"] == "recipe:" + "concept-tomato-pasta-qa-002")
+    assert second_recipe_row["meal"]["generated_at"] == "2026-11-06T13:45:00+00:00"
     assert recipe_row["created_at"] and recipe_row["updated_at"]
 
     # Picks must rehydrate from history after a restart, and the shopping endpoint
@@ -131,7 +150,7 @@ def main():
     invalid = client.post("/api/ai/recipe", json={"concept": {"id": "missing-name"}})
     assert invalid.status_code == 422
 
-    print("Recipe flow QA PASS: expansion, costing, idempotent retry, durable history, Picks rehydration, fractional basket and failure handling")
+    print("Recipe flow QA PASS: two independent expansions, nested datetime serialization, idempotent retry, durable history, Picks rehydration, fractional basket and failure handling")
 
 
 if __name__ == "__main__":
