@@ -82,15 +82,15 @@ def run():
     ], {"a": 2, "b": 2})
 
     one_portion = consolidate(
-        [{"id": "single", "name": "Pesto pasta", "ingredients": [["trofie pasta", 200, "g"]]}],
+        [{"id": "single", "name": "Pesto pasta", "base_servings": 2, "ingredients": [["trofie pasta", 200, "g"]]}],
         {"single": 1},
     )
     two_portions = consolidate(
-        [{"id": "double", "name": "Pesto pasta", "ingredients": [["trofie pasta", 200, "g"]]}],
+        [{"id": "double", "name": "Pesto pasta", "base_servings": 2, "ingredients": [["trofie pasta", 200, "g"]]}],
         {"double": 2},
     )
     four_portions = consolidate(
-        [{"id": "family", "name": "Pesto pasta", "ingredients": [["trofie pasta", 200, "g"]]}],
+        [{"id": "family", "name": "Pesto pasta", "base_servings": 2, "ingredients": [["trofie pasta", 200, "g"]]}],
         {"family": 4},
     )
     assert one_portion[0]["quantity"] == 100
