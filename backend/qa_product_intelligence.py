@@ -64,8 +64,16 @@ def run():
     assert tiramisu.product_type == "prepared_component" and tiramisu.culinary_role == "dessert"
     soup = profile("Erasco Tomaten-Cremesuppe 390ml", "fertiggerichte-konserven")
     assert soup.product_type == "prepared_component" and soup.culinary_role == "soup"
+    assert not soup.is_complete_meal, "Ordinary soup must not be promoted to a complete dinner"
     salad = profile("Golßener Spreewälder Nudelsalat 700g", "fertiggerichte-konserven")
     assert salad.product_type == "prepared_component" and salad.culinary_role == "salad"
+    assert not salad.is_complete_meal, "A prepared salad side must not be promoted to a complete meal"
+    milk_rice = profile("Dr. Oetker High Protein-Mahlzeit Milchreis Zimt 400g", "kaese-eier-molkerei")
+    assert milk_rice.product_type == "prepared_component" and milk_rice.culinary_role == "dessert"
+    assert not milk_rice.is_complete_meal, "A dessert labelled Mahlzeit is not a dinner"
+    potato_wedges = profile("ja! Kartoffel Wedges 750g", "tiefkuehlkost")
+    assert potato_wedges.product_type == "prepared_component" and potato_wedges.culinary_role == "potato_side"
+    assert not potato_wedges.is_complete_meal, "A potato side must not be promoted to a complete meal"
     stew = profile("Erasco Erbsen-Eintopf 400g", "fertiggerichte-konserven")
     assert stew.product_type == "ready_meal" and stew.is_complete_meal
     frikassee = profile("Frosta Hühnerfrikassee 500g", "tiefkuehlkost")
