@@ -218,7 +218,7 @@ def main():
         # High-value catalog examples must remain discoverable as canonical terms.
         semantic_examples = {
             "tempeh": "Better Nature Tempeh geräuchert vegan 220g",
-            "plant-based mince": "Beyond Hack Original vegan 250g",
+            "plant based mince": "Beyond Hack Original vegan 250g",
             "duck": "REWE Beste Wahl Barbarie Entenbrustfilet 400g",
             "cod": "REWE Beste Wahl Atlantisches Kabeljaufilet 475g",
             "red cabbage": "REWE Apfelrotkohl 450g",
