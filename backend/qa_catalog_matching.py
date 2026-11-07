@@ -162,6 +162,14 @@ def main():
             db, "mustard-pickles", "Kühne Senfgurken würzig 215g",
             ingredient="mustard", price=1.5, category="fertiggerichte-konserven",
         )
+        baking_chocolate = add_product(
+            db, "baking-chocolate", "Dr. Oetker Kuvertüre Vollmilch 150g",
+            ingredient="chocolate", price=2.5, category="kochen-backen",
+        )
+        chocolate_dessert = add_product(
+            db, "chocolate-dessert", "Harvest Moon Vegan Chocolate Tiramisu 120g",
+            ingredient="chocolate", price=2.5, category="kaese-eier-molkerei",
+        )
         db.add(ProductIntelligence(
             product_id=meal.id,
             product_type="ready_meal",
@@ -263,6 +271,10 @@ def main():
         assert "potato-wedges" not in potato_ids, (
             "Prepared potato wedges must not be matched as raw potatoes"
         )
+
+        chocolate_ids = {item["external_id"] for item in CatalogAdapter(db).search("chocolate")}
+        assert "baking-chocolate" in chocolate_ids
+        assert "chocolate-dessert" not in chocolate_ids
 
         mustard_ids = {item["external_id"] for item in CatalogAdapter(db).search("mustard")}
         assert "plain-mustard" in mustard_ids
