@@ -78,6 +78,26 @@ def main():
             db, "fresh-tomato", "REWE Rispentomaten 500g",
             ingredient="tomato", category="obst-gemuese",
         )
+        ginger_juice = add_product(
+            db, "ginger-juice", "Alnavit Bio Ingwer Saft 0,2l",
+            ingredient="ginger", price=4.99, category="getraenke-genussmittel",
+        )
+        ginger_soda = add_product(
+            db, "ginger-soda", "Bionade Bio Ingwer-Orange 12x0,33l",
+            ingredient="ginger", price=9.99, category="getraenke-genussmittel",
+        )
+        milk_chocolate = add_product(
+            db, "milk-chocolate", "REWE Vollmilch Schokolade 100g",
+            ingredient="milk", price=1.2, category="suesses-salziges",
+        )
+        sour_cream_chips = add_product(
+            db, "sour-cream-chips", "Saltletts Sour Cream & Onion Chips 130g",
+            ingredient="cream", price=1.5, category="suesses-salziges",
+        )
+        plain_almonds = add_product(
+            db, "plain-almonds", "Seeberger Mandeln 200g",
+            ingredient="almond", price=2.5, category="suesses-salziges",
+        )
         db.add(ProductIntelligence(
             product_id=meal.id,
             product_type="ready_meal",
@@ -125,6 +145,25 @@ def main():
         assert tomato_matches.get("fresh-tomato") == "exact"
         assert tomato_matches.get("tomato-ketchup") is None, (
             "Ketchup must not be offered as fresh tomato or an equivalent cooking substitute"
+        )
+
+        ginger_candidates = CatalogAdapter(db).search("ginger")
+        ginger_ids = {item["external_id"] for item in ginger_candidates}
+        assert "ginger-juice" not in ginger_ids
+        assert "ginger-soda" not in ginger_ids, (
+            "A drink-aisle product containing ginger must not replace fresh ginger"
+        )
+        milk_ids = {item["external_id"] for item in CatalogAdapter(db).search("milk")}
+        assert "milk-chocolate" not in milk_ids, (
+            "Milk chocolate must not satisfy a recipe's milk requirement"
+        )
+        cream_ids = {item["external_id"] for item in CatalogAdapter(db).search("cream")}
+        assert "sour-cream-chips" not in cream_ids, (
+            "Sour-cream-flavoured snacks must not satisfy a cream requirement"
+        )
+        almond_ids = {item["external_id"] for item in CatalogAdapter(db).search("almond")}
+        assert "plain-almonds" in almond_ids, (
+            "Plain nuts in the snack aisle remain valid culinary ingredients"
         )
 
         chicken_candidates = CatalogAdapter(db).search("chicken")
