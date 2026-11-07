@@ -258,6 +258,42 @@ MIDDLE_SHORTCUTS = {
 
 READY_MEAL_FAMILIES = {}
 
+# A deliberately cross-category 30-dish matrix. These are not 30 variations
+# of the same cuisine: it spans pasta, baked dishes, seafood, meat, vegetarian,
+# Asian-inspired, Latin-inspired, soups, salads, breakfast and dessert.
+DIVERSE_RECIPE_MATRIX = (
+    "Pasta arrabbiata",
+    "Lasagna",
+    "Pizza",
+    "Garlic shrimp pasta",
+    "Creamy salmon spinach rice",
+    "Beef tacos",
+    "Chicken fajita rice bowls",
+    "Greek chicken bowls",
+    "Coconut chicken curry",
+    "Teriyaki salmon rice",
+    "Lentil bolognese",
+    "Potato gratin",
+    "Shakshuka",
+    "Banana oat pancakes",
+    "Chicken schnitzel with potato salad",
+    "Chili con carne",
+    "Greek village salad",
+    "Roasted vegetable couscous",
+    "Creamy pork mushroom medallions",
+    "Eggplant parmesan bake",
+    "Broccoli potato soup",
+    "Miso-style tofu noodle bowl",
+    "Tuna avocado rice bowl",
+    "Quiche lorraine",
+    "Chicken noodle soup",
+    "Crispy tofu peanut noodles",
+    "Apple almond crumble",
+    "Sweet potato black bean bowls",
+    "Turkey meatloaf",
+    "Duck breast with apple and potatoes",
+)
+
 
 def _qa_quantity(ingredient):
     """Use realistic compatible recipe units so basket QA tests package matching, not bad fixtures."""
@@ -629,6 +665,92 @@ def main():
         assert not basket_unmatched, (
             f"All recipe ingredients should resolve to priced, unit-compatible catalog products: {basket_unmatched}"
         )
+
+        # Cross-recipe integration test: put 30 very different dishes into
+        # ONE weekly basket. This catches bugs hidden by testing each recipe
+        # separately (duplicate rows, lost source dishes, unit conversion drift,
+        # package rounding and strategy-dependent product selection).
+        assert len(DIVERSE_RECIPE_MATRIX) == 30
+        assert len(set(DIVERSE_RECIPE_MATRIX)) == 30
+        diverse_meals = [
+            _recipe_meal(name, RECIPES[name])
+            for name in DIVERSE_RECIPE_MATRIX
+        ]
+        diverse_servings = {
+            meal["id"]: (3 if index % 4 == 0 else 2 if index % 3 else 1)
+            for index, meal in enumerate(diverse_meals)
+        }
+        diverse_requirements = consolidate(diverse_meals, diverse_servings)
+        diverse_keys = [
+            (row["canonical_ingredient"], row["unit"])
+            for row in diverse_requirements
+        ]
+        assert len(diverse_keys) == len(set(diverse_keys)), (
+            "30-recipe basket contains duplicate canonical ingredient/unit rows"
+        )
+        for row in diverse_requirements:
+            assert row["source_meals"], f"Missing source recipes for {row}"
+            assert row["quantity"] > 0, f"Non-positive consolidated quantity: {row}"
+        shared_ingredients = {
+            row["canonical_ingredient"]: row
+            for row in diverse_requirements
+            if len(row["source_meals"]) >= 3
+        }
+        assert shared_ingredients, "Expected shared ingredients across the 30-dish weekly plan"
+        assert "garlic" in shared_ingredients, (
+            "Garlic should consolidate across the diverse recipe matrix"
+        )
+        diverse_basket_checks = 0
+        diverse_strategy_totals = {}
+        for strategy in ("maximum-savings", "best-value", "premium", "plan-efficiency"):
+            basket = build_basket(diverse_requirements, adapter, strategy)
+            assert len(basket) == len(diverse_requirements), (
+                f"{strategy}: combined basket lost ingredient rows"
+            )
+            seen = set()
+            for row in basket:
+                diverse_basket_checks += 1
+                key = (row["ingredient"], row["unit"])
+                assert key not in seen, f"{strategy}: duplicate basket row {key}"
+                seen.add(key)
+                assert row["needed_quantity"] > 0, f"{strategy}: invalid needed quantity {row}"
+                assert row["source_meals"], f"{strategy}: source recipe attribution lost: {row}"
+                assert row["match_status"] != "unmatched", (
+                    f"{strategy}: 30-recipe basket could not match {row['ingredient']} "
+                    f"({row['quantity']} {row['unit']}); source={row['source_meals']}"
+                )
+                if row["match_status"] == "covered":
+                    continue
+                product = row.get("product")
+                assert product and float(product.get("price") or 0) > 0, (
+                    f"{strategy}: missing/invalid priced SKU for {row['ingredient']}"
+                )
+                assert int(row.get("packs") or 0) >= 1
+                assert float(row.get("checkout_cost") or 0) > 0
+                assert float(row.get("consumed_cost") or 0) <= float(row.get("checkout_cost") or 0) + 0.01
+                assert str(product.get("availability") or "unknown").lower() not in {
+                    "unavailable", "out_of_stock", "not_available", "discontinued"
+                }, f"{strategy}: unavailable SKU selected for {row['ingredient']}"
+                assert not (product.get("intelligence") or {}).get("is_complete_meal"), (
+                    f"{strategy}: complete meal used as ingredient for {row['ingredient']}"
+                )
+            diverse_strategy_totals[strategy] = round(
+                sum(float(row.get("checkout_cost") or 0) for row in basket), 2
+            )
+        print(
+            f"DIVERSE 30-RECIPE WEEKLY BASKET: {len(diverse_meals)} distinct dishes; "
+            f"{sum(len(RECIPES[name]) for name in DIVERSE_RECIPE_MATRIX)} ingredient mentions; "
+            f"{len(diverse_requirements)} consolidated shopping rows; "
+            f"{len(shared_ingredients)} ingredients shared by 3+ dishes; "
+            f"{diverse_basket_checks} strategy/SKU checks"
+        )
+        for strategy, total in diverse_strategy_totals.items():
+            print(f"  30-RECIPE WEEKLY BASKET — {strategy}: checkout €{total:.2f}")
+        for ingredient, row in sorted(shared_ingredients.items()):
+            print(
+                f"  SHARED INGREDIENT — {ingredient}: {row['quantity']} {row['unit']} "
+                f"across {len(row['source_meals'])} dishes"
+            )
 
         # The product-alternatives route must use the recipe ingredient and the
         # same full-catalog matcher, not Product.ingredient equality/category caps.
