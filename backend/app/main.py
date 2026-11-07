@@ -56,7 +56,19 @@ def rows(model):
  finally:db.close()
 def setting(db,key,default):
  item=db.get(AppSetting,key);return item.value if item else default
-def normalize_ingredient(value):return re.sub(r'\s+',' ',value.lower().strip())
+def normalize_ingredient(value):return re.sub(r'\\s+',' ',value.lower().strip())
+def catalog_product_fingerprint(item):
+ def get(key):return item.get(key) if isinstance(item,dict) else getattr(item,key,None)
+ return (
+  normalize_ingredient(get('name_original') or get('name_normalized') or ''),
+  round(float(get('package_size') or 0),4),
+  str(get('package_unit') or '').lower(),
+  round(float(get('price') or 0),4) if get('price') is not None else None,
+  round(float(get('price_per_unit') or 0),8) if get('price_per_unit') is not None else None,
+  str(get('category') or '').lower(),
+  str(get('brand') or '').lower(),
+  str(get('product_url') or ''),
+ )
 def product_dict(p):
  if p is None:return None
  return {'id':p.id,'supermarket':p.supermarket,'external_id':p.external_id,'ingredient':p.ingredient,'name_original':p.name_original,'name_normalized':p.name_normalized,'translated_name':p.translated_name,'brand':p.brand,'category':p.category,'package_size':p.package_size,'package_unit':p.package_unit,'price':p.price,'price_per_unit':p.price_per_unit,'currency':p.currency,'product_url':p.product_url,'image_url':p.image_url,'availability':p.availability,'postcode_context':p.postcode_context,'last_checked_at':p.last_checked_at}
@@ -182,16 +194,7 @@ class CatalogAdapter:
   deduplicated=[]
   seen_fingerprints=set()
   for item in candidates:
-   fingerprint=(
-    normalize_ingredient(item.get('name_original') or item.get('name_normalized') or ''),
-    round(float(item.get('package_size') or 0), 4),
-    str(item.get('package_unit') or '').lower(),
-    round(float(item.get('price') or 0), 4) if item.get('price') is not None else None,
-    round(float(item.get('price_per_unit') or 0), 8) if item.get('price_per_unit') is not None else None,
-    str(item.get('category') or '').lower(),
-    str(item.get('brand') or '').lower(),
-    str(item.get('product_url') or ''),
-   )
+   fingerprint=catalog_product_fingerprint(item)
    if fingerprint in seen_fingerprints:continue
    seen_fingerprints.add(fingerprint)
    deduplicated.append(item)
