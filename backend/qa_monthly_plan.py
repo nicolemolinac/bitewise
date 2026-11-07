@@ -160,7 +160,9 @@ def main():
             if profile.is_complete_meal:
                 ready_candidates.append((product, profile))
         ready_candidates.sort(key=lambda pair: float(pair[0].price or 0))
-        assert ready_candidates, "No classified, priced REWE complete meals available for prepared-meal simulation"
+        # Never mislabel soups, sides or ingredient components as complete meals.
+        # If the current catalog snapshot has no verified complete meals, retain all
+        # 90 scratch/ingredient recipes and report that limitation explicitly.
         ready_meals = [pair[0] for pair in ready_candidates[:4]]
 
         meals = []
@@ -175,7 +177,7 @@ def main():
                                ("lunch", (l_name, l_ingredients)),
                                ("dinner", (d_name, d_ingredients))):
                 name, ingredients = pair
-                if slot == "dinner" and day in (7, 14, 21, 28):
+                if slot == "dinner" and day in (7, 14, 21, 28) and ready_meals:
                     ready = ready_meals[(day // 7 - 1) % len(ready_meals)]
                     ready_meal_schedule[day] = ready
                     ready_name = ready.name_original or ready.name_normalized or "REWE prepared meal"
@@ -189,8 +191,8 @@ def main():
                 cooking_minutes.append((name, hands_on, elapsed, mode))
                 schedule.append((day, slot, name, hands_on, elapsed, mode))
 
-        assert len(meals) == 86 and len({m["id"] for m in meals}) == 86
-        assert len(schedule) == 90 and len(ready_meal_schedule) == 4
+        assert len(meals) == 90 - len(ready_meal_schedule) and len({m["id"] for m in meals}) == len(meals)
+        assert len(schedule) == 90 and len(ready_meal_schedule) <= 4
         servings = {meal["id"]: 1 for meal in meals}  # one person, 30 days
         requirements = consolidate(meals, servings)
         keys = [(r["canonical_ingredient"], r["unit"]) for r in requirements]
@@ -199,7 +201,9 @@ def main():
         assert all(len(r["source_meals"]) <= 90 for r in requirements)
 
         print("MONTHLY PLAN: 30 days | 1 person | 90 meals | 30 breakfasts + 30 lunches + 30 dinners")
-        print(f"CONVENIENCE MIX: 86 ingredient-based meals + {len(ready_meal_schedule)} catalogued complete ready meals")
+        print(f"CONVENIENCE MIX: {len(meals)} ingredient-based meals + {len(ready_meal_schedule)} catalogued complete ready meals")
+        if not ready_meal_schedule:
+            print("PREPARED-MEAL LIMITATION: no priced REWE complete meals passed the strict catalog classifier; no components/soups/sides were misrepresented as full dinners.")
         for day, product in ready_meal_schedule.items():
             print(f"  READY-MADE DAY {day}: {product.name_original} | €{float(product.price):.2f} | heating estimate 12 min (package instructions not verified)")
         print(f"MENU VARIETY: {len(set(x[2] for x in schedule))} distinct dishes")
