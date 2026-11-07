@@ -27,6 +27,19 @@ def run():
 
     frozen = profile("REWE Bio Brokkoli 750 g", "tiefkuehlkost")
     assert frozen.storage_type == "frozen" and frozen.culinary_role == "vegetable"
+
+    # Products from household, hygiene, pet and baby aisles must never become
+    # culinary ingredients, even when their names contain ingredient words.
+    for title, category in (
+        ("Babywell Windeln Gr. 4", "baby-kind"),
+        ("Bübchen Baby Shampoo Sensitiv", "baby-kind"),
+        ("Purina Felix Huhn", "tierbedarf"),
+        ("REWE Lemon WC Reiniger", "drogerie-gesundheit"),
+        ("REWE Küchenrolle", "kueche-haushalt"),
+    ):
+        excluded = profile(title, category)
+        assert excluded.product_type == "non_food"
+        assert excluded.culinary_role == "non_food"
     print("Product intelligence taxonomy QA passed.")
 
 if __name__ == "__main__":
