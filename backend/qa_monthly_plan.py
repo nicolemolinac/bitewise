@@ -272,17 +272,47 @@ def main():
         # without opening a live REWE session or placing an order.
         best_basket = strategy_results["best-value"][0]
         cart_quantities = {}
+        selected_rows = 0
+        skipped_rows = []
         for row in best_basket:
             product = row.get("product") or {}
             product_id = product.get("id")
-            product_url = str(product.get("product_url") or "")
-            if product_id and product_url.startswith("https://") and "rewe.de" in product_url.lower() and row.get("packs"):
-                cart_quantities[str(product_id)] = cart_quantities.get(str(product_id), 0) + int(row["packs"])
+            # Resolve the selected catalog row against the DB before handoff.
+            # The optimizer's candidate may omit an ID in legacy/import fixtures;
+            # external_id is a stable fallback, but never invent a product ID.
+            db_product = db.get(Product, int(product_id)) if product_id else None
+            if db_product is None and product.get("external_id"):
+                db_product = db.query(Product).filter(
+                    Product.supermarket == "REWE",
+                    Product.external_id == str(product["external_id"]),
+                ).first()
+            if db_product is None and product.get("product_url"):
+                db_product = db.query(Product).filter(
+                    Product.supermarket == "REWE",
+                    Product.product_url == str(product["product_url"]),
+                ).first()
+            if db_product is None:
+                if row.get("match_status") not in {"unmatched", "covered"}:
+                    skipped_rows.append(row.get("ingredient") or row.get("canonical_ingredient") or "unknown")
+                continue
+            product_url = str(db_product.product_url or "")
+            if not (product_url.startswith("https://") and "rewe.de" in product_url.lower()):
+                skipped_rows.append(f"{db_product.name_original or db_product.id} (invalid REWE URL)")
+                continue
+            packs = int(row.get("packs") or 0)
+            if packs < 1:
+                continue
+            cart_quantities[str(db_product.id)] = cart_quantities.get(str(db_product.id), 0) + packs
+            selected_rows += 1
         for ready_product in ready_meal_schedule.values():
-            cart_quantities[str(ready_product.id)] = cart_quantities.get(str(ready_product.id), 0) + 1
-        if coke and monthly_extra_packs:
+            if ready_product.product_url and str(ready_product.product_url).startswith("https://") and "rewe.de" in str(ready_product.product_url).lower():
+                cart_quantities[str(ready_product.id)] = cart_quantities.get(str(ready_product.id), 0) + 1
+        if coke and monthly_extra_packs and coke.product_url and str(coke.product_url).startswith("https://") and "rewe.de" in str(coke.product_url).lower():
             cart_quantities[str(coke.id)] = cart_quantities.get(str(coke.id), 0) + monthly_extra_packs
         cart_payload = [{"product_id": int(pid), "packs": packs} for pid, packs in cart_quantities.items()]
+        print(f"REWE CART CANDIDATES: {selected_rows} selected basket products | {len(cart_payload)} unique catalog SKUs | skipped={len(skipped_rows)}")
+        if skipped_rows:
+            print(f"REWE CART SKIPPED: {', '.join(skipped_rows[:12])}")
         handed_off = []
         def fake_handoff(_scraper, products):
             handed_off.extend(products)
