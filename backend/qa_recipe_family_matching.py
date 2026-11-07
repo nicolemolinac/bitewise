@@ -314,6 +314,13 @@ def main():
         assert len(passata_fingerprints) == len(set(passata_fingerprints)), (
             "CatalogAdapter.search must remove exact duplicate snapshot rows"
         )
+        oro_passata = [
+            row for row in passata_results
+            if "oro di parma" in (row.get("name_original") or "").lower()
+        ]
+        assert len(oro_passata) == 1, (
+            f"Duplicate Oro di Parma passata snapshot rows should collapse to one: {oro_passata}"
+        )
         milk_results = adapter.search("milk")
         alpro_milk = [
             row for row in milk_results
