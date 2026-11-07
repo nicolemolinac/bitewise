@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-CLASSIFIER_VERSION = "1.15.0"
+CLASSIFIER_VERSION = "1.16.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -108,6 +108,19 @@ def classify_product(product: dict) -> ProductProfile:
             dish_families=(), preparation_state="ready_to_eat",
             storage_type=storage, convenience_level=1, is_complete_meal=False,
             confidence=0.97, evidence=("packaged-snack-bar-or-bites",),
+        )
+
+    # Dairy-aisle beverages should not leak fruit/flavor words into ingredient context.
+    dairy_beverage_markers = (
+        " ayran ", " kefir ", " drink ", " shake ", " milchshake ",
+        " milchmix ", " fruchtbuttermilch ", " iced coffee ",
+    )
+    if category == "kaese-eier-molkerei" and any(marker in f" {name} " for marker in dairy_beverage_markers):
+        return ProductProfile(
+            product_type="beverage", culinary_role="beverage",
+            dish_families=(), preparation_state="ready_to_drink",
+            storage_type=storage, convenience_level=1, is_complete_meal=False,
+            confidence=0.94, evidence=("dairy-aisle-beverage",),
         )
 
     # Drinks and snack foods are edible products, but not interchangeable with
