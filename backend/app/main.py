@@ -64,7 +64,9 @@ def meal_by_id(meal_id):return next((m for m in MEALS if m['id']==meal_id),None)
 def pantry_snapshot(db):return {r.ingredient.lower():{'quantity':r.quantity,'unit':r.unit,'confidence':r.confidence} for r in db.query(PantryItem).all()}
 
 class CatalogAdapter:
- def __init__(self,db):self.db=db
+ def __init__(self,db):
+  self.db=db
+  self._search_cache={}
  def get_by_id(self,product_id):
   product=self.db.get(Product,product_id)
   return product_dict(product) if product else None
@@ -90,6 +92,8 @@ class CatalogAdapter:
   }).as_dict()
  def search(self,ingredient):
   needle=normalize_ingredient(ingredient)
+  if needle in self._search_cache:
+   return [dict(item) for item in self._search_cache[needle]]
   # Search aliases against actual product titles across the complete REWE catalog.
   # Product.ingredient is only an import hint; it is never accepted as proof of a match.
   terms=ingredient_search_terms(needle)
@@ -120,7 +124,8 @@ class CatalogAdapter:
      'product_url':item.get('url'),'availability':'fixture',
      'ingredient_match_type':match_type,
     })
-   return fallback
+   self._search_cache[needle]=[dict(item) for item in fallback]
+   return [dict(item) for item in fallback]
   profile_rows=self.db.query(ProductIntelligence).filter(
    ProductIntelligence.product_id.in_([product.id for product in rows])
   ).all()
@@ -157,7 +162,8 @@ class CatalogAdapter:
    -float(item['intelligence'].get('confidence') or 0),
    float(item.get('price') or 1e12),
   ))
-  return candidates
+  self._search_cache[needle]=[dict(item) for item in candidates]
+  return [dict(item) for item in candidates]
 
 class EventIn(BaseModel):meal_id:str;action:str|None=None;event:str|None=None
 class PantryIn(BaseModel):ingredient:str;quantity:float=1;unit:str='unit';confidence:str='user_confirmed';source:str='manual';notes:str|None=None;expiry_date:str|None=None
