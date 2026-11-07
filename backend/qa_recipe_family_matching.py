@@ -21,7 +21,7 @@ from app.database import Product, SessionLocal
 import app.server as production_server  # noqa: F401
 from app.main import CatalogAdapter
 from app.catalog.intelligence import classify_product
-from app.ingredient_aliases import ingredient_product_match_type
+from app.ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type
 from app.shopping.optimizer import build_basket, consolidate
 
 
@@ -319,6 +319,23 @@ def main():
         assert len(passata_fingerprints) == len(set(passata_fingerprints)), (
             "CatalogAdapter.search must remove exact duplicate snapshot rows"
         )
+        # Semantic aliases must cover real catalog title variants without
+        # relying on the unreliable imported Product.ingredient hint.
+        semantic_alias_cases = {
+            "Hauptstadtbrot Bio Dinkelbrot täglich frisch gebacken 550g": {"bread", "spelt"},
+            "Nestlé Lion Cereals Karamell & Schoko Maxipack 675g": {"cereal"},
+            "REWE Bio Naturland Cashewmus 250g": {"cashew"},
+            "Tafeltrauben blau kernlos 500g": {"grape"},
+            "Bamboo Garden Green Curry Würzpaste 45g": {"curry paste"},
+            "Bertolli Bratolivenöl 500ml": {"olive oil"},
+        }
+        for title, expected_terms in semantic_alias_cases.items():
+            actual_terms = set(canonical_ingredient_terms(title))
+            assert expected_terms.issubset(actual_terms), (
+                f"Missing catalog semantic aliases for {title}: "
+                f"expected {sorted(expected_terms)}, got {sorted(actual_terms)}"
+            )
+
         milk_results = adapter.search("milk")
         alpro_milk = [
             row for row in milk_results
