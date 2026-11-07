@@ -85,7 +85,8 @@ def main():
                 )
             assert not any(marker in title for marker in (
                 "noodles", "noodle", "ramen", "tteokbokki",
-                "sauce", "soße", "sosse", "würzpaste", "wuerzpaste",
+                "sauce", "soße", "sosse", "paste", "gewürzpaste",
+                "gewuerzpaste", "currypaste", "würzpaste", "wuerzpaste",
             )), f"Chicken-flavored meal/sauce matched as raw chicken: {title}"
             assert profile.get("culinary_role") != "seasoning_mix", (
                 f"Chicken seasoning mix matched as raw chicken: {title}"
