@@ -107,6 +107,12 @@ def run():
     assert spice_mix.product_type == "prepared_component" and spice_mix.culinary_role == "seasoning_mix"
     butter_chicken_fix = profile("Knorr Butter Chicken Fix 35g", "fleisch-wurst-fisch")
     assert butter_chicken_fix.product_type == "prepared_component" and butter_chicken_fix.culinary_role == "seasoning_mix"
+    butter_chicken_paste = profile(
+        "Fairtrade Original Gewürzpaste Indisches Butter Chicken vegan 75g",
+        "oele-sossen-gewuerze",
+    )
+    assert butter_chicken_paste.product_type == "prepared_component"
+    assert butter_chicken_paste.culinary_role == "sauce"
     gyoza = profile("Natsu Gyoza Chicken 120g", "fleisch-wurst-fisch")
     assert gyoza.product_type == "prepared_component" and gyoza.culinary_role == "protein"
     bifi = profile("BiFi The Original Chicken 5Stück 100g", "fleisch-wurst-fisch")
