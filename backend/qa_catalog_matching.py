@@ -98,6 +98,22 @@ def main():
             db, "plain-almonds", "Seeberger Mandeln 200g",
             ingredient="almond", price=2.5, category="suesses-salziges",
         )
+        tomato_soup = add_product(
+            db, "tomato-soup", "Erasco Tomaten-Cremesuppe 390ml",
+            ingredient="tomato", price=1.99, category="fertiggerichte-konserven",
+        )
+        potato_salad = add_product(
+            db, "potato-salad", "Golßener Klassischer Kartoffelsalat 400g",
+            ingredient="potato", price=2.5, category="fertiggerichte-konserven",
+        )
+        frozen_curry = add_product(
+            db, "frozen-curry", "Frosta Rotes Curry mit Hähnchen und Reis 375g",
+            ingredient="chicken", price=3.69, category="tiefkuehlkost",
+        )
+        chicken_nuggets = add_product(
+            db, "chicken-nuggets", "ja! Chicken Nuggets 500g",
+            ingredient="chicken", price=3.99, category="tiefkuehlkost",
+        )
         db.add(ProductIntelligence(
             product_id=meal.id,
             product_type="ready_meal",
@@ -166,7 +182,22 @@ def main():
             "Plain nuts in the snack aisle remain valid culinary ingredients"
         )
 
+        assert "tomato-soup" not in {item["external_id"] for item in tomato_candidates}, (
+            "Prepared tomato soup must not satisfy a raw tomato requirement"
+        )
+        potato_ids = {item["external_id"] for item in CatalogAdapter(db).search("potato")}
+        assert "potato-salad" not in potato_ids, (
+            "Prepared potato salad must not be matched as raw potatoes"
+        )
+
         chicken_candidates = CatalogAdapter(db).search("chicken")
+        chicken_ids = {item["external_id"] for item in chicken_candidates}
+        assert "frozen-curry" not in chicken_ids, (
+            "A frozen composed meal must not satisfy a raw chicken requirement"
+        )
+        assert "chicken-nuggets" in chicken_ids, (
+            "Prepared protein components should remain available as recipe shortcuts"
+        )
         assert all(item["external_id"] != "pet-chicken" for item in chicken_candidates), (
             "German Huhn in a pet-food title must not match a chicken recipe ingredient"
         )
