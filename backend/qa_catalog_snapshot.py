@@ -49,6 +49,8 @@ def main():
     assert "sesame paste" in canonical_ingredient_terms("Alnatura Bio Tahin Sesammus 250g")
     assert "mayonnaise" in canonical_ingredient_terms("Allgroo Sushi Mayo cremig 150ml")
     assert "rapeseed oil" in canonical_ingredient_terms("Albaöl Air Fryer Spray vegan 190ml")
+    assert "red onion" in canonical_ingredient_terms("REWE Bio Zwiebeln rot 500g")
+    assert "mustard" in canonical_ingredient_terms("Bautz'ner Senf mittelscharf 250ml")
 
     # Full-catalog audit regressions: malformed units, dual-unit multipacks,
     # integer unit prices and German Pfand deposits.
