@@ -205,6 +205,8 @@ def main():
             terms = ingredient_search_terms(ingredient)
             assert any(german_term in term for term in terms), (ingredient, terms)
         precise_negative_cases = [
+            ("mussels", "Costa Frutti di Mare 230g", "tiefkuehlkost"),
+            ("mussels", "ja! Frutti di Mare 270g", "tiefkuehlkost"),
             ("sardine", "REWE Sardellenfilets in Öl", "fleisch-wurst-fisch"),
             ("goat cheese", "REWE Ziegenmilch 1l", "kaese-eier-molkerei"),
             ("grape leaves", "REWE Weintrauben kernlos 500g", "obst-gemuese"),
