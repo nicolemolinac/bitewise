@@ -28,7 +28,7 @@ _ALIAS_GROUPS = [
     ("wild boar", "wildschwein", "wildschweinbraten"),
     ("tempeh", "tempeh"),
     ("seitan", "seitan"),
-    ("plant-based mince", "veganes hack", "vegan hack", "pflanzliches hack", "plant based mince"),
+    ("plant-based mince", "veganes hack", "vegan hack", "pflanzliches hack", "plant based mince", "beyond hack"),
     ("edamame", "edamame"),
     ("cod", "kabeljau", "kabeljaufilet"),
     ("pollock", "seelachs", "alaska seelachs", "alaska-seelachsfilet"),
@@ -42,6 +42,7 @@ _ALIAS_GROUPS = [
     ("brussels sprouts", "rosenkohl"),
     ("pumpkin", "kürbis", "kuerbis", "hokkaido"),
     ("green beans", "brechbohnen", "grüne bohnen", "gruenebohnen"),
+    ("red cabbage", "rotkohl", "rotkraut", "red cabbage"),
 
     ("salmon", "lachs", "lachsfilet", "lachsfilets"),
     ("tuna", "thunfisch"),
