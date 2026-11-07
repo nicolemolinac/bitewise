@@ -72,6 +72,32 @@ def catalog_product_fingerprint(item):
 def product_dict(p):
  if p is None:return None
  return {'id':p.id,'supermarket':p.supermarket,'external_id':p.external_id,'ingredient':p.ingredient,'name_original':p.name_original,'name_normalized':p.name_normalized,'translated_name':p.translated_name,'brand':p.brand,'category':p.category,'package_size':p.package_size,'package_unit':p.package_unit,'price':p.price,'price_per_unit':p.price_per_unit,'currency':p.currency,'product_url':p.product_url,'image_url':p.image_url,'availability':p.availability,'postcode_context':p.postcode_context,'last_checked_at':p.last_checked_at}
+def validate_ingredient_candidate(ingredient, product):
+ get = product.get if isinstance(product, dict) else lambda key, default=None: getattr(product, key, default)
+ title = ' '.join(str(get(key) or '') for key in ('name_original','name_normalized','translated_name','name'))
+ match_type = ingredient_product_match_type(ingredient, title, get('category'))
+ if not match_type:
+  return None
+ profile = classify_product({
+  'name_original':get('name_original'),'name_normalized':get('name_normalized'),
+  'translated_name':get('translated_name'),'brand':get('brand'),'category':get('category'),
+ })
+ plant_milk_substitute = (
+  normalize_ingredient(ingredient) == 'milk'
+  and match_type == 'substitute'
+  and profile.product_type == 'beverage'
+ )
+ if (
+  profile.is_complete_meal
+  or profile.product_type in {'non_food','snack'}
+  or (profile.product_type == 'beverage' and not plant_milk_substitute)
+  or profile.culinary_role in {
+   'soup','salad','dessert','potato_side','seasoning_mix','topping','filled_pasta',
+  }
+ ):
+  return None
+ return match_type, profile.as_dict()
+
 def meal_by_id(meal_id):return next((m for m in MEALS if m['id']==meal_id),None)
 def pantry_snapshot(db):return {r.ingredient.lower():{'quantity':r.quantity,'unit':r.unit,'confidence':r.confidence} for r in db.query(PantryItem).all()}
 
@@ -470,7 +496,7 @@ def alternatives(product_id:int,needed_qty:float|None=None,unit:str|None=None,in
    title=' '.join(str(value or '') for value in (
     candidate.get('name_original'),candidate.get('name_normalized'),candidate.get('translated_name')
    ))
-   match_type=ingredient_product_match_type(ingredient_key,title)
+   validated=validate_ingredient_candidate(ingredient_key,candidate)\n   if not validated:continue\n   match_type,profile=validated
    if not match_type:
     continue
    intelligence=candidate.get('intelligence') or {}
@@ -513,7 +539,7 @@ def replace_product(payload:ProductOverrideIn):
   if str(product.availability or '').strip().lower() in {'unavailable','out_of_stock','not_available','discontinued'}:
    raise HTTPException(422,'Selected product is marked unavailable')
   product_title=' '.join(str(value or '') for value in (product.name_original,product.name_normalized,product.translated_name))
-  match_type=ingredient_product_match_type(ingredient,product_title)
+  validated=validate_ingredient_candidate(ingredient,product)\n  if not validated:\n   raise HTTPException(422,'Selected product is a complete meal, non-food item or incompatible culinary product')\n  match_type,profile=validated
   if not match_type:
    raise HTTPException(422,'Selected product is not a compatible exact match or curated culinary substitute')
   row=db.query(ProductOverride).filter_by(ingredient=ingredient).first()
