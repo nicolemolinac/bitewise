@@ -123,8 +123,10 @@ def _candidate_score(mode, total, waste_ratio, unit_price, reuse_count, product)
     if mode == "less-waste":
         return total + waste_ratio * max(total, 1) * 2.0
     if mode == "plan-efficiency":
-        reuse_bonus = min(reuse_count, 5) * 0.25
-        return total + waste_ratio * max(total, 1) * 1.6 - reuse_bonus
+        # Reused ingredients deserve stronger package-efficiency weighting:
+        # unlike a flat bonus, this changes the trade-off between candidates.
+        reuse_weight = 1.6 + min(reuse_count, 5) * 0.15
+        return total + waste_ratio * max(total, 1) * reuse_weight
     if mode == "premium":
         return total * 0.25 + waste_ratio * max(total, 1) * 0.35 - premium * 2.0 + unit_price * 0.03
     return total + waste_ratio * max(total, 1) * 1.15 + unit_price * 0.05 - min(reuse_count, 4) * 0.12 - premium * 0.15
