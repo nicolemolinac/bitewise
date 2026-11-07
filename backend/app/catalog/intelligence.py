@@ -156,7 +156,8 @@ def classify_product(product: dict) -> ProductProfile:
         "protein pudding", "protein mousse", "high protein chocolate",
         "chocolate & topping", "dessert cup",
         "high protein chocolate", "chocolate & topping", "chocolate topping",
-        "protein dessert", "protein mousse",
+        "protein dessert", "protein mousse", "tiramisu", "panna cotta",
+        "creme brulee", "crème brûlée", "trifle",
     )):
         product_type, role, prep, convenience = (
             "prepared_component", "dessert", "ready_to_eat", 4)
