@@ -54,6 +54,7 @@ def main():
     assert ingredient_product_match_type("mustard", "Bautz'ner Senf mittelscharf 200ml") == "exact"
     assert ingredient_product_match_type("mustard", "Butcher's Honey Mustard Sauce 300ml") is None
     assert ingredient_product_match_type("mustard", "Kühne Senfgurken würzig 215g") is None
+    assert ingredient_product_match_type("mustard", "Frosta High Protein Schlemmerfilet Brokkoli Senf 360g") is None
     assert "sesame paste" in canonical_ingredient_terms("Alnatura Bio Tahin Sesammus 250g")
     assert "mayonnaise" in canonical_ingredient_terms("Allgroo Sushi Mayo cremig 150ml")
     assert "rapeseed oil" in canonical_ingredient_terms("Albaöl Air Fryer Spray vegan 190ml")
