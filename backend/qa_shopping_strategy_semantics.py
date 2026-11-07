@@ -114,7 +114,8 @@ def main():
     print("STRATEGY BEST-VALUE VS PLAN-EFFICIENCY: PASS (different justified choices)")
     print("STRATEGY PREMIUM: PASS")
     print("FRACTIONAL-QUANTITY WASTE: PASS (0.2g need / 1g pack = 400%)")
-    print("INCOMPATIBLE PACKAGE UNIT: PASS")\n    print("LEFTOVER UNIT AGGREGATION: PASS (g/ml/pieces remain separate)")
+    print("INCOMPATIBLE PACKAGE UNIT: PASS")
+    print("LEFTOVER UNIT AGGREGATION: PASS (g/ml/pieces remain separate)")
     print("SHOPPING STRATEGY SEMANTICS QA: PASS")
 
 
