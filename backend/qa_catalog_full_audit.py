@@ -83,6 +83,7 @@ def main():
         ingredient_label_duplicates = 0
         low_confidence_profiles = []
         row_profiles = []
+        source_details_by_id = {}
 
         for row in products:
             name = _row_name(row)
@@ -184,15 +185,17 @@ def main():
                 "package_unit": row.package_unit,
                 "price": row.price,
                 "price_per_unit": row.price_per_unit,
+                "availability": row.availability,
+            }
+            row_profiles.append(row_profile)
+            source_details_by_id[row.id] = {
                 "product_url": row.product_url,
                 "image_url": row.image_url,
                 "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
                 "last_seen_at": row.last_seen_at.isoformat() if row.last_seen_at else None,
                 "last_checked_at": row.last_checked_at.isoformat() if row.last_checked_at else None,
                 "last_price": row.last_price,
-                "availability": row.availability,
             }
-            row_profiles.append(row_profile)
             if profile.confidence < 0.75:
                 low_confidence_profiles.append(row_profile)
 
@@ -351,7 +354,10 @@ def main():
         duplicate_name_details = [
             {
                 "normalized_name": key,
-                "products": [profile_by_id[row_id] for row_id in ids if row_id in profile_by_id],
+                "products": [
+                    {**profile_by_id[row_id], **source_details_by_id.get(row_id, {})}
+                    for row_id in ids if row_id in profile_by_id
+                ],
             }
             for key, ids, count in issues["duplicate_normalized_names"]
         ]
