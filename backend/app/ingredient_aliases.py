@@ -176,7 +176,7 @@ _ALIAS_GROUPS = [
     ("tomato sauce", "tomatensauce", "pizzasauce", "pizza sauce"),
     ("tomato paste", "tomatenmark"),
     ("coconut milk", "kokosmilch", "kokosnussmilch"),
-    ("soybean sprouts", "sojabohnenkeimlinge", "sojasprossen"),
+    ("soybean sprouts", "sojabohnenkeimlinge"),
     ("honey", "honig"),
     ("maple syrup", "ahornsirup"),
     ("sugar", "zucker", "rohrohrzucker"),
