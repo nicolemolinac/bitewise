@@ -54,6 +54,26 @@ def classify_product(product: dict) -> ProductProfile:
         x in name for x in ("gekühlt", "frisch", "refrigerated"))
     storage = "frozen" if frozen else ("chilled" if chilled else "ambient")
 
+    # Keep non-food aisles out of culinary matching entirely. These products
+    # remain in the catalog for shopping data, but can never become ingredients.
+    non_food_categories = {
+        "baby-kind", "drogerie-gesundheit", "haus-freizeit",
+        "kueche-haushalt", "tierbedarf", "bonus",
+    }
+    non_food_markers = (
+        "windel", "shampoo", "zahnpasta", "toilettenpapier", "katzenstreu",
+        "hundefutter", "katzenfutter", "vogelfutter", "waschmittel",
+        "spülmittel", "spuelmittel", "wc-reiniger", "badreiniger",
+        "waschpulver", "weichspüler", "weichspueler",
+    )
+    if category in non_food_categories or any(marker in name for marker in non_food_markers):
+        return ProductProfile(
+            product_type="non_food", culinary_role="non_food",
+            dish_families=(), preparation_state="not_applicable",
+            storage_type=storage, convenience_level=1, is_complete_meal=False,
+            confidence=0.99, evidence=("non-culinary-category-or-title",),
+        )
+
     # Full meals must be recognized before individual components such as pasta or sauce.
     meal_markers = (
         "fertiggericht", "fertigmenü", "fertig menu", "ready meal", "microwave meal",
@@ -76,8 +96,15 @@ def classify_product(product: dict) -> ProductProfile:
     )
     # The REWE aisle also contains canned ingredients and sauces; category alone
     # is not enough evidence that a product is a complete meal.
-    category_meal = "fertiggerichte" in category and not bowl_topping and any(
-        term in name for term in ("gericht", "menü", "menu", "bolognese", "lasagne", "lasagna", "curry", "pizza", "rice bowl", "reis bowl", "bowl mit ")
+    category_meal = (
+        "fertiggerichte" in category
+        and not (bowl_topping or dry_lasagne_sheets or pizza_component or ramen_noodles)
+        and any(
+            term in name for term in (
+                "gericht", "menü", "menu", "bolognese", "lasagne", "lasagna",
+                "curry", "pizza", "rice bowl", "reis bowl", "bowl mit ",
+            )
+        )
     )
     if meal_hit or category_meal:
         product_type, role, prep, convenience, complete = (
