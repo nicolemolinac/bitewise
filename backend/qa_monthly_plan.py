@@ -6,7 +6,9 @@ does not scrape, does not write user data and never opens a live REWE session.
 Run from backend/: python qa_monthly_plan.py
 """
 from collections import Counter
-from datetime import date, timedelta
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
 
 import qa_recipe_family_matching as base
 from app.database import Product
@@ -220,6 +222,37 @@ def main():
                 print(f"MONTH TOTAL WITH COCA-COLA {strategy}: €{strategy_results[strategy][1] + extras_cost:.2f}")
         else:
             print("EXTRA PRODUCT: NO PRICED COCA-COLA SKU WITH VALID REWE PRODUCT URL IN SNAPSHOT")
+            monthly_extra_packs = 0
+
+        # Exercise the same API handoff as the app, but mock the browser/CDP call.
+        # This proves recipe products and discretionary extras can enter the handoff
+        # without opening a live REWE session or placing an order.
+        best_basket = strategy_results["best-value"][0]
+        cart_quantities = {}
+        for row in best_basket:
+            product = row.get("product") or {}
+            product_id = product.get("id")
+            product_url = str(product.get("product_url") or "")
+            if product_id and product_url.startswith("https://www.rewe.de/shop/p/") and row.get("packs"):
+                cart_quantities[str(product_id)] = cart_quantities.get(str(product_id), 0) + int(row["packs"])
+        if coke and monthly_extra_packs:
+            cart_quantities[str(coke.id)] = cart_quantities.get(str(coke.id), 0) + monthly_extra_packs
+        cart_payload = [{"product_id": int(pid), "packs": packs} for pid, packs in cart_quantities.items()]
+        handed_off = []
+        def fake_handoff(_scraper, products):
+            handed_off.extend(products)
+            return {"results": [{"name": p["name"], "status": "added"} for p in products], "checkout_performed": False}
+        from app import server
+        client = TestClient(server.app)
+        with patch("app.rewe.scraper.ReweCatalogScraper.add_products_to_cart", fake_handoff):
+            response = client.post("/api/rewe/cart/add", json={"items": cart_payload})
+        assert response.status_code == 200, response.text
+        assert response.json().get("checkout_performed") is False
+        assert len(handed_off) == len(cart_payload), "Some valid monthly basket items were not handed off"
+        assert all(str(item["product_url"]).startswith("https://www.rewe.de/shop/p/") for item in handed_off)
+        if coke:
+            assert any("coca-cola" in item["name"].lower() for item in handed_off), "Coca-Cola extra missing from cart handoff"
+        print(f"REWE CART HANDOFF: PASS | {len(handed_off)} products | extras included={bool(coke)} | live checkout=False")
 
         # Report estimated package leftovers in their own units; never combine g/ml/pieces.
         best_basket = strategy_results["best-value"][0]
