@@ -314,7 +314,8 @@ def ingredient_product_match_type(
         return "substitute"
     if needle in {"chicken", "chicken breast"} and any(marker in padded_title for marker in (
         " noodles ", " noodle ", " ramen ", " tteokbokki ",
-        " sauce ", " soße ", " sosse ", " würzpaste ", " wuerzpaste ",
+        " sauce ", " soße ", " sosse ", " paste ",
+        " würzpaste ", " wuerzpaste ", " gewürzpaste ", " gewuerzpaste ",
     )):
         return None
 
