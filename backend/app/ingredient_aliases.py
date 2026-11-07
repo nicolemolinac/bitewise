@@ -488,6 +488,15 @@ def ingredient_product_match_type(
         " würzpaste ", " wuerzpaste ", " gewürzpaste ", " gewuerzpaste ",
     )):
         return None
+    if needle in {"chicken", "chicken breast"} and any(marker in padded_title for marker in (
+        " gebraten ", " gegart ", " vorgegart ", " cooked ", " grilled ", " gegrillt ",
+    )):
+        return "substitute"
+    if needle in {"duck", "goose"} and any(marker in padded_title for marker in (
+        " geräuchert ", " geraeuchert ", " gepökelt ", " gepoekelt ",
+        " luftgetrocknet ",
+    )):
+        return "substitute"
 
     baking_chocolate_markers = (
         " backschokolade ", " kuvertüre ", " kuvertuere ",
