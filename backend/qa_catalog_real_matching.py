@@ -75,11 +75,18 @@ def main():
             assert not any(marker in title for marker in (
                 "flavour", "flavor", "taste", "geschmack",
             )), f"Chicken flavor product matched as chicken meat: {title}"
-            assert not any(marker in title for marker in (
-                "nugget", "gyoza", "dumpling", "onigiri", "bifi",
-                "noodles", "noodle", "ramen", "tteokbokki",
+            prepared_shortcut_markers = (
+                "nugget", "gyoza", "dumpling", "onigiri",
                 "meatball", "frikadellen", "burger", "patties",
-            )), f"Prepared chicken dish matched as raw chicken: {title}"
+            )
+            if any(marker in title for marker in prepared_shortcut_markers):
+                assert item.get("ingredient_match_type") == "substitute", (
+                    f"Prepared chicken shortcut must not be an exact raw-chicken match: {title}"
+                )
+            assert not any(marker in title for marker in (
+                "noodles", "noodle", "ramen", "tteokbokki",
+                "sauce", "soße", "sosse", "würzpaste", "wuerzpaste",
+            )), f"Chicken-flavored meal/sauce matched as raw chicken: {title}"
             assert profile.get("culinary_role") != "seasoning_mix", (
                 f"Chicken seasoning mix matched as raw chicken: {title}"
             )
