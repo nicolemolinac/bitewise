@@ -147,11 +147,28 @@ def classify_product(product: dict) -> ProductProfile:
         "fischstäbchen", "fischstaebchen", "fish sticks", "fish nuggets",
         "schnitzel", "frikadelle", "hackbällchen", "hackbaellchen",
         "burger patties", "burger patty", "burger-patty",
-    )):
+    )) or (
+        "burger" in name and category == "tiefkuehlkost"
+        and not any(term in name for term in ("sauce", "soße", "sosse", "brötchen", "broetchen", "bun", "gurken"))
+    ):
         product_type, role, prep, convenience = (
             "prepared_component", "protein", "ready_to_cook_or_heat", 4)
         confidence = 0.9
         evidence.append("prepared-protein-shortcut")
+
+    # Frozen/ready potato sides (fries, wedges, rösti) are shortcuts, not
+    # interchangeable with raw potatoes in recipe ingredient matching.
+    if any(term in name for term in (
+        "pommes frites", "french fries", "potato wedges", "kartoffel wedges",
+        "rösti", "rosti", "bratkartoffeln",
+    )) and not any(term in name for term in (
+        "fix", "gewürz", "gewuerz", "sauce", "soße", "sosse",
+        "seasoning", "fruchtgummi",
+    )):
+        product_type, role, prep, convenience = (
+            "prepared_component", "potato_side", "ready_to_heat", 4)
+        confidence = 0.92
+        evidence.append("prepared-potato-side")
 
     # Full meals must be recognized before individual components such as pasta or sauce.
     meal_markers = (
@@ -161,6 +178,7 @@ def classify_product(product: dict) -> ProductProfile:
         "chili con carne", "quiche", "ramen", "schnitzel mit",
         "eintopf", "stew", "paella", "risotto", "rindergulasch",
         "schweinegulasch", "gulaschgericht", "fertigmahlzeit",
+        "kartoffelauflauf", "potato casserole",
     )
     dry_lasagne_sheets = any(term in name for term in ("lasagneplatten", "lasagne platten", "lasagne blätter", "lasagneblaetter"))
     # "Bowl" alone is not proof of a complete meal: REWE also lists toppings,
@@ -239,7 +257,7 @@ def classify_product(product: dict) -> ProductProfile:
     else:
         # Preserve high-confidence prepared-food roles assigned above. Generic
         # token rules (e.g. "tomato" in tomato soup) must not overwrite them.
-        if product_type == "prepared_component" and role in {"soup", "salad", "dessert", "protein"}:
+        if product_type == "prepared_component" and role in {"soup", "salad", "dessert", "protein", "potato_side"}:
             pass
         # Components are useful shortcuts, but are not complete meals.
         elif any(term in name for term in ("suppe", "soup", "cremesuppe", "cremesoup")):
