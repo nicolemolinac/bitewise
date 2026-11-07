@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.27.0"
+CLASSIFIER_VERSION = "1.28.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -119,7 +119,8 @@ def classify_product(product: dict) -> ProductProfile:
         " drink ", " shake ", " milchshake ",
         " milchmix ", " fruchtbuttermilch ", " iced coffee ",
     )
-    if category == "kaese-eier-molkerei" and any(marker in f" {name} " for marker in dairy_beverage_markers):
+    normalized_dairy_name = re.sub(r"[^a-z0-9äöüß]+", " ", name).strip()
+    if category == "kaese-eier-molkerei" and any(marker in f" {normalized_dairy_name} " for marker in dairy_beverage_markers):
         return ProductProfile(
             product_type="beverage", culinary_role="beverage",
             dish_families=(), preparation_state="ready_to_drink",
