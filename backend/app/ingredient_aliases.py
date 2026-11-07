@@ -507,7 +507,7 @@ def ingredient_product_match_type(
 
     beverage_markers = (
         " saft ", " juice ", " limonade ", " getraenk ", " drink ",
-        " cola ", " eistee ", " energy drink ", " smoothie ", " nektar ", " ayran ", " kefir ", " milkshake ", " milk shake ", " milchshake ", " milchmix ", " fruchtbuttermilch ", " shake ", " iced coffee ",
+        " cola ", " eistee ", " energy drink ", " smoothie ", " nektar ", " ayran ", " kefir ", " haferdrink ", " sojadrink ", " mandeldrink ", " kokosdrink ", " reisdrink ", " erbsendrink ", " mandelmilch ", " milkshake ", " milk shake ", " milchshake ", " milchmix ", " fruchtbuttermilch ", " shake ", " iced coffee ",
         " bier ", " wein ", " sekt ", " prosecco ", " wasser ",
     )
     title_is_beverage = (
