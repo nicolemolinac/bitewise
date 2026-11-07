@@ -240,6 +240,9 @@ def main():
         assert ingredient_product_match_type(
             "chicken", "Hühneraufstrich", "fleisch-wurst-fisch"
         ) is None, "Chicken spread must not be matched as chicken meat"
+        assert ingredient_product_match_type(
+            "celery", "REWE Knollensellerie", "obst-gemuese"
+        ) == "substitute", "Celeriac must be labeled as a substitute for celery stalk"
         # High-value catalog examples must remain discoverable as canonical terms.
         semantic_examples = {
             "tempeh": "Better Nature Tempeh geräuchert vegan 220g",
