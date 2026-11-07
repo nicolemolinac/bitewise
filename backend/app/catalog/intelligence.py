@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.21.0"
+CLASSIFIER_VERSION = "1.22.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -445,7 +445,7 @@ def classify_product(product: dict) -> ProductProfile:
             confidence = 0.86
             evidence.append("cooking-broth")
         elif any(x in name for x in ("chiliflocken", "chili flocken", "chilipulver", "oregano", "thymian", "basilikum", "rosmarin", "petersilie", "muskat", "pfeffer", "salz", "kräuter", "kraeuter", "paprikapulver", "paprika edelsüß", "paprika edelsuess", "ingwer",
-            "five spice", "five-spice", "gewürzsalz", "gewuerzsalz",
+            "five spice", "five-spice", "pizzagewürz", "pizzagewuerz", "pizza gewürz", "pizza gewuerz", "gewürzsalz", "gewuerzsalz",
             "gewürzmischung", "gewuerzmischung", "seasoning mix", "spice mix")):
             product_type, role, prep, convenience = "ingredient", "seasoning", "ready_to_use", 1
             confidence = 0.86
