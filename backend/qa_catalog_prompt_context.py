@@ -63,6 +63,12 @@ def main():
                     "sugar", "suesses-salziges")
         add_product(db, "garlic", "REWE Knoblauch 200g",
                     "garlic", "obst-gemuese")
+        add_product(db, "rice-pudding", "Dr. Oetker High Protein Milchreis 400g",
+                    "rice", "kaese-eier-molkerei")
+        add_product(db, "tomato-soup", "Erasco Tomaten-Cremesuppe 390ml",
+                    "tomato", "fertiggerichte-konserven")
+        add_product(db, "potato-salad", "Golßener Kartoffelsalat 400g",
+                    "potato", "fertiggerichte-konserven")
         db.commit()
 
         ingredient_context = _catalog_context("simple dinner", limit=60)
@@ -83,6 +89,16 @@ def main():
             item["external_id"] == "fruit-flavor-drink"
             for item in adapter.search("apple")
         ), "Production catalog matching must reject fruit-flavored drinks"
+
+        for ingredient, blocked_id in (
+            ("rice", "rice-pudding"),
+            ("tomato", "tomato-soup"),
+            ("potato", "potato-salad"),
+        ):
+            assert not any(
+                item["external_id"] == blocked_id
+                for item in adapter.search(ingredient)
+            ), f"Production catalog matching must reject prepared {blocked_id}"
 
         pantry, catalog, preferences = _shopping_context()
         catalog_text = " ".join(catalog).lower()
