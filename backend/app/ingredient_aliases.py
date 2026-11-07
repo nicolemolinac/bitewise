@@ -279,7 +279,6 @@ _ALIAS_GROUPS = [
     ("pasta sauce", "pastasauce", "pastasoße", "pastasosse", "nudelsauce"),
     ("tomato ketchup", "ketchup", "tomatenketchup"),
     ("soybean", "sojabohnen", "sojabohne"),
-    ("cornichon", "cornichons"),
     ("artichoke", "artischocke", "artischocken"),
     ("asparagus", "spargel", "spargelstangen"),
     ("cabbage", "chinakohl", "weißkohl", "weisskohl", "spitzkohl", "wirsing"),
@@ -291,7 +290,7 @@ _ALIAS_GROUPS = [
     ("apricot", "aprikose", "aprikosen"),
     ("plum", "pflaume", "pflaumen", "zwetschge", "zwetschgen"),
     ("cherry", "kirsche", "kirschen"),
-    ("pomegranate", "granatapfel", "granatapfelkerne"),
+
     ("black olive", "schwarze oliven", "oliven schwarz"),
     ("green olive", "grüne oliven", "gruenen oliven", "oliven grün", "oliven gruen"),
     ("sun-dried tomato", "tomaten getrocknet", "getrocknete tomaten", "sonnengetrocknete tomaten"),
