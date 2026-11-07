@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.29.0"
+CLASSIFIER_VERSION = "1.30.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -626,6 +626,7 @@ def classify_product(product: dict) -> ProductProfile:
                 "couscous", "rice", "rice noodles", "gnocchi", "bread",
                 "bread roll", "rye bread", "sourdough bread", "flour", "oats",
                 "oat flour", "rice flour", "corn flour", "wheat bran",
+                "rice paper", "glass noodles",
                 "semolina", "rye flour", "spelt", "bulgur", "buckwheat",
                 "quinoa", "polenta", "potato puree", "potato dumpling",
             },
@@ -634,7 +635,8 @@ def classify_product(product: dict) -> ProductProfile:
                 "ginger", "dill", "sage", "chili flakes", "chili powder",
                 "nutmeg", "italian seasoning", "salt", "black pepper",
                 "paprika powder", "cinnamon", "vanilla", "coriander", "mint",
-                "savory", "five spice",
+                "savory", "five spice", "fennel seeds", "cumin",
+                "cardamom", "marjoram", "black cumin",
             },
             "sauce": {
                 "tomato passata", "pesto", "curry paste", "miso paste",
