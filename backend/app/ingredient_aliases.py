@@ -222,7 +222,7 @@ _ALIAS_GROUPS = [
     ("flaxseed oil", "leinöl", "leinoel"),
     ("sesame paste", "tahin", "tahini", "sesammus"),
     ("mayonnaise", "mayonnaise", "mayo", "mayoo"),
-    ("spelt", "dinkel", "dinkelmehl", "dinkelbrot"),
+    ("spelt", "dinkel", "dinkelmehl"),
     ("hummus", "hummus", "hommos"),
 
     ("almond butter", "mandelmus", "mandelmus braun", "mandelmus weiß", "mandelmus weiss"),
