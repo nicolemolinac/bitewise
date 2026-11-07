@@ -306,7 +306,7 @@ _ALIAS_GROUPS = [
     ("passion fruit", "passionsfrucht", "maracuja"),
     ("dragon fruit", "pitahaya", "drachenfrucht"),
     ("chanterelle", "pfifferling", "pfifferlinge"),
-    ("sugar snap peas", "zuckerschoten", "kaiserscho ten", "kaiserscho ten"),
+    ("sugar snap peas", "zuckerschoten", "kaiserschoten"),
     ("garden cress", "gartenkresse", "kresse"),
     ("parsley root", "petersilienwurzel", "wurzelpetersilie"),
     ("rutabaga", "steckrübe", "steckruebe", "kohlrübe", "kohlruebe"),
