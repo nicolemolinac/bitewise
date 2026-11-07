@@ -16,7 +16,7 @@ from app.database import (
     AppSetting, CatalogRun, Product, SessionLocal, _auto_import_rewe_csv_snapshot,
     _snapshot_pack_pricing, _snapshot_package_size, _snapshot_package_unit,
 )
-from app.ingredient_aliases import canonical_ingredient_terms
+from app.ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type, ingredient_search_terms
 
 
 def main():
@@ -46,6 +46,14 @@ def main():
     assert "falafel" in canonical_ingredient_terms("Bauck Mühle Falafel Bio Glutenfrei 160g")
     assert "chia seeds" in canonical_ingredient_terms("Alnatura Bio Chia Samen 200g")
     assert "flaxseed oil" in canonical_ingredient_terms("Alnatura Bio Leinöl 250ml")
+    # Compound ingredients must match the full phrase or an explicit German alias.
+    assert "zwiebel rot" in ingredient_search_terms("red onion")
+    assert ingredient_product_match_type("red onion", "Zwiebel rot 500g") == "exact"
+    assert ingredient_product_match_type("red onion", "Maybelline Red Punch Nagellack") is None
+    assert "senf" in ingredient_search_terms("mustard")
+    assert ingredient_product_match_type("mustard", "Bautz'ner Senf mittelscharf 200ml") == "exact"
+    assert ingredient_product_match_type("mustard", "Butcher's Honey Mustard Sauce 300ml") is None
+    assert ingredient_product_match_type("mustard", "Kühne Senfgurken würzig 215g") is None
     assert "sesame paste" in canonical_ingredient_terms("Alnatura Bio Tahin Sesammus 250g")
     assert "mayonnaise" in canonical_ingredient_terms("Allgroo Sushi Mayo cremig 150ml")
     assert "rapeseed oil" in canonical_ingredient_terms("Albaöl Air Fryer Spray vegan 190ml")
