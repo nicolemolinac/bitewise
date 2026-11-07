@@ -676,6 +676,26 @@ def main():
         assert classify_product({"name_original": "Bamboo Garden Bowl Topping 15g", "category": "oele-sossen-gewuerze"}).culinary_role == "topping"
         assert classify_product({"name_original": "Barilla Pizza Sauce 400g", "category": "oele-sossen-gewuerze"}).product_type == "prepared_component"
         assert classify_product({"name_original": "Bamboo Garden Five Spice 35g", "category": "oele-sossen-gewuerze"}).culinary_role == "seasoning"
+        assert classify_product({
+            "name_original": "Brunch Paprika Peperoni 185g",
+            "category": "kaese-eier-molkerei",
+        }).culinary_role == "cheese"
+        assert classify_product({
+            "name_original": "Bernard Matthews Hähnchenbrust-Filetstücke Paprika 150g",
+            "category": "fleisch-wurst-fisch",
+        }).culinary_role == "protein"
+        assert classify_product({
+            "name_original": "Ostmann Paprika scharf gemahlen 35g",
+            "category": "oele-sossen-gewuerze",
+        }).culinary_role == "seasoning"
+        assert classify_product({
+            "name_original": "Frosta Gemüse-Mix Italienische Küche 600g",
+            "category": "tiefkuehlkost",
+        }).product_type == "prepared_component"
+        assert classify_product({
+            "name_original": "Kaki 1 Stück",
+            "category": "obst-gemuese",
+        }).culinary_role == "ingredient"
         assert classify_product({"name_original": "Kühne Apfelrotkohl 650g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
         assert not classify_product({"name_original": "REWE Ramen Nudeln"}).is_complete_meal
         assert not classify_product({
