@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.30.0"
+CLASSIFIER_VERSION = "1.31.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
