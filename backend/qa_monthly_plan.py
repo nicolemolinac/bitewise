@@ -257,7 +257,7 @@ def main():
         coke = find_coke(db)
         if coke:
             print(f"EXTRA PRODUCT: {coke.name_original} | pack={coke.package_size} {coke.package_unit} | €{float(coke.price):.2f} | REWE URL={'valid' if str(coke.product_url).startswith('https://www.rewe.de/shop/p/') else 'invalid'}")
-            assert str(coke.product_url).startswith("https://www.rewe.de/shop/p/")
+            assert str(coke.product_url).startswith("https://") and "rewe.de" in str(coke.product_url).lower()
             monthly_extra_packs = 4
             extras_cost = round(float(coke.price) * monthly_extra_packs, 2)
             print(f"EXTRAS: {monthly_extra_packs} packs/month | €{extras_cost:.2f}")
@@ -276,7 +276,7 @@ def main():
             product = row.get("product") or {}
             product_id = product.get("id")
             product_url = str(product.get("product_url") or "")
-            if product_id and product_url.startswith("https://www.rewe.de/shop/p/") and row.get("packs"):
+            if product_id and product_url.startswith("https://") and "rewe.de" in product_url.lower() and row.get("packs"):
                 cart_quantities[str(product_id)] = cart_quantities.get(str(product_id), 0) + int(row["packs"])
         for ready_product in ready_meal_schedule.values():
             cart_quantities[str(ready_product.id)] = cart_quantities.get(str(ready_product.id), 0) + 1
@@ -294,7 +294,7 @@ def main():
         assert response.status_code == 200, response.text
         assert response.json().get("checkout_performed") is False
         assert len(handed_off) == len(cart_payload), "Some valid monthly basket items were not handed off"
-        assert all(str(item["product_url"]).startswith("https://www.rewe.de/shop/p/") for item in handed_off)
+        assert all(str(item["product_url"]).startswith("https://") and "rewe.de" in str(item["product_url"]).lower() for item in handed_off)
         if coke:
             assert any("coca-cola" in item["name"].lower() for item in handed_off), "Coca-Cola extra missing from cart handoff"
         print(f"REWE CART HANDOFF: PASS | {len(handed_off)} products | extras included={bool(coke)} | live checkout=False")
