@@ -42,6 +42,8 @@ def run():
 
     # Full-catalog audit found canned soups, stews, salads and frozen composed
     # dishes that had been left as generic ingredients.
+    dessert = profile("Dr. Oetker High Protein Milchreis 400g", "kaese-eier-molkerei")
+    assert dessert.product_type == "prepared_component" and dessert.culinary_role == "dessert"
     soup = profile("Erasco Tomaten-Cremesuppe 390ml", "fertiggerichte-konserven")
     assert soup.product_type == "prepared_component" and soup.culinary_role == "soup"
     salad = profile("Golßener Spreewälder Nudelsalat 700g", "fertiggerichte-konserven")
