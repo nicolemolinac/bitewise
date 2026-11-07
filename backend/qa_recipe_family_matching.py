@@ -354,6 +354,9 @@ def main():
             )
             assert profile.classifier_version == "1.29.0", profile
 
+        assert canonical_ingredient_terms("Bamboo Garden Bambusschößlinge in Streifen") == ["bamboo shoots"]
+        assert canonical_ingredient_terms("Bamboo Garden Sojabohnenkeimlinge") == ["soybean sprouts"]
+
         milk_results = adapter.search("milk")
         alpro_milk = [
             row for row in milk_results
