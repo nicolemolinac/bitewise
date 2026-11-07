@@ -334,9 +334,17 @@ def classify_product(product: dict) -> ProductProfile:
         and not any(term in name for term in ("fertiggericht", "fertigmenü", "fertig menu"))
     )
     ramen_noodles = any(term in name for term in ("ramen nudeln", "ramen noodles", "ramen noodle"))
+    component_false_positive = (
+        role in {"dessert", "salad", "potato_side", "topping", "filled_pasta"}
+        or (
+            role == "soup"
+            and not any(term in name for term in ("ramen", "eintopf"))
+        )
+    )
     meal_hit = None if (
         dry_lasagne_sheets or bowl_topping or pizza_component or ramen_noodles
         or risotto_rice or quiche_dough or raw_goulash_meat
+        or component_false_positive
     ) else next(
         (term for term in meal_markers if term in name), None
     )
@@ -347,6 +355,7 @@ def classify_product(product: dict) -> ProductProfile:
         and not (
             bowl_topping or dry_lasagne_sheets or pizza_component or ramen_noodles
             or risotto_rice or quiche_dough or raw_goulash_meat
+            or component_false_positive
         )
         and any(
             term in name for term in (
