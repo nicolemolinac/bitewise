@@ -301,6 +301,39 @@ def main():
         assert catalog_count >= 1000, f"Expected full REWE snapshot, got {catalog_count}"
         adapter = CatalogAdapter(db)
 
+        # Search-level checks: exact duplicate snapshots collapse, plant milk remains a substitute.
+        passata_results = adapter.search("tomato passata")
+        passata_fingerprints = [
+            (
+                row.get("name_normalized"), row.get("package_size"),
+                row.get("package_unit"), row.get("price"), row.get("price_per_unit"),
+                row.get("category"),
+            )
+            for row in passata_results
+        ]
+        assert len(passata_fingerprints) == len(set(passata_fingerprints)), (
+            "CatalogAdapter.search must remove exact duplicate snapshot rows"
+        )
+        milk_results = adapter.search("milk")
+        alpro_milk = [
+            row for row in milk_results
+            if "alpro soja" in (row.get("name_original") or "").lower()
+        ]
+        assert alpro_milk and alpro_milk[0]["ingredient_match_type"] == "substitute", (
+            "Plant-based Alpro drink must remain available as a milk substitute"
+        )
+        assert alpro_milk[0]["intelligence"]["product_type"] == "beverage"
+        mango_results = adapter.search("mango")
+        assert not any(
+            any(marker in (row.get("name_original") or "").lower() for marker in ("ayran", "haferdrink"))
+            for row in mango_results
+        ), "Fruit-flavored dairy and plant drinks must not satisfy fresh mango"
+        peanut_butter_results = adapter.search("peanut butter")
+        assert not any(
+            "ben & jerry" in (row.get("name_original") or "").lower()
+            for row in peanut_butter_results
+        ), "Ice-cream flavor SKUs must not satisfy peanut butter ingredient searches"
+
         # Multi-recipe planning must consolidate shared ingredients and AI synonyms.
         multi_meals = [
             _recipe_meal("Creamy mushroom tagliatelle", RECIPES["Creamy mushroom tagliatelle"]),
