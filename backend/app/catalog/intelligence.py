@@ -237,8 +237,12 @@ def classify_product(product: dict) -> ProductProfile:
         if frozen:
             prep = "ready_to_heat"
     else:
+        # Preserve high-confidence prepared-food roles assigned above. Generic
+        # token rules (e.g. "tomato" in tomato soup) must not overwrite them.
+        if product_type == "prepared_component" and role in {"soup", "salad", "dessert", "protein"}:
+            pass
         # Components are useful shortcuts, but are not complete meals.
-        if any(term in name for term in ("suppe", "soup", "cremesuppe", "cremesoup")):
+        elif any(term in name for term in ("suppe", "soup", "cremesuppe", "cremesoup")):
             product_type, role, prep, convenience = "prepared_component", "soup", "ready_to_heat", 4
             confidence = 0.9
             evidence.append("prepared-soup")
