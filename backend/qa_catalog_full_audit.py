@@ -337,8 +337,8 @@ def main():
         failures = {key: len(issues[key]) for key in blocking if issues[key]}
         assert not failures, f"Full-catalog data integrity/classification failures: {failures}"
         print(f"Low-confidence product profiles: {len(low_confidence_profiles)}")
-        assert len(low_confidence_profiles) <= 300, (
-            f"Low-confidence product profiles regressed above 300: {len(low_confidence_profiles)}"
+        assert len(low_confidence_profiles) <= 100, (
+            f"Low-confidence product profiles regressed above 100: {len(low_confidence_profiles)}"
         )
 
         report = {
