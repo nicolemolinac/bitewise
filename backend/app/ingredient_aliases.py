@@ -176,7 +176,6 @@ _ALIAS_GROUPS = [
     ("tomato sauce", "tomatensauce", "pizzasauce", "pizza sauce"),
     ("tomato paste", "tomatenmark"),
     ("coconut milk", "kokosmilch", "kokosnussmilch"),
-    ("bamboo shoots", "bambusschößlinge", "bambusschoesslinge", "bambussprossen"),
     ("soybean sprouts", "sojabohnenkeimlinge", "sojasprossen"),
     ("honey", "honig"),
     ("maple syrup", "ahornsirup"),
@@ -241,7 +240,7 @@ _ALIAS_GROUPS = [
     ("pumpkin seeds", "kürbiskerne", "kuerbiskerne"),
 
     ("kimchi", "kimchi"),
-    ("bamboo shoots", "bambussprossen", "bambusschösslinge", "bambusschoesslinge"),
+    ("bamboo shoots", "bambussprossen", "bambusschösslinge", "bambusschößlinge", "bambusschoesslinge"),
     ("bean sprouts", "sojasprossen", "mungobohnensprossen", "bohnensprossen"),
     ("apple sauce", "apfelmus", "apfelmark"),
     ("coconut cream", "kokoscreme", "kokosnusscreme"),
