@@ -695,6 +695,18 @@ def main():
         assert classify_product({"name_original": "Burgis Kartoffelpüree 500g", "category": "kochen-backen"}).product_type == "prepared_component"
         assert classify_product({"name_original": "REWE Kartoffelsalat 400 g"}).product_type == "prepared_component"
         assert classify_product({"name_original": "REWE Quiche Lorraine"}).is_complete_meal
+        assert classify_product({
+            "name_original": "Albiero Provolone Valpadana Dop Dolce 200g",
+            "category": "kaese-eier-molkerei",
+        }).culinary_role == "cheese"
+        assert classify_product({
+            "name_original": "Black Angus Rinder-Entrecôte ca. 250g",
+            "category": "fleisch-wurst-fisch",
+        }).culinary_role == "protein"
+        assert classify_product({
+            "name_original": "Florette Rucola 80g",
+            "category": "obst-gemuese",
+        }).culinary_role == "vegetable"
         assert classify_product({"name_original": "Ben & Jerry's Eis Peanut Butter Cup 465ml", "category": "tiefkuehlkost"}).culinary_role == "dessert"
 
         print(
