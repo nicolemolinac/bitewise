@@ -57,6 +57,18 @@ def main():
             db, "sugar-free-drink", "7UP Zero Zucker 440ml",
             ingredient="sugar", price=1.2, category="getraenke-genussmittel",
         )
+        flavored_drink = add_product(
+            db, "flavored-drink", "Active O2 Apfel-Kiwi 0,75l",
+            ingredient="apple", price=1.2, category="getraenke-genussmittel",
+        )
+        candy = add_product(
+            db, "low-sugar-candy", "ahead Low Sugar Gummies Sweet Cherries 50g",
+            ingredient="sugar", price=1.2, category="suesses-salziges",
+        )
+        wine = add_product(
+            db, "cooking-wine", "1112 Weißwein Blanc de Noirs trocken 0,75l",
+            ingredient="wine", price=4.99, category="getraenke-genussmittel",
+        )
         sugar = add_product(db, "real-sugar", "REWE Zucker 1 kg", ingredient="wrong-hint")
         ketchup = add_product(
             db, "tomato-ketchup", "REWE Tomaten Ketchup 500ml",
@@ -96,6 +108,17 @@ def main():
         assert "real-sugar" in sugar_ids
         assert "sugar-free-drink" not in sugar_ids, (
             "A sugar-free beverage must not satisfy a recipe's sugar requirement"
+        )
+        assert "low-sugar-candy" not in sugar_ids, (
+            "A confectionery product must not satisfy a raw sugar ingredient requirement"
+        )
+        apple_candidates = CatalogAdapter(db).search("apple")
+        assert all(item["external_id"] != "flavored-drink" for item in apple_candidates), (
+            "Fruit flavor in a drink must not match the whole fruit ingredient"
+        )
+        wine_candidates = CatalogAdapter(db).search("white wine")
+        assert any(item["external_id"] == "cooking-wine" for item in wine_candidates), (
+            "Actual cooking wine must remain searchable as a recipe ingredient"
         )
         tomato_candidates = CatalogAdapter(db).search("tomato")
         tomato_matches = {item["external_id"]: item["ingredient_match_type"] for item in tomato_candidates}
