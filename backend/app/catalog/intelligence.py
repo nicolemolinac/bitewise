@@ -153,6 +153,8 @@ def classify_product(product: dict) -> ProductProfile:
         "griesspudding", "sahnepudding", "milchdessert", "torte", "kuchen",
         "cake", "cheesecake", "käsekuchen", "kaesekuchen", "brownie",
         "brownies", "sorbet", "gelato", "cookie dough",
+        "high protein chocolate", "chocolate & topping", "chocolate topping",
+        "protein dessert", "protein mousse",
     )):
         product_type, role, prep, convenience = (
             "prepared_component", "dessert", "ready_to_eat", 4)
