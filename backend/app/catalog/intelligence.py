@@ -359,7 +359,12 @@ def classify_product(product: dict) -> ProductProfile:
             confidence = 0.94
             evidence.append("dry-lasagne-sheets")
             families.append("lasagna")
-        elif any(x in name for x in ("passata", "passierte tomaten", "pesto", "tomatensauce", "tomatensosse", "sugo", "cooking sauce")):
+        elif any(x in name for x in (
+            "passata", "passierte tomaten", "pesto", "tomatensauce", "tomatensosse",
+            "sugo", "cooking sauce", "gewürzpaste", "gewuerzpaste",
+            "würzpaste", "wuerzpaste", "currypaste", "curry paste",
+            "sambal oelek", "miso paste",
+        )):
             product_type, role, prep, convenience = "prepared_component", "sauce", "ready_to_use", 4
             confidence = 0.94
             evidence.append("sauce-component")
