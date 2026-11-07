@@ -275,14 +275,54 @@ def ingredient_search_terms(value: str) -> list[str]:
     return sorted((term for term in terms if term), key=lambda term: (-len(term), term))
 
 
-def ingredient_product_match_type(ingredient: str, product_name: str) -> str | None:
-    """Classify a catalog title as exact, culinary substitute, or no match."""
+def ingredient_product_match_type(
+    ingredient: str, product_name: str, category: str | None = None
+) -> str | None:
+    """Classify a catalog title as exact, culinary substitute, or no match.
+
+    A title mentioning an ingredient is not enough: finished drinks, snacks and
+    confectionery must not masquerade as cooking ingredients (e.g. ginger juice
+    for fresh ginger or milk chocolate for milk).
+    """
     title = _norm(product_name)
     if not title:
         return None
     padded_title = " " + title + " "
     exact_terms = ingredient_aliases(ingredient)
     needle = _norm(ingredient)
+
+    beverage_markers = (
+        " saft ", " juice ", " limonade ", " getraenk ", " drink ",
+        " cola ", " eistee ", " energy drink ", " smoothie ", " nektar ",
+        " bier ", " wein ", " sekt ", " prosecco ", " wasser ",
+    )
+    title_is_beverage = any(marker in padded_title for marker in beverage_markers)
+    request_is_beverage = any(marker.strip() in needle.split() for marker in beverage_markers)
+    # Keep explicit recipe liquids (e.g. white wine or orange juice) searchable,
+    # but never substitute a drink that merely contains a fruit/herb word.
+    if title_is_beverage and not request_is_beverage:
+        return None
+
+    finished_food_markers = (
+        " schokolade ", " chocolate ", " bonbon ", " candy ", " praline ",
+        " pralinen ", " schokoriegel ", " candy bar ", " chips ", " cracker ",
+        " crackers ", " keks ", " kekse ", " cookie ", " cookies ",
+        " biscuit ", " biscuits ", " popcorn ", " kaugummi ", " chewing gum ",
+        " jelly bean ", " waffel ", " wafers ",
+    )
+    title_is_finished_food = any(marker in padded_title for marker in finished_food_markers)
+    request_is_finished_food = any(
+        marker.strip() in needle.split() for marker in finished_food_markers
+    )
+    if title_is_finished_food and not request_is_finished_food:
+        return None
+
+    # A snack mix or seasoned nut product is not an exact substitute for its
+    # individual ingredient, even if the title contains that ingredient.
+    if any(marker in padded_title for marker in (
+        " nuss mix ", " nut mix ", " studentenfutter ", " trail mix ",
+    )):
+        return None
 
     # Descriptive claims are not ingredient evidence. In particular, sugar-free
     # drinks contain the word "sugar" but are not a source of sugar.
