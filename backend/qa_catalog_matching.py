@@ -73,6 +73,10 @@ def main():
         assert all(item["external_id"] != "pet-chicken" for item in candidates), (
             "Pet food containing an ingredient word must never match a recipe ingredient"
         )
+        chicken_candidates = CatalogAdapter(db).search("chicken")
+        assert all(item["external_id"] != "pet-chicken" for item in chicken_candidates), (
+            "German Huhn in a pet-food title must not match a chicken recipe ingredient"
+        )
         assert by_id["shrimp-raw"]["ingredient_match_type"] == "exact"
         assert by_id["shrimp-raw"]["intelligence"]["culinary_role"] == "protein"
         assert by_id["shrimp-cooked"]["intelligence"]["product_type"] == "prepared_component"
