@@ -329,6 +329,24 @@ def _product_title(product):
     ))
 
 
+class _CachedCatalogAdapter:
+    """Memoize deterministic snapshot searches across basket strategy comparisons."""
+    def __init__(self, adapter):
+        self.adapter = adapter
+        self.cache = {}
+
+    def search(self, ingredient):
+        key = str(ingredient or "").strip().lower()
+        if key not in self.cache:
+            self.cache[key] = self.adapter.search(ingredient)
+        # Return shallow copies because basket selection may annotate a candidate.
+        return [dict(row) for row in self.cache[key]]
+
+    def get_by_id(self, product_id):
+        row = self.adapter.get_by_id(product_id)
+        return dict(row) if row else None
+
+
 def main():
     assert len(RECIPES) >= 45, f"Expected at least 45 distinct recipe families, got {len(RECIPES)}"
     db = SessionLocal()
@@ -336,6 +354,7 @@ def main():
         catalog_count = db.query(Product).filter(Product.supermarket == "REWE").count()
         assert catalog_count >= 1000, f"Expected full REWE snapshot, got {catalog_count}"
         adapter = CatalogAdapter(db)
+        basket_adapter = _CachedCatalogAdapter(adapter)
 
         # Search-level checks: exact duplicate snapshots collapse, plant milk remains a substitute.
         passata_results = adapter.search("tomato passata")
@@ -612,7 +631,7 @@ def main():
             meal = _recipe_meal(recipe, ingredients)
             requirements = consolidate([meal], {meal["id"]: 2})
             for strategy in strategies:
-                basket = build_basket(requirements, adapter, strategy)
+                basket = build_basket(requirements, basket_adapter, strategy)
                 assert len(basket) == len(requirements), f"{recipe}/{strategy}: ingredient rows were lost"
                 for row in basket:
                     basket_checks += 1
@@ -703,7 +722,7 @@ def main():
         diverse_basket_checks = 0
         diverse_strategy_totals = {}
         for strategy in ("maximum-savings", "best-value", "premium", "plan-efficiency"):
-            basket = build_basket(diverse_requirements, adapter, strategy)
+            basket = build_basket(diverse_requirements, basket_adapter, strategy)
             assert len(basket) == len(diverse_requirements), (
                 f"{strategy}: combined basket lost ingredient rows"
             )
