@@ -244,8 +244,8 @@ def _qa_quantity(ingredient):
     name = ingredient.lower()
     if name in {"eggs", "garlic", "lemon", "lime", "lettuce", "eggplant", "aubergine"}:
         return (2 if name in {"eggs", "tortilla", "garlic"} else 1, "unit")
-    if name in {"olive oil", "soy sauce", "milk", "cream", "coconut milk"}:
-        return (20 if name in {"olive oil", "soy sauce"} else 100, "ml")
+    if name in {"olive oil", "soy sauce", "milk", "cream", "coconut milk", "mustard"}:
+        return (20 if name in {"olive oil", "soy sauce", "mustard"} else 100, "ml")
     if name == "mustard":
         return (15, "ml")
     if name in {"salt", "black pepper", "oregano", "thyme", "nutmeg", "paprika powder", "chili flakes", "cinnamon", "baking powder"}:
