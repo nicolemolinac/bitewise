@@ -158,7 +158,7 @@ def classify_product(product: dict) -> ProductProfile:
         "high protein chocolate", "chocolate & topping", "chocolate topping",
         "protein dessert", "protein mousse", "tiramisu", "panna cotta",
         "creme brulee", "crème brûlée", "trifle",
-    ) or re.search(r"\\btorte\\b", name):
+    ) or re.search(r"\btorte\b", name):
         product_type, role, prep, convenience = (
             "prepared_component", "dessert", "ready_to_eat", 4)
         confidence = 0.92
