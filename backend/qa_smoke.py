@@ -81,9 +81,20 @@ def main():
         call("PATCH", "/api/settings", {"postcode": "abc"}, expected=422)
         call("PATCH", "/api/settings", {"postcode": "13353", "shopping_strategy": "best-value"})
 
-        call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 500, "unit": "g"})
+        # Pantry quantities must convert safely across kg/g and never go negative.
+        call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 0.5, "unit": "kg"})
+        call("POST", "/api/pantry", {"ingredient": "chicken breast", "quantity": 0.1, "unit": "kg"})
         rice = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
-        assert rice["quantity"] == 500
+        assert rice["quantity"] == 0.5 and rice["unit"] == "kg"
+        updated_rice = call("PATCH", f"/api/pantry/{rice['id']}", {
+            "quantity": 0.25, "unit": "kg", "expiry_date": "2026-11-20"
+        })
+        assert updated_rice["ok"] is True
+        rice = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
+        assert rice["quantity"] == 0.25 and rice["expiry_date"] == "2026-11-20"
+        call("PATCH", f"/api/pantry/{rice['id']}", {"quantity": -1}, expected=422)
+        call("DELETE", f"/api/pantry/{rice['id']}")
+        assert not any(row["ingredient"] == "rice" for row in call("GET", "/api/pantry"))
 
         call("POST", "/api/events", {"meal_id": "arrabbiata", "action": "dislike"})
         assert any(row["id"] == "arrabbiata" for row in call("GET", "/api/events/dislikes")["meals"])
@@ -106,6 +117,9 @@ def main():
             "meal_ids": ["ai-qa-taco-bowl"], "servings": {"ai-qa-taco-bowl": 2}, "owned": [], "mode": "best-value"
         })
         assert ai_basket["servings"] == 2 and ai_basket["total"] >= 0, "AI meal did not integrate into shopping"
+        assert ai_basket["checkout_total"] == ai_basket["total"]
+        assert ai_basket["checkout_cost_per_serving"] == ai_basket["cost_per_serving"]
+        assert ai_basket["consumed_cost_per_serving"] <= ai_basket["checkout_cost_per_serving"]
 
         fractional_basket = call("POST", "/api/shopping", {
             "meal_ids": ["ai-qa-taco-bowl"], "servings": {"ai-qa-taco-bowl": 0.85}, "owned": [], "mode": "best-value"
@@ -117,15 +131,54 @@ def main():
         })
         assert basket["servings"] == 2 and basket["pantry_savings_items"] >= 1
 
+        # Replenish after basket generation, which may already reserve pantry stock.
+        call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 0.5, "unit": "kg"})
+        call("POST", "/api/pantry", {"ingredient": "chicken breast", "quantity": 0.1, "unit": "kg"})
+
+        print("PANTRY BEFORE EATEN:", json.dumps(call("GET", "/api/pantry")))
+        print("TERIYAKI INGREDIENTS:", json.dumps(next(m for m in call("GET", "/api/meals")["meals"] if m["id"] == "teriyaki-chicken")["ingredients"]))
         eaten = call("POST", "/api/meals/teriyaki-chicken/eaten?servings=2")
-        assert any(row["ingredient"] == "rice" for row in eaten["consumed"])
+        rice_used = next(row for row in eaten["consumed"] if row["ingredient"] == "rice")
+        assert rice_used["unit"] == "g" and rice_used["quantity"] == 160
         rice_after = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
-        assert rice_after["quantity"] == 340
+        assert rice_after["unit"] == "kg" and abs(rice_after["quantity"] - 0.34) < 0.001
+        chicken_after = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "chicken breast")
+        assert chicken_after["quantity"] == 0, "Insufficient pantry stock must clamp to zero, never become negative"
+        chicken_used = next(row for row in eaten["consumed"] if row["ingredient"] == "chicken breast")
+        assert chicken_used["quantity"] == 100 and chicken_used["unit"] == "g"
+
+        # A planned meal may be toggled cooked -> planned -> eaten, but its
+        # pantry deduction must be recorded only once for that planned_meal_id.
+        call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 0.5, "unit": "kg"})
+        call("POST", "/api/pantry", {"ingredient": "chicken breast", "quantity": 0.1, "unit": "kg"})
+        ledger_plan = call("POST", "/api/plans", {
+            "weeks": 1, "servings": 2, "strategy": "best-value",
+            "meal_ids": ["teriyaki-chicken"]
+        })
+        ledger_meal = ledger_plan["meals"][0]
+        first_status = call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/status", {"status": "cooked"})
+        assert first_status["consumed"], "First cooked transition should consume available pantry stock"
+        call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/status", {"status": "planned"})
+        repeated_status = call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/status", {"status": "eaten"})
+        assert repeated_status["already_consumed"] is True and repeated_status["consumed"] == []
+        # Once stock has been consumed, swapping/deleting the planned row would
+        # orphan the ledger or make a different recipe appear already consumed.
+        call("POST", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}/swap", {}, expected=409)
+        call("PATCH", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}", {"servings": 4}, expected=409)
+        call("DELETE", f"/api/plans/{ledger_plan['id']}/meals/{ledger_meal['id']}", expected=409)
+        rice_after_repeat = next(row for row in call("GET", "/api/pantry") if row["ingredient"] == "rice")
+        assert abs(rice_after_repeat["quantity"] - 0.34) < 0.001, "Toggling meal status deducted pantry stock more than once"
+
+        # Pantry coverage is based on sufficient quantity, not ingredient-name presence.
+        call("POST", "/api/pantry", {"ingredient": "rice", "quantity": 0.01, "unit": "kg"})
+        today_data = call("GET", f"/api/today?plan_id={ledger_plan['id']}")
+        today_meal = next(row for row in today_data["meals"] if row["id"] == ledger_meal["id"])
+        assert today_meal["pantry_covered_ingredients"] == 0, "10g of rice must not count as enough for a 160g recipe requirement"
 
         rewe_status = call("GET", "/api/rewe/status")
         assert rewe_status["live_data"] is False and rewe_status["data_freshness"] == "catalog_snapshot"
 
-        print("QA PASS: core loop + persistent AI meal Discover/Plan/Shopping integration + REWE status")
+        print("QA PASS: core loop + unit-safe/idempotent/quantity-aware pantry coverage + persistent AI meal Discover/Plan/Shopping integration + REWE status")
     finally:
         proc.terminate()
         try: proc.wait(timeout=5)

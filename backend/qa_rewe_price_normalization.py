@@ -19,6 +19,15 @@ def main():
     assert pack_price == 2.19
     assert abs(per_ml - 0.00548) < 0.000001
 
+    # Common REWE rice multipack: 4 x 125 g must be treated as 500 g total.
+    size, unit = package("Reis-fit Natur-Reis vorgegart 4×125 g (1 kg = 3,98 €)")
+    assert size == 500 and unit == "g"
+    pack_price, per_gram = price_details(
+        "Reis-fit Natur-Reis vorgegart 4×125 g (1 kg = 3,98 €)", size, unit
+    )
+    assert pack_price == 1.99
+    assert abs(per_gram - 0.00398) < 0.000001
+
     size, unit = package("Rice 500g")
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49

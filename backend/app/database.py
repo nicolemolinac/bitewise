@@ -4,7 +4,7 @@ import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint, create_engine, text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -74,6 +74,57 @@ class Product(Base):
     last_price: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
+class ProductIntelligence(Base):
+    """Derived culinary metadata. Safe to recompute without changing source catalog data."""
+    __tablename__ = "product_intelligence"
+    __table_args__ = (UniqueConstraint("product_id", name="uq_product_intelligence_product"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    product_type: Mapped[str] = mapped_column(String(40), default="ingredient", index=True)
+    culinary_role: Mapped[str] = mapped_column(String(40), default="ingredient", index=True)
+    dish_families_json: Mapped[str] = mapped_column(Text, default="[]")
+    preparation_state: Mapped[str] = mapped_column(String(40), default="unknown")
+    storage_type: Mapped[str] = mapped_column(String(30), default="unknown")
+    convenience_level: Mapped[int] = mapped_column(Integer, default=1)
+    is_complete_meal: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    evidence_json: Mapped[str] = mapped_column(Text, default="[]")
+    classifier_version: Mapped[str] = mapped_column(String(30), default="1.0.0")
+    classified_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ProductDetails(Base):
+    """Separately sourced REWE product-page facts; populated by a future isolated job."""
+    __tablename__ = "product_details"
+    __table_args__ = (UniqueConstraint("product_id", name="uq_product_details_product"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    details_status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
+    source: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ean: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    ingredients_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    allergens_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    traces_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    additives_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    nutrition_basis: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    energy_kj: Mapped[float | None] = mapped_column(Float, nullable=True)
+    energy_kcal: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fat_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    saturated_fat_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    carbohydrates_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sugars_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fibre_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    protein_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    salt_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preparation_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    storage_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    origin: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class ProductOverride(Base):
     __tablename__ = "product_overrides"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -141,6 +192,17 @@ class PlannedMeal(Base):
     meal_type: Mapped[str] = mapped_column(String(30), default="dinner")
     servings: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(30), default="planned")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PantryConsumption(Base):
+    __tablename__ = "pantry_consumptions"
+    __table_args__ = (UniqueConstraint("planned_meal_id", name="uq_pantry_consumption_planned_meal"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    planned_meal_id: Mapped[int] = mapped_column(Integer, index=True)
+    meal_id: Mapped[str] = mapped_column(String(80), index=True)
+    consumed_json: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -317,43 +379,90 @@ def _snapshot_float(value, default=None):
         return default
 
 
+def _snapshot_package_unit(name: str, current_unit: str) -> str:
+    """Resolve a source unit typo when the displayed unit-price basis and pack label agree."""
+    text = re.sub(r"\([^)]*1\s*(?:kg|l|stück|stk\.?)\s*=[^)]*\)", " ", name or "", flags=re.I)
+    reference = re.search(r"1\s*(kg|l)\s*=", name or "", re.I)
+    if not reference:
+        return current_unit
+    basis = reference.group(1).lower()
+    if basis == "kg" and current_unit == "ml" and re.search(
+        r"\d+\s*[x×]\s*\d+(?:[.,]\d+)?\s*g\b", text, re.I
+    ):
+        return "g"
+    if basis == "l" and current_unit == "g" and re.search(
+        r"\d+\s*[x×]\s*\d+(?:[.,]\d+)?\s*ml\b", text, re.I
+    ):
+        return "ml"
+    return current_unit
+
+
 def _snapshot_package_size(name: str, current_size: float, current_unit: str) -> float:
-    """Correct multi-packs such as 2x200ml and 4x50g in older scraper exports."""
-    match = re.search(r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b", name or "", re.I)
-    if not match:
-        return current_size
-    count = int(match.group(1))
-    amount = float(match.group(2).replace(",", "."))
-    source_unit = match.group(3).lower()
-    if source_unit == "kg":
-        amount *= 1000
-        source_unit = "g"
-    elif source_unit == "l":
-        amount *= 1000
-        source_unit = "ml"
-    return count * amount if source_unit == current_unit else current_size
+    """Normalize multipacks and repair obvious ml/l or g/kg source-unit typos."""
+    text = re.sub(r"\([^)]*1\s*(?:kg|l|stück|stk\.?)\s*=[^)]*\)", " ", name or "", flags=re.I)
+    def normalized_amount(amount, unit):
+        value = float(amount.replace(",", "."))
+        unit = unit.lower()
+        if unit == "kg":
+            return value * 1000, "g"
+        if unit == "l":
+            return value * 1000, "ml"
+        return value, unit
+
+    multipacks = list(re.finditer(
+        r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
+        text, re.I
+    ))
+    # In REWE titles the first expression is the real inner-pack format
+    # (e.g. 2x140g); a later "2x280g" often repeats the already-total quantity.
+    for match in multipacks:
+        amount, unit = normalized_amount(match.group(2), match.group(3))
+        if unit == current_unit:
+            return int(match.group(1)) * amount
+
+    # Some legacy rows contain a malformed first unit (e.g. 0,75ml 0,75l).
+    # Prefer the last explicit package-size token matching the corrected unit.
+    sizes = list(re.finditer(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b", text, re.I))
+    for match in reversed(sizes):
+        amount, unit = normalized_amount(match.group(1), match.group(2))
+        if unit == current_unit:
+            return amount
+    return current_size
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
-    """Convert displayed €/kg or €/l unit prices into actual package checkout prices."""
+    """Normalize package checkout price, unit price and German bottle deposits (Pfand)."""
     match = re.search(
-        r"1\s*(kg|l|stück|stk\.?)\s*=\s*(\d+[,.]\d{2})\s*€",
+        r"1\s*(kg|l|stück|stk\.?)\s*=\s*(\d+(?:[,.]\d{1,2})?)\s*€",
         name or "",
         re.I,
     )
     unit_price = _snapshot_float(match.group(2)) if match else None
     standard_unit = match.group(1).lower() if match else ""
+    deposit_match = re.search(
+        r"zzgl\.?\s*(\d+[,.]\d{2})\s*€\s*Pfand", name or "", re.I
+    )
+    deposit = _snapshot_float(deposit_match.group(1)) if deposit_match else 0.0
+
     if unit_price is not None and standard_unit == "kg" and package_unit == "g":
-        return round(unit_price * package_size / 1000, 2), unit_price / 1000
+        base_price = unit_price * package_size / 1000
+        return round(base_price + deposit, 2), unit_price / 1000
     if unit_price is not None and standard_unit == "l" and package_unit == "ml":
-        return round(unit_price * package_size / 1000, 2), unit_price / 1000
+        base_price = unit_price * package_size / 1000
+        return round(base_price + deposit, 2), unit_price / 1000
     if unit_price is not None and standard_unit.startswith(("stk", "stück")) and package_unit == "unit":
-        return round(unit_price * package_size, 2), unit_price
+        base_price = unit_price * package_size
+        return round(base_price + deposit, 2), unit_price
+
     fallback = _snapshot_float(raw_price)
-    per_unit = _snapshot_float(raw_price_per_unit)
-    if per_unit is None and fallback is not None and package_size > 0:
-        per_unit = fallback / package_size
-    return fallback, per_unit
+    if fallback is None:
+        return None, None
+    # The raw per-unit field in old exports is inconsistent for multipacks
+    # (sometimes it refers to one inner unit). Recompute from the normalized pack.
+    factor = 1000 if package_unit in {"kg", "l"} else 1
+    denominator = float(package_size or 0) * factor
+    per_unit = fallback / denominator if denominator > 0 else _snapshot_float(raw_price_per_unit)
+    return round(fallback + deposit, 2), per_unit
 
 
 def _auto_import_rewe_csv_snapshot() -> None:
@@ -427,6 +536,7 @@ def _auto_import_rewe_csv_snapshot() -> None:
                 package_size = _snapshot_float(row.get("package_size"), 1.0)
                 package_size = package_size if package_size and package_size > 0 else 1.0
                 package_unit = str(row.get("package_unit") or "unit").strip()[:20]
+                package_unit = _snapshot_package_unit(name, package_unit)
                 package_size = _snapshot_package_size(name, package_size, package_unit)
                 pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
                     name, package_size, package_unit, row.get("price"), row.get("price_per_unit")
