@@ -290,6 +290,7 @@ def ingredient_product_match_type(
     padded_title = " " + title + " "
     exact_terms = ingredient_aliases(ingredient)
     needle = _norm(ingredient)
+    category_key = _norm(category or "")
 
     beverage_markers = (
         " saft ", " juice ", " limonade ", " getraenk ", " drink ",
