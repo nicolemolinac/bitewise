@@ -41,6 +41,14 @@ def main():
     assert "agave syrup" in canonical_ingredient_terms("Alnatura Bio Agavendicksaft 250ml")
     assert "rapeseed oil" in canonical_ingredient_terms("Albaöl Rapsöl mit Buttergeschmack 0,75l")
     assert "apple cider vinegar" in canonical_ingredient_terms("Alnatura Bio Apfelessig naturtrüb 0,5l")
+    assert "herring" in canonical_ingredient_terms("Appel Zarte Filets vom Hering 200g")
+    assert "olive" in canonical_ingredient_terms("Alnatura Bio Origin Oliven ohne Stein 350g")
+    assert "falafel" in canonical_ingredient_terms("Bauck Mühle Falafel Bio Glutenfrei 160g")
+    assert "chia seeds" in canonical_ingredient_terms("Alnatura Bio Chia Samen 200g")
+    assert "flaxseed oil" in canonical_ingredient_terms("Alnatura Bio Leinöl 250ml")
+    assert "sesame paste" in canonical_ingredient_terms("Alnatura Bio Tahin Sesammus 250g")
+    assert "mayonnaise" in canonical_ingredient_terms("Allgroo Sushi Mayo cremig 150ml")
+    assert "rapeseed oil" in canonical_ingredient_terms("Albaöl Air Fryer Spray vegan 190ml")
 
     # Full-catalog audit regressions: malformed units, dual-unit multipacks,
     # integer unit prices and German Pfand deposits.
