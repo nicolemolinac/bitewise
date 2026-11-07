@@ -308,7 +308,8 @@ def ingredient_product_match_type(
         " nuggets ", " gyoza ", " dumpling ", " onigiri ", " bifi ",
         " noodles ", " noodle ", " ramen ", " tteokbokki ",
         " meatballs ", " meatball ", " frikadellen ", " burger ",
-        " patties ",
+        " patties ", " sauce ", " soße ", " sosse ", " würzpaste ",
+        " wuerzpaste ",
     )):
         return None
 
