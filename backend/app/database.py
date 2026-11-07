@@ -413,7 +413,9 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
         r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
         text, re.I
     ))
-    for match in reversed(multipacks):
+    # In REWE titles the first expression is the real inner-pack format
+    # (e.g. 2x140g); a later "2x280g" often repeats the already-total quantity.
+    for match in multipacks:
         amount, unit = normalized_amount(match.group(2), match.group(3))
         if unit == current_unit:
             return int(match.group(1)) * amount
