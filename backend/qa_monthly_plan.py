@@ -313,21 +313,33 @@ def main():
         print(f"REWE CART CANDIDATES: {selected_rows} selected basket products | {len(cart_payload)} unique catalog SKUs | skipped={len(skipped_rows)}")
         if skipped_rows:
             print(f"REWE CART SKIPPED: {', '.join(skipped_rows[:12])}")
-        handed_off = []
-        def fake_handoff(_scraper, products):
-            handed_off.extend(products)
-            return {"results": [{"name": p["name"], "status": "added"} for p in products], "checkout_performed": False}
-        from app import server
-        client = TestClient(server.app)
-        with patch("app.rewe.scraper.ReweCatalogScraper.add_products_to_cart", fake_handoff):
-            response = client.post("/api/rewe/cart/add", json={"items": cart_payload})
-        assert response.status_code == 200, response.text
-        assert response.json().get("checkout_performed") is False
-        assert len(handed_off) == len(cart_payload), "Some valid monthly basket items were not handed off"
-        assert all(str(item["product_url"]).startswith("https://") and "rewe.de" in str(item["product_url"]).lower() for item in handed_off)
-        if coke:
-            assert any("coca-cola" in item["name"].lower() for item in handed_off), "Coca-Cola extra missing from cart handoff"
-        print(f"REWE CART HANDOFF: PASS | {len(handed_off)} products | extras included={bool(coke)} | live checkout=False")
+        if cart_payload:
+            handed_off = []
+            def fake_handoff(_scraper, products):
+                handed_off.extend(products)
+                return {"results": [{"name": p["name"], "status": "added"} for p in products], "checkout_performed": False}
+            from app import server
+            client = TestClient(server.app)
+            with patch("app.rewe.scraper.ReweCatalogScraper.add_products_to_cart", fake_handoff):
+                response = client.post("/api/rewe/cart/add", json={"items": cart_payload})
+            assert response.status_code == 200, response.text
+            assert response.json().get("checkout_performed") is False
+            assert len(handed_off) == len(cart_payload), "Some valid monthly basket items were not handed off"
+            assert all(str(item["product_url"]).startswith("https://") and "rewe.de" in str(item["product_url"]).lower() for item in handed_off)
+            if coke:
+                assert any("coca-cola" in item["name"].lower() for item in handed_off), "Coca-Cola extra missing from cart handoff"
+            print(f"REWE CART HANDOFF: PASS | {len(handed_off)} products | extras included={bool(coke)} | live checkout=False")
+        else:
+            # The committed 11,969-row snapshot is a price/matching fixture and
+            # does not carry product-detail URLs. Do not invent URLs or fail a
+            # monthly cost simulation for data that cannot support live handoff.
+            # The separate qa_rewe_cart.py suite verifies the endpoint with a
+            # valid, isolated REWE URL fixture and rejects unsafe/non-REWE URLs.
+            assert skipped_rows, "Empty cart payload without any explicit skip reason"
+            print(
+                "REWE CART HANDOFF: NOT TESTED | committed snapshot has no verified "
+                "product URLs; endpoint contract is covered by qa_rewe_cart.py"
+            )
 
         # Report estimated package leftovers in their own units; never combine g/ml/pieces.
         best_basket = strategy_results["best-value"][0]
