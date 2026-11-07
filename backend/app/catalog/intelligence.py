@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.31.0"
+CLASSIFIER_VERSION = "1.32.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -317,24 +317,46 @@ def classify_product(product: dict) -> ProductProfile:
         "pizzateig", "pizza teig", "pizzagewürz", "pizzagewuerz",
         "pizza gewürz", "pizza gewuerz", "pizzasauce", "pizza sauce",
         "pizza soße", "pizza sosse", "pizzakäse", "pizzakaese",
+        "pizza base", "pizza-kit", "pizza kit", "pizza bratfilet",
+        "pizza-fleischkäse", "pizza fleischkäse", "pizza mix",
+        "pizza & pasta", "pizza und pasta", "pasta e pizza",
+        "mehl für pizza", "pizza typ 00", "pizzamehl", "pizza flour",
     ))
+    # Ingredient-like products can contain meal words without being meals.
+    # These title patterns are explicit catalog evidence for flour, dough or rice.
+    risotto_rice = "risotto" in name and any(term in name for term in (
+        "risotto reis", "risotto-reis", "risotto rice", "paella-reis", "paella reis",
+    ))
+    quiche_dough = ("quiche" in name and "teig" in name) or "tarteteig" in name
+    raw_goulash_meat = (
+        "gulasch" in name
+        and category == "fleisch-wurst-fisch"
+        and not any(term in name for term in ("fertiggericht", "fertigmenü", "fertig menu"))
+    )
     ramen_noodles = any(term in name for term in ("ramen nudeln", "ramen noodles", "ramen noodle"))
-    meal_hit = None if dry_lasagne_sheets or bowl_topping or pizza_component or ramen_noodles else next(
+    meal_hit = None if (
+        dry_lasagne_sheets or bowl_topping or pizza_component or ramen_noodles
+        or risotto_rice or quiche_dough or raw_goulash_meat
+    ) else next(
         (term for term in meal_markers if term in name), None
     )
     # The REWE aisle also contains canned ingredients and sauces; category alone
     # is not enough evidence that a product is a complete meal.
     category_meal = (
         "fertiggerichte" in category
-        and not (bowl_topping or dry_lasagne_sheets or pizza_component or ramen_noodles)
+        and not (
+            bowl_topping or dry_lasagne_sheets or pizza_component or ramen_noodles
+            or risotto_rice or quiche_dough or raw_goulash_meat
+        )
         and any(
             term in name for term in (
                 "gericht", "menü", "menu", "bolognese", "lasagne", "lasagna",
-                "curry", "pizza", "rice bowl", "reis bowl", "bowl mit ",
+                "pizza", "rice bowl", "reis bowl", "bowl mit ",
             )
         )
     ) or (
         category in {"fertiggerichte-konserven", "tiefkuehlkost"}
+        and not raw_goulash_meat
         and any(term in name for term in (
             "gulasch", "ravioli", "rinderrouladen", "kohlrouladen",
         ))
