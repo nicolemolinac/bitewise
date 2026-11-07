@@ -199,7 +199,7 @@ def _shopping_context():
                 })
             )
             if (profile.product_type in {"non_food", "beverage", "snack"}
-                    or profile.culinary_role in {"soup", "salad", "dessert", "potato_side", "seasoning_mix"}):
+                    or profile.culinary_role in {"soup", "salad", "dessert", "potato_side", "seasoning_mix", "topping"}):
                 continue
             canonical_terms = canonical_ingredient_terms(title)
             if not profile.is_complete_meal:
