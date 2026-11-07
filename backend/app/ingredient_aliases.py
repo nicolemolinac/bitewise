@@ -9,7 +9,7 @@ _ALIAS_GROUPS = [
     ("cocoa powder", "kakaopulver", "backkakao", "cocoa powder", "cacao powder"),
     ("milk", "milch", "vollmilch", "frischmilch", "alpenmilch", "weidemilch", "trinkmilch", "schafsmilch", "ziegenmilch"),
     ("butter", "butter", "markenbutter", "süßrahmbutter", "suessrahmbutter"),
-    ("cheese", "käse", "kaese", "weichkäse", "weichkaese", "butterkäse", "butterkaese", "edamer", "maasdamer", "tilsiter", "raclette", "halloumi", "burrata", "comté", "comte", "manchego", "gruyère", "gruyere", "limburger", "brie", "ziegenkäse", "ziegenkaese", "obazda"),
+    ("cheese", "käse", "kaese", "weichkäse", "weichkaese", "butterkäse", "butterkaese", "edamer", "maasdamer", "tilsiter", "raclette", "halloumi", "burrata", "comté", "comte", "manchego", "gruyère", "gruyere", "limburger", "brie", "obazda"),
     ("cream", "sahne", "schlagsahne", "kochcreme", "kochsahne", "kochcrème"),
     ("yogurt", "yoghurt", "joghurt"),
     ("greek yogurt", "greek yoghurt", "griechischer joghurt", "griechischer yoghurt", "joghurt griechischer art", "joghurt nach griechischer art", "griechischer art"),
