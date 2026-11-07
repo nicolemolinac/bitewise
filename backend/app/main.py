@@ -21,7 +21,7 @@ from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
 from .ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type, ingredient_search_terms
-from .catalog.intelligence import classify_product
+from .catalog.intelligence import CLASSIFIER_VERSION, classify_product
 from .shopping.optimizer import STRATEGIES, _convert_quantity, build_basket, consolidate
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
@@ -69,7 +69,9 @@ class CatalogAdapter:
   product=self.db.get(Product,product_id)
   return product_dict(product) if product else None
  def _profile(self,product,stored=None):
-  if stored is not None:
+  # Recompute legacy persisted profiles after taxonomy changes so stale rows
+  # cannot reintroduce false meal or non-food ingredient matches.
+  if stored is not None and stored.classifier_version == CLASSIFIER_VERSION:
    return {
     'product_type':stored.product_type,
     'culinary_role':stored.culinary_role,
