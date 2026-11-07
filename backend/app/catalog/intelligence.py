@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.28.0"
+CLASSIFIER_VERSION = "1.29.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -618,13 +618,14 @@ def classify_product(product: dict) -> ProductProfile:
                 "beetroot", "olive", "gherkin", "artichoke", "asparagus",
                 "radish", "kohlrabi", "cabbage", "rutabaga", "arugula",
                 "garden cress", "chanterelle", "sugar snap peas", "bean sprouts",
-                "bamboo shoots", "sauerkraut",
+                "soybean sprouts", "bamboo shoots", "sauerkraut",
             },
             "starch": {
                 "pasta", "tagliatelle", "linguine", "tortellini", "penne", "potato", "sweet potato",
                 "lasagne sheets", "trofie pasta", "spaghetti", "noodles",
                 "couscous", "rice", "rice noodles", "gnocchi", "bread",
                 "bread roll", "rye bread", "sourdough bread", "flour", "oats",
+                "oat flour", "rice flour", "corn flour", "wheat bran",
                 "semolina", "rye flour", "spelt", "bulgur", "buckwheat",
                 "quinoa", "polenta", "potato puree", "potato dumpling",
             },
