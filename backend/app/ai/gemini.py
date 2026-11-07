@@ -9,10 +9,10 @@ try:
 except Exception:
     genai = None
 
-from ..catalog.intelligence import classify_product
+from ..catalog.intelligence import CLASSIFIER_VERSION, classify_product
 from ..database import PantryItem, Product, ProductIntelligence, SessionLocal, UserEvent
 from ..recommendations.engine import build_preference_profile
-from ..ingredient_aliases import ingredient_product_match_type
+from ..ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type
 from ..recipes.seed import MEALS
 
 DATA_FILE = Path(os.getenv("BITEWISE_AI_MEALS_PATH") or Path(__file__).resolve().parents[2] / "data" / "ai_meals.json").expanduser().resolve()
@@ -187,18 +187,31 @@ def _shopping_context():
             title = (product.name_original or product.name_normalized or "").strip()
             if not title or any(term in title.lower() for term in excluded):
                 continue
-            if not ingredient_product_match_type(str(product.ingredient or ""), title):
+            profile = (
+                intelligence
+                if intelligence and intelligence.classifier_version == CLASSIFIER_VERSION
+                else classify_product({
+                    "name_original": product.name_original,
+                    "name_normalized": product.name_normalized,
+                    "translated_name": product.translated_name,
+                    "brand": product.brand,
+                    "category": product.category,
+                })
+            )
+            if profile.product_type in {"non_food", "beverage", "snack"}:
                 continue
-            profile = intelligence
-            role = profile.culinary_role if profile else classify_product({
-                "name_original": product.name_original,
-                "name_normalized": product.name_normalized,
-                "translated_name": product.translated_name,
-                "brand": product.brand,
-                "category": product.category,
-            }).culinary_role
+            canonical_terms = canonical_ingredient_terms(title)
+            if not profile.is_complete_meal:
+                if not canonical_terms:
+                    continue
+                if not any(
+                    ingredient_product_match_type(term, title, product.category)
+                    for term in canonical_terms
+                ):
+                    continue
+            role = profile.culinary_role
             if role not in {"protein", "dairy", "vegetable", "starch", "sauce",
-                            "complete_meal", "ingredient", "snack"}:
+                            "complete_meal", "ingredient"}:
                 continue
             if role not in grouped:
                 grouped[role] = []
