@@ -42,7 +42,7 @@ _ALIAS_GROUPS = [
     ("brussels sprouts", "rosenkohl"),
     ("pumpkin", "kürbis", "kuerbis", "hokkaido"),
     ("green beans", "brechbohnen", "grüne bohnen", "gruenebohnen"),
-    ("red cabbage", "rotkohl", "rotkraut", "red cabbage"),
+    ("red cabbage", "rotkohl", "rotkraut", "apfelrotkohl", "red cabbage"),
     ("leek", "lauch", "porree", "lauchzwiebel"),
     ("parsnip", "pastinake", "pastinaken"),
     ("chicory", "chicorée", "chicoree", "chicory"),
@@ -429,6 +429,13 @@ def ingredient_product_match_type(
     exact_terms = ingredient_aliases(ingredient)
     needle = _norm(ingredient)
     category_key = _norm(category or "")
+
+    # Prepared apple red cabbage is a useful shortcut, not raw cabbage.
+    if needle == "red cabbage" and any(marker in padded_title for marker in (
+        " apfelrotkohl ", " apfel rotkohl ", " rotkohl fix ", " tafelfertig ",
+        " rotkraut tafelfertig ",
+    )):
+        return "substitute"
 
     # Flavor claims in instant noodles, sauces and snacks are not ingredient
     # evidence (e.g. "chicken flavour" is not chicken meat).
