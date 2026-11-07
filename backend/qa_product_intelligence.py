@@ -50,6 +50,8 @@ def run():
     assert frozen_torte.product_type == "prepared_component" and frozen_torte.culinary_role == "dessert"
     frozen_ice_cream = profile("Ben & Jerry's Chocolate Chip Cookie Dough 170g", "tiefkuehlkost")
     assert frozen_ice_cream.product_type == "prepared_component" and frozen_ice_cream.culinary_role == "dessert"
+    protein_chocolate = profile("Ehrmann High Protein Chocolate & Topping 200g", "kaese-eier-molkerei")
+    assert protein_chocolate.product_type == "prepared_component" and protein_chocolate.culinary_role == "dessert"
     soup = profile("Erasco Tomaten-Cremesuppe 390ml", "fertiggerichte-konserven")
     assert soup.product_type == "prepared_component" and soup.culinary_role == "soup"
     salad = profile("Golßener Spreewälder Nudelsalat 700g", "fertiggerichte-konserven")
