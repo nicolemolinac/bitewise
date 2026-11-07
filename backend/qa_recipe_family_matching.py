@@ -316,6 +316,16 @@ def main():
             "Tafeltrauben blau kernlos 500g": {"grape"},
             "Bamboo Garden Green Curry Würzpaste 45g": {"curry paste"},
             "Bertolli Bratolivenöl 500ml": {"olive oil"},
+            "Aroy-D Kokosnussmilch 250ml": {"coconut milk"},
+            "Bamboo Garden Bambusschößlinge in Streifen 180g": {"bamboo shoots"},
+            "Bamboo Garden Sojabohnenkeimlinge 180g": {"soybean sprouts"},
+            "Bonduelle Möhrchen zart und extra fein 265g": {"carrot"},
+            "Bonduelle Wachsbrechbohnen 225g": {"green beans"},
+            "Bauck Mühle Bio Hafermehl Vollkorn 350g": {"oat flour"},
+            "Bauck Mühle Helles Bio Reismehl 500g": {"rice flour"},
+            "Bauckhof Bio Maismehl 500g": {"corn flour"},
+            "Alnatura Bio Weizenkleie grob 250g": {"wheat bran"},
+            "Alpro Soja-Kochcrème Cuisine vegan 250ml": {"cream"},
         }
         for title, expected_terms in semantic_alias_cases.items():
             actual_terms = set(canonical_ingredient_terms(title))
