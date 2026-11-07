@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-CLASSIFIER_VERSION = "1.4.0"
+CLASSIFIER_VERSION = "1.5.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -79,6 +79,8 @@ def classify_product(product: dict) -> ProductProfile:
     if any(marker in name for marker in (
         "knorr fix", "maggi fix", "maggi food travel fix",
         "ostmann let's do", "ostmann lets do",
+        "würzmischung", "wuerzmischung", "gewürzmischung", "gewuerzmischung",
+        "würz-mix", "wuerz-mix", "seasoning mix",
     )):
         return ProductProfile(
             product_type="prepared_component", culinary_role="seasoning_mix",
