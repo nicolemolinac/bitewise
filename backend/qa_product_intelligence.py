@@ -105,6 +105,14 @@ def run():
     assert ostmann_mix.product_type == "prepared_component" and ostmann_mix.culinary_role == "seasoning_mix"
     spice_mix = profile("Maggi Würzmischung für Air Fryer Hähnchen 60g", "oele-sossen-gewuerze")
     assert spice_mix.product_type == "prepared_component" and spice_mix.culinary_role == "seasoning_mix"
+    butter_chicken_fix = profile("Knorr Butter Chicken Fix 35g", "fleisch-wurst-fisch")
+    assert butter_chicken_fix.product_type == "prepared_component" and butter_chicken_fix.culinary_role == "seasoning_mix"
+    gyoza = profile("Natsu Gyoza Chicken 120g", "fleisch-wurst-fisch")
+    assert gyoza.product_type == "prepared_component" and gyoza.culinary_role == "protein"
+    bifi = profile("BiFi The Original Chicken 5Stück 100g", "fleisch-wurst-fisch")
+    assert bifi.product_type == "snack" and bifi.culinary_role == "snack"
+    instant_noodles = profile("Knorr Asia Noodles Chicken 65g", "kochen-backen")
+    assert instant_noodles.product_type == "ready_meal" and instant_noodles.is_complete_meal
 
     # Products from household, hygiene, pet and baby aisles must never become
     # culinary ingredients, even when their names contain ingredient words.
