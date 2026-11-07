@@ -172,8 +172,12 @@ def classify_product(product: dict) -> ProductProfile:
         "pizza soße", "pizza sosse", "pizzakäse", "pizzakaese",
     ))
     ramen_noodles = any(term in name for term in ("ramen nudeln", "ramen noodles", "ramen noodle"))
-    meal_hit = None if dry_lasagne_sheets or bowl_topping or pizza_component or ramen_noodles else next(
-        (term for term in meal_markers if term in name), None
+    frozen_composed_meal = frozen and any(term in name for term in (
+        "pfanne", "pfannengericht", "curry", "auflauf", "gratin",
+    ))
+    meal_hit = None if dry_lasagne_sheets or bowl_topping or pizza_component or ramen_noodles else (
+        next((term for term in meal_markers if term in name), None)
+        or ("frozen-composed-meal" if frozen_composed_meal else None)
     )
     # The REWE aisle also contains canned ingredients and sauces; category alone
     # is not enough evidence that a product is a complete meal.
@@ -225,7 +229,22 @@ def classify_product(product: dict) -> ProductProfile:
             prep = "ready_to_heat"
     else:
         # Components are useful shortcuts, but are not complete meals.
-        if dry_lasagne_sheets:
+        if any(term in name for term in ("suppe", "soup", "cremesuppe", "cremesoup")):
+            product_type, role, prep, convenience = "prepared_component", "soup", "ready_to_heat", 4
+            confidence = 0.9
+            evidence.append("prepared-soup")
+        elif any(term in name for term in (
+            "nudelsalat", "kartoffelsalat", "krautsalat", "reissalat",
+            "thunfischsalat", "fleischsalat", "eiersalat",
+        )):
+            product_type, role, prep, convenience = "prepared_component", "salad", "ready_to_eat", 4
+            confidence = 0.9
+            evidence.append("prepared-salad")
+        elif "nugget" in name:
+            product_type, role, prep, convenience = "prepared_component", "protein", "ready_to_bake", 4
+            confidence = 0.9
+            evidence.append("prepared-protein-nuggets")
+        elif dry_lasagne_sheets:
             product_type, role, prep, convenience = "ingredient", "starch", "dry", 1
             confidence = 0.94
             evidence.append("dry-lasagne-sheets")
