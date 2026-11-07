@@ -102,7 +102,7 @@ def main():
                     # Checkout price can include German bottle deposits; unit
                     # prices intentionally exclude Pfand.
                     deposit_match = re.search(
-                        r"zzgl\\.?\\s*(\\d+[,.]\\d{2})\\s*€\\s*Pfand",
+                        r"zzgl\.?\s*(\d+[,.]\d{2})\s*€\s*Pfand",
                         _row_name(row), re.I,
                     )
                     deposit = float(deposit_match.group(1).replace(",", ".")) if deposit_match else 0.0
