@@ -151,6 +151,22 @@ _ALIAS_GROUPS = [
     ("apple cider vinegar", "apfelessig"),
     ("salad greens", "microgreens", "micro green"),
     ("pasta", "buchstabennudeln", "müschelchen", "mueschelchen"),
+    ("ham", "bauernschinken", "kochschinken", "serranoschinken", "schwarzwälder schinken"),
+    ("turkey", "puten", "putenfilet", "puten filet", "putenfiletstreifen", "puten filetstreifen"),
+    ("herring", "hering", "heringe", "bratheringe", "hering filets"),
+    ("beetroot", "rote bete", "rote bete", "rote bete"),
+    ("olive", "olive", "oliven", "oliven ohne stein"),
+    ("gherkin", "cornichons", "gewürzgurken", "gewuerzgurken"),
+    ("falafel", "falafel"),
+    ("chia seeds", "chia samen", "chiasamen"),
+    ("flaxseed oil", "leinöl", "leinoel"),
+    ("sesame paste", "tahin", "tahini", "sesammus"),
+    ("mayonnaise", "mayonnaise", "mayo", "mayoo"),
+    ("spelt", "dinkel", "dinkelmehl"),
+    ("tomato", "tomatenstückenatur", "tomatenstücke", "tomatenstuecke"),
+    ("chicken", "hühneraufstrich", "huehneraufstrich"),
+    ("sausage", "chorizo"),
+    ("rapeseed oil", "albaöl", "albaoel", "bratöl", "bratoel", "backöl", "backoel"),
 ]
 
 
