@@ -224,10 +224,10 @@ def main():
         alias_owners = defaultdict(set)
         canonical_names = []
         for group in _ALIAS_GROUPS:
-            canonical = re.sub(r"\\s+", " ", re.sub(r"[^a-z0-9äöüß]+", " ", group[0].lower())).strip()
+            canonical = re.sub(r"\s+", " ", re.sub(r"[^a-z0-9äöüß]+", " ", group[0].lower())).strip()
             canonical_names.append(canonical)
             for term in group:
-                normalized = re.sub(r"\\s+", " ", re.sub(r"[^a-z0-9äöüß]+", " ", term.lower())).strip()
+                normalized = re.sub(r"\s+", " ", re.sub(r"[^a-z0-9äöüß]+", " ", term.lower())).strip()
                 alias_owners[normalized].add(canonical)
         duplicate_canonicals = sorted(
             name for name, count in Counter(canonical_names).items() if count > 1
