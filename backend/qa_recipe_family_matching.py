@@ -326,6 +326,13 @@ def main():
         assert synonym_requirements[0]["quantity"] == 5
         assert synonym_requirements[0]["canonical_ingredient"] == "garlic"
         assert set(synonym_requirements[0]["source_ingredient_names"]) == {"garlic", "garlic cloves"}
+        unit_consolidation = consolidate([
+            {"id": "unit-a", "name": "Rice side", "base_servings": 2, "ingredients": [["rice", 100, "g"]]},
+            {"id": "unit-b", "name": "Rice bowls", "base_servings": 2, "ingredients": [["rice", 0.2, "kg"]]},
+        ], {"unit-a": 2, "unit-b": 2})
+        assert len(unit_consolidation) == 1
+        assert unit_consolidation[0]["quantity"] == 300
+        assert unit_consolidation[0]["unit"] == "g"
 
         base_total = base_matched = 0
         base_missing = {}
