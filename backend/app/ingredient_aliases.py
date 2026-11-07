@@ -257,7 +257,7 @@ _ALIAS_GROUPS = [
 
     ("kimchi", "kimchi"),
     ("bamboo shoots", "bambussprossen", "bambusschösslinge", "bambusschößlinge", "bambusschoesslinge"),
-    ("bean sprouts", "sojasprossen", "mungobohnensprossen", "bohnensprossen"),
+    ("bean sprouts", "sojasprossen", "mungobohnensprossen", "mungobohnenkeimlinge", "bohnensprossen"),
     ("apple sauce", "apfelmus", "apfelmark"),
     ("coconut cream", "kokoscreme", "kokosnusscreme"),
     ("oat cream", "hafersahne", "hafer cuisine", "hafercreme"),
