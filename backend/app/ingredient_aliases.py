@@ -190,7 +190,7 @@ _ALIAS_GROUPS = [
     ("lentil", "lentils", "linse", "linsen"),
     ("corn", "sweetcorn", "mais", "zuckermais", "goldmais"),
     ("peas", "pea", "erbse", "erbsen"),
-    ("ham", "schinken", "bauernschinken", "kochschinken", "serranoschinken", "schwarzwälder schinken", "prosciutto", "rohschinken", "parmaschinken"),
+    ("ham", "schinken", "bauernschinken", "kochschinken", "serranoschinken", "schwarzwälder schinken", "prosciutto", "rohschinken"),
     ("bacon", "speck", "bacon"),
     ("sausage", "sausages", "wurst", "würstchen", "wuerstchen", "chorizo", "wiener", "wiener würstchen", "teewurst", "jagdwurst", "fleischwurst"),
     ("turkey", "pute", "putenfleisch", "puten", "putenfilet", "puten filet", "putenfiletstreifen", "puten filetstreifen"),
