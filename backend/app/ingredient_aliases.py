@@ -266,9 +266,28 @@ def ingredient_product_match_type(ingredient: str, product_name: str) -> str | N
         return None
     padded_title = " " + title + " "
     exact_terms = ingredient_aliases(ingredient)
+    needle = _norm(ingredient)
+
+    # Descriptive claims are not ingredient evidence. In particular, sugar-free
+    # drinks contain the word "sugar" but are not a source of sugar.
+    if needle == "sugar" and any(marker in padded_title for marker in (
+        " zero sugar ", " sugar free ", " sugar-free ", " zuckerfrei ",
+        " ohne zucker ", " ohne zugesetzten zucker ", " no added sugar ",
+    )):
+        return None
+
+    # Tomato sauces/pastes are useful substitutions, not exact fresh-tomato SKUs.
+    if needle == "tomato" and any(marker in padded_title for marker in (
+        " ketchup ", " passata ", " passierte tomaten ", " tomatenmark ",
+        " tomato paste ", " tomatensauce ", " tomatensoße ", " tomatensosse ",
+        " tomato sauce ",
+    )):
+        if " ketchup " in padded_title:
+            return None
+        return "substitute"
+
     if any((" " + _norm(term) + " ") in padded_title for term in exact_terms):
         return "exact"
-    needle = _norm(ingredient)
     for canonical, substitutes in _SUBSTITUTION_GROUPS.items():
         if needle == _norm(canonical):
             if any((" " + _norm(term) + " ") in padded_title for term in substitutes):
