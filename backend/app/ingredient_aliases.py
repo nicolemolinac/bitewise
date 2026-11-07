@@ -340,6 +340,17 @@ def ingredient_product_match_type(
     )):
         return None
 
+    # Paprika is ambiguous in German: in the spice aisle it usually means
+    # ground paprika, not a fresh bell pepper.
+    if needle == "bell pepper" and category_key == "oele sossen gewuerze":
+        return None
+    if needle == "bell pepper" and any(marker in padded_title for marker in (
+        " paprika pulver ", " paprikapulver ", " paprika edelsuess ",
+        " paprika edelsüß ", " paprika gewuerz ", " paprika gewürz ",
+        " paprika spice ", " paprika powder ",
+    )):
+        return None
+
     # Honey-mustard sauces, dressings, pickles and prepared dishes contain
     # mustard as a flavor, not as a usable mustard condiment ingredient.
     if needle == "mustard" and (
