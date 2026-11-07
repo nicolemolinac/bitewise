@@ -383,7 +383,7 @@ def main():
         refreshed_profile = adapter._profile(
             stale_product, SimpleNamespace(classifier_version="1.30.0")
         )
-        assert refreshed_profile["classifier_version"] == "1.31.0", (
+        assert refreshed_profile["classifier_version"] == "1.32.0", (
             "Persisted product profiles must refresh after semantic alias changes"
         )
 
@@ -473,7 +473,7 @@ def main():
             assert profile.culinary_role == expected_role, (
                 f"Wrong culinary role for {title}: expected {expected_role}, got {profile.culinary_role}"
             )
-            assert profile.classifier_version == "1.31.0", profile
+            assert profile.classifier_version == "1.32.0", profile
 
         assert canonical_ingredient_terms("Bamboo Garden Bambusschößlinge in Streifen") == ["bamboo shoots"]
         assert canonical_ingredient_terms("Bamboo Garden Sojabohnenkeimlinge") == ["soybean sprouts"]
