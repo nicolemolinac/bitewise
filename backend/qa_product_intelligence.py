@@ -21,6 +21,10 @@ def run():
     assert not pasta.is_complete_meal and pasta.culinary_role == "starch"
     assert pasta.preparation_state == "dry"
 
+    tortellini = profile("D'Angelo Bio Tortellini Champignon 250g", "kochen-backen")
+    assert not tortellini.is_complete_meal
+    assert tortellini.culinary_role == "starch", "Tortellini must not be classified as cake/dessert"
+
     chicken = profile("Hähnchen-Filetstreifen gebraten 125 g", "fleisch-wurst-fisch")
     assert not chicken.is_complete_meal
     assert chicken.product_type == "prepared_component" and chicken.culinary_role == "protein"
