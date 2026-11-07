@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-CLASSIFIER_VERSION = "1.13.0"
+CLASSIFIER_VERSION = "1.14.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -151,7 +151,7 @@ def classify_product(product: dict) -> ProductProfile:
 
     # Ready-to-eat desserts and puddings must not satisfy base ingredient searches
     # such as rice, milk, cream, vanilla or fruit.
-    if any(term in name for term in (
+    if (category == "tiefkuehlkost" and re.search(r"\beis\b", name)) or any(term in name for term in (
         "milchreis", "rice pudding", "reis pudding", "pudding", "dessert",
         "mousse", "eiscreme", "ice cream", "custard", "grießpudding",
         "griesspudding", "sahnepudding", "milchdessert", "kuchen",
