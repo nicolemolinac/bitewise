@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-CLASSIFIER_VERSION = "1.3.0"
+CLASSIFIER_VERSION = "1.4.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
