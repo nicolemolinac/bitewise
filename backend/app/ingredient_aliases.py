@@ -305,11 +305,16 @@ def ingredient_product_match_type(
     # These are prepared dishes/snacks containing chicken as a filling or
     # flavor, not chicken meat for a recipe's protein requirement.
     if needle in {"chicken", "chicken breast"} and any(marker in padded_title for marker in (
-        " nuggets ", " gyoza ", " dumpling ", " onigiri ", " bifi ",
-        " noodles ", " noodle ", " ramen ", " tteokbokki ",
+        " nuggets ", " gyoza ", " dumpling ", " onigiri ",
         " meatballs ", " meatball ", " frikadellen ", " burger ",
-        " patties ", " sauce ", " soße ", " sosse ", " würzpaste ",
-        " wuerzpaste ",
+        " patties ",
+    )):
+        # Prepared chicken components remain available for convenience tiers,
+        # but must rank as substitutes rather than exact raw-chicken matches.
+        return "substitute"
+    if needle in {"chicken", "chicken breast"} and any(marker in padded_title for marker in (
+        " noodles ", " noodle ", " ramen ", " tteokbokki ",
+        " sauce ", " soße ", " sosse ", " würzpaste ", " wuerzpaste ",
     )):
         return None
 
