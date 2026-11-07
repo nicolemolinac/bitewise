@@ -72,7 +72,7 @@ def _multilingual_catalog_search(self, ingredient):
             # A complete prepared dish is never an ingredient, even if its title
             # contains the requested protein (e.g. shrimp curry or chicken lasagna).
             if (profile.is_complete_meal or profile.product_type in {'non_food', 'beverage', 'snack'}
-                    or profile.culinary_role in {'soup', 'salad', 'dessert', 'potato_side'}):
+                    or profile.culinary_role in {'soup', 'salad', 'dessert', 'potato_side','seasoning_mix'}):
                 continue
             match_types[row.id] = match_type
             profiles[row.id] = profile
