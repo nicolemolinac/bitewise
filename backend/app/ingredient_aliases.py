@@ -448,6 +448,10 @@ def ingredient_product_match_type(
     )):
         return "substitute"
 
+    # Frozen desserts often contain ingredient words (e.g. peanut butter) in the flavor name.
+    if category_key == "tiefkuehlkost" and re.search(r"\beis\b", title):
+        return None
+
     # Flavor claims in instant noodles, sauces and snacks are not ingredient
     # evidence (e.g. "chicken flavour" is not chicken meat).
     if any(marker in padded_title for marker in (
@@ -481,7 +485,7 @@ def ingredient_product_match_type(
 
     beverage_markers = (
         " saft ", " juice ", " limonade ", " getraenk ", " drink ",
-        " cola ", " eistee ", " energy drink ", " smoothie ", " nektar ",
+        " cola ", " eistee ", " energy drink ", " smoothie ", " nektar ", " ayran ", " kefir ", " milkshake ", " milk shake ", " milchshake ", " milchmix ", " fruchtbuttermilch ", " shake ", " iced coffee ",
         " bier ", " wein ", " sekt ", " prosecco ", " wasser ",
     )
     title_is_beverage = (
@@ -495,7 +499,7 @@ def ingredient_product_match_type(
         marker.strip() in needle.split() for marker in beverage_markers
     ) or any(term in needle.split() for term in (
         "wine", "beer", "juice", "smoothie", "syrup", "coffee", "tea",
-        "cocoa", "cacao", "sake", "mirin",
+        "cocoa", "cacao", "sake", "mirin", "ayran", "kefir", "milkshake", "milchshake", "shake",
     ))
     # Keep explicit recipe liquids (e.g. white wine or orange juice) searchable,
     # but never substitute a drink that merely contains a fruit/herb word.
