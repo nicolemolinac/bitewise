@@ -125,7 +125,10 @@ def find_coke(db):
     candidates = []
     for row in rows:
         title = (row.name_original or "").lower()
-        if row.price and row.price > 0 and title.startswith("coca-cola"):
+        regular_cola = title.startswith("coca-cola") and not any(
+            marker in title for marker in ("coca-cola light", "coca-cola zero", "zero sugar", "koffeinfrei")
+        )
+        if row.price and row.price > 0 and regular_cola:
             candidates.append(row)
     # Prefer a regular 1.5l bottle if available; otherwise select the cheapest
     # positively priced Coca-Cola SKU. URL validity is reported separately.
@@ -163,7 +166,14 @@ def main():
             })
             # Require explicit high-confidence title evidence. Category-only guesses
             # (e.g. coconut milk in a convenience-food aisle) are not ready meals.
-            if profile.is_complete_meal and float(profile.confidence or 0) >= 0.85:
+            # Also require a full-size 250g/ml pack for a one-person dinner; small
+            # instant cups and seasoning-sized packs are not treated as full meals.
+            full_portion = product.package_unit in {"g", "ml"} and float(product.package_size or 0) >= 250
+            if (
+                profile.is_complete_meal
+                and float(profile.confidence or 0) >= 0.85
+                and full_portion
+            ):
                 ready_candidates.append((product, profile))
         ready_candidates.sort(key=lambda pair: float(pair[0].price or 0))
         print(f"PREPARED-MEAL MATCHING: {len(ready_candidates)} priced, high-confidence complete-meal candidates (confidence >= 0.85)")
