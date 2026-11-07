@@ -17,7 +17,7 @@ from app.database import Base, Product, ProductIntelligence, SessionLocal, engin
 from app.main import CatalogAdapter
 
 
-def add_product(db, external_id, title, ingredient="shrimp", price=2.5):
+def add_product(db, external_id, title, ingredient="shrimp", price=2.5, category=None):
     row = Product(
         supermarket="REWE",
         external_id=external_id,
@@ -26,6 +26,7 @@ def add_product(db, external_id, title, ingredient="shrimp", price=2.5):
         name_normalized=title.lower(),
         package_size=200,
         package_unit="g",
+        category=category,
         price=price,
         price_per_unit=price / 200,
         availability="available",
@@ -46,6 +47,7 @@ def main():
         raw = add_product(db, "shrimp-raw", "REWE Garnelen roh 200 g")
         cooked = add_product(db, "shrimp-cooked", "REWE Garnelen vorgegart 200 g")
         meal = add_product(db, "shrimp-meal", "REWE Garnelen Curry Fertiggericht 400 g")
+        pet = add_product(db, "pet-chicken", "REWE Huhn Katzenfutter 200 g", category="tierbedarf")
         db.add(ProductIntelligence(
             product_id=meal.id,
             product_type="ready_meal",
@@ -68,6 +70,9 @@ def main():
         assert "shrimp-cooked" in by_id, "Prepared protein components should remain usable"
         assert "shrimp-meal" not in by_id, "A complete ready meal must not match a recipe ingredient"
         assert len(candidates) == 2, "Misleading Product.ingredient labels must not create false matches"
+        assert all(item["external_id"] != "pet-chicken" for item in candidates), (
+            "Pet food containing an ingredient word must never match a recipe ingredient"
+        )
         assert by_id["shrimp-raw"]["ingredient_match_type"] == "exact"
         assert by_id["shrimp-raw"]["intelligence"]["culinary_role"] == "protein"
         assert by_id["shrimp-cooked"]["intelligence"]["product_type"] == "prepared_component"
