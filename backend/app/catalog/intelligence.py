@@ -65,7 +65,13 @@ def classify_product(product: dict) -> ProductProfile:
     # "Bowl" alone is not proof of a complete meal: REWE also lists toppings,
     # crunchy garnishes and sauces with "bowl" in their title.
     bowl_topping = "bowl topping" in name or "topping bowl" in name
-    meal_hit = None if dry_lasagne_sheets or bowl_topping else next(
+    pizza_component = any(term in name for term in (
+        "pizzateig", "pizza teig", "pizzagewürz", "pizzagewuerz",
+        "pizza gewürz", "pizza gewuerz", "pizzasauce", "pizza sauce",
+        "pizza soße", "pizza sosse", "pizzakäse", "pizzakaese",
+    ))
+    ramen_noodles = any(term in name for term in ("ramen nudeln", "ramen noodles", "ramen noodle"))
+    meal_hit = None if dry_lasagne_sheets or bowl_topping or pizza_component or ramen_noodles else next(
         (term for term in meal_markers if term in name), None
     )
     # The REWE aisle also contains canned ingredients and sauces; category alone
