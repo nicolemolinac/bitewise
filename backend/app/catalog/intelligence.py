@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-CLASSIFIER_VERSION = "1.1.0"
+CLASSIFIER_VERSION = "1.2.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -72,6 +72,45 @@ def classify_product(product: dict) -> ProductProfile:
             dish_families=(), preparation_state="not_applicable",
             storage_type=storage, convenience_level=1, is_complete_meal=False,
             confidence=0.99, evidence=("non-culinary-category-or-title",),
+        )
+
+    # Drinks and snack foods are edible products, but not interchangeable with
+    # raw recipe ingredients merely because a flavor word appears in the title.
+    if category == "getraenke-genussmittel" and not any(term in name for term in (
+        "wein", "bier", "sake", "mirin",
+    )):
+        return ProductProfile(
+            product_type="beverage", culinary_role="beverage",
+            dish_families=(), preparation_state="ready_to_drink",
+            storage_type=storage, convenience_level=1, is_complete_meal=False,
+            confidence=0.96, evidence=("beverage-aisle-product",),
+        )
+
+    if category == "kaffee-tee-kakao" and not any(term in name for term in (
+        "backkakao", "kakaopulver", "cocoa powder", "kaffeepulver",
+        "espresso pulver", "instant espresso powder",
+    )):
+        return ProductProfile(
+            product_type="beverage", culinary_role="beverage",
+            dish_families=(), preparation_state="ready_to_drink_or_brew",
+            storage_type=storage, convenience_level=1, is_complete_meal=False,
+            confidence=0.94, evidence=("coffee-tea-beverage-product",),
+        )
+
+    snack_ingredient_markers = (
+        "erdnüsse", "erdnuesse", "mandeln", "walnüsse", "walnuesse",
+        "cashewkerne", "pinienkerne", "sonnenblumenkerne", "kürbiskerne",
+        "kuerbiskerne", "chiasamen", "chia samen", "backkakao", "kakaopulver",
+        "kuvertüre", "kuvertuere", "backschokolade", "schokotropfen",
+        "schokodrops", "trockenfrüchte", "trockenfruechte", "rosinen",
+        "datteln",
+    )
+    if category == "suesses-salziges" and not any(term in name for term in snack_ingredient_markers):
+        return ProductProfile(
+            product_type="snack", culinary_role="snack",
+            dish_families=(), preparation_state="ready_to_eat",
+            storage_type=storage, convenience_level=1, is_complete_meal=False,
+            confidence=0.94, evidence=("snack-confectionery-aisle",),
         )
 
     # Full meals must be recognized before individual components such as pasta or sauce.
