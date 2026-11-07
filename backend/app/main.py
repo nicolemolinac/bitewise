@@ -496,7 +496,9 @@ def alternatives(product_id:int,needed_qty:float|None=None,unit:str|None=None,in
    title=' '.join(str(value or '') for value in (
     candidate.get('name_original'),candidate.get('name_normalized'),candidate.get('translated_name')
    ))
-   validated=validate_ingredient_candidate(ingredient_key,candidate)\n   if not validated:continue\n   match_type,profile=validated
+   validated=validate_ingredient_candidate(ingredient_key,candidate)
+   if not validated:continue
+   match_type,profile=validated
    if not match_type:
     continue
    intelligence=candidate.get('intelligence') or {}
@@ -539,7 +541,10 @@ def replace_product(payload:ProductOverrideIn):
   if str(product.availability or '').strip().lower() in {'unavailable','out_of_stock','not_available','discontinued'}:
    raise HTTPException(422,'Selected product is marked unavailable')
   product_title=' '.join(str(value or '') for value in (product.name_original,product.name_normalized,product.translated_name))
-  validated=validate_ingredient_candidate(ingredient,product)\n  if not validated:\n   raise HTTPException(422,'Selected product is a complete meal, non-food item or incompatible culinary product')\n  match_type,profile=validated
+  validated=validate_ingredient_candidate(ingredient,product)
+  if not validated:
+   raise HTTPException(422,'Selected product is a complete meal, non-food item or incompatible culinary product')
+  match_type,profile=validated
   if not match_type:
    raise HTTPException(422,'Selected product is not a compatible exact match or curated culinary substitute')
   row=db.query(ProductOverride).filter_by(ingredient=ingredient).first()
