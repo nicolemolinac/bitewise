@@ -5,6 +5,8 @@ import unicodedata
 # Keep canonical recipe ingredients in English; expand only at catalog-search time.
 _ALIAS_GROUPS = [
     ("egg", "eggs", "ei", "eier"),
+    ("chocolate", "schokolade", "schokoladen", "chocolate", "chocolates", "backschokolade", "kuvertüre", "kuvertuere", "schokotropfen", "schokodrops"),
+    ("cocoa powder", "kakaopulver", "backkakao", "cocoa powder", "cacao powder"),
     ("milk", "milch", "vollmilch", "frischmilch"),
     ("butter", "butter", "markenbutter", "süßrahmbutter", "suessrahmbutter"),
     ("cheese", "käse", "kaese"),
@@ -322,12 +324,21 @@ def ingredient_product_match_type(
         " mousse ", " dessert ", " ice cream ", " eiscreme ", " milchreis ",
         " cheesecake ", " käsekuchen ", " kaesekuchen ",
     )
+    baking_chocolate_markers = (
+        " backschokolade ", " kuvertüre ", " kuvertuere ",
+        " schokotropfen ", " schokodrops ", " kakaopulver ",
+        " backkakao ", " cocoa powder ", " cacao powder ",
+    )
+    is_baking_chocolate = any(marker in padded_title for marker in baking_chocolate_markers)
     title_is_finished_food = (
         any(marker in padded_title for marker in finished_food_markers)
-        or any(term in title for term in (
-            "schokolade", "schokoladen", "chocolate", "chocolates",
-            "schokoriegel", "chocolate bar",
-        ))
+        or (
+            any(term in title for term in (
+                "schokolade", "schokoladen", "chocolate", "chocolates",
+                "schokoriegel", "chocolate bar",
+            ))
+            and not is_baking_chocolate
+        )
     )
     request_is_finished_food = any(
         marker.strip() in needle.split() for marker in finished_food_markers
