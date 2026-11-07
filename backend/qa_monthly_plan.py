@@ -11,7 +11,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 import qa_recipe_family_matching as base
-from app.database import Product
+from app.database import Product, ProductIntelligence
 from app.shopping.optimizer import build_basket, consolidate, summarize_waste
 
 
@@ -141,9 +141,23 @@ def main():
         catalog_count = db.query(Product).filter(Product.supermarket == "REWE").count()
         assert catalog_count >= 1000, f"Full REWE snapshot missing: {catalog_count}"
         adapter = base._CachedCatalogAdapter(base.CatalogAdapter(db))
+        ready_candidates = db.query(Product, ProductIntelligence).join(
+            ProductIntelligence, ProductIntelligence.product_id == Product.id
+        ).filter(
+            Product.supermarket == "REWE",
+            ProductIntelligence.is_complete_meal.is_(True),
+            Product.price.isnot(None),
+            Product.price > 0,
+            Product.product_url.isnot(None),
+        ).all()
+        ready_candidates = sorted(ready_candidates, key=lambda pair: float(pair[0].price or 0))
+        assert ready_candidates, "No classified, priced REWE complete meals available for prepared-meal simulation"
+        ready_meals = [pair[0] for pair in ready_candidates[:4]]
+
         meals = []
         schedule = []
         cooking_minutes = []
+        ready_meal_schedule = {}
         for day in range(1, 31):
             b_name, b_ingredients = BREAKFASTS[(day - 1) % len(BREAKFASTS)]
             l_name, l_ingredients = LUNCHES[(day - 1) % len(LUNCHES)]
@@ -152,12 +166,22 @@ def main():
                                ("lunch", (l_name, l_ingredients)),
                                ("dinner", (d_name, d_ingredients))):
                 name, ingredients = pair
+                if slot == "dinner" and day in (7, 14, 21, 28):
+                    ready = ready_meals[(day // 7 - 1) % len(ready_meals)]
+                    ready_meal_schedule[day] = ready
+                    ready_name = ready.name_original or ready.name_normalized or "REWE prepared meal"
+                    # Heating duration is a transparent planning estimate only;
+                    # product-specific package instructions are not in this snapshot.
+                    hands_on, elapsed, mode = (2, 12, "ready-made / estimated heating; check package instructions")
+                    schedule.append((day, slot, ready_name, hands_on, elapsed, mode))
+                    continue
                 meals.append(recipe(name, ingredients, day, slot))
                 hands_on, elapsed, mode = COOKING[name]
                 cooking_minutes.append((name, hands_on, elapsed, mode))
                 schedule.append((day, slot, name, hands_on, elapsed, mode))
 
-        assert len(meals) == 90 and len({m["id"] for m in meals}) == 90
+        assert len(meals) == 86 and len({m["id"] for m in meals}) == 86
+        assert len(schedule) == 90 and len(ready_meal_schedule) == 4
         servings = {meal["id"]: 1 for meal in meals}  # one person, 30 days
         requirements = consolidate(meals, servings)
         keys = [(r["canonical_ingredient"], r["unit"]) for r in requirements]
@@ -166,6 +190,9 @@ def main():
         assert all(len(r["source_meals"]) <= 90 for r in requirements)
 
         print("MONTHLY PLAN: 30 days | 1 person | 90 meals | 30 breakfasts + 30 lunches + 30 dinners")
+        print(f"CONVENIENCE MIX: 86 ingredient-based meals + {len(ready_meal_schedule)} catalogued complete ready meals")
+        for day, product in ready_meal_schedule.items():
+            print(f"  READY-MADE DAY {day}: {product.name_original} | €{float(product.price):.2f} | heating estimate 12 min (package instructions not verified)")
         print(f"MENU VARIETY: {len(set(x[2] for x in schedule))} distinct dishes")
         print(f"CONSOLIDATED SHOPPING LINES: {len(requirements)}")
         print(f"RECIPE-TO-BASKET COVERAGE: {sum(bool(adapter.search(r['ingredient'])) for r in requirements)}/{len(requirements)} distinct ingredients")
@@ -194,8 +221,11 @@ def main():
                 assert base.ingredient_product_match_type(
                     row["ingredient"], base._product_title(product), product.get("category")
                 ), f"{strategy}: semantically invalid selection for {row['ingredient']}: {base._product_title(product)}"
-            checkout = round(sum(float(r.get("checkout_cost") or 0) for r in basket), 2)
-            consumed = round(sum(float(r.get("consumed_cost") or 0) for r in basket), 2)
+            ingredient_checkout = sum(float(r.get("checkout_cost") or 0) for r in basket)
+            ingredient_consumed = sum(float(r.get("consumed_cost") or 0) for r in basket)
+            ready_meal_cost = sum(float(product.price or 0) for product in ready_meal_schedule.values())
+            checkout = round(ingredient_checkout + ready_meal_cost, 2)
+            consumed = round(ingredient_consumed + ready_meal_cost, 2)
             unmatched = [r["ingredient"] for r in basket if r["match_status"] == "unmatched"]
             strategy_results[strategy] = (basket, checkout, consumed, unmatched)
             print(f"MONTH COST {strategy}: checkout €{checkout:.2f} | consumed estimate €{consumed:.2f} | unmatched {len(unmatched)}")
@@ -235,6 +265,8 @@ def main():
             product_url = str(product.get("product_url") or "")
             if product_id and product_url.startswith("https://www.rewe.de/shop/p/") and row.get("packs"):
                 cart_quantities[str(product_id)] = cart_quantities.get(str(product_id), 0) + int(row["packs"])
+        for ready_product in ready_meal_schedule.values():
+            cart_quantities[str(ready_product.id)] = cart_quantities.get(str(ready_product.id), 0) + 1
         if coke and monthly_extra_packs:
             cart_quantities[str(coke.id)] = cart_quantities.get(str(coke.id), 0) + monthly_extra_packs
         cart_payload = [{"product_id": int(pid), "packs": packs} for pid, packs in cart_quantities.items()]
