@@ -27,8 +27,9 @@ RAW_INGREDIENT_QUERIES = (
 BLOCKED_TYPES = {"non_food", "beverage", "snack"}
 BLOCKED_ROLES = {"soup", "salad", "dessert", "potato_side", "seasoning_mix", "topping"}
 FINISHED_FOOD_MARKERS = (
-    "schokolade", "chocolate", "chips", "cracker", "cookie", "keks",
-    "praline", "bonbon", "pudding", "milchreis", "eiscreme",
+    "chips", "cracker", "cookie", "keks", "praline", "bonbon",
+    "pudding", "milchreis", "eiscreme", "tiramisu", "mousse",
+    "cheesecake", "dessert", "ice cream",
 )
 
 
@@ -64,6 +65,19 @@ def main():
                     raise AssertionError(
                         f"{ingredient!r} matched a finished snack/dessert: {title}"
                     )
+
+        # Chocolate is a valid cooking ingredient; a chocolate dessert is not.
+        chocolate_titles = [
+            str(item.get("name_original") or "").lower()
+            for item in adapter.search("chocolate")
+        ]
+        assert not any("tiramisu" in title for title in chocolate_titles), (
+            "Chocolate search must not return a finished chocolate tiramisu"
+        )
+        assert any(
+            any(marker in title for marker in ("backschokolade", "kuvertüre", "kuvertuere", "kakaopulver"))
+            for title in chocolate_titles
+        ), "Chocolate search must retain real baking/cooking chocolate products"
 
         # Sanity: the full catalog must still yield genuine ingredient candidates.
         for ingredient in ("chicken", "tomato", "almond", "pasta", "milk", "mustard", "red onion"):
