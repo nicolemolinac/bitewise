@@ -972,6 +972,26 @@ def main():
             TierAdapter(), "maximum-savings", overrides={"olive oil": 2},
         )[0]
         assert override["product"]["id"] == 2 and override["selected_by_user"]
+        # A saved product override outside the capped search results must not
+        # bypass the same complete-meal filter applied by normal catalog search.
+        class CompleteMealOverrideAdapter:
+            def search(self, ingredient):
+                return []
+            def get_by_id(self, product_id):
+                return {
+                    "id": product_id, "name_original": "REWE Hähnchen Curry Fertiggericht 400 g",
+                    "name_normalized": "rewe haehnchen curry fertiggericht 400 g",
+                    "category": "fertiggerichte-konserven", "price": 4.99,
+                    "pack_qty": 400, "unit": "g", "availability": "available",
+                }
+        blocked_override = build_basket(
+            [{"ingredient": "chicken", "quantity": 100, "unit": "g", "source_meals": ["Curry"]}],
+            CompleteMealOverrideAdapter(), "maximum-savings", overrides={"chicken": 999},
+        )[0]
+        assert blocked_override["match_status"] == "unmatched", (
+            f"Complete meal bypassed semantic validation via override: {blocked_override}"
+        )
+
         incompatible = build_basket(
             [{"ingredient": "rice", "quantity": 100, "unit": "ml", "source_meals": ["Invalid unit"]}],
             qa_adapter, "maximum-savings",
