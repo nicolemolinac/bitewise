@@ -125,7 +125,7 @@ def find_coke(db):
     candidates = []
     for row in rows:
         title = (row.name_original or "").lower()
-        if row.price and row.price > 0 and "coca-cola" in title:
+        if row.price and row.price > 0 and title.startswith("coca-cola"):
             candidates.append(row)
     # Prefer a regular 1.5l bottle if available; otherwise select the cheapest
     # positively priced Coca-Cola SKU. URL validity is reported separately.
@@ -147,6 +147,11 @@ def main():
             Product.price.isnot(None),
             Product.price > 0,
         ).all()
+        verified_url_count = db.query(Product).filter(
+            Product.supermarket == "REWE",
+            Product.product_url.like("https://www.rewe.de/shop/p/%"),
+        ).count()
+        print(f"CATALOG URL COVERAGE: {verified_url_count} verified product URLs across {len(catalog_rows)} positively priced listings")
         ready_candidates = []
         for product in catalog_rows:
             profile = classify_product({
@@ -156,9 +161,12 @@ def main():
                 "brand": product.brand,
                 "category": product.category,
             })
-            if profile.is_complete_meal:
+            # Require explicit high-confidence title evidence. Category-only guesses
+            # (e.g. coconut milk in a convenience-food aisle) are not ready meals.
+            if profile.is_complete_meal and float(profile.confidence or 0) >= 0.85:
                 ready_candidates.append((product, profile))
         ready_candidates.sort(key=lambda pair: float(pair[0].price or 0))
+        print(f"PREPARED-MEAL MATCHING: {len(ready_candidates)} priced, high-confidence complete-meal candidates (confidence >= 0.85)")
         # Never mislabel soups, sides or ingredient components as complete meals.
         # A priced catalog listing can inform meal planning even when its product URL
         # is absent; URL verification is a separate prerequisite for cart handoff.
