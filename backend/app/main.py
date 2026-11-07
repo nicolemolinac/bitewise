@@ -150,10 +150,11 @@ class CatalogAdapter:
     'haferdrink','hafer drink','sojadrink','soja drink','mandeldrink','mandel drink',
     'kokosdrink','kokos drink','reisdrink','reis drink','erbsendrink','mandelmilch',
    )
+   normalized_title = re.sub(r'[^a-z0-9äöüß]+',' ',title.lower()).strip()
    is_plant_milk_substitute = (
     needle == 'milk'
     and match_type == 'substitute'
-    and any(marker in normalize_ingredient(title) for marker in plant_milk_markers)
+    and any(marker in f' {normalized_title} ' for marker in plant_milk_markers)
    )
    if (
     intelligence.get('is_complete_meal')
