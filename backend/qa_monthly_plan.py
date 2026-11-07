@@ -130,7 +130,7 @@ def find_coke(db):
     # Prefer a regular 1.5l bottle if available; otherwise select the cheapest
     # positively priced Coca-Cola SKU. URL validity is reported separately.
     candidates.sort(key=lambda row: (
-        0 if "1,5" in (row.name_original or "").lower() or "1.5" in (row.name_original or "").lower() else 1,
+        0 if row.package_unit == "ml" and abs(float(row.package_size or 0) - 1500) <= 25 else 1,
         float(row.price or 0),
     ))
     return candidates[0] if candidates else None
