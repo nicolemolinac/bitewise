@@ -254,7 +254,8 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             waste_in_pack_unit = max(0.0, purchased_quantity - needed_in_pack_unit)
             checkout_cost = packs * price_value
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
-            # Waste is relative to the actual requested quantity, including sub-unit amounts.\n            waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1e-9)
+            # Waste is relative to the actual requested quantity, including sub-unit amounts.
+            waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1e-9)
             unit_price = _number(product, "unit_price", "price_per_unit", default=price_value / pack_qty)
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             # Exact matches win over substitutions; a substitute is used only when
