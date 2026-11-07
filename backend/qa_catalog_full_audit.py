@@ -73,6 +73,9 @@ def main():
         duplicate_external_ids = defaultdict(list)
         issues = defaultdict(list)
         canonical_hits = 0
+        no_canonical_by_category = Counter()
+        no_canonical_examples = defaultdict(list)
+        ingredient_label_duplicates = 0
 
         for row in products:
             name = _row_name(row)
@@ -135,8 +138,16 @@ def main():
             types[profile.product_type] += 1
             roles[profile.culinary_role] += 1
             counters[f"confidence:{profile.confidence:.2f}"] += 1
-            if canonical_ingredient_terms(name):
+            canonical_terms = canonical_ingredient_terms(name)
+            if canonical_terms:
                 canonical_hits += 1
+            else:
+                category = str(row.category or "uncategorized")
+                no_canonical_by_category[category] += 1
+                if len(no_canonical_examples[category]) < 8:
+                    no_canonical_examples[category].append(name)
+            if str(row.ingredient or "").strip().lower() == str(row.name_normalized or "").strip().lower():
+                ingredient_label_duplicates += 1
 
             if profile.is_complete_meal and any(marker in lower for marker in COMPONENTS_NEVER_COMPLETE_MEALS):
                 issues["component_misclassified_as_complete_meal"].append(
@@ -159,6 +170,15 @@ def main():
         print(f"Product types: {dict(types)}")
         print(f"Culinary roles: {dict(roles)}")
         print(f"Products with canonical culinary terms in title: {canonical_hits}/{total}")
+        print(f"Rows where Product.ingredient duplicates name_normalized: {ingredient_label_duplicates}/{total}")
+        print(f"Titles without known canonical ingredient terms by category: {dict(no_canonical_by_category)}")
+        for category in (
+            "fleisch-wurst-fisch", "obst-gemuese", "kaese-eier-molkerei",
+            "kochen-backen", "oele-sossen-gewuerze", "tiefkuehlkost",
+        ):
+            examples = no_canonical_examples.get(category, [])
+            if examples:
+                print(f"UNMAPPED CULINARY TITLES [{category}]: {examples}")
         print("\nISSUE COUNTS:")
         for key, values in sorted(issues.items()):
             print(f"  {key}: {len(values)}")
