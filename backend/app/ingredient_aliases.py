@@ -296,8 +296,13 @@ def ingredient_product_match_type(
         " cola ", " eistee ", " energy drink ", " smoothie ", " nektar ",
         " bier ", " wein ", " sekt ", " prosecco ", " wasser ",
     )
-    title_is_beverage = any(marker in padded_title for marker in beverage_markers)
-    request_is_beverage = any(marker.strip() in needle.split() for marker in beverage_markers)
+    title_is_beverage = (
+        any(marker in padded_title for marker in beverage_markers)
+        or category_key == "getraenke genussmittel"
+    )
+    request_is_beverage = any(
+        marker.strip() in needle.split() for marker in beverage_markers
+    ) or any(term in needle.split() for term in ("wine", "beer", "juice", "smoothie", "syrup"))
     # Keep explicit recipe liquids (e.g. white wine or orange juice) searchable,
     # but never substitute a drink that merely contains a fruit/herb word.
     if title_is_beverage and not request_is_beverage:
