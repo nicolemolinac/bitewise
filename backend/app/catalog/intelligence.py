@@ -133,7 +133,9 @@ def classify_product(product: dict) -> ProductProfile:
     if any(term in name for term in (
         "milchreis", "rice pudding", "reis pudding", "pudding", "dessert",
         "mousse", "eiscreme", "ice cream", "custard", "grießpudding",
-        "griesspudding", "sahnepudding", "milchdessert",
+        "griesspudding", "sahnepudding", "milchdessert", "torte", "kuchen",
+        "cake", "cheesecake", "käsekuchen", "kaesekuchen", "brownie",
+        "brownies", "sorbet", "gelato", "cookie dough",
     )):
         product_type, role, prep, convenience = (
             "prepared_component", "dessert", "ready_to_eat", 4)
