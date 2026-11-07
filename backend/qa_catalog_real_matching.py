@@ -25,7 +25,7 @@ RAW_INGREDIENT_QUERIES = (
 )
 
 BLOCKED_TYPES = {"non_food", "beverage", "snack"}
-BLOCKED_ROLES = {"soup", "salad", "dessert", "potato_side", "seasoning_mix", "topping"}
+BLOCKED_ROLES = {"soup", "salad", "dessert", "potato_side", "seasoning_mix", "topping", "filled_pasta"}
 FINISHED_FOOD_MARKERS = (
     "chips", "cracker", "cookie", "keks", "praline", "bonbon",
     "pudding", "milchreis", "eiscreme", "tiramisu", "mousse",
