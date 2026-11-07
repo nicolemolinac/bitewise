@@ -44,7 +44,7 @@ jobs:
         run: python qa_catalog_matching.py
       - name: Real REWE catalog ingredient false-positive scan
         run: python qa_catalog_real_matching.py
-      - name: Multi-recipe ingredient and seasoning matching QA
+      - name: 45-family semantic QA + 30-recipe cross-cuisine weekly basket integration
         run: python qa_recipe_family_matching.py
       - name: Adaptive recommendation engine QA
         run: python qa_recommendation_engine.py
