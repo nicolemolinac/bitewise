@@ -243,6 +243,12 @@ def main():
         assert ingredient_product_match_type(
             "celery", "REWE Knollensellerie", "obst-gemuese"
         ) == "substitute", "Celeriac must be labeled as a substitute for celery stalk"
+        assert ingredient_product_match_type(
+            "red cabbage", "REWE Apfelrotkohl 450g", "fertiggerichte-konserven"
+        ) == "substitute", "Prepared apple red cabbage must not be an exact raw-vegetable match"
+        assert ingredient_product_match_type(
+            "red cabbage", "REWE Rotkohl frisch", "obst-gemuese"
+        ) == "exact", "Fresh red cabbage should remain an exact match"
         # High-value catalog examples must remain discoverable as canonical terms.
         semantic_examples = {
             "tempeh": "Better Nature Tempeh geräuchert vegan 220g",
