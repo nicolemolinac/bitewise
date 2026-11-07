@@ -295,6 +295,13 @@ def ingredient_product_match_type(
     needle = _norm(ingredient)
     category_key = _norm(category or "")
 
+    baking_chocolate_markers = (
+        " backschokolade ", " kuvertüre ", " kuvertuere ",
+        " schokotropfen ", " schokodrops ", " kakaopulver ",
+        " backkakao ", " cocoa powder ", " cacao powder ",
+    )
+    is_baking_chocolate = any(marker in padded_title for marker in baking_chocolate_markers)
+
     beverage_markers = (
         " saft ", " juice ", " limonade ", " getraenk ", " drink ",
         " cola ", " eistee ", " energy drink ", " smoothie ", " nektar ",
@@ -302,7 +309,10 @@ def ingredient_product_match_type(
     )
     title_is_beverage = (
         any(marker in padded_title for marker in beverage_markers)
-        or category_key in {"getraenke genussmittel", "kaffee tee kakao"}
+        or (
+            category_key in {"getraenke genussmittel", "kaffee tee kakao"}
+            and not (needle == "chocolate" and is_baking_chocolate)
+        )
     )
     request_is_beverage = any(
         marker.strip() in needle.split() for marker in beverage_markers
@@ -324,12 +334,6 @@ def ingredient_product_match_type(
         " mousse ", " dessert ", " ice cream ", " eiscreme ", " milchreis ",
         " cheesecake ", " käsekuchen ", " kaesekuchen ",
     )
-    baking_chocolate_markers = (
-        " backschokolade ", " kuvertüre ", " kuvertuere ",
-        " schokotropfen ", " schokodrops ", " kakaopulver ",
-        " backkakao ", " cocoa powder ", " cacao powder ",
-    )
-    is_baking_chocolate = any(marker in padded_title for marker in baking_chocolate_markers)
     title_is_finished_food = (
         any(marker in padded_title for marker in finished_food_markers)
         or (
