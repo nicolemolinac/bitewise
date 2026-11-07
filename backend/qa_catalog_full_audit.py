@@ -260,6 +260,13 @@ def main():
             "name_original": "7 Guen Ayran Mango 250ml",
             "category": "kaese-eier-molkerei",
         }).product_type == "beverage"
+        assert ingredient_product_match_type(
+            "peach", "Activia Kefir mild Pfirsich & Maracuja 345g", "kaese-eier-molkerei"
+        ) is None, "Kefir fruit flavor must not match fresh peach"
+        assert classify_product({
+            "name_original": "Activia Kefir mild Pfirsich & Maracuja 345g",
+            "category": "kaese-eier-molkerei",
+        }).product_type == "beverage"
         assert ingredient_product_match_type("cream", "Rama Cremefine 15% 250ml") == "substitute"
         assert ingredient_product_match_type("butter", "Rama Margarine 400g") == "substitute"
         assert ingredient_product_match_type(
