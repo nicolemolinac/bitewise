@@ -738,6 +738,14 @@ def main():
             "category": "fleisch-wurst-fisch",
         }).product_type == "prepared_component"
         assert classify_product({
+            "name_original": "REWE Frischetheke Bratwurst 5 Stück",
+            "category": "fleisch-wurst-fisch",
+        }).product_type == "ingredient", "Raw bratwurst must not be labeled ready-to-eat"
+        assert classify_product({
+            "name_original": "REWE Beste Wahl Wiener Würstchen 400g",
+            "category": "fleisch-wurst-fisch",
+        }).product_type == "prepared_component"
+        assert classify_product({
             "name_original": "Garden Gourmet Vegetarische Gemüsebällchen 200g",
             "category": "fleisch-wurst-fisch",
         }).product_type == "prepared_component"
