@@ -79,6 +79,10 @@ def main():
         assert "apple" not in ingredient_context, (
             "Fruit-flavored beverages must not be sent as fresh fruit ingredient signals"
         )
+        for forbidden in ("rice", "tomato", "potato"):
+            assert forbidden not in ingredient_context, (
+                f"Prepared desserts/soups/salads must not send {forbidden} as raw ingredient context"
+            )
 
         adapter = server.main_module.CatalogAdapter(db)
         assert not any(
@@ -106,6 +110,9 @@ def main():
         assert "zero zucker" not in catalog_text
         assert "apfel-kiwi drink" not in catalog_text
         assert "candy bar" not in catalog_text
+        assert "milchreis" not in catalog_text
+        assert "tomaten-cremesuppe" not in catalog_text
+        assert "kartoffelsalat" not in catalog_text
 
         # A real sugar SKU remains eligible; the earlier false positives do not
         # suppress a legitimate ingredient candidate.
