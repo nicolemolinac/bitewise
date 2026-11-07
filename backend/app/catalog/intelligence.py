@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.19.0"
+CLASSIFIER_VERSION = "1.20.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -209,7 +209,9 @@ def classify_product(product: dict) -> ProductProfile:
         "leberwurst", "teewurst", "jagdwurst", "fleischwurst",
         "bierschinken", "schinken", "speck",
     )
-    if category == "fleisch-wurst-fisch" and any(marker in name for marker in processed_meat_markers):
+    if category == "fleisch-wurst-fisch" and any(marker in name for marker in processed_meat_markers) and not any(
+        marker in name for marker in ("bifi", "salami sticks", "salami-sticks", "meat stick", "fleischsnack", "jerky", "knacker", "snack")
+    ):
         product_type, role, prep, convenience = (
             "prepared_component", "protein", "ready_to_eat", 4)
         confidence = 0.9
@@ -217,7 +219,7 @@ def classify_product(product: dict) -> ProductProfile:
 
     # Meat sticks and branded snack sausages are snacks, not recipe meat.
     if any(term in name for term in (
-        "bifi", "salami sticks", "salami-sticks", "meat stick",
+        "bifi", "salami sticks", "salami-sticks", "snack salami", "meat stick",
         "fleischsnack", "jerky",
     )):
         product_type, role, prep, convenience = (
