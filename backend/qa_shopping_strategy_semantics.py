@@ -71,6 +71,12 @@ def main():
     assert best_value["product"]["id"] == "wasteful", best_value
     assert plan_efficiency["product"]["id"] == "right-size", plan_efficiency
     assert plan_efficiency["badge"] == "🔥 Best for Plan", plan_efficiency
+    shared_best_value = basket([
+        product("high-waste", "REWE Butter 150g", 2.40, 150),
+        product("lower-waste", "REWE Butter 110g", 3.20, 110),
+    ], "best-value")
+    assert shared_best_value["product"]["id"] == "lower-waste", shared_best_value
+    assert shared_best_value["badge"] == "⭐ Best Value", shared_best_value
 
     # Premium must prefer an actual premium signal when the price difference
     # is within the intended preference trade-off.
