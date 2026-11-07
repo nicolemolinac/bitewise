@@ -131,14 +131,20 @@ def _candidate_score(mode, total, waste_ratio, unit_price, reuse_count, product)
 
 
 def _badge(mode, waste_ratio, reuse_count, product, cheapest_total, total):
-    if waste_ratio <= 0.08:
-        return "♻️ Low Waste"
-    if mode in ("cheapest", "maximum-savings") or abs(total - cheapest_total) < 0.01:
+    # The badge must explain the active strategy, not hide it behind a
+    # secondary property such as low package waste.
+    if mode in ("cheapest", "maximum-savings"):
         return "💰 Cheapest"
-    if mode == "plan-efficiency" or reuse_count >= 3:
-        return "🔥 Best for Plan"
     if mode == "premium":
         return "✨ Premium"
+    if mode == "plan-efficiency":
+        return "🔥 Best for Plan"
+    if waste_ratio <= 0.08:
+        return "♻️ Low Waste"
+    if abs(total - cheapest_total) < 0.01:
+        return "💰 Cheapest"
+    if reuse_count >= 3:
+        return "🔥 Best for Plan"
     if _premium_signal(product) > 0.5:
         return "🟢 Good Value"
     return "⭐ Best Value"
