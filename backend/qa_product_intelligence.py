@@ -60,6 +60,20 @@ def run():
     assert salad.product_type == "prepared_component" and salad.culinary_role == "salad"
     stew = profile("Erasco Erbsen-Eintopf 400g", "fertiggerichte-konserven")
     assert stew.product_type == "ready_meal" and stew.is_complete_meal
+    frikassee = profile("Frosta Hühnerfrikassee 500g", "tiefkuehlkost")
+    assert frikassee.product_type == "ready_meal" and frikassee.is_complete_meal
+    bami = profile("Frosta Bami Goreng 500g", "tiefkuehlkost")
+    assert bami.product_type == "ready_meal" and bami.is_complete_meal
+    gulasch = profile("Erasco Rindergulasch 480g", "fertiggerichte-konserven")
+    assert gulasch.product_type == "ready_meal" and gulasch.is_complete_meal
+    gulaschtopf = profile("Maggi 5 Minuten Terrine Gulaschtopf 57g", "fertiggerichte-konserven")
+    assert gulaschtopf.product_type == "ready_meal" and gulaschtopf.is_complete_meal
+    ravioli_meal = profile("Maggi Ravioli Bolognese 800g", "fertiggerichte-konserven")
+    assert ravioli_meal.product_type == "ready_meal" and ravioli_meal.is_complete_meal
+    rouladen = profile("Dreistern Gourmet Rinderrouladen 500g", "fertiggerichte-konserven")
+    assert rouladen.product_type == "ready_meal" and rouladen.is_complete_meal
+    maultaschen = profile("Bürger Gemüse-Maultaschen 360g", "fertiggerichte-konserven")
+    assert maultaschen.product_type == "prepared_component" and maultaschen.culinary_role == "filled_pasta"
     frozen_skillet = profile("Frosta Bratkartoffel-Hähnchenpfanne 500g", "tiefkuehlkost")
     vegetable_pan = profile("Frosta Gemüse Pfanne All' Italiana 480g", "tiefkuehlkost")
     assert not vegetable_pan.is_complete_meal, "A plain vegetable pan must not be promoted to a full meal"
