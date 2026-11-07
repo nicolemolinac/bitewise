@@ -42,6 +42,8 @@ jobs:
         run: python qa_product_intelligence.py
       - name: Full REWE catalog intelligence matching QA
         run: python qa_catalog_matching.py
+      - name: Real REWE catalog ingredient false-positive scan
+        run: python qa_catalog_real_matching.py
       - name: Multi-recipe ingredient and seasoning matching QA
         run: python qa_recipe_family_matching.py
       - name: Adaptive recommendation engine QA
