@@ -303,7 +303,8 @@ def _qa_quantity(ingredient):
     volume = {
         "olive oil": 20, "soy sauce": 20, "milk": 100, "cream": 100,
         "coconut milk": 100, "mustard": 15, "chicken broth": 100,
-        "vegetable broth": 100,
+        "vegetable broth": 100, "fish sauce": 20, "rice vinegar": 15,
+        "white wine": 60, "balsamic vinegar": 15, "lemon juice": 15,
     }
     if name in volume:
         return (volume[name], "ml")
