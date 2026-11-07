@@ -14,7 +14,7 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app.database import (
     AppSetting, CatalogRun, Product, SessionLocal, _auto_import_rewe_csv_snapshot,
-    _snapshot_pack_pricing, _snapshot_package_size,
+    _snapshot_pack_pricing, _snapshot_package_size, _snapshot_package_unit,
 )
 
 
@@ -26,6 +26,35 @@ def main():
     assert abs(price_per_gram - 0.01106) < 0.000001
     assert _snapshot_package_size("Drink 2x200ml", 200, "ml") == 400
     assert _snapshot_package_size("Nuts 4x50g", 50, "g") == 200
+
+    # Full-catalog audit regressions: malformed units, dual-unit multipacks,
+    # integer unit prices and German Pfand deposits.
+    malformed_volume = "Granini Schorle 0,75ml 0,75l (1 l = 2,12 €) zzgl. 0,25 € Pfand"
+    assert _snapshot_package_size(malformed_volume, 0.75, "ml") == 750
+    dual_unit = "Bebivita Frucht 4x90ml 4x90g (1 kg = 7,47 €)"
+    corrected_unit = _snapshot_package_unit(dual_unit, "ml")
+    assert corrected_unit == "g"
+    assert _snapshot_package_size(dual_unit, 360, corrected_unit) == 360
+
+    cola_price, cola_per_ml = _snapshot_pack_pricing(
+        "Coca-Cola 6x0,33l (1 l = 3 €) zzgl. 1,50 € Pfand",
+        1980, "ml", 1.50, 0.004545,
+    )
+    assert cola_price == 7.44
+    assert abs(cola_per_ml - 0.003) < 0.000001
+
+    beer_price, beer_per_ml = _snapshot_pack_pricing(
+        "Bier 20x0,5l (1 l = 2 €) zzgl. 3,10 € Pfand",
+        10000, "ml", 3.10, 0.00031,
+    )
+    assert beer_price == 23.10
+    assert abs(beer_per_ml - 0.002) < 0.000001
+
+    multipack_price, multipack_per_ml = _snapshot_pack_pricing(
+        "Crodino 6x98ml", 588, "ml", 5.99, 0.061122
+    )
+    assert multipack_price == 5.99
+    assert abs(multipack_per_ml - (5.99 / 588)) < 0.000001
 
     db = SessionLocal()
     try:
