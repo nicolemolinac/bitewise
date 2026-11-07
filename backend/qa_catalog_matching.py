@@ -14,7 +14,8 @@ os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "false"
 
 from app.database import Base, Product, ProductIntelligence, SessionLocal, engine
-from app.main import CatalogAdapter
+from fastapi import HTTPException
+from app.main import CatalogAdapter, PurchaseIn, purchase
 
 
 def add_product(db, external_id, title, ingredient="shrimp", price=2.5, category=None):
@@ -48,6 +49,10 @@ def main():
         cooked = add_product(db, "shrimp-cooked", "REWE Garnelen vorgegart 200 g")
         meal = add_product(db, "shrimp-meal", "REWE Garnelen Curry Fertiggericht 400 g")
         pet = add_product(db, "pet-chicken", "REWE Huhn Katzenfutter 200 g", category="tierbedarf")
+        misleading_beverage = add_product(
+            db, "misleading-cola", "Coca-Cola Zero 1 l",
+            ingredient="milk", price=1.2, category="getraenke-genussmittel",
+        )
         db.add(ProductIntelligence(
             product_id=meal.id,
             product_type="ready_meal",
@@ -81,6 +86,21 @@ def main():
         assert by_id["shrimp-raw"]["intelligence"]["culinary_role"] == "protein"
         assert by_id["shrimp-cooked"]["intelligence"]["product_type"] == "prepared_component"
         assert by_id["shrimp-cooked"]["intelligence"]["convenience_level"] == 4
+
+        # Purchase must never use the imported Product.ingredient hint as a
+        # canonical pantry ingredient when the SKU title does not support it.
+        try:
+            purchase(PurchaseIn(product_id=misleading_beverage.id, packs=1))
+        except HTTPException as exc:
+            assert exc.status_code == 422
+        else:
+            raise AssertionError("A drink with a misleading 'milk' hint must not enter Pantry")
+        try:
+            purchase(PurchaseIn(product_id=pet.id, packs=1, ingredient="chicken"))
+        except HTTPException as exc:
+            assert exc.status_code == 422
+        else:
+            raise AssertionError("Pet food must never enter the ingredient Pantry")
 
         # The matcher is not limited to the first 40 rows in insertion order.
         assert raw.id > 40 and cooked.id > 40
