@@ -29,6 +29,8 @@ jobs:
         run: python qa_catalog_snapshot.py
       - name: REWE catalog coverage and missing-price diagnostics
         run: python qa_catalog_coverage.py
+      - name: Full REWE catalog row-by-row integrity and classification audit
+        run: python qa_catalog_full_audit.py
       - name: Product intelligence classification QA
         run: python qa_product_intelligence.py
       - name: Full REWE catalog intelligence matching QA
