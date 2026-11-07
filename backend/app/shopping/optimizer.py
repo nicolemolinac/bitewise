@@ -232,9 +232,14 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 title = " ".join(str(selected_override.get(key) or "") for key in (
                     "name_original", "name_normalized", "translated_name", "name"
                 ))
-                match_type = ingredient_product_match_type(ingredient, title)
-                if match_type:
+                # Manual overrides must pass the same semantic and complete-meal
+                # checks as normal catalog search; a saved ID is not a trust bypass.
+                from ..main import validate_ingredient_candidate
+                validated = validate_ingredient_candidate(ingredient, selected_override)
+                if validated:
+                    match_type, intelligence = validated
                     selected_override["ingredient_match_type"] = match_type
+                    selected_override["intelligence"] = intelligence
                     raw_products.append(selected_override)
         for product in raw_products:
             price = product.get("price")
