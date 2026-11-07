@@ -76,12 +76,16 @@ def classify_product(product: dict) -> ProductProfile:
 
     # Branded recipe-mix sachets and seasoning/topping blends are not the
     # meat, vegetables or complete dishes named in their marketing titles.
-    if any(marker in name for marker in (
-        "knorr fix", "maggi fix", "maggi food travel fix",
-        "ostmann let's do", "ostmann lets do",
-        "würzmischung", "wuerzmischung", "gewürzmischung", "gewuerzmischung",
-        "würz-mix", "wuerz-mix", "seasoning mix",
-    )):
+    if (
+        any(marker in name for marker in (
+            "knorr fix", "maggi fix", "maggi food travel fix",
+            "ostmann let's do", "ostmann lets do",
+            "würzmischung", "wuerzmischung", "gewürzmischung", "gewuerzmischung",
+            "würz-mix", "wuerz-mix", "seasoning mix",
+        ))
+        or ("knorr" in name and "fix" in name)
+        or ("maggi" in name and "fix" in name)
+    ):
         return ProductProfile(
             product_type="prepared_component", culinary_role="seasoning_mix",
             dish_families=(), preparation_state="ready_to_use",
@@ -171,6 +175,26 @@ def classify_product(product: dict) -> ProductProfile:
             "prepared_component", "filled_pasta", "ready_to_cook", 4)
         confidence = 0.9
         evidence.append("prepared-filled-pasta")
+
+    # Ready-to-cook filled dumplings and rice snacks are prepared proteins,
+    # not raw chicken/meat ingredients despite protein words in their names.
+    if any(term in name for term in (
+        "gyoza", "mandu", "dumpling", "onigiri",
+    )):
+        product_type, role, prep, convenience = (
+            "prepared_component", "protein", "ready_to_cook", 4)
+        confidence = 0.92
+        evidence.append("prepared-filled-dumpling-or-rice-snack")
+
+    # Meat sticks and branded snack sausages are snacks, not recipe meat.
+    if any(term in name for term in (
+        "bifi", "salami sticks", "salami-sticks", "meat stick",
+        "fleischsnack", "jerky",
+    )):
+        product_type, role, prep, convenience = (
+            "snack", "snack", "ready_to_eat", 1)
+        confidence = 0.95
+        evidence.append("meat-snack-product")
 
     # Prepared soups and salads are shortcut foods, never raw ingredient matches.
     # They are kept distinct from full meals because they can also be sides/components.
