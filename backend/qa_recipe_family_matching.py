@@ -405,6 +405,7 @@ def main():
             "Aroy-D Kokosnussmilch 250ml": {"coconut milk"},
             "Bamboo Garden Bambusschößlinge in Streifen 180g": {"bamboo shoots"},
             "Bamboo Garden Sojabohnenkeimlinge 180g": {"soybean sprouts"},
+            "REWE Beste Wahl Mungobohnenkeimlinge 180g": {"bean sprouts"},
             "Bonduelle Möhrchen zart und extra fein 265g": {"carrot"},
             "Bonduelle Wachsbrechbohnen 225g": {"green beans"},
             "Bauck Mühle Bio Hafermehl Vollkorn 350g": {"oat flour"},
@@ -476,6 +477,7 @@ def main():
 
         assert canonical_ingredient_terms("Bamboo Garden Bambusschößlinge in Streifen") == ["bamboo shoots"]
         assert canonical_ingredient_terms("Bamboo Garden Sojabohnenkeimlinge") == ["soybean sprouts"]
+        assert canonical_ingredient_terms("REWE Beste Wahl Mungobohnenkeimlinge") == ["bean sprouts"]
 
         milk_results = adapter.search("milk")
         alpro_milk = [
