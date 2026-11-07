@@ -102,6 +102,10 @@ def main():
             db, "tomato-soup", "Erasco Tomaten-Cremesuppe 390ml",
             ingredient="tomato", price=1.99, category="fertiggerichte-konserven",
         )
+        rice_pudding = add_product(
+            db, "rice-pudding", "Dr. Oetker High Protein Milchreis 400g",
+            ingredient="rice", price=2.59, category="kaese-eier-molkerei",
+        )
         potato_salad = add_product(
             db, "potato-salad", "Golßener Kartoffel Salat mit Joghurt 400g",
             ingredient="potato", price=2.5, category="fertiggerichte-konserven",
@@ -184,6 +188,10 @@ def main():
 
         assert "tomato-soup" not in {item["external_id"] for item in tomato_candidates}, (
             "Prepared tomato soup must not satisfy a raw tomato requirement"
+        )
+        rice_ids = {item["external_id"] for item in CatalogAdapter(db).search("rice")}
+        assert "rice-pudding" not in rice_ids, (
+            "Prepared rice pudding must not satisfy a raw rice requirement"
         )
         potato_ids = {item["external_id"] for item in CatalogAdapter(db).search("potato")}
         assert "potato-salad" not in potato_ids, (
