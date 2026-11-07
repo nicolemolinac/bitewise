@@ -10,7 +10,7 @@ from .gemini import (
     _persist_generated,
 )
 from ..database import PantryItem, Product, ProductIntelligence, SessionLocal, UserEvent
-from ..catalog.intelligence import classify_product
+from ..catalog.intelligence import CLASSIFIER_VERSION, classify_product
 from ..recommendations.engine import build_preference_profile
 from ..ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type
 
@@ -119,23 +119,25 @@ def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600, in
             if not canonical_terms:
                 continue
 
-            profile = stored_profile or classify_product({
-                "name_original": product.name_original,
-                "name_normalized": product.name_normalized,
-                "translated_name": product.translated_name,
-                "brand": product.brand,
-                "category": product.category,
-            })
-            if stored_profile:
-                product_type = stored_profile.product_type
-                preparation = stored_profile.preparation_state
-                storage = stored_profile.storage_type
-                complete_meal = stored_profile.is_complete_meal
-            else:
-                product_type = profile.product_type
-                preparation = profile.preparation_state
-                storage = profile.storage_type
-                complete_meal = profile.is_complete_meal
+            profile = (
+                stored_profile
+                if stored_profile and stored_profile.classifier_version == CLASSIFIER_VERSION
+                else classify_product({
+                    "name_original": product.name_original,
+                    "name_normalized": product.name_normalized,
+                    "translated_name": product.translated_name,
+                    "brand": product.brand,
+                    "category": product.category,
+                })
+            )
+            product_type = profile.product_type
+            preparation = profile.preparation_state
+            storage = profile.storage_type
+            complete_meal = profile.is_complete_meal
+
+            # Finished drinks, snacks and non-food SKUs are not ingredient signals.
+            if product_type in {"non_food", "beverage", "snack"}:
+                continue
 
             if complete_meal:
                 group = "complete ready meals"
@@ -158,7 +160,7 @@ def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600, in
             if complete_meal:
                 continue
             for ingredient in canonical_terms:
-                match_type = ingredient_product_match_type(ingredient, title)
+                match_type = ingredient_product_match_type(ingredient, title, product.category)
                 if not match_type:
                     continue
                 stats = coverage.setdefault(ingredient, {"exact": 0, "substitute": 0})
