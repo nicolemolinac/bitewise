@@ -120,6 +120,35 @@ def run():
     instant_noodles = profile("Knorr Asia Noodles Chicken 65g", "kochen-backen")
     assert instant_noodles.product_type == "ready_meal" and instant_noodles.is_complete_meal
 
+    # Product Intelligence must not promote ingredient/dough/seasoning listings
+    # to full meals just because their titles contain "pizza", "risotto" or "quiche".
+    for title, category in (
+        ("Bio Spezial Mehl für Pizza Typ 00 1kg", "kochen-backen"),
+        ("Tante Fanny Quiche- & Tarteteig rund 300g", "fertiggerichte-konserven"),
+        ("REWE Beste Wahl Risotto-Reis 500g", "kochen-backen"),
+        ("Oryza Risotto- & Paella-Reis 500g", "kochen-backen"),
+        ("REWE Bio Kokosmilch gelbes Curry 400g", "fertiggerichte-konserven"),
+        ("REWE Bio Rindergulasch aus der Keule ca.530g", "fleisch-wurst-fisch"),
+        ("Taifun Bio Pizza Bratfilets vegan 160g", "kochen-backen"),
+        ("Wilhelm Brandenburg Pizza-Fleischkäse 100g", "fleisch-wurst-fisch"),
+        ("Violife Pizza Mix Gerieben Vegan 150g", "kaese-eier-molkerei"),
+        ("BioWagner Bio Pizza & Pasta Gewürzzubereitung 60g", "oele-sossen-gewuerze"),
+        ("Pomito Pizza und Pastasauce 500g", "fertiggerichte-konserven"),
+        ("Potluck Pasta e Pizza Kräuter 40g", "oele-sossen-gewuerze"),
+    ):
+        false_meal = profile(title, category)
+        assert not false_meal.is_complete_meal, (
+            f"Ingredient/component incorrectly classified as complete meal: {title}"
+        )
+
+    # Explicitly composed products remain complete meals after tightening negatives.
+    frozen_pizza = profile("Dr. Oetker Die Ofenfrische Pizza Margherita 385g", "tiefkuehlkost")
+    assert frozen_pizza.product_type == "ready_meal" and frozen_pizza.is_complete_meal
+    express_risotto = profile("Ben's Original Express Risotto Hühnchen & Pilze 250g", "fertiggerichte-konserven")
+    assert express_risotto.product_type == "ready_meal" and express_risotto.is_complete_meal
+    ready_curry = profile("Youcook Indian Style Madras Curry 420g", "fertiggerichte-konserven")
+    assert ready_curry.product_type == "ready_meal" and ready_curry.is_complete_meal
+
     # Products from household, hygiene, pet and baby aisles must never become
     # culinary ingredients, even when their names contain ingredient words.
     for title, category in (
