@@ -105,7 +105,7 @@ jobs:
         run: python qa_cooking_preferences.py
       - name: REWE ingredient matching and cost QA
         run: python qa_ingredient_costing.py
-      - name: Shopping basket optimizer regression QA
+      - name: Deterministic shopping strategy semantics QA\n        run: python qa_shopping_strategy_semantics.py\n      - name: Shopping basket optimizer regression QA
         run: python qa_optimizer.py
       - name: REWE package price and multipack normalization QA
         run: python qa_rewe_price_normalization.py
