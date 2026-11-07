@@ -136,7 +136,7 @@ class CatalogAdapter:
    # Complete dishes and non-food SKUs are never culinary ingredient matches.
    # This also protects the matcher when a non-food product title contains an
    # ingredient word such as chicken, milk or lemon.
-   if intelligence.get('is_complete_meal') or intelligence.get('product_type') == 'non_food':continue
+   if intelligence.get('is_complete_meal') or intelligence.get('product_type') in {'non_food','beverage','snack'}:continue
    item=product_dict(product)
    item['ingredient_match_type']=match_type
    item['intelligence']=intelligence
@@ -521,8 +521,8 @@ def purchase(payload:PurchaseIn):
   product=db.get(Product,payload.product_id)
   if not product:raise HTTPException(404,'Product not found')
   product_profile=CatalogAdapter(db)._profile(product)
-  if product_profile.get('product_type')=='non_food':
-   raise HTTPException(422,'Non-food products cannot be added to the ingredient pantry.')
+  if product_profile.get('product_type') in {'non_food','beverage','snack'}:
+   raise HTTPException(422,'Non-ingredient products cannot be added to the ingredient pantry.')
   inferred=canonical_ingredient_terms(product.name_original or product.name_normalized)
   ingredient=normalize_ingredient(payload.ingredient or (inferred[0] if inferred else ''))
   if not ingredient:raise HTTPException(422,'A canonical ingredient is required when this product title cannot identify one safely.')
