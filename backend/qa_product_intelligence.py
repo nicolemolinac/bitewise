@@ -66,6 +66,11 @@ def run():
     assert potato_wedges.product_type == "prepared_component" and potato_wedges.culinary_role == "potato_side"
     potato_casserole = profile("Pahmeyer Kartoffelauflauf Klassik 300g", "fertiggerichte-konserven")
     assert potato_casserole.product_type == "ready_meal" and potato_casserole.is_complete_meal
+    knorr_mix = profile("Knorr Fix Spaghetti Bolognese 40g", "fertiggerichte-konserven")
+    assert knorr_mix.product_type == "prepared_component" and knorr_mix.culinary_role == "seasoning_mix"
+    assert not knorr_mix.is_complete_meal, "A recipe-mix sachet is not a complete meal"
+    ostmann_mix = profile("Ostmann Lets do Airfryer Chicken 70g", "oele-sossen-gewuerze")
+    assert ostmann_mix.product_type == "prepared_component" and ostmann_mix.culinary_role == "seasoning_mix"
 
     # Products from household, hygiene, pet and baby aisles must never become
     # culinary ingredients, even when their names contain ingredient words.
