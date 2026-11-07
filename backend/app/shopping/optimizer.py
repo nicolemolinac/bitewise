@@ -143,8 +143,6 @@ def _badge(mode, waste_ratio, reuse_count, product, cheapest_total, total):
         return "♻️ Low Waste"
     if abs(total - cheapest_total) < 0.01:
         return "💰 Cheapest"
-    if reuse_count >= 3:
-        return "🔥 Best for Plan"
     if _premium_signal(product) > 0.5:
         return "🟢 Good Value"
     return "⭐ Best Value"
