@@ -394,7 +394,7 @@ _SUBSTITUTION_GROUPS = {
     "ricotta": ("frischkäse", "hüttenkäse"),
     "shallot": ("rote zwiebel", "zwiebel"),
     "celery": ("knollensellerie", "sellerieknolle"),
-    "milk": ("haferdrink", "sojadrink", "mandeldrink", "kokosdrink", "reisdrink", "erbsendrink"),
+    "milk": ("haferdrink", "hafer drink", "sojadrink", "soja drink", "mandeldrink", "mandel drink", "kokosdrink", "kokos drink", "reisdrink", "reis drink", "erbsendrink"),
     "cream": ("cremefine", "creme fine", "sojacreme", "hafersahne", "hafer cuisine"),
     "butter": ("margarine", "streichfett"),
     "red cabbage": ("apfelrotkohl", "rotkohl fertig"),
@@ -445,6 +445,14 @@ def ingredient_product_match_type(
     if needle == "red cabbage" and any(marker in padded_title for marker in (
         " apfelrotkohl ", " apfel rotkohl ", " rotkohl fix ", " tafelfertig ",
         " rotkraut tafelfertig ",
+    )):
+        return "substitute"
+
+    # Plant-based milk drinks are valid milk substitutes, despite beverage wording.
+    if needle == "milk" and any(marker in padded_title for marker in (
+        " haferdrink ", " hafer drink ", " sojadrink ", " soja drink ",
+        " mandeldrink ", " mandel drink ", " kokosdrink ", " kokos drink ",
+        " reisdrink ", " reis drink ", " erbsendrink ",
     )):
         return "substitute"
 
