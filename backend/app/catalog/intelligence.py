@@ -152,7 +152,9 @@ def classify_product(product: dict) -> ProductProfile:
         "mousse", "eiscreme", "ice cream", "custard", "grießpudding",
         "griesspudding", "sahnepudding", "milchdessert", "torte", "kuchen",
         "cake", "cheesecake", "käsekuchen", "kaesekuchen", "brownie",
-        "brownies", "sorbet", "gelato", "cookie dough",
+        "brownies", "sorbet", "gelato", "cookie dough", "protein dessert",
+        "protein pudding", "protein mousse", "high protein chocolate",
+        "chocolate & topping", "dessert cup",
         "high protein chocolate", "chocolate & topping", "chocolate topping",
         "protein dessert", "protein mousse",
     )):
