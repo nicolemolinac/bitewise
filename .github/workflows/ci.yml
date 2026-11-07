@@ -31,6 +31,13 @@ jobs:
         run: python qa_catalog_coverage.py
       - name: Full REWE catalog row-by-row integrity and classification audit
         run: python qa_catalog_full_audit.py
+      - name: Upload full catalog audit report for semantic review
+        uses: actions/upload-artifact@v4
+        with:
+          name: rewe-catalog-audit-report
+          path: backend/catalog-audit-report.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Product intelligence classification QA
         run: python qa_product_intelligence.py
       - name: Full REWE catalog intelligence matching QA
