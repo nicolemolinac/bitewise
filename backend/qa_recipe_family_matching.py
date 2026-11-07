@@ -691,6 +691,8 @@ def main():
         assert classify_product({"name_original": "REWE Oregano gerebelt"}).culinary_role == "seasoning"
         assert classify_product({"name_original": "REWE Bio Räuchertofu"}).product_type == "prepared_component"
         assert classify_product({"name_original": "REWE Bio Kichererbsen 400 g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
+        assert classify_product({"name_original": "REWE Beste Wahl Bulgursalat vegan 200g", "category": "obst-gemuese"}).culinary_role == "salad"
+        assert classify_product({"name_original": "Burgis Kartoffelpüree 500g", "category": "kochen-backen"}).product_type == "prepared_component"
         assert classify_product({"name_original": "REWE Kartoffelsalat 400 g"}).product_type == "prepared_component"
         assert classify_product({"name_original": "REWE Quiche Lorraine"}).is_complete_meal
 
