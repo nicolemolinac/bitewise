@@ -103,7 +103,7 @@ def main():
             ingredient="tomato", price=1.99, category="fertiggerichte-konserven",
         )
         potato_salad = add_product(
-            db, "potato-salad", "Golßener Klassischer Kartoffelsalat 400g",
+            db, "potato-salad", "Golßener Kartoffel Salat mit Joghurt 400g",
             ingredient="potato", price=2.5, category="fertiggerichte-konserven",
         )
         frozen_curry = add_product(
