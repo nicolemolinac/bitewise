@@ -294,6 +294,7 @@ def _product_title(product):
 
 
 def main():
+    assert len(RECIPES) >= 45, f"Expected at least 45 distinct recipe families, got {len(RECIPES)}"
     db = SessionLocal()
     try:
         catalog_count = db.query(Product).filter(Product.supermarket == "REWE").count()
