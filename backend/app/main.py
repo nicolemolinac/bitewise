@@ -189,6 +189,8 @@ class CatalogAdapter:
     round(float(item.get('price') or 0), 4) if item.get('price') is not None else None,
     round(float(item.get('price_per_unit') or 0), 8) if item.get('price_per_unit') is not None else None,
     str(item.get('category') or '').lower(),
+    str(item.get('brand') or '').lower(),
+    str(item.get('product_url') or ''),
    )
    if fingerprint in seen_fingerprints:continue
    seen_fingerprints.add(fingerprint)
