@@ -131,9 +131,10 @@ class CatalogAdapter:
    match_type=ingredient_product_match_type(needle,title)
    if not match_type:continue
    intelligence=self._profile(product,profiles.get(product.id))
-   # A complete prepared dish is not an ingredient match, even when its title
-   # happens to contain the requested ingredient (e.g. shrimp curry ready meal).
-   if intelligence.get('is_complete_meal'):continue
+   # Complete dishes and non-food SKUs are never culinary ingredient matches.
+   # This also protects the matcher when a non-food product title contains an
+   # ingredient word such as chicken, milk or lemon.
+   if intelligence.get('is_complete_meal') or intelligence.get('product_type') == 'non_food':continue
    item=product_dict(product)
    item['ingredient_match_type']=match_type
    item['intelligence']=intelligence
