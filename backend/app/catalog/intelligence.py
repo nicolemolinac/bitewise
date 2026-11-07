@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.18.0"
+CLASSIFIER_VERSION = "1.19.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -200,6 +200,20 @@ def classify_product(product: dict) -> ProductProfile:
             "prepared_component", "protein", "ready_to_cook", 4)
         confidence = 0.92
         evidence.append("prepared-filled-dumpling-or-rice-snack")
+
+    # Cured, smoked and deli-style meats are ready-to-eat protein components,
+    # not raw meat cuts for an exact ingredient match.
+    processed_meat_markers = (
+        "geräuchert", "geraeuchert", "gepökelt", "gepoekelt",
+        "luftgetrocknet", "rohschinken", "prosciutto", "salami",
+        "leberwurst", "teewurst", "jagdwurst", "fleischwurst",
+        "bierschinken", "schinken", "speck",
+    )
+    if category == "fleisch-wurst-fisch" and any(marker in name for marker in processed_meat_markers):
+        product_type, role, prep, convenience = (
+            "prepared_component", "protein", "ready_to_eat", 4)
+        confidence = 0.9
+        evidence.append("cured-or-deli-protein-component")
 
     # Meat sticks and branded snack sausages are snacks, not recipe meat.
     if any(term in name for term in (
