@@ -71,6 +71,8 @@ def run():
     assert not knorr_mix.is_complete_meal, "A recipe-mix sachet is not a complete meal"
     ostmann_mix = profile("Ostmann Lets do Airfryer Chicken 70g", "oele-sossen-gewuerze")
     assert ostmann_mix.product_type == "prepared_component" and ostmann_mix.culinary_role == "seasoning_mix"
+    spice_mix = profile("Maggi Würzmischung für Air Fryer Hähnchen 60g", "oele-sossen-gewuerze")
+    assert spice_mix.product_type == "prepared_component" and spice_mix.culinary_role == "seasoning_mix"
 
     # Products from household, hygiene, pet and baby aisles must never become
     # culinary ingredients, even when their names contain ingredient words.
