@@ -247,6 +247,9 @@ def main():
             "red cabbage", "REWE Apfelrotkohl 450g", "fertiggerichte-konserven"
         ) == "substitute", "Prepared apple red cabbage must not be an exact raw-vegetable match"
         assert ingredient_product_match_type(
+            "red cabbage", "Kühne Rotkohl 335g", "fertiggerichte-konserven"
+        ) == "substitute", "Canned plain red cabbage must be a prepared shortcut"
+        assert ingredient_product_match_type(
             "red cabbage", "REWE Rotkohl frisch", "obst-gemuese"
         ) == "exact", "Fresh red cabbage should remain an exact match"
         assert ingredient_product_match_type("milk", "REWE Bio Haferdrink 1l") == "substitute"
