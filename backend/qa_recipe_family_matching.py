@@ -21,7 +21,7 @@ from app.database import Product, SessionLocal
 import app.server as production_server  # noqa: F401
 from app.main import CatalogAdapter
 from app.catalog.intelligence import classify_product
-from app.ingredient_aliases import ingredient_product_match_type
+from app.ingredient_aliases import ingredient_product_match_type, normalize_ingredient
 from app.shopping.optimizer import build_basket, consolidate
 
 
@@ -305,7 +305,7 @@ def main():
         passata_results = adapter.search("tomato passata")
         passata_fingerprints = [
             (
-                (row.get("name_normalized") or row.get("name_original") or "").lower().strip(),
+                normalize_ingredient(row.get("name_normalized") or row.get("name_original") or ""),
                 round(float(row.get("package_size") or 0), 4),
                 str(row.get("package_unit") or "").lower(),
                 round(float(row.get("price") or 0), 4) if row.get("price") is not None else None,
