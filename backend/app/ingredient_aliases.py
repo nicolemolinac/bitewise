@@ -295,6 +295,13 @@ def ingredient_product_match_type(
     needle = _norm(ingredient)
     category_key = _norm(category or "")
 
+    # Flavor claims in instant noodles, sauces and snacks are not ingredient
+    # evidence (e.g. "chicken flavour" is not chicken meat).
+    if any(marker in padded_title for marker in (
+        " flavour ", " flavor ", " taste ", " geschmack ", "aroma ",
+    )):
+        return None
+
     baking_chocolate_markers = (
         " backschokolade ", " kuvertüre ", " kuvertuere ",
         " schokotropfen ", " schokodrops ", " kakaopulver ",
