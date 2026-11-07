@@ -4,7 +4,7 @@ No catalog import, network, scraping or Gemini calls. Uses controlled product
 fixtures to prove each strategy optimizes the metric promised by its UI label.
 Run from backend/: python qa_shopping_strategy_semantics.py
 """
-from app.shopping.optimizer import build_basket
+from app.shopping.optimizer import build_basket, summarize_waste
 
 
 class FixtureAdapter:
@@ -102,11 +102,19 @@ def main():
     )
     assert incompatible["match_status"] == "unmatched", incompatible
 
+    leftovers = summarize_waste([
+        {"waste": 25, "package_unit": "g"},
+        {"waste": 50, "package_unit": "ml"},
+        {"waste": 2, "package_unit": "piece"},
+        {"waste": 5, "package_unit": "g"},
+    ])
+    assert leftovers == {"g": 30.0, "ml": 50.0, "piece": 2.0}, leftovers
+
     print("STRATEGY MAXIMUM-SAVINGS: PASS")
     print("STRATEGY BEST-VALUE VS PLAN-EFFICIENCY: PASS (different justified choices)")
     print("STRATEGY PREMIUM: PASS")
     print("FRACTIONAL-QUANTITY WASTE: PASS (0.2g need / 1g pack = 400%)")
-    print("INCOMPATIBLE PACKAGE UNIT: PASS")
+    print("INCOMPATIBLE PACKAGE UNIT: PASS")\n    print("LEFTOVER UNIT AGGREGATION: PASS (g/ml/pieces remain separate)")
     print("SHOPPING STRATEGY SEMANTICS QA: PASS")
 
 
