@@ -83,6 +83,42 @@ def main():
             print(f"  RECIPE COVERAGE — {recipe}: {hit}/{count}")
         for recipe, absent in missing.items():
             print(f"  UNRESOLVED — {recipe}: {', '.join(absent)}")
+
+        # Diagnose every unresolved ingredient against raw catalog titles before
+        # changing aliases. This separates a true assortment gap from a strict
+        # semantic-filter/search-index miss and prints evidence for review.
+        all_catalog_rows = db.query(base.Product).filter(
+            base.Product.supermarket == "REWE"
+        ).all()
+        for recipe, absent in missing.items():
+            for ingredient in absent:
+                terms = [term.lower().strip() for term in ingredient_search_terms(ingredient) if term.strip()]
+                raw_hits = []
+                for product in all_catalog_rows:
+                    title = base._product_title({
+                        "name_original": product.name_original,
+                        "name": product.name_normalized,
+                    }).lower()
+                    matched_terms = [term for term in terms if term in title]
+                    if matched_terms:
+                        raw_hits.append((
+                            product.name_original or product.name_normalized or "",
+                            product.category or "",
+                            product.price,
+                            matched_terms,
+                        ))
+                print(
+                    f"  RAW CATALOG DIAGNOSTIC — {ingredient}: "
+                    f"{len(raw_hits)} title hits for aliases {terms}"
+                )
+                for title, category, price, matched_terms in raw_hits[:12]:
+                    print(
+                        f"    RAW CANDIDATE — {title} | {category} | "
+                        f"price={price} | aliases={matched_terms}"
+                    )
+                if not raw_hits:
+                    print(f"    TRUE SNAPSHOT GAP — no product title contains any configured alias for {ingredient}")
+
         # This is a discovery/coverage gate, not an assertion that every niche
         # ingredient is sold in this supermarket snapshot.
         assert coverage >= 0.78, (
