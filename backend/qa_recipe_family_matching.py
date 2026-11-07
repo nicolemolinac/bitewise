@@ -414,6 +414,16 @@ def main():
             "Biozentrale Bio Kürbiskernöl geröstet 250ml": {"pumpkin seed oil"},
             "Borchers Bio Dattelsüße 250g": {"date sugar"},
             "Biozentrale Bio Agavensirup 350g": {"agave syrup"},
+            "Andechser Bio H-Ziegenmilch 3% 1l": {"milk"},
+            "Biozentrale Bio Ahorn-Sirup 250ml": {"maple syrup"},
+            "Clasen Bio Chiasaat 250g": {"chia seeds"},
+            "De Cecco Casareccia Nr.88 500g": {"pasta"},
+            "De Cecco Fettuccelle 500g": {"pasta"},
+            "Feinkost Dittmann Artischockenherzen geschnitten 200g": {"artichoke"},
+            "Baladna Sauer Eingelegte Gurken 660g": {"gherkin"},
+            "Feinkost Dittmann Kapern 30g": {"capers"},
+            "Dr. Oetker Blattgelatine weiß 6 Stück 10g": {"gelatin"},
+            "Dr. Oetker Bourbon Vanillezucker 24g": {"vanilla sugar"},
         }
         for title, expected_terms in semantic_alias_cases.items():
             actual_terms = set(canonical_ingredient_terms(title))
