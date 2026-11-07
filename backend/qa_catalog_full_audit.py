@@ -249,6 +249,9 @@ def main():
         assert ingredient_product_match_type(
             "red cabbage", "REWE Rotkohl frisch", "obst-gemuese"
         ) == "exact", "Fresh red cabbage should remain an exact match"
+        assert ingredient_product_match_type("milk", "REWE Bio Haferdrink 1l") == "substitute"
+        assert ingredient_product_match_type("cream", "Rama Cremefine 15% 250ml") == "substitute"
+        assert ingredient_product_match_type("butter", "Rama Margarine 400g") == "substitute"
         # High-value catalog examples must remain discoverable as canonical terms.
         semantic_examples = {
             "tempeh": "Better Nature Tempeh geräuchert vegan 220g",
@@ -259,6 +262,14 @@ def main():
             "kale": "REWE Beste Wahl Grünkohl 1kg",
             "oyster mushroom": "Bio Kräuterseitlinge 125g",
             "rice noodles": "Bamboo Garden Reisnudeln Guai-Thiau 250g",
+            "arugula": "Florette Rucola 80g",
+            "blueberry": "Kulturheidelbeeren 125g",
+            "onion": "Bio Demeter Speisezwiebeln 500g im Netz",
+            "pumpkin": "Bio Spaghettikürbis ca. 1kg",
+            "pasta": "Barilla Al Bronzo Fusilloni Nr. 380 500g",
+            "sugar snap peas": "REWE Beste Wahl Kaiserschoten 200g",
+            "garden cress": "REWE Bio Gartenkresse 1 Stück",
+            "skyr": "Milu Skyr Natur 450g",
         }
         for expected, title in semantic_examples.items():
             terms = canonical_ingredient_terms(title)
