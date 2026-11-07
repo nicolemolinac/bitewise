@@ -145,9 +145,9 @@ def main():
             # Hygiene, pet, household and baby products must not inflate coverage.
             canonical_terms = (
                 canonical_ingredient_terms(name)
-                if profile.product_type != "non_food" else []
+                if profile.product_type not in {"non_food", "beverage", "snack"} else []
             )
-            if profile.product_type != "non_food":
+            if profile.product_type not in {"non_food", "beverage", "snack"}:
                 if canonical_terms:
                     canonical_hits += 1
                 else:
