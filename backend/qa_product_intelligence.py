@@ -51,6 +51,8 @@ def run():
     stew = profile("Erasco Erbsen-Eintopf 400g", "fertiggerichte-konserven")
     assert stew.product_type == "ready_meal" and stew.is_complete_meal
     frozen_skillet = profile("Frosta Bratkartoffel-Hähnchenpfanne 500g", "tiefkuehlkost")
+    vegetable_pan = profile("Frosta Gemüse Pfanne All' Italiana 480g", "tiefkuehlkost")
+    assert not vegetable_pan.is_complete_meal, "A plain vegetable pan must not be promoted to a full meal"
     assert frozen_skillet.product_type == "ready_meal" and frozen_skillet.is_complete_meal
     frozen_curry = profile("Every Red Curry 450g", "tiefkuehlkost")
     assert frozen_curry.product_type == "ready_meal" and frozen_curry.is_complete_meal
