@@ -6,6 +6,7 @@ Run from backend/: python qa_recipe_semantic_second_wave.py
 """
 from collections import Counter
 import qa_recipe_family_matching as base
+from app.ingredient_aliases import ingredient_search_terms
 
 RECIPES = {
     "Japanese chicken curry": ["chicken breast", "potato", "carrot", "onion", "coconut milk", "rice", "ginger"],
@@ -147,6 +148,26 @@ def main():
         assert unmatched_ratio <= 0.22, (
             f"Too many unmatched basket decisions: {unmatched_ratio:.1%}; {dict(unmatched)}"
         )
+
+        # New German aliases must be precise and must not collapse related foods.
+        alias_expectations = {
+            "goat cheese": "ziegenkäse",
+            "sardine": "sardinen",
+            "grape leaves": "weinblätter",
+        }
+        for ingredient, german_term in alias_expectations.items():
+            terms = ingredient_search_terms(ingredient)
+            assert any(german_term in term for term in terms), (ingredient, terms)
+        precise_negative_cases = [
+            ("sardine", "REWE Sardellenfilets in Öl", "fleisch-wurst-fisch"),
+            ("goat cheese", "REWE Ziegenmilch 1l", "kaese-eier-molkerei"),
+            ("grape leaves", "REWE Weintrauben kernlos 500g", "obst-gemuese"),
+        ]
+        for ingredient, title, category in precise_negative_cases:
+            assert base.ingredient_product_match_type(ingredient, title, category) is None, (
+                f"Related-but-different product matched: {ingredient} -> {title}"
+            )
+        print("GERMAN SPECIALTY ALIASES + RELATED-FOOD NEGATIVES: PASS")
 
         # Adversarial title tests: flavor/ingredient co-occurrence must not
         # convert a prepared beverage/snack into a fresh ingredient.
