@@ -297,7 +297,7 @@ def main():
                 continue
             product_url = str(db_product.product_url or "")
             if not (product_url.startswith("https://") and "rewe.de" in product_url.lower()):
-                skipped_rows.append(f"{db_product.name_original or db_product.id} (invalid REWE URL)")
+                skipped_rows.append(f"{db_product.name_original or db_product.id} (invalid REWE URL: id={db_product.id}, external_id={db_product.external_id!r}, url={db_product.product_url!r})")
                 continue
             packs = int(row.get("packs") or 0)
             if packs < 1:
