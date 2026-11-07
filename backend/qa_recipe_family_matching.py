@@ -695,6 +695,7 @@ def main():
         assert classify_product({"name_original": "Burgis Kartoffelpüree 500g", "category": "kochen-backen"}).product_type == "prepared_component"
         assert classify_product({"name_original": "REWE Kartoffelsalat 400 g"}).product_type == "prepared_component"
         assert classify_product({"name_original": "REWE Quiche Lorraine"}).is_complete_meal
+        assert classify_product({"name_original": "Ben & Jerry's Eis Peanut Butter Cup 465ml", "category": "tiefkuehlkost"}).culinary_role == "dessert"
 
         print(
             f"PASS: {len(RECIPES)} recipe families, {base_total} base ingredients, "
