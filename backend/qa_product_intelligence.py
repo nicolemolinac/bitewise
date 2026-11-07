@@ -44,6 +44,10 @@ def run():
     # dishes that had been left as generic ingredients.
     dessert = profile("Dr. Oetker High Protein Milchreis 400g", "kaese-eier-molkerei")
     assert dessert.product_type == "prepared_component" and dessert.culinary_role == "dessert"
+    frozen_torte = profile("Almondy Daim Schokoladen-Torte 400g", "tiefkuehlkost")
+    assert frozen_torte.product_type == "prepared_component" and frozen_torte.culinary_role == "dessert"
+    frozen_ice_cream = profile("Ben & Jerry's Chocolate Chip Cookie Dough 170g", "tiefkuehlkost")
+    assert frozen_ice_cream.product_type == "prepared_component" and frozen_ice_cream.culinary_role == "dessert"
     soup = profile("Erasco Tomaten-Cremesuppe 390ml", "fertiggerichte-konserven")
     assert soup.product_type == "prepared_component" and soup.culinary_role == "soup"
     salad = profile("Golßener Spreewälder Nudelsalat 700g", "fertiggerichte-konserven")
