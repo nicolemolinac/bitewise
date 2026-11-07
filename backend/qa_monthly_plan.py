@@ -25,7 +25,7 @@ BREAKFASTS = [
     ("Spinach feta omelette", ["eggs", "spinach", "feta", "milk", "butter", "bread"]),
     ("Peanut butter banana toast", ["bread", "peanut butter", "banana", "milk"]),
     ("Apple cinnamon porridge", ["oats", "milk", "apple", "cinnamon", "walnut", "honey"]),
-    ("Smoked salmon bagel", ["bagel", "smoked salmon", "cream cheese", "cucumber", "lemon"]),
+    ("Smoked salmon open sandwich", ["bread", "smoked salmon", "cream cheese", "cucumber", "lemon"]),
     ("Berry chia pudding", ["chia seeds", "milk", "yogurt", "raspberry", "blueberry", "honey"]),
     ("Breakfast burrito", ["tortilla", "eggs", "cheese", "bell pepper", "tomato", "spinach"]),
 ]
@@ -74,7 +74,7 @@ COOKING = {
     "Spinach feta omelette": (8, 8, "from scratch / stovetop"),
     "Peanut butter banana toast": (3, 3, "assembly / toaster"),
     "Apple cinnamon porridge": (5, 8, "stovetop"),
-    "Smoked salmon bagel": (5, 0, "assembly / no-cook"),
+    "Smoked salmon open sandwich": (5, 0, "assembly / no-cook"),
     "Berry chia pudding": (5, 0, "no-cook / chilled"),
     "Breakfast burrito": (10, 10, "stovetop"),
     "Chicken pesto pasta": (10, 15, "from scratch / stovetop"),
@@ -125,10 +125,10 @@ def find_coke(db):
     candidates = []
     for row in rows:
         title = (row.name_original or "").lower()
-        if row.price and row.price > 0 and row.product_url and "coca-cola" in title:
+        if row.price and row.price > 0 and "coca-cola" in title:
             candidates.append(row)
-    # Prefer a regular 1.5l bottle if available; otherwise select a priced,
-    # valid Coca-Cola SKU and report its actual pack size.
+    # Prefer a regular 1.5l bottle if available; otherwise select the cheapest
+    # positively priced Coca-Cola SKU. URL validity is reported separately.
     candidates.sort(key=lambda row: (
         0 if "1,5" in (row.name_original or "").lower() or "1.5" in (row.name_original or "").lower() else 1,
         float(row.price or 0),
@@ -146,7 +146,6 @@ def main():
             Product.supermarket == "REWE",
             Product.price.isnot(None),
             Product.price > 0,
-            Product.product_url.like("https://www.rewe.de/shop/p/%"),
         ).all()
         ready_candidates = []
         for product in catalog_rows:
@@ -161,8 +160,8 @@ def main():
                 ready_candidates.append((product, profile))
         ready_candidates.sort(key=lambda pair: float(pair[0].price or 0))
         # Never mislabel soups, sides or ingredient components as complete meals.
-        # If the current catalog snapshot has no verified complete meals, retain all
-        # 90 scratch/ingredient recipes and report that limitation explicitly.
+        # A priced catalog listing can inform meal planning even when its product URL
+        # is absent; URL verification is a separate prerequisite for cart handoff.
         ready_meals = [pair[0] for pair in ready_candidates[:4]]
 
         meals = []
@@ -204,8 +203,11 @@ def main():
         print(f"CONVENIENCE MIX: {len(meals)} ingredient-based meals + {len(ready_meal_schedule)} catalogued complete ready meals")
         if not ready_meal_schedule:
             print("PREPARED-MEAL LIMITATION: no priced REWE complete meals passed the strict catalog classifier; no components/soups/sides were misrepresented as full dinners.")
+        else:
+            print(f"PREPARED-MEAL CATALOG: {len(ready_candidates)} priced complete-meal listings; product URLs are evaluated separately for cart handoff.")
         for day, product in ready_meal_schedule.items():
-            print(f"  READY-MADE DAY {day}: {product.name_original} | €{float(product.price):.2f} | heating estimate 12 min (package instructions not verified)")
+            url_status = "verified URL" if str(product.product_url or "").startswith("https://www.rewe.de/shop/p/") else "URL missing/unverified"
+            print(f"  READY-MADE DAY {day}: {product.name_original} | €{float(product.price):.2f} | {url_status} | heating estimate 12 min (package instructions not verified)")
         print(f"MENU VARIETY: {len(set(x[2] for x in schedule))} distinct dishes")
         print(f"CONSOLIDATED SHOPPING LINES: {len(requirements)}")
         print(f"RECIPE-TO-BASKET COVERAGE: {sum(bool(adapter.search(r['ingredient'])) for r in requirements)}/{len(requirements)} distinct ingredients")
@@ -256,15 +258,15 @@ def main():
         # drinks/snacks from being misclassified as ingredients in recipes.
         coke = find_coke(db)
         if coke:
-            print(f"EXTRA PRODUCT: {coke.name_original} | pack={coke.package_size} {coke.package_unit} | €{float(coke.price):.2f} | REWE URL={'valid' if str(coke.product_url).startswith('https://www.rewe.de/shop/p/') else 'invalid'}")
-            assert str(coke.product_url).startswith("https://") and "rewe.de" in str(coke.product_url).lower()
+            coke_url_valid = str(coke.product_url or "").startswith("https://www.rewe.de/shop/p/")
+            print(f"EXTRA PRODUCT: {coke.name_original} | pack={coke.package_size} {coke.package_unit} | €{float(coke.price):.2f} | REWE URL={'verified' if coke_url_valid else 'missing/unverified'}")
             monthly_extra_packs = 4
             extras_cost = round(float(coke.price) * monthly_extra_packs, 2)
             print(f"EXTRAS: {monthly_extra_packs} packs/month | €{extras_cost:.2f}")
             for strategy in strategy_results:
                 print(f"MONTH TOTAL WITH COCA-COLA {strategy}: €{strategy_results[strategy][1] + extras_cost:.2f}")
         else:
-            print("EXTRA PRODUCT: NO PRICED COCA-COLA SKU WITH VALID REWE PRODUCT URL IN SNAPSHOT")
+            print("EXTRA PRODUCT: no positively priced Coca-Cola SKU in snapshot")
             monthly_extra_packs = 0
 
         # Exercise the same API handoff as the app, but mock the browser/CDP call.
@@ -305,10 +307,15 @@ def main():
             cart_quantities[str(db_product.id)] = cart_quantities.get(str(db_product.id), 0) + packs
             selected_rows += 1
         for ready_product in ready_meal_schedule.values():
-            if ready_product.product_url and str(ready_product.product_url).startswith("https://") and "rewe.de" in str(ready_product.product_url).lower():
+            if str(ready_product.product_url or "").startswith("https://www.rewe.de/shop/p/"):
                 cart_quantities[str(ready_product.id)] = cart_quantities.get(str(ready_product.id), 0) + 1
-        if coke and monthly_extra_packs and coke.product_url and str(coke.product_url).startswith("https://") and "rewe.de" in str(coke.product_url).lower():
+            else:
+                skipped_rows.append(f"{ready_product.name_original} (missing verified REWE product URL)")
+        coke_cart_eligible = bool(coke and monthly_extra_packs and str(coke.product_url or "").startswith("https://www.rewe.de/shop/p/"))
+        if coke_cart_eligible:
             cart_quantities[str(coke.id)] = cart_quantities.get(str(coke.id), 0) + monthly_extra_packs
+        elif coke and monthly_extra_packs:
+            skipped_rows.append(f"{coke.name_original} (missing verified REWE product URL)")
         cart_payload = [{"product_id": int(pid), "packs": packs} for pid, packs in cart_quantities.items()]
         print(f"REWE CART CANDIDATES: {selected_rows} selected basket products | {len(cart_payload)} unique catalog SKUs | skipped={len(skipped_rows)}")
         if skipped_rows:
@@ -326,9 +333,9 @@ def main():
             assert response.json().get("checkout_performed") is False
             assert len(handed_off) == len(cart_payload), "Some valid monthly basket items were not handed off"
             assert all(str(item["product_url"]).startswith("https://") and "rewe.de" in str(item["product_url"]).lower() for item in handed_off)
-            if coke:
+            if coke_cart_eligible:
                 assert any("coca-cola" in item["name"].lower() for item in handed_off), "Coca-Cola extra missing from cart handoff"
-            print(f"REWE CART HANDOFF: PASS | {len(handed_off)} products | extras included={bool(coke)} | live checkout=False")
+            print(f"REWE CART HANDOFF: PASS | {len(handed_off)} products | Coca-Cola URL eligible={coke_cart_eligible} | live checkout=False")
         else:
             # The committed 11,969-row snapshot is a price/matching fixture and
             # does not carry product-detail URLs. Do not invent URLs or fail a
