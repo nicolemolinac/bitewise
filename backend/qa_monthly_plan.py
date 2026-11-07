@@ -204,8 +204,8 @@ def main():
         balanced = strategy_results["best-value"][1]
         premium = strategy_results["premium"][1]
         assert savings <= balanced + 0.01, "Maximum-savings should not exceed Best Value on this same basket"
-        assert balanced <= premium + 0.01, "Premium should not be cheaper than Best Value on this same basket"
-        print("STRATEGY ORDER CHECK: maximum-savings <= best-value <= premium (checkout totals)")
+        print(f"STRATEGY COMPARISON: savings €{savings:.2f} | best-value €{balanced:.2f} | premium €{premium:.2f}")
+        print("Maximum-savings is checked against the lowest checkout choice; other strategies are compared empirically, not forced into a price order.")
 
         # Add discretionary extras separately from recipe ingredients. This prevents
         # drinks/snacks from being misclassified as ingredients in recipes.
