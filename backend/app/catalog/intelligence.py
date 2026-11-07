@@ -150,7 +150,7 @@ def classify_product(product: dict) -> ProductProfile:
     if any(term in name for term in (
         "milchreis", "rice pudding", "reis pudding", "pudding", "dessert",
         "mousse", "eiscreme", "ice cream", "custard", "grießpudding",
-        "griesspudding", "sahnepudding", "milchdessert", "torte", "kuchen",
+        "griesspudding", "sahnepudding", "milchdessert", "kuchen",
         "cake", "cheesecake", "käsekuchen", "kaesekuchen", "brownie",
         "brownies", "sorbet", "gelato", "cookie dough", "protein dessert",
         "protein pudding", "protein mousse", "high protein chocolate",
@@ -158,7 +158,7 @@ def classify_product(product: dict) -> ProductProfile:
         "high protein chocolate", "chocolate & topping", "chocolate topping",
         "protein dessert", "protein mousse", "tiramisu", "panna cotta",
         "creme brulee", "crème brûlée", "trifle",
-    )):
+    ) or re.search(r"\\btorte\\b", name):
         product_type, role, prep, convenience = (
             "prepared_component", "dessert", "ready_to_eat", 4)
         confidence = 0.92
