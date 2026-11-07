@@ -250,6 +250,13 @@ def main():
             "red cabbage", "REWE Rotkohl frisch", "obst-gemuese"
         ) == "exact", "Fresh red cabbage should remain an exact match"
         assert ingredient_product_match_type("milk", "REWE Bio Haferdrink 1l") == "substitute"
+        assert ingredient_product_match_type(
+            "milk", "Alnatura Bio Hafer Drink ohne Zucker 1l", "kaese-eier-molkerei"
+        ) == "substitute", "Plant milk with spaced product naming must remain a milk substitute"
+        assert classify_product({
+            "name_original": "7 Guen Ayran Mango 250ml",
+            "category": "kaese-eier-molkerei",
+        }).product_type == "beverage"
         assert ingredient_product_match_type("cream", "Rama Cremefine 15% 250ml") == "substitute"
         assert ingredient_product_match_type("butter", "Rama Margarine 400g") == "substitute"
         assert ingredient_product_match_type(
