@@ -93,7 +93,7 @@ _ALIAS_GROUPS = [
     ("flour", "mehl", "weizenmehl", "pizzamehl"),
     ("oat flour", "hafermehl"),
     ("rice flour", "reismehl"),
-    ("corn flour", "maismehl", "maismehl"),
+    ("corn flour", "maismehl"),
     ("wheat bran", "weizenkleie"),
     ("oats", "oat", "haferflocken", "hafer"),
     ("rice", "reis", "langkornreis", "basmatireis", "jasminreis", "vollkornreis", "naturreis"),
