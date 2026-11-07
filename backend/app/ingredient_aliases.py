@@ -314,11 +314,13 @@ def ingredient_product_match_type(
         return None
 
     finished_food_markers = (
-        " schokolade ", " chocolate ", " bonbon ", " candy ", " praline ",
-        " pralinen ", " schokoriegel ", " candy bar ", " chips ", " cracker ",
+        " bonbon ", " candy ", " praline ", " pralinen ",
+        " schokoriegel ", " chocolate bar ", " candy bar ", " chips ", " cracker ",
         " crackers ", " keks ", " kekse ", " cookie ", " cookies ",
         " biscuit ", " biscuits ", " popcorn ", " kaugummi ", " chewing gum ",
-        " jelly bean ", " waffel ", " wafers ",
+        " jelly bean ", " waffel ", " wafers ", " tiramisu ", " pudding ",
+        " mousse ", " dessert ", " ice cream ", " eiscreme ", " milchreis ",
+        " cheesecake ", " käsekuchen ", " kaesekuchen ",
     )
     title_is_finished_food = (
         any(marker in padded_title for marker in finished_food_markers)
