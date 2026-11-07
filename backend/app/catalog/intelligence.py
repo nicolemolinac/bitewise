@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.26.0"
+CLASSIFIER_VERSION = "1.27.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -209,7 +209,8 @@ def classify_product(product: dict) -> ProductProfile:
         "geräuchert", "geraeuchert", "gepökelt", "gepoekelt",
         "luftgetrocknet", "rohschinken", "prosciutto", "salami",
         "leberwurst", "teewurst", "jagdwurst", "fleischwurst",
-        "bierschinken", "schinken", "speck", "wurst", "chorizo", "kolbasz",
+        "bierschinken", "schinken", "speck", "chorizo", "kolbasz",
+        "wiener", "bockwurst", "frankfurter", "brühwurst", "bruehwurst",
         "mortadella", "lyoner", "aufschnitt", "pastete", "paprikahähnchen",
         "paprikahaehnchen", "hähnchenlyoner", "haehnchenlyoner",
         "hähnchenbrust gebraten", "haehnchenbrust gebraten",
