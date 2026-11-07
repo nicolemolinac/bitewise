@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.23.0"
+CLASSIFIER_VERSION = "1.24.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -475,16 +475,84 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep, convenience = "prepared_component", "legume", "ready_to_use", 3
             confidence = 0.82
             evidence.append("cooked-legume-component")
-        elif any(x in name for x in ("gemüse", "brokkoli", "spinat", "paprika", "tomaten", "zucchini", "rucola", "salatmischung", "kürbis", "kuerbis", "kaki", "pitahaya", "physalis")):
+        elif category == "kaese-eier-molkerei" and any(x in name for x in (
+            "käse", "kaese", "frischkäse", "frischkaese", "quark", "brunch",
+            "grünländer", "gruenlaender", "miree", "almette", "philadelphia",
+            "gouda", "edamer", "provolone", "feta", "camembert", "mozzarella",
+            "bergkäse", "bergkaese", "cheddar", "halloumi", "burrata",
+        )):
+            product_type, role, prep = "ingredient", "cheese", "ready_to_use"
+            confidence = 0.9
+            evidence.append("dairy-cheese-product")
+        elif category == "fleisch-wurst-fisch" and any(x in name for x in (
+            "hähnchen", "huhn", "chicken", "lachs", "fisch", "tofu",
+            "hackfleisch", "shrimp", "prawn", "garnele", "garnelen",
+            "hering", "herring", "thunfisch", "tuna", "sardine",
+            "makrele", "mackerel", "ente", "duck", "pute", "puten",
+            "rind", "beef", "schwein", "pork", "lamm", "lamb",
+            "fleisch", "wurst", "mortadella", "kolbasz",
+        )):
+            product_type, role, prep = "ingredient", "protein", "raw"
+            confidence = 0.86
+            evidence.append("protein-ingredient")
+        elif any(x in name for x in (
+            "tomatensauce", "tomatensoße", "tomatensosse", "pizza sauce",
+            "pizzasauce", "tomatenmark", "tomato paste", "pesto", "sugo",
+            "teriyaki sauce", "teriyakisauce", "mango chutney", "remoulade",
+            "hollandaise", "chili sauce", "ketchup", "sojasauce", "soy sauce",
+            "fish sauce", "sambal oelek", "currypaste", "curry paste",
+        )):
+            product_type, role, prep, convenience = (
+                "prepared_component", "sauce", "ready_to_use", 4)
+            confidence = 0.9
+            evidence.append("culinary-sauce-component")
+        elif any(x in name for x in (
+            "paprikapulver", "paprika scharf gemahlen", "paprika edelsüß",
+            "paprika edelsuess", "five spice", "five-spice", "gewürzsalz",
+            "gewuerzsalz", "gewürzmischung", "gewuerzmischung",
+            "gewürzzubereitung", "gewuerzzubereitung", "gemüse allrounder",
+            "gemuese allrounder", "oregano", "thymian", "basilikum",
+            "rosmarin", "petersilie", "muskat", "pfeffer", "salz",
+            "kräuter", "kraeuter", "ingwer", "chiliflocken", "chilipulver",
+        )):
+            product_type, role, prep, convenience = (
+                "ingredient", "seasoning", "ready_to_use", 1)
+            confidence = 0.88
+            evidence.append("herb-or-seasoning")
+        elif any(x in name for x in ("öl", "oel", "oil")):
+            product_type, role, prep = "ingredient", "ingredient", "ready_to_use"
+            confidence = 0.86
+            evidence.append("cooking-oil-ingredient")
+        elif category == "tiefkuehlkost" and any(x in name for x in (
+            "gemüse mix", "gemüse-mix", "gemüsepfanne", "gemüse pfanne",
+            "gemüse ideen", "rahmspinat", "rahm spinat", "rahmgemüse",
+            "rahmgemuese", "buttergemüse", "buttergemuese",
+            "gemüsestäbchen", "gemuesestaebchen", "gemüse curry",
+            "gemüse curry style", "vegetable mix", "vegetable medley",
+        )):
+            product_type, role, prep, convenience = (
+                "prepared_component", "vegetable", "ready_to_heat", 4)
+            confidence = 0.9
+            evidence.append("prepared-frozen-vegetable-component")
+        elif any(x in name for x in (
+            "gemüse", "brokkoli", "spinat", "paprika", "tomaten",
+            "zucchini", "rucola", "salatmischung", "kürbis", "kuerbis",
+        )) and (category in {"obst-gemuese", "tiefkuehlkost", "fertiggerichte-konserven"}):
             product_type, role = "ingredient", "vegetable"
             prep = "frozen" if frozen else "raw"
             convenience = 2 if frozen else 1
-            confidence = 0.72
+            confidence = 0.9 if category == "obst-gemuese" else 0.84
             evidence.append("vegetable-ingredient")
-        elif any(x in name for x in ("hähnchen", "huhn", "chicken", "lachs", "fisch", "tofu", "hackfleisch", "shrimp", "prawn", "garnele", "garnelen")):
-            product_type, role, prep = "ingredient", "protein", "raw"
-            confidence = 0.76
-            evidence.append("protein-ingredient")
+        elif category == "obst-gemuese" and any(x in name for x in (
+            "kaki", "physalis", "pitahaya", "dragon fruit", "apfel", "banane",
+            "ananas", "mango", "birne", "granatapfel", "erdbeere",
+            "himbeere", "heidelbeere", "blaubeere", "traube", "orange",
+            "mandarine", "melone", "wassermelone", "pfirsich", "aprikose",
+            "pflaume", "kirsche", "brombeere", "kiwi",
+        )):
+            product_type, role, prep = "ingredient", "ingredient", "raw"
+            confidence = 0.9
+            evidence.append("fresh-fruit-ingredient")
 
     # When the deterministic rules have no specific profile, use the canonical
     # ingredient ontology to assign a useful culinary role. This only runs after
