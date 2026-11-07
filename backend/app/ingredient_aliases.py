@@ -130,6 +130,27 @@ _ALIAS_GROUPS = [
     ("sausage", "sausages", "wurst", "würstchen", "wuerstchen"),
     ("turkey", "pute", "putenfleisch"),
     ("wrap", "wraps", "tortilla", "tortillas", "weizentortilla"),
+    # Common REWE catalog compounds that were missing from the original vocabulary.
+    ("salami", "salami", "ringsalami", "salami sticks", "salami-sticks"),
+    ("caviar", "kaviar", "caviar"),
+    ("oyster mushroom", "austernpilz", "austernpilze"),
+    ("spinach", "babyspinat"),
+    ("pineapple", "ananas"),
+    ("kiwi", "kiwi", "kiwis", "kiwi gold"),
+    ("kefir", "kefir"),
+    ("ayran", "ayran"),
+    ("grana padano", "grana padano"),
+    ("gouda", "gouda", "goudakäse", "goudakaese"),
+    ("cheddar", "cheddar", "cheddarkäse", "cheddarkaese"),
+    ("cream cheese", "frischkäse", "frischkaese", "schmelzkäse", "schmelzkaese"),
+    ("bulgur", "bulgur"),
+    ("buckwheat", "buchweizen"),
+    ("agave syrup", "agavendicksaft"),
+    ("rapeseed oil", "rapsöl", "rapsoel", "rapsöl spray", "rapsoel spray"),
+    ("coconut oil", "kokosöl", "kokosoel"),
+    ("apple cider vinegar", "apfelessig"),
+    ("salad greens", "microgreens", "micro green"),
+    ("pasta", "buchstabennudeln", "müschelchen", "mueschelchen"),
 ]
 
 
