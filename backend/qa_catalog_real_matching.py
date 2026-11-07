@@ -21,11 +21,11 @@ RAW_INGREDIENT_QUERIES = (
     "ginger", "milk", "cream", "tomato", "potato", "chicken",
     "almond", "sugar", "orange", "lemon", "rice", "pasta",
     "garlic", "onion", "salmon", "shrimp", "cheese", "butter",
-    "yogurt", "vanilla", "spinach", "mushroom", "carrot", "olive oil",
+    "yogurt", "vanilla", "spinach", "mushroom", "carrot", "olive oil", "bell pepper",
 )
 
 BLOCKED_TYPES = {"non_food", "beverage", "snack"}
-BLOCKED_ROLES = {"soup", "salad", "dessert", "potato_side"}
+BLOCKED_ROLES = {"soup", "salad", "dessert", "potato_side", "seasoning_mix", "topping"}
 FINISHED_FOOD_MARKERS = (
     "schokolade", "chocolate", "chips", "cracker", "cookie", "keks",
     "praline", "bonbon", "pudding", "milchreis", "eiscreme",
