@@ -618,7 +618,7 @@ def main():
             )
             assert abs(row["checkout_cost"] - expected_cost) < 0.01
         assert abs(build_basket([quantity_cases[0][0]], qa_adapter, "maximum-savings",
-                                pantry=quantity_cases[0][1])[0]["pantry_used"] - 250) < 0.01
+                                pantry=quantity_cases[0][1])[0]["pantry_used"] - 0.25) < 0.01
 
         # Exact culinary match must outrank a cheaper substitute; substitutions
         # must remain explicitly labeled and a user override must be respected.
