@@ -246,6 +246,8 @@ def _qa_quantity(ingredient):
         return (2 if name in {"eggs", "tortilla", "garlic"} else 1, "unit")
     if name in {"olive oil", "soy sauce", "milk", "cream", "coconut milk"}:
         return (20 if name in {"olive oil", "soy sauce"} else 100, "ml")
+    if name == "mustard":
+        return (15, "ml")
     if name in {"salt", "black pepper", "oregano", "thyme", "nutmeg", "paprika powder", "chili flakes", "cinnamon", "baking powder"}:
         return (2, "g")
     if name == "honey":
