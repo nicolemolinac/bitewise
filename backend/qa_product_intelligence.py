@@ -65,6 +65,8 @@ def run():
     soup = profile("Erasco Tomaten-Cremesuppe 390ml", "fertiggerichte-konserven")
     assert soup.product_type == "prepared_component" and soup.culinary_role == "soup"
     assert not soup.is_complete_meal, "Ordinary soup must not be promoted to a complete dinner"
+    goulash_soup = profile("Erasco Ungarische Gulaschsuppe 390ml", "fertiggerichte-konserven")
+    assert goulash_soup.culinary_role == "soup" and not goulash_soup.is_complete_meal
     salad = profile("Golßener Spreewälder Nudelsalat 700g", "fertiggerichte-konserven")
     assert salad.product_type == "prepared_component" and salad.culinary_role == "salad"
     assert not salad.is_complete_meal, "A prepared salad side must not be promoted to a complete meal"
