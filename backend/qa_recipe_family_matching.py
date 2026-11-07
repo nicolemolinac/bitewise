@@ -651,6 +651,18 @@ def main():
         assert not classify_product({"name_original": "REWE Pizza Gewürz"}).is_complete_meal
         assert not classify_product({"name_original": "REWE Pizza Sauce"}).is_complete_meal
         assert not classify_product({"name_original": "REWE Ramen Nudeln"}).is_complete_meal
+        assert not classify_product({
+            "name_original": "Henglein Pizzateig XXL 550g",
+            "category": "fertiggerichte-konserven",
+        }).is_complete_meal
+        assert not classify_product({
+            "name_original": "Marziale Sfoglia Lasagne Blätter 250g",
+            "category": "fertiggerichte-konserven",
+        }).is_complete_meal
+        assert classify_product({
+            "name_original": "ja! Lasagne Bolognese 1 kg",
+            "category": "fertiggerichte-konserven",
+        }).is_complete_meal
         assert classify_product({"name_original": "REWE Gemüsebrühe"}).culinary_role == "broth"
         assert classify_product({"name_original": "REWE Oregano gerebelt"}).culinary_role == "seasoning"
         assert classify_product({"name_original": "REWE Bio Räuchertofu"}).product_type == "prepared_component"
