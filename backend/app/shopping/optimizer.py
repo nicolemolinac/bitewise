@@ -1,6 +1,8 @@
 import math
 from collections import defaultdict
 
+from ..ingredient_aliases import canonical_ingredient_terms
+
 
 STRATEGIES = {
     "maximum-savings",
@@ -13,7 +15,7 @@ STRATEGIES = {
 
 
 def consolidate(meals, servings_map):
-    grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": []})
+    grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": [], "source_ingredient_names": [], "ingredient": None})
     canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
     for meal in meals:
         servings = max(0.1, float(servings_map.get(meal["id"], 2) or 2))
@@ -29,16 +31,23 @@ def consolidate(meals, servings_map):
             else:
                 # Keep semantically different units (e.g. cloves vs pieces) separate.
                 normalized_quantity = float(quantity)
-            key = (name.lower().strip(), normalized_unit)
+            canonical_terms = canonical_ingredient_terms(name)
+            canonical_name = canonical_terms[0] if len(canonical_terms) == 1 else name.lower().strip()
+            key = (canonical_name, normalized_unit)
             row = grouped[key]
+            if row["ingredient"] is None:
+                row["ingredient"] = name
             row["quantity"] += normalized_quantity * factor
             row["source_meals"].append(meal["name"])
+            row["source_ingredient_names"].append(name)
     return [
         {
-            "ingredient": ingredient,
+            "ingredient": value["ingredient"],
+            "canonical_ingredient": ingredient,
             "quantity": round(value["quantity"], 2),
             "unit": unit,
             "source_meals": list(dict.fromkeys(value["source_meals"])),
+            "source_ingredient_names": list(dict.fromkeys(value["source_ingredient_names"])),
         }
         for (ingredient, unit), value in grouped.items()
     ]
@@ -51,6 +60,7 @@ _UNIT_ALIASES = {
     "liter": "l", "litre": "l", "liters": "l", "litres": "l", "l": "l",
     "stück": "piece", "stuck": "piece", "pcs": "piece", "pc": "piece",
     "pieces": "piece", "piece": "piece", "unit": "piece", "units": "piece",
+    "clove": "clove", "cloves": "clove",
     "tbsp": "tbsp", "tablespoon": "tbsp", "tablespoons": "tbsp",
     "tsp": "tsp", "teaspoon": "tsp", "teaspoons": "tsp",
     "cup": "cup", "cups": "cup",
