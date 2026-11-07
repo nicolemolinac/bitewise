@@ -57,7 +57,7 @@ def main():
     ]
     cheapest = basket(value_products, "maximum-savings")
     assert cheapest["product"]["id"] == "large", cheapest
-    assert cheapest["checkout_cost"] == 2.00
+    assert cheapest["checkout_cost"] == 2.00\n    assert cheapest["badge"] == "💰 Cheapest", cheapest
 
     # Plan Efficiency must trade a small checkout premium for materially less
     # package waste when the objective changes the preferred candidate.
@@ -68,7 +68,7 @@ def main():
     best_value = basket(efficiency_products, "best-value")
     plan_efficiency = basket(efficiency_products, "plan-efficiency")
     assert best_value["product"]["id"] == "wasteful", best_value
-    assert plan_efficiency["product"]["id"] == "right-size", plan_efficiency
+    assert plan_efficiency["product"]["id"] == "right-size", plan_efficiency\n    assert plan_efficiency["badge"] == "🔥 Best for Plan", plan_efficiency
 
     # Premium must prefer an actual premium signal when the price difference
     # is within the intended preference trade-off.
@@ -78,7 +78,7 @@ def main():
     ]
     premium = basket(premium_products, "premium")
     assert premium["product"]["id"] == "bio", premium
-    assert premium["badge"] in {"✨ Premium", "♻️ Low Waste"}, premium
+    assert premium["badge"] == "✨ Premium", premium
 
     # Fractional ingredients: 0.2g needed, 1g package means 0.8g waste,
     # therefore 400% of requested quantity, not 80%.
