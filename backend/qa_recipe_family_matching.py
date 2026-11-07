@@ -605,7 +605,7 @@ def main():
         qa_adapter = QuantityAdapter()
         quantity_cases = [
             ({"ingredient": "rice", "quantity": 1, "unit": "kg", "source_meals": ["Rice bowl"]},
-             {"rice": {"quantity": 0.25, "unit": "kg"}}, 2, 1.5, 10),
+             {"rice": {"quantity": 0.25, "unit": "kg"}}, 2, 3.0, 10),
             ({"ingredient": "milk", "quantity": 1, "unit": "l", "source_meals": ["Pancakes"]},
              {}, 2, 1.8, 11),
         ]
