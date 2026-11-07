@@ -16,6 +16,7 @@ from app.database import (
     AppSetting, CatalogRun, Product, SessionLocal, _auto_import_rewe_csv_snapshot,
     _snapshot_pack_pricing, _snapshot_package_size, _snapshot_package_unit,
 )
+from app.ingredient_aliases import canonical_ingredient_terms
 
 
 def main():
@@ -29,6 +30,17 @@ def main():
     assert _snapshot_package_size("Bonduelle Duo-Pack 2x140g 2x280g", 560, "g") == 280
     assert _snapshot_package_size("ja! Erbsen 3x140g 3x420g", 1260, "g") == 420
     assert _snapshot_package_size("Dovgan Eiscreme 6x120ml 6x130ml", 780, "ml") == 720
+
+    # Full-catalog audit vocabulary regressions from previously unmapped REWE titles.
+    assert "salami" in canonical_ingredient_terms("Aoste Luftgetrocknete Ringsalami 250g")
+    assert "spinach" in canonical_ingredient_terms("Babyspinat 250g")
+    assert "oyster mushroom" in canonical_ingredient_terms("Bio Austernpilze 200g")
+    assert "grana padano" in canonical_ingredient_terms("Agriform Bio Grana Padano Keil 150g")
+    assert "kefir" in canonical_ingredient_terms("Activia Kefir mild 345g")
+    assert "bulgur" in canonical_ingredient_terms("Ahama Bulgur 500g")
+    assert "agave syrup" in canonical_ingredient_terms("Alnatura Bio Agavendicksaft 250ml")
+    assert "rapeseed oil" in canonical_ingredient_terms("Albaöl Rapsöl mit Buttergeschmack 0,75l")
+    assert "apple cider vinegar" in canonical_ingredient_terms("Alnatura Bio Apfelessig naturtrüb 0,5l")
 
     # Full-catalog audit regressions: malformed units, dual-unit multipacks,
     # integer unit prices and German Pfand deposits.
