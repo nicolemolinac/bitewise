@@ -141,13 +141,15 @@ def main():
             types[profile.product_type] += 1
             roles[profile.culinary_role] += 1
             counters[f"confidence:{profile.confidence:.2f}"] += 1
-            # Measure ingredient vocabulary coverage only on food candidates.
-            # Hygiene, pet, household and baby products must not inflate coverage.
-            canonical_terms = (
-                canonical_ingredient_terms(name)
-                if profile.product_type not in {"non_food", "beverage", "snack"} else []
+            # Measure ingredient vocabulary only on products that can enter
+            # recipe matching. Drinks, snacks, full meals and prepared soups,
+            # salads and desserts are edible but not raw recipe ingredients.
+            culinary_candidate = (
+                profile.product_type in {"ingredient", "prepared_component"}
+                and profile.culinary_role not in {"soup", "salad", "dessert", "complete_meal"}
             )
-            if profile.product_type not in {"non_food", "beverage", "snack"}:
+            canonical_terms = canonical_ingredient_terms(name) if culinary_candidate else []
+            if culinary_candidate:
                 if canonical_terms:
                     canonical_hits += 1
                 else:
