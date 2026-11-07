@@ -372,6 +372,11 @@ def ingredient_product_match_type(
     ):
         return None
 
+    # Frozen Schlemmerfilet products are prepared fish portions. Their toppings
+    # (broccoli, spinach, mustard, almonds, cheese) are not separate ingredients.
+    if "schlemmerfilet" in title:
+        return "substitute" if needle in {"fish", "fisch", "white fish"} else None
+
     # Descriptive claims are not ingredient evidence. In particular, sugar-free
     # drinks contain the word "sugar" but are not a source of sugar.
     if needle == "sugar" and any(marker in padded_title for marker in (
