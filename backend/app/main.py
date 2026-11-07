@@ -146,9 +146,22 @@ class CatalogAdapter:
    # available when the recipe explicitly asks for tortellini or ravioli.
    if needle in {'tortellini','ravioli'}:
     blocked_roles.discard('filled_pasta')
+   plant_milk_markers = (
+    'haferdrink','hafer drink','sojadrink','soja drink','mandeldrink','mandel drink',
+    'kokosdrink','kokos drink','reisdrink','reis drink','erbsendrink','mandelmilch',
+   )
+   is_plant_milk_substitute = (
+    needle == 'milk'
+    and match_type == 'substitute'
+    and any(marker in normalize_ingredient(title) for marker in plant_milk_markers)
+   )
    if (
     intelligence.get('is_complete_meal')
-    or intelligence.get('product_type') in {'non_food','beverage','snack'}
+    or intelligence.get('product_type') in {'non_food','snack'}
+    or (
+     intelligence.get('product_type') == 'beverage'
+     and not is_plant_milk_substitute
+    )
     or intelligence.get('culinary_role') in blocked_roles
    ):continue
    item=product_dict(product)
@@ -162,8 +175,25 @@ class CatalogAdapter:
    -float(item['intelligence'].get('confidence') or 0),
    float(item.get('price') or 1e12),
   ))
-  self._search_cache[needle]=[dict(item) for item in candidates]
-  return [dict(item) for item in candidates]
+  # Scraped snapshots can contain the same SKU more than once under different
+  # snapshot IDs. Remove only exact product/pack/price duplicates; retain rows
+  # with different prices so conflicting price observations remain visible.
+  deduplicated=[]
+  seen_fingerprints=set()
+  for item in candidates:
+   fingerprint=(
+    normalize_ingredient(item.get('name_normalized') or item.get('name_original') or ''),
+    round(float(item.get('package_size') or 0), 4),
+    str(item.get('package_unit') or '').lower(),
+    round(float(item.get('price') or 0), 4) if item.get('price') is not None else None,
+    round(float(item.get('price_per_unit') or 0), 8) if item.get('price_per_unit') is not None else None,
+    str(item.get('category') or '').lower(),
+   )
+   if fingerprint in seen_fingerprints:continue
+   seen_fingerprints.add(fingerprint)
+   deduplicated.append(item)
+  self._search_cache[needle]=[dict(item) for item in deduplicated]
+  return [dict(item) for item in deduplicated]
 
 class EventIn(BaseModel):meal_id:str;action:str|None=None;event:str|None=None
 class PantryIn(BaseModel):ingredient:str;quantity:float=1;unit:str='unit';confidence:str='user_confirmed';source:str='manual';notes:str|None=None;expiry_date:str|None=None
