@@ -42,7 +42,8 @@ def consolidate(meals, servings_map):
             row["source_ingredient_names"].append(name)
     return [
         {
-            "ingredient": value["ingredient"],
+            "ingredient": ingredient,
+            "display_ingredient": value["ingredient"],
             "canonical_ingredient": ingredient,
             "quantity": round(value["quantity"], 2),
             "unit": unit,
