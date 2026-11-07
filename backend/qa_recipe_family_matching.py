@@ -19,7 +19,7 @@ from app.database import Product, SessionLocal
 # Import the production entrypoint first: it installs the strict multilingual
 # CatalogAdapter used by app.server:app and deliberately disables demo fallbacks.
 import app.server as production_server  # noqa: F401
-from app.main import CatalogAdapter
+from app.main import CatalogAdapter, catalog_product_fingerprint
 from app.catalog.intelligence import classify_product
 from app.ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type
 from app.shopping.optimizer import build_basket, consolidate
@@ -303,19 +303,7 @@ def main():
 
         # Search-level checks: exact duplicate snapshots collapse, plant milk remains a substitute.
         passata_results = adapter.search("tomato passata")
-        passata_fingerprints = [
-            (
-                " ".join(str(row.get("name_original") or row.get("name_normalized") or "").lower().split()),
-                round(float(row.get("package_size") or 0), 4),
-                str(row.get("package_unit") or "").lower(),
-                round(float(row.get("price") or 0), 4) if row.get("price") is not None else None,
-                round(float(row.get("price_per_unit") or 0), 8) if row.get("price_per_unit") is not None else None,
-                str(row.get("category") or "").lower(),
-                str(row.get("brand") or "").lower(),
-                str(row.get("product_url") or ""),
-            )
-            for row in passata_results
-        ]
+        passata_fingerprints = [catalog_product_fingerprint(row) for row in passata_results]
         assert len(passata_fingerprints) == len(set(passata_fingerprints)), (
             "CatalogAdapter.search must remove exact duplicate snapshot rows"
         )
