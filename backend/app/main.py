@@ -136,7 +136,7 @@ class CatalogAdapter:
    # Complete dishes and non-food SKUs are never culinary ingredient matches.
    # This also protects the matcher when a non-food product title contains an
    # ingredient word such as chicken, milk or lemon.
-   if intelligence.get('is_complete_meal') or intelligence.get('product_type') in {'non_food','beverage','snack'} or intelligence.get('culinary_role') in {'soup','salad','dessert'}:continue
+   if intelligence.get('is_complete_meal') or intelligence.get('product_type') in {'non_food','beverage','snack'} or intelligence.get('culinary_role') in {'soup','salad','dessert','potato_side'}:continue
    item=product_dict(product)
    item['ingredient_match_type']=match_type
    item['intelligence']=intelligence
