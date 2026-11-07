@@ -67,6 +67,8 @@ def main():
                     "chicken", "oele-sossen-gewuerze")
         add_product(db, "protein-bar", "Premier Protein Riegel Chocolate Caramel 40g",
                     "chocolate", "kaese-eier-molkerei")
+        add_product(db, "protein-dessert", "Ehrmann High Protein Chocolate & Topping 200g",
+                    "chocolate", "kaese-eier-molkerei")
         add_product(db, "rice-pudding", "Dr. Oetker High Protein Milchreis 400g",
                     "rice", "kaese-eier-molkerei")
         add_product(db, "tomato-soup", "Erasco Tomaten-Cremesuppe 390ml",
@@ -89,6 +91,7 @@ def main():
         assert "chocolate" not in ingredient_context, (
             "A protein bar must not be sent as raw chocolate ingredient evidence"
         )
+        assert "protein-dessert" not in ingredient_context
         for forbidden in ("rice", "tomato", "potato"):
             assert forbidden not in ingredient_context, (
                 f"Prepared desserts/soups/salads must not send {forbidden} as raw ingredient context"
@@ -113,6 +116,11 @@ def main():
             item["external_id"] == "protein-bar"
             for item in adapter.search("chocolate")
         ), "Production catalog matching must reject protein bars as raw chocolate"
+
+        assert not any(
+            item["external_id"] == "protein-dessert"
+            for item in adapter.search("chocolate")
+        ), "Production catalog matching must reject protein desserts as raw chocolate"
 
         for ingredient, blocked_id in (
             ("rice", "rice-pudding"),
