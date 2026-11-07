@@ -319,7 +319,13 @@ def ingredient_product_match_type(
         " biscuit ", " biscuits ", " popcorn ", " kaugummi ", " chewing gum ",
         " jelly bean ", " waffel ", " wafers ",
     )
-    title_is_finished_food = any(marker in padded_title for marker in finished_food_markers)
+    title_is_finished_food = (
+        any(marker in padded_title for marker in finished_food_markers)
+        or any(term in title for term in (
+            "schokolade", "schokoladen", "chocolate", "chocolates",
+            "schokoriegel", "chocolate bar",
+        ))
+    )
     request_is_finished_food = any(
         marker.strip() in needle.split() for marker in finished_food_markers
     )
