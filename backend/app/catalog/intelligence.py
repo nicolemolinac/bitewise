@@ -10,7 +10,9 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-CLASSIFIER_VERSION = "1.16.0"
+from ..ingredient_aliases import canonical_ingredient_terms
+
+CLASSIFIER_VERSION = "1.17.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -456,6 +458,79 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep = "ingredient", "protein", "raw"
             confidence = 0.76
             evidence.append("protein-ingredient")
+
+    # When the deterministic rules have no specific profile, use the canonical
+    # ingredient ontology to assign a useful culinary role. This only runs after
+    # snack, beverage, dessert, prepared-meal and component rules above.
+    if product_type == "ingredient" and confidence <= 0.58:
+        canonical_terms = set(canonical_ingredient_terms(name))
+        role_groups = {
+            "protein": {
+                "chicken", "chicken breast", "beef", "ground beef", "pork",
+                "duck", "goose", "lamb", "wild boar", "tempeh", "seitan",
+                "plant based mince", "cod", "pollock", "mackerel", "trout",
+                "sea bream", "octopus", "surimi", "salmon", "tuna", "shrimp",
+                "tofu", "turkey", "ham", "sausage", "meatballs", "kasseler",
+                "liver sausage", "veal", "venison", "herring", "anchovy",
+                "mussels", "crab", "prawns", "prosciutto", "smoked salmon",
+                "smoked trout", "caviar",
+            },
+            "cheese": {
+                "cheese", "mozzarella", "parmesan", "feta", "provolone",
+                "berg cheese", "camembert", "cream cheese", "cream cheese spread",
+                "cottage cheese", "blue cheese", "grana padano", "gouda",
+                "cheddar", "emmental", "halloumi", "burrata", "manchego",
+                "limburger", "brie", "skyr",
+            },
+            "vegetable": {
+                "pomegranate", "kale", "brussels sprouts", "pumpkin",
+                "green beans", "red cabbage", "leek", "parsnip", "chicory",
+                "fennel", "romaine lettuce", "iceberg lettuce", "lamb's lettuce",
+                "oyster mushroom", "green onion", "spring onion", "celery",
+                "celeriac", "potato", "sweet potato", "tomato", "cherry tomato",
+                "cucumber", "onion", "red onion", "garlic", "carrot",
+                "bell pepper", "zucchini", "eggplant", "broccoli", "cauliflower",
+                "spinach", "lettuce", "mushroom", "avocado", "ginger",
+                "beetroot", "olive", "gherkin", "artichoke", "asparagus",
+                "radish", "kohlrabi", "cabbage", "rutabaga", "arugula",
+                "garden cress", "chanterelle", "sugar snap peas", "bean sprouts",
+                "bamboo shoots", "sauerkraut",
+            },
+            "starch": {
+                "pasta", "tagliatelle", "linguine", "tortellini", "penne",
+                "lasagne sheets", "trofie pasta", "spaghetti", "noodles",
+                "couscous", "rice", "rice noodles", "gnocchi", "bread",
+                "bread roll", "rye bread", "sourdough bread", "flour", "oats",
+                "semolina", "rye flour", "spelt", "bulgur", "buckwheat",
+                "quinoa", "polenta", "potato puree", "potato dumpling",
+            },
+            "seasoning": {
+                "basil", "oregano", "thyme", "rosemary", "parsley", "chives",
+                "ginger", "dill", "sage", "chili flakes", "chili powder",
+                "nutmeg", "italian seasoning", "salt", "black pepper",
+                "paprika powder", "cinnamon", "vanilla", "coriander", "mint",
+                "savory", "five spice",
+            },
+            "sauce": {
+                "tomato passata", "pesto", "curry paste", "miso paste",
+                "fish sauce", "rice vinegar", "mango chutney", "chili sauce",
+                "hummus", "tahini", "mayonnaise", "soy sauce", "tomato sauce",
+                "tomato paste", "coconut milk", "apple cider vinegar",
+                "remoulade", "hollandaise sauce", "pasta sauce",
+            },
+            "legume": {
+                "chickpea", "bean", "kidney beans", "lentil", "peas",
+                "edamame", "soybean", "falafel",
+            },
+        }
+        inferred_role = next(
+            (candidate_role for candidate_role, terms in role_groups.items()
+             if canonical_terms.intersection(terms)),
+            "ingredient",
+        )
+        role = inferred_role
+        confidence = 0.78
+        evidence.append("canonical-ingredient-semantic-profile")
 
     if not families:
         families = []
