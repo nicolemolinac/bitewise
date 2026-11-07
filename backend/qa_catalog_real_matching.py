@@ -79,6 +79,20 @@ def main():
             for title in chocolate_titles
         ), "Chocolate search must retain real baking/cooking chocolate products"
 
+        # Filled pasta must not leak into generic pasta matches, but it is
+        # valid when a recipe explicitly requests tortellini.
+        generic_pasta = adapter.search("pasta")
+        assert not any(
+            (item.get("intelligence") or {}).get("culinary_role") == "filled_pasta"
+            for item in generic_pasta
+        ), "Filled pasta must not be a generic dry-pasta match"
+        tortellini = adapter.search("tortellini")
+        assert any(
+            "tortellini" in str(item.get("name_original") or "").lower()
+            and (item.get("intelligence") or {}).get("culinary_role") == "filled_pasta"
+            for item in tortellini
+        ), "Explicit tortellini search must retain genuine filled-pasta products"
+
         # Sanity: the full catalog must still yield genuine ingredient candidates.
         for ingredient in ("chicken", "tomato", "almond", "pasta", "milk", "mustard", "red onion"):
             assert results[ingredient] > 0, (
