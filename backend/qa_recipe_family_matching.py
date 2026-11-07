@@ -696,6 +696,14 @@ def main():
             "name_original": "Kaki 1 Stück",
             "category": "obst-gemuese",
         }).culinary_role == "ingredient"
+        assert classify_product({
+            "name_original": "Appel Zarte Filets vom Hering Tomaten-Creme 200g",
+            "category": "fertiggerichte-konserven",
+        }).culinary_role == "protein"
+        assert classify_product({
+            "name_original": "Frosta High Protein Schlemmerfilet Brokkoli Senf 360g",
+            "category": "tiefkuehlkost",
+        }).product_type == "prepared_component"
         assert classify_product({"name_original": "Kühne Apfelrotkohl 650g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
         assert not classify_product({"name_original": "REWE Ramen Nudeln"}).is_complete_meal
         assert not classify_product({
