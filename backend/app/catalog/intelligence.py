@@ -185,6 +185,14 @@ def classify_product(product: dict) -> ProductProfile:
         frozen_skillet_marker = True
     if frozen_skillet_marker and not meal_hit:
         meal_hit = "composed-frozen-skillet-meal"
+    frozen_composed_meal = frozen and any(term in name for term in (
+        "bolognese", "red curry", "rotes curry", "hähnchen curry",
+        "huhn curry", "paella", "risotto",
+    )) and not any(term in name for term in (
+        "sauce", "soße", "sosse", "gewürz", "gewuerz", "paste",
+    ))
+    if frozen_composed_meal and not meal_hit:
+        meal_hit = "composed-frozen-main-dish"
     if meal_hit or category_meal:
         product_type, role, prep, convenience, complete = (
             "ready_meal", "complete_meal", "ready_to_heat", 5, True)
