@@ -293,6 +293,7 @@ _ALIAS_GROUPS = [
     ("tomato ketchup", "ketchup", "tomatenketchup"),
     ("soybean", "sojabohnen", "sojabohne"),
     ("artichoke", "artischocke", "artischocken", "artischockenherzen"),
+    ("capers", "kapern"),
     ("asparagus", "spargel", "spargelstangen"),
     ("cabbage", "chinakohl", "weißkohl", "weisskohl", "spitzkohl", "wirsing"),
     ("radish", "radieschen", "rettich"),
