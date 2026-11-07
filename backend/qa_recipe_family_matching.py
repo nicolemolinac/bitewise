@@ -301,6 +301,32 @@ def main():
         assert catalog_count >= 1000, f"Expected full REWE snapshot, got {catalog_count}"
         adapter = CatalogAdapter(db)
 
+        # Multi-recipe planning must consolidate shared ingredients and AI synonyms.
+        multi_meals = [
+            _recipe_meal("Creamy mushroom tagliatelle", RECIPES["Creamy mushroom tagliatelle"]),
+            _recipe_meal("Pasta arrabbiata", RECIPES["Pasta arrabbiata"]),
+            _recipe_meal("Spinach ricotta tortellini", RECIPES["Spinach ricotta tortellini"]),
+        ]
+        multi_requirements = consolidate(
+            multi_meals, {meal["id"]: 2 for meal in multi_meals}
+        )
+        multi_keys = [
+            (row["canonical_ingredient"], row["unit"]) for row in multi_requirements
+        ]
+        assert len(multi_keys) == len(set(multi_keys)), "Multi-recipe shopping list contains duplicate canonical ingredient rows"
+        shared_garlic = next(row for row in multi_requirements if row["canonical_ingredient"] == "garlic")
+        assert shared_garlic["quantity"] == 6, f"Shared garlic quantity should sum across 3 recipes: {shared_garlic}"
+        assert len(shared_garlic["source_meals"]) == 3, "Shared ingredient should retain all source recipes"
+
+        synonym_requirements = consolidate([
+            {"id": "syn-a", "name": "Garlic pasta", "base_servings": 2, "ingredients": [["garlic", 2, "clove"]]},
+            {"id": "syn-b", "name": "Garlic soup", "base_servings": 2, "ingredients": [["garlic cloves", 3, "cloves"]]},
+        ], {"syn-a": 2, "syn-b": 2})
+        assert len(synonym_requirements) == 1, f"Garlic synonyms should consolidate into one row: {synonym_requirements}"
+        assert synonym_requirements[0]["quantity"] == 5
+        assert synonym_requirements[0]["canonical_ingredient"] == "garlic"
+        assert set(synonym_requirements[0]["source_ingredient_names"]) == {"garlic", "garlic cloves"}
+
         base_total = base_matched = 0
         base_missing = {}
         base_rows = {}
