@@ -136,7 +136,8 @@ def _catalog_context(query: str = "", limit: int = 60, max_chars: int = 1600, in
             complete_meal = profile.is_complete_meal
 
             # Finished drinks, snacks and non-food SKUs are not ingredient signals.
-            if product_type in {"non_food", "beverage", "snack"}:
+            if (product_type in {"non_food", "beverage", "snack"}
+                    or profile.culinary_role in {"soup", "salad", "dessert"}):
                 continue
 
             if complete_meal:
