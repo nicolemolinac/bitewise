@@ -39,6 +39,8 @@ def run():
     assert candy.product_type == "snack" and candy.culinary_role == "snack"
     protein_bar = profile("Premier Protein Riegel Chocolate Caramel 40g", "kaese-eier-molkerei")
     assert protein_bar.product_type == "snack" and protein_bar.culinary_role == "snack"
+    protein_dessert = profile("Ehrmann High Protein Chocolate & Topping 200g", "kaese-eier-molkerei")
+    assert protein_dessert.product_type == "prepared_component" and protein_dessert.culinary_role == "dessert"
     chia = profile("Alnatura Bio Chia Samen 200g", "suesses-salziges")
     assert chia.product_type == "ingredient", "Plain seeds remain eligible as recipe ingredients"
 
