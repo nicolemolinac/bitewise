@@ -321,9 +321,12 @@ def products(q:str='',ingredient:str|None=None):
  db=SessionLocal()
  try:
   query=db.query(Product)
-  if ingredient:query=query.filter(Product.ingredient==normalize_ingredient(ingredient))
+  if ingredient:
+   matched=CatalogAdapter(db).search(ingredient)
+   matched_ids=[item.get('id') for item in matched if item.get('id') is not None]
+   query=query.filter(Product.id.in_(matched_ids)) if matched_ids else query.filter(Product.id==-1)
   if q:
-   needle=q.lower().strip();query=query.filter(or_(Product.name_normalized.ilike(f'%{needle}%'),Product.name_original.ilike(f'%{needle}%'),Product.translated_name.ilike(f'%{needle}%'),Product.brand.ilike(f'%{needle}%'),Product.ingredient.ilike(f'%{needle}%')))
+   needle=q.lower().strip();query=query.filter(or_(Product.name_normalized.ilike(f'%{needle}%'),Product.name_original.ilike(f'%{needle}%'),Product.translated_name.ilike(f'%{needle}%'),Product.brand.ilike(f'%{needle}%')))
   return {'products':[product_dict(p) for p in query.limit(80).all()]}
  finally:db.close()
 @app.get('/api/products/search')
@@ -517,7 +520,10 @@ def purchase(payload:PurchaseIn):
  try:
   product=db.get(Product,payload.product_id)
   if not product:raise HTTPException(404,'Product not found')
-  ingredient=normalize_ingredient(payload.ingredient or product.ingredient);amount=product.package_size*payload.packs;item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first()
+  inferred=canonical_ingredient_terms(product.name_original or product.name_normalized)
+  ingredient=normalize_ingredient(payload.ingredient or (inferred[0] if inferred else ''))
+  if not ingredient:raise HTTPException(422,'A canonical ingredient is required when this product title cannot identify one safely.')
+  amount=product.package_size*payload.packs;item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first()
   if item and item.unit!=product.package_unit:raise HTTPException(409,f'Pantry already tracks {ingredient} in {item.unit}; cannot safely merge {product.package_unit}.')
   if item:item.quantity+=amount;item.confidence='estimated';item.source='purchase'
   else:db.add(PantryItem(ingredient=ingredient,quantity=amount,unit=product.package_unit,confidence='estimated',source='purchase'))
