@@ -22,7 +22,7 @@ from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
 from .ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type, ingredient_search_terms
 from .catalog.intelligence import CLASSIFIER_VERSION, classify_product
-from .shopping.optimizer import STRATEGIES, _convert_quantity, build_basket, consolidate
+from .shopping.optimizer import STRATEGIES, _convert_quantity, build_basket, consolidate, summarize_waste
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 app = FastAPI(title='Bitewise API', version='2.0')
@@ -616,7 +616,7 @@ def shopping(payload:BasketIn,request:Request):
      selected.append(meal);selected_ids.add(meal['id'])
   if not selected:raise HTTPException(422,'Select at least one valid saved recipe')
   servings_map={m['id']:max(0.1,float(payload.servings.get(m['id'],2))) for m in selected};requirements=consolidate(selected,servings_map)
-  overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['checkout_cost'] for x in basket),2);consumed_total=round(sum(x['consumed_cost'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'checkout_total':total,'consumed_cost':consumed_total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'checkout_cost_per_serving':round(total/total_servings,2) if total_servings else 0,'consumed_cost_per_serving':round(consumed_total/total_servings,2) if total_servings else 0,'waste':waste,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
+  overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['checkout_cost'] for x in basket),2);consumed_total=round(sum(x['consumed_cost'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);waste_by_unit=summarize_waste(basket);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'checkout_total':total,'consumed_cost':consumed_total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'checkout_cost_per_serving':round(total/total_servings,2) if total_servings else 0,'consumed_cost_per_serving':round(consumed_total/total_servings,2) if total_servings else 0,'waste':waste,'waste_by_unit':waste_by_unit,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
  finally:db.close()
 def serialize_planned_meal(row):
  meal=meal_by_id(row.meal_id);return {'id':row.id,'plan_id':row.plan_id,'meal_id':row.meal_id,'day_index':row.day_index,'meal_type':row.meal_type,'servings':row.servings,'status':row.status,'meal':meal}
