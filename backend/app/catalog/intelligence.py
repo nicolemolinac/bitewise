@@ -385,7 +385,7 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep, convenience = "prepared_component", "protein", "ready_to_eat", 4
             confidence = 0.88
             evidence.append("cooked-protein-component")
-        elif any(x in name for x in ("nudeln", "pasta", "spaghetti", "penne", "fusilli", "trofie", "tagliatelle", "linguine", "tortellini", "ravioli")):
+        elif any(x in name for x in ("nudeln", "pasta", "spaghetti", "penne", "fusilli", "trofie", "tagliatelle", "linguine", "tortellini", "ravioli", "farfalle", "rigatoni", "orzo", "maccheroni", "orecchiette")):
             product_type, role, prep, convenience = "ingredient", "starch", "dry", 1
             confidence = 0.91
             evidence.append("dry-pasta-ingredient")
@@ -414,7 +414,7 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep, convenience = "ingredient", "cheese", "ready_to_use", 1
             confidence = 0.88
             evidence.append("cheese-ingredient")
-        elif any(x in name for x in ("kartoffelsalat", "bratkartoffeln", "vorgekochte kartoffeln", "gekochte kartoffeln")):
+        elif any(x in name for x in ("kartoffelsalat", "bratkartoffeln", "vorgekochte kartoffeln", "gekochte kartoffeln", "kartoffelpüree", "kartoffelpueree", "kartoffelbrei", "kartoffelklöße", "kartoffelkloesse")):
             product_type, role, prep, convenience = "prepared_component", "starch", "ready_to_eat", 4
             confidence = 0.84
             evidence.append("prepared-potato-component")
@@ -433,7 +433,7 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep, convenience = "prepared_component", "legume", "ready_to_use", 3
             confidence = 0.82
             evidence.append("cooked-legume-component")
-        elif any(x in name for x in ("gemüse", "brokkoli", "spinat", "paprika", "tomaten", "zucchini")):
+        elif any(x in name for x in ("gemüse", "brokkoli", "spinat", "paprika", "tomaten", "zucchini", "rucola", "salatmischung", "kürbis", "kuerbis", "kaki", "pitahaya", "physalis")):
             product_type, role = "ingredient", "vegetable"
             prep = "frozen" if frozen else "raw"
             convenience = 2 if frozen else 1
