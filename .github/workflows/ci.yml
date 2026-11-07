@@ -108,6 +108,8 @@ jobs:
         run: python qa_shopping_strategy_semantics.py
       - name: 30-day breakfast, lunch, dinner and REWE basket simulation QA
         run: python qa_monthly_plan.py
+      - name: Second 30-day two-person menu rotation and serving-scaling simulation QA
+        run: python qa_monthly_plan_second_scenario.py
       - name: Shopping basket optimizer regression QA
         run: python qa_optimizer.py
       - name: REWE package price and multipack normalization QA
