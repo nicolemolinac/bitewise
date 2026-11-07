@@ -342,12 +342,21 @@ def ingredient_product_match_type(
 
     # Honey-mustard sauces, dressings, pickles and prepared dishes contain
     # mustard as a flavor, not as a usable mustard condiment ingredient.
-    if needle == "mustard" and any(marker in padded_title for marker in (
-        " honey mustard sauce ", " mustard sauce ", " senfsauce ",
-        " senf sauce ", " senf dressing ", " senfgurken ",
-        " senfgurke ", " senf dill sauce ", " honig senf sauce ",
-        " senf eier ",
-    )):
+    if needle == "mustard" and (
+        any(marker in padded_title for marker in (
+            " honey mustard sauce ", " mustard sauce ", " senfsauce ",
+            " senf sauce ", " senf dressing ", " senfgurken ",
+            " senfgurke ", " senf dill sauce ", " honig senf sauce ",
+            " senf eier ",
+        ))
+        or (
+            any(term in padded_title for term in (" senf ", " mustard "))
+            and any(marker in title for marker in (
+                "schlemmerfilet", "filet", "fisch", "fish", "lachs",
+                "salmon", "garnelen", "shrimp",
+            ))
+        )
+    ):
         return None
 
     # Descriptive claims are not ingredient evidence. In particular, sugar-free
