@@ -361,6 +361,19 @@ def _build_convenience_options(db, recipe: dict) -> dict:
     if any(term in ingredient_text for term in ("salmon", "shrimp", "fish", "tuna")):
         required_title_groups.append(("lachs", "salmon", "garnelen", "shrimp", "fisch", "fish", "thunfisch", "tuna"))
 
+    animal_protein_terms = (
+        "chicken", "hähnchen", "haehnchen", "beef", "rind", "pork", "schwein",
+        "bacon", "speck", "ham", "schinken", "sausage", "wurst", "meat",
+        "salmon", "lachs", "shrimp", "garnelen", "fish", "fisch", "tuna",
+        "thunfisch", "duck", "ente", "lamb", "lamm", "turkey", "truthahn",
+        "mussels", "miesmuscheln", "sardine", "sardinen",
+    )
+    vegetarian_recipe = not any(term in ingredient_text for term in animal_protein_terms)
+    plant_based_title_terms = (
+        "vegan", "vegetar", "pflanzlich", "plant-based", "plant based",
+        "gemüse", "gemuese", "kichererbsen", "tofu",
+    )
+
     ready_products = []
     if ready_terms:
         for product in catalog_rows:
@@ -369,6 +382,10 @@ def _build_convenience_options(db, recipe: dict) -> dict:
             profile = profile_of(product)
             title = title_of(product).lower()
             if not profile.is_complete_meal or not any(term in title for term in ready_terms):
+                continue
+            if vegetarian_recipe and any(term in title for term in animal_protein_terms) and not any(
+                term in title for term in plant_based_title_terms
+            ):
                 continue
             if required_title_groups and not all(
                 any(term in title for term in group) for group in required_title_groups
