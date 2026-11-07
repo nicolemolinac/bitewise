@@ -198,7 +198,8 @@ def _shopping_context():
                     "category": product.category,
                 })
             )
-            if profile.product_type in {"non_food", "beverage", "snack"}:
+            if (profile.product_type in {"non_food", "beverage", "snack"}
+                    or profile.culinary_role in {"soup", "salad", "dessert"}):
                 continue
             canonical_terms = canonical_ingredient_terms(title)
             if not profile.is_complete_meal:
