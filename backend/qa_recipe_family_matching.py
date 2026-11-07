@@ -707,6 +707,10 @@ def main():
             "name_original": "Florette Rucola 80g",
             "category": "obst-gemuese",
         }).culinary_role == "vegetable"
+        assert classify_product({
+            "name_original": "Abraham Schwarzwälder Schinken geräuchert 80g",
+            "category": "fleisch-wurst-fisch",
+        }).product_type == "prepared_component"
         assert classify_product({"name_original": "Ben & Jerry's Eis Peanut Butter Cup 465ml", "category": "tiefkuehlkost"}).culinary_role == "dessert"
 
         print(
