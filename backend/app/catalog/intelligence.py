@@ -336,6 +336,8 @@ def classify_product(product: dict) -> ProductProfile:
         # token rules (e.g. "tomato" in tomato soup) must not overwrite them.
         if product_type == "prepared_component" and role in {"soup", "salad", "dessert", "protein", "potato_side", "filled_pasta"}:
             pass
+        elif product_type == "snack" and role == "snack":
+            pass
         # Components are useful shortcuts, but are not complete meals.
         elif any(term in name for term in ("suppe", "soup", "cremesuppe", "cremesoup")):
             product_type, role, prep, convenience = "prepared_component", "soup", "ready_to_heat", 4
