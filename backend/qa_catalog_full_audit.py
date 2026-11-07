@@ -184,6 +184,12 @@ def main():
                 "package_unit": row.package_unit,
                 "price": row.price,
                 "price_per_unit": row.price_per_unit,
+                "product_url": row.product_url,
+                "image_url": row.image_url,
+                "first_seen_at": row.first_seen_at.isoformat() if row.first_seen_at else None,
+                "last_seen_at": row.last_seen_at.isoformat() if row.last_seen_at else None,
+                "last_checked_at": row.last_checked_at.isoformat() if row.last_checked_at else None,
+                "last_price": row.last_price,
                 "availability": row.availability,
             }
             row_profiles.append(row_profile)
@@ -341,6 +347,15 @@ def main():
             f"Low-confidence product profiles regressed above 100: {len(low_confidence_profiles)}"
         )
 
+        profile_by_id = {profile["id"]: profile for profile in row_profiles}
+        duplicate_name_details = [
+            {
+                "normalized_name": key,
+                "products": [profile_by_id[row_id] for row_id in ids if row_id in profile_by_id],
+            }
+            for key, ids, count in issues["duplicate_normalized_names"]
+        ]
+
         report = {
             "catalog": "REWE",
             "rows_analyzed": total,
@@ -354,6 +369,7 @@ def main():
             "semantic_coverage_rate": semantic_coverage,
             "ingredient_label_duplicates": ingredient_label_duplicates,
             "issues": {key: values for key, values in issues.items()},
+            "duplicate_name_details": duplicate_name_details,
             "duplicate_normalized_names": [
                 {"normalized_name": key, "row_ids": ids, "count": count}
                 for key, ids, count in issues["duplicate_normalized_names"]
