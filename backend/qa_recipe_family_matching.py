@@ -296,18 +296,35 @@ DIVERSE_RECIPE_MATRIX = (
 
 
 def _qa_quantity(ingredient):
-    """Use realistic compatible recipe units so basket QA tests package matching, not bad fixtures."""
-    name = ingredient.lower()
+    """Plausible two-serving quantities; keep units realistic for pack/cost QA."""
+    name = ingredient.lower().strip()
     if name in {"eggs", "garlic", "lemon", "lime", "lettuce", "eggplant", "aubergine", "celery"}:
-        return (2 if name in {"eggs", "tortilla", "garlic"} else 1, "unit")
-    if name in {"olive oil", "soy sauce", "milk", "cream", "coconut milk", "mustard"}:
-        return (20 if name in {"olive oil", "soy sauce", "mustard"} else 100, "ml")
-    if name == "mustard":
-        return (15, "ml")
+        return (2 if name in {"eggs", "garlic"} else 1, "unit")
+    volume = {
+        "olive oil": 20, "soy sauce": 20, "milk": 100, "cream": 100,
+        "coconut milk": 100, "mustard": 15, "chicken broth": 100,
+        "vegetable broth": 100,
+    }
+    if name in volume:
+        return (volume[name], "ml")
+    grams = {
+        "butter": 20, "flour": 50, "breadcrumbs": 40, "parmesan": 30,
+        "cheese": 50, "mozzarella": 100, "feta": 50, "cream cheese": 50,
+        "peanut butter": 30, "almond": 30, "oats": 50, "brown sugar": 30,
+        "tomato paste": 30, "tomato passata": 150, "tomato sauce": 100,
+        "pesto": 30, "honey": 20, "lentil": 60, "kidney beans": 80,
+        "chickpea": 80, "rice": 100, "spaghetti": 160, "pasta": 160,
+        "tagliatelle": 160, "penne": 160, "tortellini": 200, "noodles": 160,
+        "couscous": 80, "potato": 200, "sweet potato": 150,
+        "chicken breast": 250, "salmon": 200, "shrimp": 150,
+        "ground beef": 200, "pork": 200, "duck": 200, "lamb": 200,
+        "turkey": 200, "ginger": 15, "parsley": 5, "basil": 5,
+        "rosemary": 2, "dill": 5, "spring onion": 20,
+    }
+    if name in grams:
+        return (grams[name], "g")
     if name in {"salt", "black pepper", "oregano", "thyme", "nutmeg", "paprika powder", "chili flakes", "cinnamon", "baking powder"}:
         return (2, "g")
-    if name == "honey":
-        return (20, "g")
     return (100, "g")
 
 
