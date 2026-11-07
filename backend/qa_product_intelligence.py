@@ -28,6 +28,18 @@ def run():
     frozen = profile("REWE Bio Brokkoli 750 g", "tiefkuehlkost")
     assert frozen.storage_type == "frozen" and frozen.culinary_role == "vegetable"
 
+    # Beverage and confectionery aisles must not leak flavor claims into ingredient matching.
+    soda = profile("7UP Zero Zucker 440ml", "getraenke-genussmittel")
+    assert soda.product_type == "beverage" and soda.culinary_role == "beverage"
+    juice = profile("Active O2 Apfel-Kiwi 0,75l", "getraenke-genussmittel")
+    assert juice.product_type == "beverage"
+    wine = profile("1112 Weißwein Blanc de Noirs trocken 0,75l", "getraenke-genussmittel")
+    assert wine.product_type == "ingredient", "Cooking wine remains eligible as a recipe ingredient"
+    candy = profile("ahead Low Sugar Gummies Sweet Cherries 50g", "suesses-salziges")
+    assert candy.product_type == "snack" and candy.culinary_role == "snack"
+    chia = profile("Alnatura Bio Chia Samen 200g", "suesses-salziges")
+    assert chia.product_type == "ingredient", "Plain seeds remain eligible as recipe ingredients"
+
     # Products from household, hygiene, pet and baby aisles must never become
     # culinary ingredients, even when their names contain ingredient words.
     for title, category in (
