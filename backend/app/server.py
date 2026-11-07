@@ -106,6 +106,16 @@ def _multilingual_catalog_search(self, ingredient):
             return best
 
         rows.sort(key=score, reverse=True)
+        # app.server replaces CatalogAdapter.search, so deduplicate here too.
+        # Keep the highest-ranked observation and retain legitimate price/pack variants.
+        deduplicated_rows = []
+        seen_fingerprints = set()
+        for row in rows:
+            fingerprint = main_module.catalog_product_fingerprint(row)
+            if fingerprint in seen_fingerprints:
+                continue
+            seen_fingerprints.add(fingerprint)
+            deduplicated_rows.append(row)
         return [
             {
                 **main_module.product_dict(row),
@@ -118,7 +128,7 @@ def _multilingual_catalog_search(self, ingredient):
                 ) if match_types.get(row.id) == "substitute" else None,
                 "intelligence": profiles[row.id].as_dict(),
             }
-            for row in rows
+            for row in deduplicated_rows
         ]
 
     # Never substitute seed/demo products for a real REWE catalog match.
