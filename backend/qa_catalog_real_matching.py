@@ -4,6 +4,7 @@ Runs read-only searches against a disposable SQLite import of the committed
 11,969-row snapshot. No network, scraper, Gemini, user DB or image job is used.
 """
 import os
+import re
 from pathlib import Path
 import tempfile
 
@@ -49,8 +50,21 @@ def main():
                 category = str(item.get("category") or "")
                 product_type = profile.get("product_type")
                 role = profile.get("culinary_role")
-                assert product_type not in BLOCKED_TYPES, (
+                normalized_title = re.sub(r"[^a-z0-9äöüß]+", " ", title).strip()
+                is_plant_milk_substitute = (
+                    ingredient == "milk"
+                    and item.get("ingredient_match_type") == "substitute"
+                    and any(marker in f" {normalized_title} " for marker in (
+                        " haferdrink ", " hafer drink ", " sojadrink ", " soja drink ",
+                        " mandeldrink ", " mandel drink ", " kokosdrink ", " kokos drink ",
+                        " reisdrink ", " reis drink ", " erbsendrink ", " mandelmilch ",
+                    ))
+                )
+                assert product_type not in {"non_food", "snack"}, (
                     f"{ingredient!r} matched blocked product type {product_type}: {title}"
+                )
+                assert product_type != "beverage" or is_plant_milk_substitute, (
+                    f"{ingredient!r} matched blocked beverage without being a milk substitute: {title}"
                 )
                 assert role not in BLOCKED_ROLES, (
                     f"{ingredient!r} matched prepared {role}: {title}"
