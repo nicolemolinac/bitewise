@@ -6,6 +6,7 @@ image scraper, product-detail scraper, Gemini call, or user DB is touched.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from collections import Counter, defaultdict
@@ -76,6 +77,8 @@ def main():
         no_canonical_by_category = Counter()
         no_canonical_examples = defaultdict(list)
         ingredient_label_duplicates = 0
+        low_confidence_profiles = []
+        row_profiles = []
 
         for row in products:
             name = _row_name(row)
@@ -138,16 +141,48 @@ def main():
             types[profile.product_type] += 1
             roles[profile.culinary_role] += 1
             counters[f"confidence:{profile.confidence:.2f}"] += 1
-            canonical_terms = canonical_ingredient_terms(name)
-            if canonical_terms:
-                canonical_hits += 1
-            else:
-                category = str(row.category or "uncategorized")
-                no_canonical_by_category[category] += 1
-                if len(no_canonical_examples[category]) < 8:
-                    no_canonical_examples[category].append(name)
+            # Measure ingredient vocabulary coverage only on food candidates.
+            # Hygiene, pet, household and baby products must not inflate coverage.
+            canonical_terms = (
+                canonical_ingredient_terms(name)
+                if profile.product_type != "non_food" else []
+            )
+            if profile.product_type != "non_food":
+                if canonical_terms:
+                    canonical_hits += 1
+                else:
+                    category = str(row.category or "uncategorized")
+                    no_canonical_by_category[category] += 1
+                    no_canonical_examples[category].append({
+                        "id": row.id,
+                        "external_id": row.external_id,
+                        "title": name,
+                        "package_size": row.package_size,
+                        "package_unit": row.package_unit,
+                    })
             if str(row.ingredient or "").strip().lower() == str(row.name_normalized or "").strip().lower():
                 ingredient_label_duplicates += 1
+
+            row_profile = {
+                "id": row.id,
+                "external_id": row.external_id,
+                "title": name,
+                "category": row.category,
+                "product_type": profile.product_type,
+                "culinary_role": profile.culinary_role,
+                "is_complete_meal": profile.is_complete_meal,
+                "confidence": profile.confidence,
+                "evidence": list(profile.evidence),
+                "canonical_ingredient_terms": canonical_terms,
+                "package_size": row.package_size,
+                "package_unit": row.package_unit,
+                "price": row.price,
+                "price_per_unit": row.price_per_unit,
+                "availability": row.availability,
+            }
+            row_profiles.append(row_profile)
+            if profile.confidence < 0.75:
+                low_confidence_profiles.append(row_profile)
 
             if profile.is_complete_meal and any(marker in lower for marker in COMPONENTS_NEVER_COMPLETE_MEALS):
                 issues["component_misclassified_as_complete_meal"].append(
@@ -194,6 +229,33 @@ def main():
         )
         failures = {key: len(issues[key]) for key in blocking if issues[key]}
         assert not failures, f"Full-catalog data integrity/classification failures: {failures}"
+
+        report = {
+            "catalog": "REWE",
+            "rows_analyzed": total,
+            "categories": dict(categories),
+            "package_units": dict(units),
+            "availability": dict(availability),
+            "product_types": dict(types),
+            "culinary_roles": dict(roles),
+            "canonical_food_title_coverage": canonical_hits,
+            "ingredient_label_duplicates": ingredient_label_duplicates,
+            "issues": {key: values for key, values in issues.items()},
+            "duplicate_normalized_names": [
+                {"normalized_name": key, "row_ids": ids, "count": count}
+                for key, ids, count in issues["duplicate_normalized_names"]
+            ],
+            "duplicate_external_ids": [
+                {"external_id": key, "row_ids": ids, "count": count}
+                for key, ids, count in issues["duplicate_external_ids"]
+            ],
+            "unmapped_food_titles_by_category": dict(no_canonical_examples),
+            "low_confidence_profiles": low_confidence_profiles,
+            "all_product_profiles": row_profiles,
+        }
+        report_path = Path(os.environ.get("BITEWISE_CATALOG_AUDIT_REPORT", "catalog-audit-report.json"))
+        report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        print(f"Full audit review report written: {report_path} ({report_path.stat().st_size} bytes)")
 
         print("\nFull catalog audit PASS: every imported product row was inspected.")
         print("Duplicate names and non-culinary products are diagnostic review groups, not automatic deletions.")
