@@ -228,10 +228,6 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             if selected_override and all(str(p.get("id")) != str(override_id) for p in raw_products):
                 # Revalidate the user's saved choice against the actual recipe
                 # ingredient so curated substitutions are never mislabeled exact.
-                from ..ingredient_aliases import ingredient_product_match_type
-                title = " ".join(str(selected_override.get(key) or "") for key in (
-                    "name_original", "name_normalized", "translated_name", "name"
-                ))
                 # Manual overrides must pass the same semantic and complete-meal
                 # checks as normal catalog search; a saved ID is not a trust bypass.
                 from ..main import validate_ingredient_candidate
