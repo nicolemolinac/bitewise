@@ -5,7 +5,7 @@ No live scraping, image jobs, Gemini calls, product-detail jobs or user DB write
 Run from backend/: python qa_recipe_semantic_second_wave.py
 """
 from collections import Counter
-from app import qa_recipe_family_matching as base
+import qa_recipe_family_matching as base
 
 RECIPES = {
     "Japanese chicken curry": ["chicken breast", "potato", "carrot", "onion", "coconut milk", "rice", "ginger"],
@@ -154,7 +154,7 @@ def main():
             ("mango", "Alpro Haferdrink Mango 1l", "kaese-eier-molkerei"),
             ("peanut butter", "Ben & Jerry's Eis Peanut Butter Cup 465ml", "tiefkuehlkost"),
             ("chicken", "Instant Ramen Chicken Flavour 85g", "fertiggerichte-konserven"),
-            ("milk", "Kokosdrink ohne Zucker 1l", "kaese-eier-molkerei"),
+            ("coconut milk", "Alpro Kokosdrink 1l", "kaese-eier-molkerei"),
         ]
         for ingredient, title, category in negative_cases:
             assert base.ingredient_product_match_type(ingredient, title, category) is None, (
