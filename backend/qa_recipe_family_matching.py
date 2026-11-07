@@ -196,8 +196,8 @@ RECIPES = {
         "plant-based mince", "bell pepper", "rice", "tomato passata",
         "onion", "garlic", "tomato paste", "parsley", "cheese",
     ],
-    "Duck breast with red cabbage and potatoes": [
-        "duck", "potato", "red cabbage", "apple", "onion",
+    "Duck breast with apple and potatoes": [
+        "duck", "potato", "apple", "onion",
         "butter", "thyme", "vegetable broth",
     ],
     "Cod with kale and mustard cream": [
