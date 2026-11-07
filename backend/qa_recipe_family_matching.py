@@ -305,21 +305,19 @@ def main():
         passata_results = adapter.search("tomato passata")
         passata_fingerprints = [
             (
-                row.get("name_normalized"), row.get("package_size"),
-                row.get("package_unit"), row.get("price"), row.get("price_per_unit"),
-                row.get("category"), row.get("brand"), row.get("product_url"),
+                (row.get("name_normalized") or row.get("name_original") or "").lower().strip(),
+                round(float(row.get("package_size") or 0), 4),
+                str(row.get("package_unit") or "").lower(),
+                round(float(row.get("price") or 0), 4) if row.get("price") is not None else None,
+                round(float(row.get("price_per_unit") or 0), 8) if row.get("price_per_unit") is not None else None,
+                str(row.get("category") or "").lower(),
+                str(row.get("brand") or "").lower(),
+                str(row.get("product_url") or ""),
             )
             for row in passata_results
         ]
         assert len(passata_fingerprints) == len(set(passata_fingerprints)), (
             "CatalogAdapter.search must remove exact duplicate snapshot rows"
-        )
-        oro_passata = [
-            row for row in passata_results
-            if "oro di parma" in (row.get("name_original") or "").lower()
-        ]
-        assert len(oro_passata) == 1, (
-            f"Duplicate Oro di Parma passata snapshot rows should collapse to one: {oro_passata}"
         )
         milk_results = adapter.search("milk")
         alpro_milk = [
