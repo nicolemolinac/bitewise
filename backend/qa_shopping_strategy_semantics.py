@@ -78,7 +78,12 @@ def main():
         product("shared-waste", "REWE Butter 150g", 2.00, 150),
         product("shared-fit", "REWE Butter 100g", 3.80, 100),
     ]
-    one_off = basket(reuse_products, "plan-efficiency", quantity=100)
+    one_off_requirement = [{
+        "ingredient": "butter", "display_ingredient": "butter",
+        "canonical_ingredient": "butter", "quantity": 100, "unit": "g",
+        "source_meals": ["A"],
+    }]
+    one_off = build_basket(one_off_requirement, FixtureAdapter(reuse_products), "plan-efficiency")[0]
     shared_requirement = [{
         "ingredient": "butter", "display_ingredient": "butter",
         "canonical_ingredient": "butter", "quantity": 100, "unit": "g",
