@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.24.0"
+CLASSIFIER_VERSION = "1.25.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -495,6 +495,19 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep = "ingredient", "protein", "raw"
             confidence = 0.86
             evidence.append("protein-ingredient")
+        elif category == "fertiggerichte-konserven" and any(x in name for x in (
+            "hering", "herring", "thunfisch", "tuna", "sardine",
+            "makrele", "mackerel", "fischfilet", "fish fillet",
+        )):
+            product_type, role, prep, convenience = (
+                "prepared_component", "protein", "ready_to_eat", 4)
+            confidence = 0.9
+            evidence.append("canned-fish-protein-component")
+        elif category == "tiefkuehlkost" and "schlemmerfilet" in name:
+            product_type, role, prep, convenience = (
+                "prepared_component", "protein", "ready_to_heat", 4)
+            confidence = 0.9
+            evidence.append("prepared-frozen-fish-fillet")
         elif any(x in name for x in (
             "tomatensauce", "tomatensoße", "tomatensosse", "pizza sauce",
             "pizzasauce", "tomatenmark", "tomato paste", "pesto", "sugo",
