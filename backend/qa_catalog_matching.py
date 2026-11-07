@@ -78,6 +78,14 @@ def main():
             db, "fresh-tomato", "REWE Rispentomaten 500g",
             ingredient="tomato", category="obst-gemuese",
         )
+        red_onion = add_product(
+            db, "red-onion", "REWE Bio Zwiebeln rot 500g",
+            ingredient="red onion", category="obst-gemuese",
+        )
+        mustard = add_product(
+            db, "mustard", "Bautz'ner Senf mittelscharf 250ml",
+            ingredient="mustard", category="oele-sossen-gewuerze",
+        )
         ginger_juice = add_product(
             db, "ginger-juice", "Alnavit Bio Ingwer Saft 0,2l",
             ingredient="ginger", price=4.99, category="getraenke-genussmittel",
@@ -176,6 +184,15 @@ def main():
         assert any(item["external_id"] == "cooking-wine" for item in wine_candidates), (
             "Actual cooking wine must remain searchable as a recipe ingredient"
         )
+        red_onion_candidates = CatalogAdapter(db).search("red onion")
+        assert any(item["external_id"] == "red-onion" for item in red_onion_candidates), (
+            "REWE's 'Zwiebeln rot' word order must match red onion"
+        )
+        mustard_candidates = CatalogAdapter(db).search("mustard")
+        assert any(item["external_id"] == "mustard" for item in mustard_candidates), (
+            "German Senf products must match mustard"
+        )
+
         tomato_candidates = CatalogAdapter(db).search("tomato")
         tomato_matches = {item["external_id"]: item["ingredient_match_type"] for item in tomato_candidates}
         assert tomato_matches.get("fresh-tomato") == "exact"
