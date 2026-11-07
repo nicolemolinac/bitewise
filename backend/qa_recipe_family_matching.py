@@ -673,6 +673,7 @@ def main():
         assert classify_product({"name_original": "REWE Pizzateig"}).culinary_role == "dough"
         assert not classify_product({"name_original": "REWE Pizza Gewürz"}).is_complete_meal
         assert not classify_product({"name_original": "REWE Pizza Sauce"}).is_complete_meal
+        assert classify_product({"name_original": "Kühne Apfelrotkohl 650g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
         assert not classify_product({"name_original": "REWE Ramen Nudeln"}).is_complete_meal
         assert not classify_product({
             "name_original": "Henglein Pizzateig XXL 550g",
