@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-CLASSIFIER_VERSION = "1.14.0"
+CLASSIFIER_VERSION = "1.15.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -205,7 +205,7 @@ def classify_product(product: dict) -> ProductProfile:
         evidence.append("prepared-soup-product")
     elif any(term in name for term in (
         "nudelsalat", "nudel salat", "kartoffelsalat", "kartoffel salat",
-        "eiersalat", "thunfischsalat", "tuna salad", "pasta salad",
+        "eiersalat", "thunfischsalat", "tuna salad", "pasta salad", "bulgursalat", "couscoussalat", "reissalat", "salatschale wakame",
         "krautsalat", "kraut salat",
         "salat mit", "salad with",
     )):
