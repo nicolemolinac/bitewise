@@ -183,7 +183,7 @@ class CatalogAdapter:
   seen_fingerprints=set()
   for item in candidates:
    fingerprint=(
-    normalize_ingredient(item.get('name_normalized') or item.get('name_original') or ''),
+    normalize_ingredient(item.get('name_original') or item.get('name_normalized') or ''),
     round(float(item.get('package_size') or 0), 4),
     str(item.get('package_unit') or '').lower(),
     round(float(item.get('price') or 0), 4) if item.get('price') is not None else None,
