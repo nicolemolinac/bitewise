@@ -89,6 +89,23 @@ def classify_product(product: dict) -> ProductProfile:
             confidence=0.98, evidence=("branded-recipe-mix-or-seasoning",),
         )
 
+    # Bar/bite products are snacks regardless of which REWE aisle they are
+    # placed in; their flavor words (e.g. chocolate, almond, cream) are not raw
+    # ingredient evidence.
+    packaged_snack_markers = (
+        "protein bar", "proteinriegel", "protein riegel", "candy bar",
+        "energy bar", "snack bar", "müsliriegel", "muesliriegel",
+        "oat bar", "fruchtriegel", "fruit bar", "nussriegel",
+        "protein bites", "protein bite", "protein balls",
+    )
+    if any(marker in name for marker in packaged_snack_markers):
+        return ProductProfile(
+            product_type="snack", culinary_role="snack",
+            dish_families=(), preparation_state="ready_to_eat",
+            storage_type=storage, convenience_level=1, is_complete_meal=False,
+            confidence=0.97, evidence=("packaged-snack-bar-or-bites",),
+        )
+
     # Drinks and snack foods are edible products, but not interchangeable with
     # raw recipe ingredients merely because a flavor word appears in the title.
     if category == "getraenke-genussmittel" and not any(term in name for term in (
