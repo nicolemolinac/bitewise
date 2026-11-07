@@ -442,10 +442,15 @@ def ingredient_product_match_type(
     category_key = _norm(category or "")
 
     # Prepared apple red cabbage is a useful shortcut, not raw cabbage.
-    if needle == "red cabbage" and any(marker in padded_title for marker in (
-        " apfelrotkohl ", " apfel rotkohl ", " rotkohl fix ", " tafelfertig ",
-        " rotkraut tafelfertig ",
-    )):
+    if needle == "red cabbage" and (
+        any(marker in padded_title for marker in (
+            " apfelrotkohl ", " apfel rotkohl ", " rotkohl fix ", " tafelfertig ",
+            " rotkraut tafelfertig ",
+        ))
+        or (category_key == "fertiggerichte konserven" and any(
+            marker in padded_title for marker in (" rotkohl ", " rotkraut ")
+        ))
+    ):
         return "substitute"
 
     # Plant-based milk drinks are valid milk substitutes, despite beverage wording.
