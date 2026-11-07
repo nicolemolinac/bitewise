@@ -113,6 +113,18 @@ def classify_product(product: dict) -> ProductProfile:
             confidence=0.94, evidence=("snack-confectionery-aisle",),
         )
 
+    # Ready-to-eat desserts and puddings must not satisfy base ingredient searches
+    # such as rice, milk, cream, vanilla or fruit.
+    if any(term in name for term in (
+        "milchreis", "rice pudding", "reis pudding", "pudding", "dessert",
+        "mousse", "eiscreme", "ice cream", "custard", "grießpudding",
+        "griesspudding", "sahnepudding", "milchdessert",
+    )):
+        product_type, role, prep, convenience = (
+            "prepared_component", "dessert", "ready_to_eat", 4)
+        confidence = 0.92
+        evidence.append("prepared-dessert-product")
+
     # Prepared soups and salads are shortcut foods, never raw ingredient matches.
     # They are kept distinct from full meals because they can also be sides/components.
     if any(term in name for term in ("suppe", "soup", "cremesuppe", "creamy soup")):
