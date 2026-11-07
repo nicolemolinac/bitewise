@@ -58,6 +58,12 @@ def run():
     assert frozen_pasta.product_type == "ready_meal" and frozen_pasta.is_complete_meal
     nuggets = profile("ja! Chicken Nuggets 500g", "tiefkuehlkost")
     assert nuggets.product_type == "prepared_component" and nuggets.culinary_role == "protein"
+    burger_patties = profile("Beyond Meat Beyond Burger vegan 226g", "tiefkuehlkost")
+    assert burger_patties.product_type == "prepared_component" and burger_patties.culinary_role == "protein"
+    potato_wedges = profile("ja! Kartoffel Wedges 750g", "tiefkuehlkost")
+    assert potato_wedges.product_type == "prepared_component" and potato_wedges.culinary_role == "potato_side"
+    potato_casserole = profile("Pahmeyer Kartoffelauflauf Klassik 300g", "fertiggerichte-konserven")
+    assert potato_casserole.product_type == "ready_meal" and potato_casserole.is_complete_meal
 
     # Products from household, hygiene, pet and baby aisles must never become
     # culinary ingredients, even when their names contain ingredient words.
