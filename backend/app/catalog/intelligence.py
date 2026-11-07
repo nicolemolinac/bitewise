@@ -121,8 +121,9 @@ def classify_product(product: dict) -> ProductProfile:
         confidence = 0.9
         evidence.append("prepared-soup-product")
     elif any(term in name for term in (
-        "nudelsalat", "kartoffelsalat", "eiersalat", "thunfischsalat",
-        "tuna salad", "pasta salad", "krautsalat", "kraut salat",
+        "nudelsalat", "nudel salat", "kartoffelsalat", "kartoffel salat",
+        "eiersalat", "thunfischsalat", "tuna salad", "pasta salad",
+        "krautsalat", "kraut salat",
         "salat mit", "salad with",
     )):
         product_type, role, prep, convenience = (
