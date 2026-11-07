@@ -305,7 +305,7 @@ def main():
         passata_results = adapter.search("tomato passata")
         passata_fingerprints = [
             (
-                " ".join(str(row.get("name_normalized") or row.get("name_original") or "").lower().split()),
+                " ".join(str(row.get("name_original") or row.get("name_normalized") or "").lower().split()),
                 round(float(row.get("package_size") or 0), 4),
                 str(row.get("package_unit") or "").lower(),
                 round(float(row.get("price") or 0), 4) if row.get("price") is not None else None,
