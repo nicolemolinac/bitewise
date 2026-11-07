@@ -110,7 +110,7 @@ class CatalogAdapter:
    fallback=[]
    for item in PRODUCTS:
     title=item.get('name') or item.get('ingredient') or ''
-    match_type=ingredient_product_match_type(needle,title)
+    match_type=ingredient_product_match_type(needle,title,product.category)
     if not match_type:continue
     fallback.append({
      'id':None,'supermarket':'REWE','ingredient':item.get('ingredient',needle),
