@@ -550,7 +550,7 @@ def classify_product(product: dict) -> ProductProfile:
                 "prepared_component", "vegetable", "ready_to_heat", 4)
             confidence = 0.9
             evidence.append("prepared-vegetable-patty-or-bite")
-        elif category == "tiefkuehlkost" and any(x in name for (
+        elif category == "tiefkuehlkost" and any(x in name for x in (
             "gemüse mix", "gemüse-mix", "gemüsepfanne", "gemüse pfanne",
             "gemüse ideen", "rahmspinat", "rahm spinat", "rahmgemüse",
             "rahmgemuese", "buttergemüse", "buttergemuese",
