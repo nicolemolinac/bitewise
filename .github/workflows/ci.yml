@@ -7,7 +7,6 @@ on:
       - main
       - chatgpt/complete-bitewise-mvp
       - chatgpt/qa-bitewise
-      - fix/qa-lifecycle-inventory-20261106
   pull_request:
 
 jobs:
