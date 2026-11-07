@@ -90,6 +90,10 @@ def main():
             db, "milk-chocolate", "REWE Vollmilch Schokolade 100g",
             ingredient="milk", price=1.2, category="suesses-salziges",
         )
+        grated_milk_chocolate = add_product(
+            db, "grated-milk-chocolate", "REWE Beste Wahl Raspelschokolade Vollmilch 100g",
+            ingredient="milk", price=1.89, category="kochen-backen",
+        )
         sour_cream_chips = add_product(
             db, "sour-cream-chips", "Saltletts Sour Cream & Onion Chips 130g",
             ingredient="cream", price=1.5, category="suesses-salziges",
@@ -186,6 +190,10 @@ def main():
             "Milk chocolate must not satisfy a recipe's milk requirement"
         )
         cream_ids = {item["external_id"] for item in CatalogAdapter(db).search("cream")}
+        assert "milk-chocolate" not in milk_ids
+        assert "grated-milk-chocolate" not in milk_ids, (
+            "Compound chocolate titles must not satisfy a raw milk requirement"
+        )
         assert "sour-cream-chips" not in cream_ids, (
             "Sour-cream-flavoured snacks must not satisfy a cream requirement"
         )
