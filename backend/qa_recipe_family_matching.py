@@ -188,6 +188,26 @@ RECIPES = {
         "turkey", "breadcrumbs", "eggs", "onion", "garlic",
         "tomato paste", "carrot", "potato", "parsley",
     ],
+    "Tempeh ginger rice bowls": [
+        "tempeh", "rice", "ginger", "soy sauce", "garlic",
+        "carrot", "edamame", "spring onion", "sesame seeds", "lime",
+    ],
+    "Vegan mince stuffed peppers": [
+        "plant-based mince", "bell pepper", "rice", "tomato passata",
+        "onion", "garlic", "tomato paste", "parsley", "cheese",
+    ],
+    "Duck breast with red cabbage and potatoes": [
+        "duck", "potato", "red cabbage", "apple", "onion",
+        "butter", "thyme", "vegetable broth",
+    ],
+    "Cod with kale and mustard cream": [
+        "cod", "kale", "cream", "mustard", "potato",
+        "lemon", "butter", "parsley",
+    ],
+    "Lamb couscous bowl": [
+        "lamb", "couscous", "chickpea", "tomato", "cucumber",
+        "red onion", "greek yogurt", "lemon", "parsley",
+    ],
 }
 
 # These are not new AI-generated recipes. They are deterministic ingredient
