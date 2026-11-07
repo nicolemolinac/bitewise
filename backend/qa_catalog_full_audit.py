@@ -263,6 +263,12 @@ def main():
         assert ingredient_product_match_type(
             "peach", "Activia Kefir mild Pfirsich & Maracuja 345g", "kaese-eier-molkerei"
         ) is None, "Kefir fruit flavor must not match fresh peach"
+        assert ingredient_product_match_type(
+            "chicken breast", "Bernard Matthews Hähnchenbrust gebraten 125g", "fleisch-wurst-fisch"
+        ) == "substitute", "Cooked chicken must be labeled as a shortcut, not raw chicken"
+        assert ingredient_product_match_type(
+            "duck", "Berschneider Entenbrust gepökelt geräuchert 80g", "fleisch-wurst-fisch"
+        ) == "substitute", "Smoked cured duck must be a shortcut substitute"
         assert classify_product({
             "name_original": "Activia Kefir mild Pfirsich & Maracuja 345g",
             "category": "kaese-eier-molkerei",
