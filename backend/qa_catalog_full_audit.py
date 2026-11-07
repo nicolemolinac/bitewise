@@ -252,6 +252,12 @@ def main():
         assert ingredient_product_match_type("milk", "REWE Bio Haferdrink 1l") == "substitute"
         assert ingredient_product_match_type("cream", "Rama Cremefine 15% 250ml") == "substitute"
         assert ingredient_product_match_type("butter", "Rama Margarine 400g") == "substitute"
+        assert ingredient_product_match_type(
+            "peanut butter", "Ben & Jerry's Eis Peanut Butter Cup 465ml", "tiefkuehlkost"
+        ) is None, "Ice-cream flavor claims must not satisfy peanut butter ingredients"
+        assert ingredient_product_match_type(
+            "mango", "7 Guen Ayran Mango 250ml", "kaese-eier-molkerei"
+        ) is None, "Fruit-flavored dairy drinks must not satisfy fresh fruit ingredients"
         # High-value catalog examples must remain discoverable as canonical terms.
         semantic_examples = {
             "tempeh": "Better Nature Tempeh geräuchert vegan 220g",
