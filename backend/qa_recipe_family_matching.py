@@ -636,6 +636,17 @@ def main():
                     f"{recipe}: component leaked into ready-made alternatives: {product['name']}"
                 )
                 title = product["name"].lower()
+                if recipe.lower().startswith(("vegetarian", "vegan")):
+                    animal_terms = (
+                        "hähnchen", "haehnchen", "chicken", "rind", "beef",
+                        "schwein", "pork", "bacon", "speck", "ham", "schinken",
+                        "wurst", "lachs", "salmon", "garnelen", "shrimp",
+                        "fisch", "fish", "thunfisch", "tuna", "ente", "duck",
+                        "lamm", "lamb", "truthahn", "turkey", "miesmuscheln",
+                    )
+                    assert not any(term in title for term in animal_terms), (
+                        f"{recipe}: non-vegetarian ready meal offered: {product['name']}"
+                    )
                 if "chicken" in " ".join(ingredients).lower():
                     assert any(term in title for term in ("hähnchen", "haehnchen", "chicken")), (
                         f"{recipe}: ready meal does not match the recipe protein: {product['name']}"
