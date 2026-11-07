@@ -366,6 +366,7 @@ def classify_product(product: dict) -> ProductProfile:
     ) or (
         category in {"fertiggerichte-konserven", "tiefkuehlkost"}
         and not raw_goulash_meat
+        and not component_false_positive
         and any(term in name for term in (
             "gulasch", "ravioli", "rinderrouladen", "kohlrouladen",
         ))
@@ -379,7 +380,7 @@ def classify_product(product: dict) -> ProductProfile:
         "bolognese", "paella",
     )):
         frozen_skillet_marker = True
-    if frozen_skillet_marker and not meal_hit:
+    if frozen_skillet_marker and not meal_hit and not component_false_positive:
         meal_hit = "composed-frozen-skillet-meal"
     frozen_composed_meal = frozen and (
         any(term in name for term in (
@@ -397,7 +398,7 @@ def classify_product(product: dict) -> ProductProfile:
     ) and not any(term in name for term in (
         "sauce", "soße", "sosse", "gewürz", "gewuerz", "paste",
     ))
-    if frozen_composed_meal and not meal_hit:
+    if frozen_composed_meal and not meal_hit and not component_false_positive:
         meal_hit = "composed-frozen-main-dish"
     if meal_hit or category_meal:
         product_type, role, prep, convenience, complete = (
