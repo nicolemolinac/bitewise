@@ -136,7 +136,12 @@ class CatalogAdapter:
    # Complete dishes and non-food SKUs are never culinary ingredient matches.
    # This also protects the matcher when a non-food product title contains an
    # ingredient word such as chicken, milk or lemon.
-   if intelligence.get('is_complete_meal') or intelligence.get('product_type') in {'non_food','beverage','snack'} or intelligence.get('culinary_role') in {'soup','salad','dessert','potato_side','seasoning_mix','topping','filled_pasta'}:continue
+   blocked_roles={'soup','salad','dessert','potato_side','seasoning_mix','topping','filled_pasta'}
+   # Filled pasta is excluded from generic "pasta" matching, but must remain
+   # available when the recipe explicitly asks for tortellini or ravioli.
+   if needle in {'tortellini','ravioli'}:
+    blocked_roles.discard('filled_pasta')
+   if intelligence.get('is_complete_meal') or intelligence.get('product_type') in {'non_food','beverage','snack'} or intelligence.get('culinary_role') in blocked_roles:continue
    item=product_dict(product)
    item['ingredient_match_type']=match_type
    item['intelligence']=intelligence
