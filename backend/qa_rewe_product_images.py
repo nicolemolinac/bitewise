@@ -43,14 +43,26 @@ def main():
         "456": "https://img.rewe.de/product/bananas-large.webp",
         "789": "https://img.rewe.de/product/milk.webp",
     }
+    expected_product_urls = {
+        "123": "https://www.rewe.de/shop/p/coca-cola-1-5l/123",
+        "456": "https://www.rewe.de/shop/p/bananen/456",
+        "789": "https://www.rewe.de/shop/p/milch/789",
+    }
     for external_id, image_url in expected.items():
         actual = by_id[external_id].get("image_url")
         assert actual == image_url, (
             f"Image extraction failed for {external_id}: expected {image_url}, got {actual}"
         )
-        assert by_id[external_id]["product_url"].startswith("https://www.rewe.de/shop/p/")
+        actual_url = by_id[external_id].get("product_url")
+        assert actual_url == expected_product_urls[external_id], (
+            f"Product URL extraction failed for {external_id}: "
+            f"expected {expected_product_urls[external_id]}, got {actual_url}"
+        )
 
-    print(f"REWE image extraction QA passed: {len(expected)}/{len(expected)} product images found")
+    print(
+        f"REWE extraction QA passed: {len(expected)}/{len(expected)} product images "
+        f"and {len(expected_product_urls)}/{len(expected_product_urls)} exact product URLs"
+    )
 
 
 if __name__ == "__main__":
