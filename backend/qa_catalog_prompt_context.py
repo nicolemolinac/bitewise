@@ -63,6 +63,8 @@ def main():
                     "sugar", "suesses-salziges")
         add_product(db, "garlic", "REWE Knoblauch 200g",
                     "garlic", "obst-gemuese")
+        add_product(db, "chicken-recipe-mix", "Knorr Fix Hähnchen Curry 36g",
+                    "chicken", "oele-sossen-gewuerze")
         add_product(db, "rice-pudding", "Dr. Oetker High Protein Milchreis 400g",
                     "rice", "kaese-eier-molkerei")
         add_product(db, "tomato-soup", "Erasco Tomaten-Cremesuppe 390ml",
@@ -79,6 +81,9 @@ def main():
         assert "apple" not in ingredient_context, (
             "Fruit-flavored beverages must not be sent as fresh fruit ingredient signals"
         )
+        assert "chicken" not in ingredient_context, (
+            "A branded recipe-mix sachet must not be sent as raw chicken ingredient evidence"
+        )
         for forbidden in ("rice", "tomato", "potato"):
             assert forbidden not in ingredient_context, (
                 f"Prepared desserts/soups/salads must not send {forbidden} as raw ingredient context"
@@ -93,6 +98,11 @@ def main():
             item["external_id"] == "fruit-flavor-drink"
             for item in adapter.search("apple")
         ), "Production catalog matching must reject fruit-flavored drinks"
+
+        assert not any(
+            item["external_id"] == "chicken-recipe-mix"
+            for item in adapter.search("chicken")
+        ), "Production catalog matching must reject branded recipe-mix sachets as raw chicken"
 
         for ingredient, blocked_id in (
             ("rice", "rice-pudding"),
