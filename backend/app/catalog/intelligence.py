@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.22.0"
+CLASSIFIER_VERSION = "1.23.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -114,7 +114,9 @@ def classify_product(product: dict) -> ProductProfile:
 
     # Dairy-aisle beverages should not leak fruit/flavor words into ingredient context.
     dairy_beverage_markers = (
-        " ayran ", " kefir ", " drink ", " shake ", " milchshake ",
+        " ayran ", " kefir ", " haferdrink ", " sojadrink ", " mandeldrink ",
+        " kokosdrink ", " reisdrink ", " erbsendrink ", " mandelmilch ",
+        " drink ", " shake ", " milchshake ",
         " milchmix ", " fruchtbuttermilch ", " iced coffee ",
     )
     if category == "kaese-eier-molkerei" and any(marker in f" {name} " for marker in dairy_beverage_markers):
