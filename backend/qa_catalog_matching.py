@@ -110,6 +110,10 @@ def main():
             db, "potato-salad", "Golßener Kartoffel Salat mit Joghurt 400g",
             ingredient="potato", price=2.5, category="fertiggerichte-konserven",
         )
+        potato_wedges = add_product(
+            db, "potato-wedges", "REWE Kartoffel Wedges 750g",
+            ingredient="potato", price=2.5, category="tiefkuehlkost",
+        )
         frozen_curry = add_product(
             db, "frozen-curry", "Frosta Rotes Curry mit Hähnchen und Reis 375g",
             ingredient="chicken", price=3.69, category="tiefkuehlkost",
@@ -117,6 +121,10 @@ def main():
         chicken_nuggets = add_product(
             db, "chicken-nuggets", "ja! Chicken Nuggets 500g",
             ingredient="chicken", price=3.99, category="tiefkuehlkost",
+        )
+        chicken_burger = add_product(
+            db, "chicken-burger", "REWE Hähnchen Burger Patties 400g",
+            ingredient="chicken", price=4.5, category="tiefkuehlkost",
         )
         db.add(ProductIntelligence(
             product_id=meal.id,
@@ -197,6 +205,9 @@ def main():
         assert "potato-salad" not in potato_ids, (
             "Prepared potato salad must not be matched as raw potatoes"
         )
+        assert "potato-wedges" not in potato_ids, (
+            "Prepared potato wedges must not be matched as raw potatoes"
+        )
 
         chicken_candidates = CatalogAdapter(db).search("chicken")
         chicken_ids = {item["external_id"] for item in chicken_candidates}
@@ -205,6 +216,9 @@ def main():
         )
         assert "chicken-nuggets" in chicken_ids, (
             "Prepared protein components should remain available as recipe shortcuts"
+        )
+        assert "chicken-burger" in chicken_ids, (
+            "Burger patties should remain available as prepared protein components"
         )
         assert all(item["external_id"] != "pet-chicken" for item in chicken_candidates), (
             "German Huhn in a pet-food title must not match a chicken recipe ingredient"
