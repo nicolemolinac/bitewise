@@ -74,6 +74,19 @@ def classify_product(product: dict) -> ProductProfile:
             confidence=0.99, evidence=("non-culinary-category-or-title",),
         )
 
+    # Branded recipe-mix sachets and seasoning/topping blends are not the
+    # meat, vegetables or complete dishes named in their marketing titles.
+    if any(marker in name for marker in (
+        "knorr fix", "maggi fix", "maggi food travel fix",
+        "ostmann let's do", "ostmann lets do",
+    )):
+        return ProductProfile(
+            product_type="prepared_component", culinary_role="seasoning_mix",
+            dish_families=(), preparation_state="ready_to_use",
+            storage_type=storage, convenience_level=3, is_complete_meal=False,
+            confidence=0.98, evidence=("branded-recipe-mix-or-seasoning",),
+        )
+
     # Drinks and snack foods are edible products, but not interchangeable with
     # raw recipe ingredients merely because a flavor word appears in the title.
     if category == "getraenke-genussmittel" and not any(term in name for term in (
