@@ -326,6 +326,21 @@ def main():
             "Bauckhof Bio Maismehl 500g": {"corn flour"},
             "Alnatura Bio Weizenkleie grob 250g": {"wheat bran"},
             "Alpro Soja-Kochcrème Cuisine vegan 250ml": {"cream"},
+            "Barilla Al Bronzo Radiator 500g": {"pasta"},
+            "Cau Tre Reispapier rund 22cm 280g": {"rice paper"},
+            "Diamond Glasnudeln lang 100g": {"glass noodles"},
+            "Davert Bio 2-Minuten-Polenta Glutenfrei 500g": {"polenta"},
+            "Dr. Oetker Kokosmakronen Kokosraspeln 375g": {"coconut flakes"},
+            "biozentrale Bio Kakaonibs Superfood 200g": {"cocoa nibs"},
+            "Butaris Butterschmalz 250g": {"ghee"},
+            "BioWagner Bio Fenchelsamen ganz 30g": {"fennel seeds"},
+            "BioWagner Bio Kreuzkümmel gemahlen 40g": {"cumin"},
+            "BioWagner Bio Kardamom gemahlen 20g": {"cardamom"},
+            "BioWagner Bio Majoran gerebelt 10g": {"marjoram"},
+            "Bio Wagner Bio Schwarzkümmel 50g": {"black cumin"},
+            "Biozentrale Bio Kürbiskernöl geröstet 250ml": {"pumpkin seed oil"},
+            "Borchers Bio Dattelsüße 250g": {"date sugar"},
+            "Biozentrale Bio Agavensirup 350g": {"agave syrup"},
         }
         for title, expected_terms in semantic_alias_cases.items():
             actual_terms = set(canonical_ingredient_terms(title))
@@ -346,13 +361,21 @@ def main():
             "Bauck Mühle Helles Bio Reismehl 500g": "starch",
             "Bauckhof Bio Maismehl 500g": "starch",
             "Alnatura Bio Weizenkleie grob 250g": "starch",
+            "Cau Tre Reispapier rund 22cm 280g": "starch",
+            "Diamond Glasnudeln lang 100g": "starch",
+            "Davert Bio 2-Minuten-Polenta Glutenfrei 500g": "starch",
+            "BioWagner Bio Fenchelsamen ganz 30g": "seasoning",
+            "BioWagner Bio Kreuzkümmel gemahlen 40g": "seasoning",
+            "BioWagner Bio Kardamom gemahlen 20g": "seasoning",
+            "BioWagner Bio Majoran gerebelt 10g": "seasoning",
+            "Bio Wagner Bio Schwarzkümmel 50g": "seasoning",
         }
         for title, expected_role in profile_role_cases.items():
             profile = classify_product({"name_original": title})
             assert profile.culinary_role == expected_role, (
                 f"Wrong culinary role for {title}: expected {expected_role}, got {profile.culinary_role}"
             )
-            assert profile.classifier_version == "1.29.0", profile
+            assert profile.classifier_version == "1.30.0", profile
 
         assert canonical_ingredient_terms("Bamboo Garden Bambusschößlinge in Streifen") == ["bamboo shoots"]
         assert canonical_ingredient_terms("Bamboo Garden Sojabohnenkeimlinge") == ["soybean sprouts"]
