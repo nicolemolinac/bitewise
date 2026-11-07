@@ -26,6 +26,9 @@ def main():
     assert abs(price_per_gram - 0.01106) < 0.000001
     assert _snapshot_package_size("Drink 2x200ml", 200, "ml") == 400
     assert _snapshot_package_size("Nuts 4x50g", 50, "g") == 200
+    assert _snapshot_package_size("Bonduelle Duo-Pack 2x140g 2x280g", 560, "g") == 280
+    assert _snapshot_package_size("ja! Erbsen 3x140g 3x420g", 1260, "g") == 420
+    assert _snapshot_package_size("Dovgan Eiscreme 6x120ml 6x130ml", 780, "ml") == 720
 
     # Full-catalog audit regressions: malformed units, dual-unit multipacks,
     # integer unit prices and German Pfand deposits.
