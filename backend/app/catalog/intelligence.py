@@ -301,7 +301,7 @@ def classify_product(product: dict) -> ProductProfile:
     # "Bowl" alone is not proof of a complete meal: REWE also lists toppings,
     # crunchy garnishes and sauces with "bowl" in their title.
     bowl_topping = "bowl topping" in name or "topping bowl" in name
-    if bowl_topping:
+    if bowl_topping and product_type == "ingredient":
         product_type, role, prep, convenience = (
             "prepared_component", "topping", "ready_to_use", 3)
         confidence = 0.9
