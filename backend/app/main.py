@@ -110,7 +110,7 @@ class CatalogAdapter:
    fallback=[]
    for item in PRODUCTS:
     title=item.get('name') or item.get('ingredient') or ''
-    match_type=ingredient_product_match_type(needle,title,product.category)
+    match_type=ingredient_product_match_type(needle,title,item.get('category'))
     if not match_type:continue
     fallback.append({
      'id':None,'supermarket':'REWE','ingredient':item.get('ingredient',needle),
@@ -130,7 +130,7 @@ class CatalogAdapter:
    title=' '.join(str(value or '') for value in (
     product.name_original,product.name_normalized,product.translated_name
    ))
-   match_type=ingredient_product_match_type(needle,title)
+   match_type=ingredient_product_match_type(needle,title,product.category)
    if not match_type:continue
    intelligence=self._profile(product,profiles.get(product.id))
    # Complete dishes and non-food SKUs are never culinary ingredient matches.
