@@ -228,7 +228,8 @@ def classify_product(product: dict) -> ProductProfile:
         or (
             any(term in name for term in ("tortellini", "ravioli", "tagliatelle"))
             and any(term in name for term in (
-                "käse sahne", "kaese sahne", "sahnesauce", "sahnesosse",
+                "käse sahne", "kaese sahne", "käse-sahne", "kaese-sahne",
+                "sahnesauce", "sahnesosse",
                 "mit blubb", "pilz pfanne", "champignon",
             ))
         )
