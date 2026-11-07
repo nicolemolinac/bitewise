@@ -53,6 +53,19 @@ def main():
             db, "misleading-cola", "Coca-Cola Zero 1 l",
             ingredient="milk", price=1.2, category="getraenke-genussmittel",
         )
+        sugar_free_drink = add_product(
+            db, "sugar-free-drink", "7UP Zero Zucker 440ml",
+            ingredient="sugar", price=1.2, category="getraenke-genussmittel",
+        )
+        sugar = add_product(db, "real-sugar", "REWE Zucker 1 kg", ingredient="wrong-hint")
+        ketchup = add_product(
+            db, "tomato-ketchup", "REWE Tomaten Ketchup 500ml",
+            ingredient="tomato", price=1.5, category="oele-sossen-gewuerze",
+        )
+        fresh_tomato = add_product(
+            db, "fresh-tomato", "REWE Rispentomaten 500g",
+            ingredient="tomato", category="obst-gemuese",
+        )
         db.add(ProductIntelligence(
             product_id=meal.id,
             product_type="ready_meal",
@@ -78,6 +91,19 @@ def main():
         assert all(item["external_id"] != "pet-chicken" for item in candidates), (
             "Pet food containing an ingredient word must never match a recipe ingredient"
         )
+        sugar_candidates = CatalogAdapter(db).search("sugar")
+        sugar_ids = {item["external_id"] for item in sugar_candidates}
+        assert "real-sugar" in sugar_ids
+        assert "sugar-free-drink" not in sugar_ids, (
+            "A sugar-free beverage must not satisfy a recipe's sugar requirement"
+        )
+        tomato_candidates = CatalogAdapter(db).search("tomato")
+        tomato_matches = {item["external_id"]: item["ingredient_match_type"] for item in tomato_candidates}
+        assert tomato_matches.get("fresh-tomato") == "exact"
+        assert tomato_matches.get("tomato-ketchup") is None, (
+            "Ketchup must not be offered as fresh tomato or an equivalent cooking substitute"
+        )
+
         chicken_candidates = CatalogAdapter(db).search("chicken")
         assert all(item["external_id"] != "pet-chicken" for item in chicken_candidates), (
             "German Huhn in a pet-food title must not match a chicken recipe ingredient"
