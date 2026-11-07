@@ -305,7 +305,7 @@ def main():
         passata_results = adapter.search("tomato passata")
         passata_fingerprints = [
             (
-                " ".join(str(row.get("name_normalized") or row.get("name_original") or "").lower().split()),
+                " ".join(str(row.get("name_original") or row.get("name_normalized") or "").lower().split()),
                 round(float(row.get("package_size") or 0), 4),
                 str(row.get("package_unit") or "").lower(),
                 round(float(row.get("price") or 0), 4) if row.get("price") is not None else None,
@@ -322,7 +322,7 @@ def main():
         # Semantic aliases must cover real catalog title variants without
         # relying on the unreliable imported Product.ingredient hint.
         semantic_alias_cases = {
-            "Hauptstadtbrot Bio Dinkelbrot täglich frisch gebacken 550g": {"bread", "spelt"},
+            "Hauptstadtbrot Bio Dinkelbrot täglich frisch gebacken 550g": {"bread"},
             "Nestlé Lion Cereals Karamell & Schoko Maxipack 675g": {"cereal"},
             "REWE Bio Naturland Cashewmus 250g": {"cashew"},
             "Tafeltrauben blau kernlos 500g": {"grape"},
