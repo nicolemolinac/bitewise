@@ -75,10 +75,14 @@ def main():
             assert not any(marker in title for marker in (
                 "flavour", "flavor", "taste", "geschmack",
             )), f"Chicken flavor product matched as chicken meat: {title}"
-            assert not (
-                profile.get("product_type") == "prepared_component"
-                and profile.get("culinary_role") in {"protein", "seasoning_mix"}
-            ), f"Prepared protein/seasoning matched as raw chicken: {title}"
+            assert not any(marker in title for marker in (
+                "nugget", "gyoza", "dumpling", "onigiri", "bifi",
+                "noodles", "noodle", "ramen", "tteokbokki",
+                "meatball", "frikadellen", "burger", "patties",
+            )), f"Prepared chicken dish matched as raw chicken: {title}"
+            assert profile.get("culinary_role") != "seasoning_mix", (
+                f"Chicken seasoning mix matched as raw chicken: {title}"
+            )
             assert profile.get("product_type") != "snack", (
                 f"Meat snack matched as raw chicken: {title}"
             )
