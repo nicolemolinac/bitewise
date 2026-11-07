@@ -279,6 +279,10 @@ def main():
             "name_original": "Alnatura Bio Haferdrink 1l",
             "category": "kaese-eier-molkerei",
         }).product_type == "beverage"
+        assert classify_product({
+            "name_original": "Alpro Soja-Drink Protein vegan 1l",
+            "category": "kaese-eier-molkerei",
+        }).product_type == "beverage"
         assert ingredient_product_match_type(
             "chicken breast", "Bernard Matthews Hähnchenbrust gebraten 125g", "fleisch-wurst-fisch"
         ) == "substitute", "Cooked chicken must be labeled as a shortcut, not raw chicken"
