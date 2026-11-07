@@ -307,7 +307,7 @@ def main():
             (
                 row.get("name_normalized"), row.get("package_size"),
                 row.get("package_unit"), row.get("price"), row.get("price_per_unit"),
-                row.get("category"),
+                row.get("category"), row.get("brand"), row.get("product_url"),
             )
             for row in passata_results
         ]
