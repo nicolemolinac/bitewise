@@ -146,7 +146,7 @@ def main():
             # salads and desserts are edible but not raw recipe ingredients.
             culinary_candidate = (
                 profile.product_type in {"ingredient", "prepared_component"}
-                and profile.culinary_role not in {"soup", "salad", "dessert", "complete_meal", "potato_side", "seasoning_mix", "topping"}
+                and profile.culinary_role not in {"soup", "salad", "dessert", "complete_meal", "potato_side", "seasoning_mix", "topping", "filled_pasta"}
             )
             canonical_terms = canonical_ingredient_terms(name) if culinary_candidate else []
             if culinary_candidate:
