@@ -66,6 +66,23 @@ def main():
                         f"{ingredient!r} matched a finished snack/dessert: {title}"
                     )
 
+        # Protein words in flavors, instant meals, recipe-mix sachets and
+        # prepared snacks must not be mistaken for raw chicken.
+        chicken_candidates = adapter.search("chicken")
+        for item in chicken_candidates:
+            title = str(item.get("name_original") or "").lower()
+            profile = item.get("intelligence") or {}
+            assert not any(marker in title for marker in (
+                "flavour", "flavor", "taste", "geschmack",
+            )), f"Chicken flavor product matched as chicken meat: {title}"
+            assert not (
+                profile.get("product_type") == "prepared_component"
+                and profile.get("culinary_role") in {"protein", "seasoning_mix"}
+            ), f"Prepared protein/seasoning matched as raw chicken: {title}"
+            assert profile.get("product_type") != "snack", (
+                f"Meat snack matched as raw chicken: {title}"
+            )
+
         # Chocolate is a valid cooking ingredient; a chocolate dessert is not.
         chocolate_titles = [
             str(item.get("name_original") or "").lower()
