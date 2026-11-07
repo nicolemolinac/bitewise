@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.25.0"
+CLASSIFIER_VERSION = "1.26.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -209,10 +209,13 @@ def classify_product(product: dict) -> ProductProfile:
         "geräuchert", "geraeuchert", "gepökelt", "gepoekelt",
         "luftgetrocknet", "rohschinken", "prosciutto", "salami",
         "leberwurst", "teewurst", "jagdwurst", "fleischwurst",
-        "bierschinken", "schinken", "speck",
+        "bierschinken", "schinken", "speck", "wurst", "chorizo", "kolbasz",
+        "mortadella", "lyoner", "aufschnitt", "pastete", "paprikahähnchen",
+        "paprikahaehnchen", "hähnchenlyoner", "haehnchenlyoner",
+        "hähnchenbrust gebraten", "haehnchenbrust gebraten",
     )
     if category == "fleisch-wurst-fisch" and any(marker in name for marker in processed_meat_markers) and not any(
-        marker in name for marker in ("bifi", "salami sticks", "salami-sticks", "meat stick", "fleischsnack", "jerky", "knacker", "snack")
+        marker in name for marker in ("bifi", "salami sticks", "salami-sticks", "meat stick", "fleischsnack", "jerky", "snack")
     ):
         product_type, role, prep, convenience = (
             "prepared_component", "protein", "ready_to_eat", 4)
@@ -536,7 +539,18 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep = "ingredient", "ingredient", "ready_to_use"
             confidence = 0.86
             evidence.append("cooking-oil-ingredient")
-        elif category == "tiefkuehlkost" and any(x in name for x in (
+        elif any(x in name for x in (
+            "gemüsebällchen", "gemuesebaellchen", "kürbistaler",
+            "kuerbistaler", "gemüsebratling", "gemuesebratling",
+            "gemüsepuffer", "gemuesepuffer", "gemüsestäbchen",
+            "gemuesestaebchen", "veggie patties", "vegetable patties",
+            "gemüse quinoa ecken", "gemuese quinoa ecken",
+        )):
+            product_type, role, prep, convenience = (
+                "prepared_component", "vegetable", "ready_to_heat", 4)
+            confidence = 0.9
+            evidence.append("prepared-vegetable-patty-or-bite")
+        elif category == "tiefkuehlkost" and any(x in name for (
             "gemüse mix", "gemüse-mix", "gemüsepfanne", "gemüse pfanne",
             "gemüse ideen", "rahmspinat", "rahm spinat", "rahmgemüse",
             "rahmgemuese", "buttergemüse", "buttergemuese",
