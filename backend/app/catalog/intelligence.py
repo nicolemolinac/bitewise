@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-CLASSIFIER_VERSION = "1.11.0"
+CLASSIFIER_VERSION = "1.12.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -241,6 +241,17 @@ def classify_product(product: dict) -> ProductProfile:
         confidence = 0.92
         evidence.append("prepared-potato-side")
 
+    # Canned/prepared cabbage sides are convenience components, not raw vegetables.
+    prepared_cabbage = any(term in name for term in ("rotkohl", "rotkraut", "sauerkraut")) and (
+        category == "fertiggerichte-konserven"
+        or any(term in name for term in ("tafelfertig", "fix & fertig", "apfelrotkohl", "apfel rotkohl"))
+    )
+    if prepared_cabbage:
+        product_type, role, prep, convenience = (
+            "prepared_component", "vegetable", "ready_to_heat", 4)
+        confidence = 0.92
+        evidence.append("prepared-cabbage-side")
+
     # Full meals must be recognized before individual components such as pasta or sauce.
     meal_markers = (
         "fertiggericht", "fertigmenü", "fertig menu", "ready meal", "microwave meal",
@@ -334,7 +345,7 @@ def classify_product(product: dict) -> ProductProfile:
     else:
         # Preserve high-confidence prepared-food roles assigned above. Generic
         # token rules (e.g. "tomato" in tomato soup) must not overwrite them.
-        if product_type == "prepared_component" and role in {"soup", "salad", "dessert", "protein", "potato_side", "filled_pasta"}:
+        if product_type == "prepared_component" and role in {"soup", "salad", "dessert", "protein", "potato_side", "filled_pasta", "vegetable"}:
             pass
         elif product_type == "snack" and role == "snack":
             pass
