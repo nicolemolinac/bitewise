@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-CLASSIFIER_VERSION = "1.2.0"
+CLASSIFIER_VERSION = "1.3.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -113,12 +113,41 @@ def classify_product(product: dict) -> ProductProfile:
             confidence=0.94, evidence=("snack-confectionery-aisle",),
         )
 
+    # Prepared soups and salads are shortcut foods, never raw ingredient matches.
+    # They are kept distinct from full meals because they can also be sides/components.
+    if any(term in name for term in ("suppe", "soup", "cremesuppe", "creamy soup")):
+        product_type, role, prep, convenience = (
+            "prepared_component", "soup", "ready_to_heat", 4)
+        confidence = 0.9
+        evidence.append("prepared-soup-product")
+    elif any(term in name for term in (
+        "nudelsalat", "kartoffelsalat", "eiersalat", "thunfischsalat",
+        "tuna salad", "pasta salad", "krautsalat", "kraut salat",
+        "salat mit", "salad with",
+    )):
+        product_type, role, prep, convenience = (
+            "prepared_component", "salad", "ready_to_eat", 4)
+        confidence = 0.88
+        evidence.append("prepared-salad-product")
+    elif any(term in name for term in (
+        "chicken nuggets", "hähnchen nuggets", "hahnchen nuggets",
+        "fischstäbchen", "fischstaebchen", "fish sticks", "fish nuggets",
+        "schnitzel", "frikadelle", "hackbällchen", "hackbaellchen",
+        "burger patties", "burger patty", "burger-patty",
+    )):
+        product_type, role, prep, convenience = (
+            "prepared_component", "protein", "ready_to_cook_or_heat", 4)
+        confidence = 0.9
+        evidence.append("prepared-protein-shortcut")
+
     # Full meals must be recognized before individual components such as pasta or sauce.
     meal_markers = (
         "fertiggericht", "fertigmenü", "fertig menu", "ready meal", "microwave meal",
         "foodmaker", "youcook", "rice bowl", "reis bowl", "bowl mit ", "spaghetti bolognese", "lasagne", "lasagna",
         "pizza ", "curry mit reis", "reisgericht", "nudelgericht", "pasta bolognese", "mahlzeit",
-        "chili con carne", "quiche", "ramen", "nudelsuppe", "schnitzel mit",
+        "chili con carne", "quiche", "ramen", "schnitzel mit",
+        "eintopf", "stew", "paella", "risotto", "rindergulasch",
+        "schweinegulasch", "gulaschgericht", "fertigmahlzeit",
     )
     dry_lasagne_sheets = any(term in name for term in ("lasagneplatten", "lasagne platten", "lasagne blätter", "lasagneblaetter"))
     # "Bowl" alone is not proof of a complete meal: REWE also lists toppings,
@@ -145,6 +174,17 @@ def classify_product(product: dict) -> ProductProfile:
             )
         )
     )
+    # Frozen skillet meals and composed dishes are complete convenience meals;
+    # plain vegetable mixes and individual protein patties remain components.
+    frozen_skillet_marker = False
+    if frozen and "pfanne" in name and any(term in name for term in (
+        "hähnchen", "huhn", "hack", "fisch", "meeresfrüchte", "meeresfruchte",
+        "curry", "reis", "nudel", "spätzle", "spaetzle", "gnocchi", "tortellini",
+        "bolognese", "paella",
+    )):
+        frozen_skillet_marker = True
+    if frozen_skillet_marker and not meal_hit:
+        meal_hit = "composed-frozen-skillet-meal"
     if meal_hit or category_meal:
         product_type, role, prep, convenience, complete = (
             "ready_meal", "complete_meal", "ready_to_heat", 5, True)
