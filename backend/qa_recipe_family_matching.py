@@ -701,6 +701,18 @@ def main():
             "category": "fertiggerichte-konserven",
         }).culinary_role == "protein"
         assert classify_product({
+            "name_original": "Herta Paprikahähnchen 100g",
+            "category": "fleisch-wurst-fisch",
+        }).product_type == "prepared_component"
+        assert classify_product({
+            "name_original": "Garden Gourmet Vegetarische Gemüsebällchen 200g",
+            "category": "fleisch-wurst-fisch",
+        }).product_type == "prepared_component"
+        assert classify_product({
+            "name_original": "Billie Green Snack Salami Style vegan 75g",
+            "category": "fleisch-wurst-fisch",
+        }).product_type == "snack"
+        assert classify_product({
             "name_original": "Frosta High Protein Schlemmerfilet Brokkoli Senf 360g",
             "category": "tiefkuehlkost",
         }).product_type == "prepared_component"
