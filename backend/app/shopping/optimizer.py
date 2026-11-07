@@ -150,6 +150,22 @@ def _badge(mode, waste_ratio, reuse_count, product, cheapest_total, total):
     return "⭐ Best Value"
 
 
+
+def summarize_waste(basket):
+    """Aggregate estimated package leftovers by unit; never add grams to milliliters."""
+    totals = defaultdict(float)
+    for row in basket:
+        try:
+            quantity = float(row.get("waste") or 0)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if not math.isfinite(quantity) or quantity <= 0:
+            continue
+        unit = _normal_unit(row.get("package_unit") or row.get("unit") or "piece")
+        totals[unit] += quantity
+    return {unit: round(quantity, 2) for unit, quantity in sorted(totals.items())}
+
+
 def build_basket(requirements, adapter, mode="best-value", owned=None, overrides=None, pantry=None):
     owned = {x.lower().strip() for x in (owned or [])}
     overrides = overrides or {}
