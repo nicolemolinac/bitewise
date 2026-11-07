@@ -264,6 +264,13 @@ def main():
             "peach", "Activia Kefir mild Pfirsich & Maracuja 345g", "kaese-eier-molkerei"
         ) is None, "Kefir fruit flavor must not match fresh peach"
         assert ingredient_product_match_type(
+            "mango", "Alpro Haferdrink Mango 1l", "kaese-eier-molkerei"
+        ) is None, "Fruit flavor in a plant drink must not match fresh fruit"
+        assert classify_product({
+            "name_original": "Alnatura Bio Haferdrink 1l",
+            "category": "kaese-eier-molkerei",
+        }).product_type == "beverage"
+        assert ingredient_product_match_type(
             "chicken breast", "Bernard Matthews Hähnchenbrust gebraten 125g", "fleisch-wurst-fisch"
         ) == "substitute", "Cooked chicken must be labeled as a shortcut, not raw chicken"
         assert ingredient_product_match_type(
