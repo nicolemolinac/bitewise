@@ -99,7 +99,15 @@ def main():
             if row.price is not None and row.price_per_unit is not None and row.package_size:
                 factor = UNIT_FACTORS.get(unit)
                 if factor:
-                    expected = float(row.price) / (float(row.package_size) * factor)
+                    # Checkout price can include German bottle deposits; unit
+                    # prices intentionally exclude Pfand.
+                    deposit_match = re.search(
+                        r"zzgl\\.?\\s*(\\d+[,.]\\d{2})\\s*€\\s*Pfand",
+                        _row_name(row), re.I,
+                    )
+                    deposit = float(deposit_match.group(1).replace(",", ".")) if deposit_match else 0.0
+                    item_price = max(0.0, float(row.price) - deposit)
+                    expected = item_price / (float(row.package_size) * factor)
                     actual = float(row.price_per_unit)
                     if expected > 0 and abs(actual - expected) / expected > 0.15:
                         issues["price_per_unit_mismatch"].append(
