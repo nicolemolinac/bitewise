@@ -141,7 +141,10 @@ def classify_product(product: dict) -> ProductProfile:
             confidence = 0.84
             evidence.append("prepared-potato-component")
         elif any(x in name for x in ("tofu",)) and any(
-            marker in name for marker in ("geräuchert", "geraeuchert", "mariniert", "gewürzt", "gewuerzt", "smoked", "marinated")
+            marker in name for marker in (
+                "geräuchert", "geraeuchert", "räuchertofu", "raeuchertofu",
+                "mariniert", "gewürzt", "gewuerzt", "smoked", "marinated",
+            )
         ):
             product_type, role, prep, convenience = "prepared_component", "protein", "ready_to_use", 3
             confidence = 0.86
