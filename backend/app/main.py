@@ -520,6 +520,9 @@ def purchase(payload:PurchaseIn):
  try:
   product=db.get(Product,payload.product_id)
   if not product:raise HTTPException(404,'Product not found')
+  product_profile=CatalogAdapter(db)._profile(product)
+  if product_profile.get('product_type')=='non_food':
+   raise HTTPException(422,'Non-food products cannot be added to the ingredient pantry.')
   inferred=canonical_ingredient_terms(product.name_original or product.name_normalized)
   ingredient=normalize_ingredient(payload.ingredient or (inferred[0] if inferred else ''))
   if not ingredient:raise HTTPException(422,'A canonical ingredient is required when this product title cannot identify one safely.')
