@@ -13,6 +13,7 @@ os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "false"
 
 from app.database import Base, Product, ProductIntelligence, SessionLocal, engine
+from app import server
 from app.ai.gemini import _shopping_context
 from app.ai.gemini_efficient import _catalog_context
 
@@ -72,6 +73,16 @@ def main():
         assert "apple" not in ingredient_context, (
             "Fruit-flavored beverages must not be sent as fresh fruit ingredient signals"
         )
+
+        adapter = server.main_module.CatalogAdapter(db)
+        assert not any(
+            item["external_id"] == "zero-sugar-drink"
+            for item in adapter.search("sugar")
+        ), "Production catalog matching must reject sugar-free beverages"
+        assert not any(
+            item["external_id"] == "fruit-flavor-drink"
+            for item in adapter.search("apple")
+        ), "Production catalog matching must reject fruit-flavored drinks"
 
         pantry, catalog, preferences = _shopping_context()
         catalog_text = " ".join(catalog).lower()
