@@ -41,7 +41,6 @@ def _multilingual_catalog_search(self, ingredient):
         pattern = f"%{term}%"
         clauses.extend(
             [
-                Product.ingredient.ilike(pattern),
                 Product.name_normalized.ilike(pattern),
                 Product.name_original.ilike(pattern),
                 Product.translated_name.ilike(pattern),
@@ -60,7 +59,7 @@ def _multilingual_catalog_search(self, ingredient):
             title = " ".join(str(value or "") for value in (
                 row.name_original, row.name_normalized, row.translated_name
             ))
-            match_type = ingredient_product_match_type(ingredient, title)
+            match_type = ingredient_product_match_type(ingredient, title, row.category)
             if not match_type:
                 continue
             profile = classify_product({
@@ -72,7 +71,7 @@ def _multilingual_catalog_search(self, ingredient):
             })
             # A complete prepared dish is never an ingredient, even if its title
             # contains the requested protein (e.g. shrimp curry or chicken lasagna).
-            if profile.is_complete_meal:
+            if profile.is_complete_meal or profile.product_type in {'non_food', 'beverage', 'snack'}:
                 continue
             match_types[row.id] = match_type
             profiles[row.id] = profile
@@ -82,7 +81,6 @@ def _multilingual_catalog_search(self, ingredient):
 
         def score(row):
             fields = [
-                str(row.ingredient or "").lower(),
                 str(row.translated_name or "").lower(),
                 str(row.name_normalized or "").lower(),
                 str(row.name_original or "").lower(),
