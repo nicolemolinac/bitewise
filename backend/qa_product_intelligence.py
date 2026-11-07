@@ -37,6 +37,8 @@ def run():
     assert wine.product_type == "ingredient", "Cooking wine remains eligible as a recipe ingredient"
     candy = profile("ahead Low Sugar Gummies Sweet Cherries 50g", "suesses-salziges")
     assert candy.product_type == "snack" and candy.culinary_role == "snack"
+    protein_bar = profile("Premier Protein Riegel Chocolate Caramel 40g", "kaese-eier-molkerei")
+    assert protein_bar.product_type == "snack" and protein_bar.culinary_role == "snack"
     chia = profile("Alnatura Bio Chia Samen 200g", "suesses-salziges")
     assert chia.product_type == "ingredient", "Plain seeds remain eligible as recipe ingredients"
 
