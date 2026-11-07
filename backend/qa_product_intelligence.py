@@ -40,6 +40,21 @@ def run():
     chia = profile("Alnatura Bio Chia Samen 200g", "suesses-salziges")
     assert chia.product_type == "ingredient", "Plain seeds remain eligible as recipe ingredients"
 
+    # Full-catalog audit found canned soups, stews, salads and frozen composed
+    # dishes that had been left as generic ingredients.
+    soup = profile("Erasco Tomaten-Cremesuppe 390ml", "fertiggerichte-konserven")
+    assert soup.product_type == "prepared_component" and soup.culinary_role == "soup"
+    salad = profile("Golßener Spreewälder Nudelsalat 700g", "fertiggerichte-konserven")
+    assert salad.product_type == "prepared_component" and salad.culinary_role == "salad"
+    stew = profile("Erasco Erbsen-Eintopf 400g", "fertiggerichte-konserven")
+    assert stew.product_type == "ready_meal" and stew.is_complete_meal
+    frozen_skillet = profile("Frosta Bratkartoffel-Hähnchenpfanne 500g", "tiefkuehlkost")
+    assert frozen_skillet.product_type == "ready_meal" and frozen_skillet.is_complete_meal
+    frozen_curry = profile("Every Red Curry 450g", "tiefkuehlkost")
+    assert frozen_curry.product_type == "ready_meal" and frozen_curry.is_complete_meal
+    nuggets = profile("ja! Chicken Nuggets 500g", "tiefkuehlkost")
+    assert nuggets.product_type == "prepared_component" and nuggets.culinary_role == "protein"
+
     # Products from household, hygiene, pet and baby aisles must never become
     # culinary ingredients, even when their names contain ingredient words.
     for title, category in (
