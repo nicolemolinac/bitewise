@@ -21,7 +21,11 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app.database import Product, SessionLocal
 from app.catalog.intelligence import classify_product
-from app.ingredient_aliases import canonical_ingredient_terms
+from app.ingredient_aliases import (
+    _ALIAS_GROUPS,
+    canonical_ingredient_terms,
+    ingredient_product_match_type,
+)
 
 
 MULTIPACK = re.compile(r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b", re.I)
@@ -215,6 +219,27 @@ def main():
         assert semantic_coverage >= 0.50, (
             f"Semantic vocabulary coverage regressed below 50%: {semantic_coverage:.1%}"
         )
+        # Alias ontology must be one-to-one: ambiguous German terms can silently
+        # map a product to multiple unrelated recipe ingredients.
+        alias_owners = defaultdict(set)
+        canonical_names = []
+        for group in _ALIAS_GROUPS:
+            canonical = re.sub(r"\\s+", " ", re.sub(r"[^a-z0-9äöüß]+", " ", group[0].lower())).strip()
+            canonical_names.append(canonical)
+            for term in group:
+                normalized = re.sub(r"\\s+", " ", re.sub(r"[^a-z0-9äöüß]+", " ", term.lower())).strip()
+                alias_owners[normalized].add(canonical)
+        duplicate_canonicals = sorted(
+            name for name, count in Counter(canonical_names).items() if count > 1
+        )
+        ambiguous_aliases = {
+            term: sorted(owners) for term, owners in alias_owners.items() if len(owners) > 1
+        }
+        assert not duplicate_canonicals, f"Duplicate canonical ingredient groups: {duplicate_canonicals}"
+        assert not ambiguous_aliases, f"Ambiguous ingredient aliases: {ambiguous_aliases}"
+        assert ingredient_product_match_type(
+            "chicken", "Hühneraufstrich", "fleisch-wurst-fisch"
+        ) is None, "Chicken spread must not be matched as chicken meat"
         # High-value catalog examples must remain discoverable as canonical terms.
         semantic_examples = {
             "tempeh": "Better Nature Tempeh geräuchert vegan 220g",
