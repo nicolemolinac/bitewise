@@ -90,9 +90,14 @@ def main():
         all_catalog_rows = db.query(base.Product).filter(
             base.Product.supermarket == "REWE"
         ).all()
+        broad_title_terms = {
+            "bean sprouts": ("spross", "keim", "sprout"),
+            "mussels": ("muschel", "mussel", "shellfish", "meeresfrucht", "frutti"),
+        }
         for recipe, absent in missing.items():
             for ingredient in absent:
                 terms = [term.lower().strip() for term in ingredient_search_terms(ingredient) if term.strip()]
+                broad_terms = broad_title_terms.get(ingredient.lower().strip(), ())
                 raw_hits = []
                 for product in all_catalog_rows:
                     title = base._product_title({
@@ -100,24 +105,29 @@ def main():
                         "name": product.name_normalized,
                     }).lower()
                     matched_terms = [term for term in terms if term in title]
-                    if matched_terms:
+                    broad_hits_for_title = [term for term in broad_terms if term in title]
+                    if matched_terms or broad_hits_for_title:
                         raw_hits.append((
                             product.name_original or product.name_normalized or "",
                             product.category or "",
                             product.price,
                             matched_terms,
+                            broad_hits_for_title,
                         ))
                 print(
                     f"  RAW CATALOG DIAGNOSTIC — {ingredient}: "
-                    f"{len(raw_hits)} title hits for aliases {terms}"
+                    f"{len(raw_hits)} title hits; aliases={terms}; broad stems={list(broad_terms)}"
                 )
-                for title, category, price, matched_terms in raw_hits[:12]:
+                for title, category, price, matched_terms, broad_hits_for_title in raw_hits[:12]:
                     print(
                         f"    RAW CANDIDATE — {title} | {category} | "
-                        f"price={price} | aliases={matched_terms}"
+                        f"price={price} | aliases={matched_terms} | broad={broad_hits_for_title}"
                     )
                 if not raw_hits:
-                    print(f"    TRUE SNAPSHOT GAP — no product title contains any configured alias for {ingredient}")
+                    print(
+                        f"    NO RAW TITLE EVIDENCE — no configured alias or broad title stem "
+                        f"was found for {ingredient}; manual assortment review may still be needed"
+                    )
 
         # This is a discovery/coverage gate, not an assertion that every niche
         # ingredient is sold in this supermarket snapshot.
