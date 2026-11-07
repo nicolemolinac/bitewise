@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from ..ingredient_aliases import canonical_ingredient_terms
 
-CLASSIFIER_VERSION = "1.20.0"
+CLASSIFIER_VERSION = "1.21.0"
 
 @dataclass(frozen=True)
 class ProductProfile:
@@ -301,6 +301,11 @@ def classify_product(product: dict) -> ProductProfile:
     # "Bowl" alone is not proof of a complete meal: REWE also lists toppings,
     # crunchy garnishes and sauces with "bowl" in their title.
     bowl_topping = "bowl topping" in name or "topping bowl" in name
+    if bowl_topping:
+        product_type, role, prep, convenience = (
+            "prepared_component", "topping", "ready_to_use", 3)
+        confidence = 0.9
+        evidence.append("prepared-bowl-topping")
     pizza_component = any(term in name for term in (
         "pizzateig", "pizza teig", "pizzagewürz", "pizzagewuerz",
         "pizza gewürz", "pizza gewuerz", "pizzasauce", "pizza sauce",
@@ -376,7 +381,7 @@ def classify_product(product: dict) -> ProductProfile:
     else:
         # Preserve high-confidence prepared-food roles assigned above. Generic
         # token rules (e.g. "tomato" in tomato soup) must not overwrite them.
-        if product_type == "prepared_component" and role in {"soup", "salad", "dessert", "protein", "potato_side", "filled_pasta", "vegetable"}:
+        if product_type == "prepared_component" and role in {"soup", "salad", "dessert", "protein", "potato_side", "filled_pasta", "vegetable", "topping"}:
             pass
         elif product_type == "snack" and role == "snack":
             pass
@@ -405,7 +410,9 @@ def classify_product(product: dict) -> ProductProfile:
             "passata", "passierte tomaten", "pesto", "tomatensauce", "tomatensosse",
             "sugo", "cooking sauce", "gewürzpaste", "gewuerzpaste",
             "würzpaste", "wuerzpaste", "currypaste", "curry paste",
-            "sambal oelek", "miso paste",
+            "sambal oelek", "miso paste", "pizza sauce", "pizzasauce",
+            "teriyaki sauce", "teriyakisauce", "remoulade", "hollandaise",
+            "mango chutney", "chili sauce", "ketchup", "soy sauce", "sojasauce", "fish sauce",
         )):
             product_type, role, prep, convenience = "prepared_component", "sauce", "ready_to_use", 4
             confidence = 0.94
@@ -437,7 +444,9 @@ def classify_product(product: dict) -> ProductProfile:
             product_type, role, prep, convenience = "prepared_component", "broth", "ready_to_use", 3
             confidence = 0.86
             evidence.append("cooking-broth")
-        elif any(x in name for x in ("chiliflocken", "chili flocken", "chilipulver", "oregano", "thymian", "basilikum", "rosmarin", "petersilie", "muskat", "pfeffer", "salz", "kräuter", "kraeuter", "paprikapulver", "paprika edelsüß", "paprika edelsuess", "ingwer")):
+        elif any(x in name for x in ("chiliflocken", "chili flocken", "chilipulver", "oregano", "thymian", "basilikum", "rosmarin", "petersilie", "muskat", "pfeffer", "salz", "kräuter", "kraeuter", "paprikapulver", "paprika edelsüß", "paprika edelsuess", "ingwer",
+            "five spice", "five-spice", "gewürzsalz", "gewuerzsalz",
+            "gewürzmischung", "gewuerzmischung", "seasoning mix", "spice mix")):
             product_type, role, prep, convenience = "ingredient", "seasoning", "ready_to_use", 1
             confidence = 0.86
             evidence.append("herb-or-seasoning")
