@@ -60,11 +60,8 @@ def main():
                         " reisdrink ", " reis drink ", " erbsendrink ", " mandelmilch ",
                     ))
                 )
-                assert product_type not in {"non_food", "snack"}, (
-                    f"{ingredient!r} matched blocked product type {product_type}: {title}"
-                )
-                assert product_type != "beverage" or is_plant_milk_substitute, (
-                    f"{ingredient!r} matched blocked beverage without being a milk substitute: {title}"
+                assert product_type not in BLOCKED_TYPES or is_plant_milk_substitute, (
+                    f"{ingredient!r} matched blocked product type {product_type} without a valid milk-substitute exception: {title}"
                 )
                 assert role not in BLOCKED_ROLES, (
                     f"{ingredient!r} matched prepared {role}: {title}"
