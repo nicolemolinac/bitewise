@@ -206,7 +206,31 @@ def main():
         print(f"Availability values: {dict(availability)}")
         print(f"Product types: {dict(types)}")
         print(f"Culinary roles: {dict(roles)}")
-        print(f"Products with canonical culinary terms in title: {canonical_hits}/{total}")
+        semantic_candidates = canonical_hits + sum(no_canonical_by_category.values())
+        semantic_coverage = canonical_hits / max(semantic_candidates, 1)
+        print(
+            f"Semantic vocabulary coverage: {canonical_hits}/{semantic_candidates} "
+            f"eligible ingredient/component products ({semantic_coverage:.1%})"
+        )
+        assert semantic_coverage >= 0.50, (
+            f"Semantic vocabulary coverage regressed below 50%: {semantic_coverage:.1%}"
+        )
+        # High-value catalog examples must remain discoverable as canonical terms.
+        semantic_examples = {
+            "tempeh": "Better Nature Tempeh geräuchert vegan 220g",
+            "plant-based mince": "Beyond Hack Original vegan 250g",
+            "duck": "REWE Beste Wahl Barbarie Entenbrustfilet 400g",
+            "cod": "REWE Beste Wahl Atlantisches Kabeljaufilet 475g",
+            "red cabbage": "REWE Apfelrotkohl 450g",
+            "kale": "REWE Beste Wahl Grünkohl 1kg",
+            "oyster mushroom": "Bio Kräuterseitlinge 125g",
+            "rice noodles": "Bamboo Garden Reisnudeln Guai-Thiau 250g",
+        }
+        for expected, title in semantic_examples.items():
+            terms = canonical_ingredient_terms(title)
+            assert expected in terms, (
+                f"Expected semantic term {expected!r} from catalog title {title!r}; got {terms}"
+            )
         print(f"Rows where Product.ingredient duplicates name_normalized: {ingredient_label_duplicates}/{total}")
         print(f"Titles without known canonical ingredient terms by category: {dict(no_canonical_by_category)}")
         for category in (
@@ -241,6 +265,8 @@ def main():
             "product_types": dict(types),
             "culinary_roles": dict(roles),
             "canonical_food_title_coverage": canonical_hits,
+            "semantic_candidate_products": semantic_candidates,
+            "semantic_coverage_rate": semantic_coverage,
             "ingredient_label_duplicates": ingredient_label_duplicates,
             "issues": {key: values for key, values in issues.items()},
             "duplicate_normalized_names": [
