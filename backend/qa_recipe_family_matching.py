@@ -334,6 +334,26 @@ def main():
                 f"expected {sorted(expected_terms)}, got {sorted(actual_terms)}"
             )
 
+        # New aliases must also refresh persisted product profiles and assign
+        # useful culinary roles, not merely increase a coverage counter.
+        profile_role_cases = {
+            "Aroy-D Kokosnussmilch 250ml": "sauce",
+            "Bamboo Garden Bambusschößlinge in Streifen 180g": "vegetable",
+            "Bamboo Garden Sojabohnenkeimlinge 180g": "vegetable",
+            "Bonduelle Möhrchen zart und extra fein 265g": "vegetable",
+            "Bonduelle Wachsbrechbohnen 225g": "vegetable",
+            "Bauck Mühle Bio Hafermehl Vollkorn 350g": "starch",
+            "Bauck Mühle Helles Bio Reismehl 500g": "starch",
+            "Bauckhof Bio Maismehl 500g": "starch",
+            "Alnatura Bio Weizenkleie grob 250g": "starch",
+        }
+        for title, expected_role in profile_role_cases.items():
+            profile = classify_product({"name_original": title})
+            assert profile.culinary_role == expected_role, (
+                f"Wrong culinary role for {title}: expected {expected_role}, got {profile.culinary_role}"
+            )
+            assert profile.classifier_version == "1.29.0", profile
+
         milk_results = adapter.search("milk")
         alpro_milk = [
             row for row in milk_results
