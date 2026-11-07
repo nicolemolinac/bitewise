@@ -86,6 +86,14 @@ def main():
             db, "mustard", "Bautz'ner Senf mittelscharf 250ml",
             ingredient="mustard", category="oele-sossen-gewuerze",
         )
+        paprika_spice = add_product(
+            db, "paprika-spice", "Ostmann Paprika 17g",
+            ingredient="bell pepper", category="oele-sossen-gewuerze",
+        )
+        fresh_bell_pepper = add_product(
+            db, "fresh-bell-pepper", "REWE Paprika rot 500g",
+            ingredient="bell pepper", category="obst-gemuese",
+        )
         ginger_juice = add_product(
             db, "ginger-juice", "Alnavit Bio Ingwer Saft 0,2l",
             ingredient="ginger", price=4.99, category="getraenke-genussmittel",
@@ -199,6 +207,12 @@ def main():
         red_onion_candidates = CatalogAdapter(db).search("red onion")
         assert any(item["external_id"] == "red-onion" for item in red_onion_candidates), (
             "REWE's 'Zwiebeln rot' word order must match red onion"
+        )
+        bell_pepper_candidates = CatalogAdapter(db).search("bell pepper")
+        bell_pepper_ids = {item["external_id"] for item in bell_pepper_candidates}
+        assert "fresh-bell-pepper" in bell_pepper_ids
+        assert "paprika-spice" not in bell_pepper_ids, (
+            "Paprika powder in the spice aisle must not match fresh bell pepper"
         )
         mustard_candidates = CatalogAdapter(db).search("mustard")
         assert any(item["external_id"] == "mustard" for item in mustard_candidates), (
