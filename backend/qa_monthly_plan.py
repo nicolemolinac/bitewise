@@ -11,7 +11,8 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 import qa_recipe_family_matching as base
-from app.database import Product, ProductIntelligence
+from app.database import Product
+from app.catalog.intelligence import classify_product
 from app.shopping.optimizer import build_basket, consolidate, summarize_waste
 
 
@@ -141,16 +142,24 @@ def main():
         catalog_count = db.query(Product).filter(Product.supermarket == "REWE").count()
         assert catalog_count >= 1000, f"Full REWE snapshot missing: {catalog_count}"
         adapter = base._CachedCatalogAdapter(base.CatalogAdapter(db))
-        ready_candidates = db.query(Product, ProductIntelligence).join(
-            ProductIntelligence, ProductIntelligence.product_id == Product.id
-        ).filter(
+        catalog_rows = db.query(Product).filter(
             Product.supermarket == "REWE",
-            ProductIntelligence.is_complete_meal.is_(True),
             Product.price.isnot(None),
             Product.price > 0,
-            Product.product_url.isnot(None),
+            Product.product_url.like("https://www.rewe.de/shop/p/%"),
         ).all()
-        ready_candidates = sorted(ready_candidates, key=lambda pair: float(pair[0].price or 0))
+        ready_candidates = []
+        for product in catalog_rows:
+            profile = classify_product({
+                "name_original": product.name_original,
+                "name_normalized": product.name_normalized,
+                "translated_name": product.translated_name,
+                "brand": product.brand,
+                "category": product.category,
+            })
+            if profile.is_complete_meal:
+                ready_candidates.append((product, profile))
+        ready_candidates.sort(key=lambda pair: float(pair[0].price or 0))
         assert ready_candidates, "No classified, priced REWE complete meals available for prepared-meal simulation"
         ready_meals = [pair[0] for pair in ready_candidates[:4]]
 
