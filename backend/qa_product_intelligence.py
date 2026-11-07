@@ -54,6 +54,8 @@ def run():
     assert frozen_skillet.product_type == "ready_meal" and frozen_skillet.is_complete_meal
     frozen_curry = profile("Every Red Curry 450g", "tiefkuehlkost")
     assert frozen_curry.product_type == "ready_meal" and frozen_curry.is_complete_meal
+    frozen_pasta = profile("Frosta Tortellini Käse-Sahne 500g", "tiefkuehlkost")
+    assert frozen_pasta.product_type == "ready_meal" and frozen_pasta.is_complete_meal
     nuggets = profile("ja! Chicken Nuggets 500g", "tiefkuehlkost")
     assert nuggets.product_type == "prepared_component" and nuggets.culinary_role == "protein"
 
