@@ -385,6 +385,7 @@ _SUBSTITUTION_GROUPS = {
     "buttermilk": ("buttermilch",),
     "ricotta": ("frischkäse", "hüttenkäse"),
     "shallot": ("rote zwiebel", "zwiebel"),
+    "celery": ("knollensellerie", "sellerieknolle"),
     "red wine vinegar": ("balsamico", "rotweinessig"),
     "white wine vinegar": ("weißweinessig", "weissweinessig"),
     "panko": ("semmelbrösel", "paniermehl"),
