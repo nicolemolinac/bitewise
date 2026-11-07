@@ -142,6 +142,18 @@ def main():
             db, "knorr-fix", "Knorr Fix Paprika-Hähnchenpfanne 33g",
             ingredient="chicken", price=1.2, category="fertiggerichte-konserven",
         )
+        plain_mustard = add_product(
+            db, "plain-mustard", "Bautz'ner Senf mittelscharf 200ml",
+            ingredient="mustard", price=1.5, category="oele-sossen-gewuerze",
+        )
+        honey_mustard_sauce = add_product(
+            db, "honey-mustard-sauce", "Butcher's Honey Mustard Sauce 300ml",
+            ingredient="mustard", price=1.5, category="oele-sossen-gewuerze",
+        )
+        mustard_pickles = add_product(
+            db, "mustard-pickles", "Kühne Senfgurken würzig 215g",
+            ingredient="mustard", price=1.5, category="fertiggerichte-konserven",
+        )
         db.add(ProductIntelligence(
             product_id=meal.id,
             product_type="ready_meal",
@@ -237,6 +249,11 @@ def main():
         assert "potato-wedges" not in potato_ids, (
             "Prepared potato wedges must not be matched as raw potatoes"
         )
+
+        mustard_ids = {item["external_id"] for item in CatalogAdapter(db).search("mustard")}
+        assert "plain-mustard" in mustard_ids
+        assert "honey-mustard-sauce" not in mustard_ids
+        assert "mustard-pickles" not in mustard_ids
 
         chicken_candidates = CatalogAdapter(db).search("chicken")
         chicken_ids = {item["external_id"] for item in chicken_candidates}
