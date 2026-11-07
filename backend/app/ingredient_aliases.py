@@ -302,6 +302,16 @@ def ingredient_product_match_type(
     )):
         return None
 
+    # These are prepared dishes/snacks containing chicken as a filling or
+    # flavor, not chicken meat for a recipe's protein requirement.
+    if needle in {"chicken", "chicken breast"} and any(marker in padded_title for marker in (
+        " nuggets ", " gyoza ", " dumpling ", " onigiri ", " bifi ",
+        " noodles ", " noodle ", " ramen ", " tteokbokki ",
+        " meatballs ", " meatball ", " frikadellen ", " burger ",
+        " patties ",
+    )):
+        return None
+
     baking_chocolate_markers = (
         " backschokolade ", " kuvertüre ", " kuvertuere ",
         " schokotropfen ", " schokodrops ", " kakaopulver ",
