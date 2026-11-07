@@ -381,17 +381,17 @@ def _snapshot_float(value, default=None):
 
 def _snapshot_package_unit(name: str, current_unit: str) -> str:
     """Resolve a source unit typo when the displayed unit-price basis and pack label agree."""
-    text = re.sub(r"\\([^)]*1\\s*(?:kg|l|stück|stk\\.?)\\s*=[^)]*\\)", " ", name or "", flags=re.I)
-    reference = re.search(r"1\\s*(kg|l)\\s*=", name or "", re.I)
+    text = re.sub(r"\([^)]*1\s*(?:kg|l|stück|stk\.?)\s*=[^)]*\)", " ", name or "", flags=re.I)
+    reference = re.search(r"1\s*(kg|l)\s*=", name or "", re.I)
     if not reference:
         return current_unit
     basis = reference.group(1).lower()
     if basis == "kg" and current_unit == "ml" and re.search(
-        r"\\d+\\s*[x×]\\s*\\d+(?:[.,]\\d+)?\\s*g\\b", text, re.I
+        r"\d+\s*[x×]\s*\d+(?:[.,]\d+)?\s*g\b", text, re.I
     ):
         return "g"
     if basis == "l" and current_unit == "g" and re.search(
-        r"\\d+\\s*[x×]\\s*\\d+(?:[.,]\\d+)?\\s*ml\\b", text, re.I
+        r"\d+\s*[x×]\s*\d+(?:[.,]\d+)?\s*ml\b", text, re.I
     ):
         return "ml"
     return current_unit
@@ -399,7 +399,7 @@ def _snapshot_package_unit(name: str, current_unit: str) -> str:
 
 def _snapshot_package_size(name: str, current_size: float, current_unit: str) -> float:
     """Normalize multipacks and repair obvious ml/l or g/kg source-unit typos."""
-    text = re.sub(r"\\([^)]*1\\s*(?:kg|l|stück|stk\\.?)\\s*=[^)]*\\)", " ", name or "", flags=re.I)
+    text = re.sub(r"\([^)]*1\s*(?:kg|l|stück|stk\.?)\s*=[^)]*\)", " ", name or "", flags=re.I)
     def normalized_amount(amount, unit):
         value = float(amount.replace(",", "."))
         unit = unit.lower()
@@ -410,7 +410,7 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
         return value, unit
 
     multipacks = list(re.finditer(
-        r"(\\d+)\\s*[x×]\\s*(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l)\\b",
+        r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
         text, re.I
     ))
     for match in reversed(multipacks):
@@ -420,7 +420,7 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
 
     # Some legacy rows contain a malformed first unit (e.g. 0,75ml 0,75l).
     # Prefer the last explicit package-size token matching the corrected unit.
-    sizes = list(re.finditer(r"(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l)\\b", text, re.I))
+    sizes = list(re.finditer(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b", text, re.I))
     for match in reversed(sizes):
         amount, unit = normalized_amount(match.group(1), match.group(2))
         if unit == current_unit:
@@ -431,14 +431,14 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
     """Normalize package checkout price, unit price and German bottle deposits (Pfand)."""
     match = re.search(
-        r"1\\s*(kg|l|stück|stk\\.?)\\s*=\\s*(\\d+(?:[,.]\\d{1,2})?)\\s*€",
+        r"1\s*(kg|l|stück|stk\.?)\s*=\s*(\d+(?:[,.]\d{1,2})?)\s*€",
         name or "",
         re.I,
     )
     unit_price = _snapshot_float(match.group(2)) if match else None
     standard_unit = match.group(1).lower() if match else ""
     deposit_match = re.search(
-        r"zzgl\\.?\\s*(\\d+[,.]\\d{2})\\s*€\\s*Pfand", name or "", re.I
+        r"zzgl\.?\s*(\d+[,.]\d{2})\s*€\s*Pfand", name or "", re.I
     )
     deposit = _snapshot_float(deposit_match.group(1)) if deposit_match else 0.0
 
