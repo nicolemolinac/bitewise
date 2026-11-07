@@ -216,8 +216,8 @@ def main():
             f"Semantic vocabulary coverage: {canonical_hits}/{semantic_candidates} "
             f"eligible ingredient/component products ({semantic_coverage:.1%})"
         )
-        assert semantic_coverage >= 0.60, (
-            f"Semantic vocabulary coverage regressed below 60%: {semantic_coverage:.1%}"
+        assert semantic_coverage >= 0.66, (
+            f"Semantic vocabulary coverage regressed below 66%: {semantic_coverage:.1%}"
         )
         # Alias ontology must be one-to-one: ambiguous German terms can silently
         # map a product to multiple unrelated recipe ingredients.
