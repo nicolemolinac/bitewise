@@ -673,6 +673,9 @@ def main():
         assert classify_product({"name_original": "REWE Pizzateig"}).culinary_role == "dough"
         assert not classify_product({"name_original": "REWE Pizza Gewürz"}).is_complete_meal
         assert not classify_product({"name_original": "REWE Pizza Sauce"}).is_complete_meal
+        assert classify_product({"name_original": "Bamboo Garden Bowl Topping 15g", "category": "oele-sossen-gewuerze"}).culinary_role == "topping"
+        assert classify_product({"name_original": "Barilla Pizza Sauce 400g", "category": "oele-sossen-gewuerze"}).product_type == "prepared_component"
+        assert classify_product({"name_original": "Bamboo Garden Five Spice 35g", "category": "oele-sossen-gewuerze"}).culinary_role == "seasoning"
         assert classify_product({"name_original": "Kühne Apfelrotkohl 650g", "category": "fertiggerichte-konserven"}).product_type == "prepared_component"
         assert not classify_product({"name_original": "REWE Ramen Nudeln"}).is_complete_meal
         assert not classify_product({
