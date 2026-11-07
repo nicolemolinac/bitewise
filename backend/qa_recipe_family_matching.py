@@ -372,6 +372,19 @@ def main():
         assert catalog_count >= 1000, f"Expected full REWE snapshot, got {catalog_count}"
         adapter = CatalogAdapter(db)
         basket_adapter = _CachedCatalogAdapter(adapter)
+        # A persisted profile from the previous taxonomy must be recomputed.
+        from types import SimpleNamespace
+        stale_product = SimpleNamespace(
+            name_original="Biozentrale Bio Ahorn-Sirup 250ml",
+            name_normalized="biozentrale bio ahorn sirup 250ml",
+            translated_name=None, brand="Biozentrale", category="kochen-backen",
+        )
+        refreshed_profile = adapter._profile(
+            stale_product, SimpleNamespace(classifier_version="1.30.0")
+        )
+        assert refreshed_profile["classifier_version"] == "1.31.0", (
+            "Persisted product profiles must refresh after semantic alias changes"
+        )
 
         # Search-level checks: exact duplicate snapshots collapse, plant milk remains a substitute.
         passata_results = adapter.search("tomato passata")
@@ -458,7 +471,7 @@ def main():
             assert profile.culinary_role == expected_role, (
                 f"Wrong culinary role for {title}: expected {expected_role}, got {profile.culinary_role}"
             )
-            assert profile.classifier_version == "1.30.0", profile
+            assert profile.classifier_version == "1.31.0", profile
 
         assert canonical_ingredient_terms("Bamboo Garden Bambusschößlinge in Streifen") == ["bamboo shoots"]
         assert canonical_ingredient_terms("Bamboo Garden Sojabohnenkeimlinge") == ["soybean sprouts"]
