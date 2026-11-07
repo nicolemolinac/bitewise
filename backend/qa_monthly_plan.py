@@ -126,7 +126,10 @@ def find_coke(db):
     for row in rows:
         title = (row.name_original or "").lower()
         regular_cola = title.startswith("coca-cola") and not any(
-            marker in title for marker in ("coca-cola light", "coca-cola zero", "zero sugar", "koffeinfrei")
+            marker in title for marker in (
+                "coca-cola light", "coca-cola zero", "zero sugar", "koffeinfrei",
+                "vanilla", "cherry", "orange", "lemon", "lime",
+            )
         )
         if row.price and row.price > 0 and regular_cola:
             candidates.append(row)
@@ -276,6 +279,10 @@ def main():
         # drinks/snacks from being misclassified as ingredients in recipes.
         coke = find_coke(db)
         if coke:
+            coke_title = (coke.name_original or "").lower()
+            assert not any(
+                marker in coke_title for marker in ("light", "zero", "vanilla", "cherry", "orange", "lemon", "lime")
+            ), f"Monthly extra must be classic Coca-Cola, got {coke.name_original}"
             coke_url_valid = str(coke.product_url or "").startswith("https://www.rewe.de/shop/p/")
             print(f"EXTRA PRODUCT: {coke.name_original} | pack={coke.package_size} {coke.package_unit} | €{float(coke.price):.2f} | REWE URL={'verified' if coke_url_valid else 'missing/unverified'}")
             monthly_extra_packs = 4
