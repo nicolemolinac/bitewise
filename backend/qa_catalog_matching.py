@@ -130,6 +130,10 @@ def main():
             db, "chicken-burger", "REWE Hähnchen Burger Patties 400g",
             ingredient="chicken", price=4.5, category="tiefkuehlkost",
         )
+        knorr_mix = add_product(
+            db, "knorr-fix", "Knorr Fix Paprika-Hähnchenpfanne 33g",
+            ingredient="chicken", price=1.2, category="fertiggerichte-konserven",
+        )
         db.add(ProductIntelligence(
             product_id=meal.id,
             product_type="ready_meal",
@@ -227,6 +231,9 @@ def main():
         )
         assert "chicken-burger" in chicken_ids, (
             "Burger patties should remain available as prepared protein components"
+        )
+        assert "knorr-fix" not in chicken_ids, (
+            "A Knorr Fix seasoning sachet must not match chicken as a raw ingredient"
         )
         assert all(item["external_id"] != "pet-chicken" for item in chicken_candidates), (
             "German Huhn in a pet-food title must not match a chicken recipe ingredient"
