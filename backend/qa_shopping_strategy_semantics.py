@@ -71,6 +71,23 @@ def main():
     assert best_value["product"]["id"] == "wasteful", best_value
     assert plan_efficiency["product"]["id"] == "right-size", plan_efficiency
     assert plan_efficiency["badge"] == "🔥 Best for Plan", plan_efficiency
+
+    # Reuse count must change the choice, not merely add a constant to every
+    # candidate. A shared ingredient gets stronger package-waste weighting.
+    reuse_products = [
+        product("shared-waste", "REWE Butter 150g", 2.00, 150),
+        product("shared-fit", "REWE Butter 100g", 3.80, 100),
+    ]
+    one_off = basket(reuse_products, "plan-efficiency", quantity=100)
+    shared_requirement = [{
+        "ingredient": "butter", "display_ingredient": "butter",
+        "canonical_ingredient": "butter", "quantity": 100, "unit": "g",
+        "source_meals": ["A", "B", "C", "D", "E"],
+    }]
+    shared = build_basket(shared_requirement, FixtureAdapter(reuse_products), "plan-efficiency")[0]
+    assert one_off["product"]["id"] == "shared-waste", one_off
+    assert shared["product"]["id"] == "shared-fit", shared
+
     shared_best_value = basket([
         product("high-waste", "REWE Butter 150g", 2.40, 150),
         product("lower-waste", "REWE Butter 110g", 3.20, 110),
