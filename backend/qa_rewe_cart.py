@@ -43,6 +43,21 @@ def test_url_and_status_contract():
     assert _cart_add_status(False, 1) == "submitted_unverified"
 
 
+def test_rewe_cart_dom_probe_contract():
+    class FakePage:
+        def evaluate(self, script):
+            if "querySelectorAll('button')" in script and "plus_index" in script:
+                return {"plus_index": 8, "minus_index": 7, "quantity": 1}
+            if "backgroundColor" in script and "candidates" in script:
+                return 5
+            raise AssertionError("Unexpected REWE DOM probe")
+
+    page = FakePage()
+    from app.rewe.scraper import _rewe_add_button_index, _rewe_cart_stepper_snapshot
+    assert _rewe_cart_stepper_snapshot(page) == {"plus_index": 8, "minus_index": 7, "quantity": 1}
+    assert _rewe_add_button_index(page) == 5
+
+
 def test_cart_endpoint_only_hands_off_valid_rewe_catalog_products():
     db = SessionLocal()
     try:
@@ -109,6 +124,7 @@ def test_cart_endpoint_only_hands_off_valid_rewe_catalog_products():
 
 def main():
     test_url_and_status_contract()
+    test_rewe_cart_dom_probe_contract()
     test_cart_endpoint_only_hands_off_valid_rewe_catalog_products()
     print("REWE cart handoff QA PASS: HTTPS URL allowlist, truthful quantity status, endpoint product filtering, no checkout")
 
