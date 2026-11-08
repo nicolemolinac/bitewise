@@ -1,4 +1,5 @@
 import { getAccessToken } from './auth';
+import { acknowledgePendingChanges, restorePending, serializePending } from './cloudPending.js';
 import { CLOUD_STATE_KEYS, createCloudStateSnapshot, isCloudStateKey, mergeCloudState } from './cloudState.js';
 export { CLOUD_STATE_KEYS, isCloudStateKey } from './cloudState.js';
 
@@ -15,30 +16,21 @@ const PENDING_STORAGE_KEY = 'bitewise.internal.cloudPending.v1';
 
 function persistPendingState() {
   try {
-    if (!pendingSet.size && !pendingDelete.size) {
-      window.localStorage.removeItem(PENDING_STORAGE_KEY);
-      return;
-    }
-    window.localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify({
-      set: Object.fromEntries(pendingSet),
-      delete: [...pendingDelete],
-    }));
+    const serialized = serializePending(pendingSet, pendingDelete);
+    if (serialized === null) window.localStorage.removeItem(PENDING_STORAGE_KEY);
+    else window.localStorage.setItem(PENDING_STORAGE_KEY, serialized);
   } catch (error) {
     console.warn('Bitewise could not persist pending cloud changes', error);
   }
 }
 
 try {
-  const rawPending = window.localStorage.getItem(PENDING_STORAGE_KEY);
-  if (rawPending) {
-    const pending = JSON.parse(rawPending);
-    for (const [key, value] of Object.entries(pending?.set || {})) {
-      if (isCloudStateKey(PREFIX + key)) pendingSet.set(key, value);
-    }
-    for (const key of pending?.delete || []) {
-      if (isCloudStateKey(PREFIX + key)) pendingDelete.add(key);
-    }
-  }
+  const restored = restorePending(
+    window.localStorage.getItem(PENDING_STORAGE_KEY),
+    key => isCloudStateKey(PREFIX + key),
+  );
+  for (const [key, value] of restored.set) pendingSet.set(key, value);
+  for (const key of restored.deleted) pendingDelete.add(key);
 } catch (error) {
   console.warn('Bitewise could not restore pending cloud changes', error);
 }
@@ -93,12 +85,7 @@ async function pushStateChanges(set: Record<string, unknown>, deleted: string[] 
 }
 
 function acknowledgePending(sentSet: Record<string, unknown>, sentDelete: string[]) {
-  for (const [key, value] of Object.entries(sentSet)) {
-    if (!pendingDelete.has(key) && JSON.stringify(pendingSet.get(key)) === JSON.stringify(value)) {
-      pendingSet.delete(key);
-    }
-  }
-  for (const key of sentDelete) pendingDelete.delete(key);
+  acknowledgePendingChanges(pendingSet, pendingDelete, sentSet, sentDelete);
   persistPendingState();
 }
 
@@ -176,12 +163,7 @@ function schedulePendingSync(delayMs: number) {
           });
           // Acknowledge only the exact values sent. Newer edits made while the
           // request was in flight remain queued for the next delta.
-          for (const [key, value] of Object.entries(set)) {
-            if (!pendingDelete.has(key) && JSON.stringify(pendingSet.get(key)) === JSON.stringify(value)) {
-              pendingSet.delete(key);
-            }
-          }
-          for (const key of del) pendingDelete.delete(key);
+          acknowledgePendingChanges(pendingSet, pendingDelete, set, del);
           persistPendingState();
         } catch (error) {
           failed = true;
