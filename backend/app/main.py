@@ -48,7 +48,7 @@ async def meal_photos(request: Request):
 @app.get("/api/meal-photos/files/{filename}")
 def get_meal_photo(filename: str):
     """Serve recipe images committed inside the repository."""
-    if not re.fullmatch(r"[a-f0-9]{24}\\.(?:jpg|png|webp|gif)", filename):
+    if not re.fullmatch(r"[a-f0-9]{24}\.(?:jpg|png|webp|gif)", filename):
         raise HTTPException(404, "Recipe image not found")
     image_path = Path(__file__).resolve().parents[1] / "data" / "recipe_images" / filename
     if not image_path.is_file():
