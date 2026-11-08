@@ -103,7 +103,15 @@ function acknowledgePending(sentSet: Record<string, unknown>, sentDelete: string
 }
 
 export async function hydrateCloudState() {
-  const remote = await authed('/user-state');
+  let remote;
+  try {
+    remote = await authed('/user-state');
+  } catch (error) {
+    // Pending edits restored from a previous page session must keep retrying even
+    // when the initial read fails (offline, expired session or transient API error).
+    if (pendingSet.size || pendingDelete.size) schedulePendingSync(5000);
+    throw error;
+  }
   const local = localSnapshot();
   const remoteState = remote?.state || {};
   const deleted = new Set<string>(remote?.deleted_keys || []);
@@ -126,8 +134,21 @@ export async function hydrateCloudState() {
   const hadRemote = Object.keys(remoteState).length > 0 || deleted.size > 0;
   const hadLocal = Object.keys(local).length > 0;
   if (Object.keys(changes).length || unsyncedDelete.length) {
-    await pushStateChanges(changes, unsyncedDelete);
-    acknowledgePending(unsyncedSet, unsyncedDelete);
+    // Promote local-only keys into the durable queue before attempting network I/O.
+    // Otherwise a failed first upload would leave them only in memory/localStorage
+    // and they could be lost when the page closes before the next successful sync.
+    for (const [key, value] of Object.entries(changes)) {
+      pendingSet.set(key, value);
+      pendingDelete.delete(key);
+    }
+    persistPendingState();
+    try {
+      await pushStateChanges(changes, unsyncedDelete);
+      acknowledgePending(changes, unsyncedDelete);
+    } catch (error) {
+      schedulePendingSync(5000);
+      throw error;
+    }
     return hadRemote ? 'merged' : 'uploaded';
   }
   return hadRemote ? 'downloaded' : (hadLocal ? 'empty' : 'empty');
