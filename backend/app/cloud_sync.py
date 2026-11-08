@@ -46,7 +46,11 @@ def authenticate_request(request: Request) -> dict:
 
     allowed = os.getenv("ALLOWED_USER_EMAIL", "").strip().lower()
     email = str(user.get("email") or "").strip().lower()
-    if allowed and email != allowed:
+    if not allowed:
+        # Pantry, plans, events and settings are currently single-owner tables.
+        # Do not let an arbitrary valid Supabase account access shared records.
+        raise HTTPException(503, "Bitewise account allowlist is not configured")
+    if email != allowed:
         raise HTTPException(403, "This private Bitewise app is not available for this account")
     if not user.get("id"):
         raise HTTPException(401, "Invalid Bitewise user")
