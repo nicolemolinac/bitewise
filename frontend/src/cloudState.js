@@ -29,3 +29,17 @@ export function isCloudStateKey(storageKey, prefix = 'bitewise.v3.') {
   // One independent session per recipe, e.g. cooking:recipe-123.
   return CLOUD_STATE_KEYS.has(key) || /^cooking:[^:]+$/.test(key);
 }
+
+export function createCloudStateSnapshot(entries, prefix = 'bitewise.v3.') {
+  const state = {};
+  for (const [storageKey, raw] of entries) {
+    if (raw == null || !isCloudStateKey(storageKey, prefix)) continue;
+    const key = storageKey.slice(prefix.length);
+    try {
+      state[key] = JSON.parse(raw);
+    } catch {
+      state[key] = raw;
+    }
+  }
+  return state;
+}
