@@ -414,7 +414,7 @@ def _rewe_cart_stepper_snapshot(page):
       const shown=buttons.filter(visible);
       const label=el=>[el.innerText,el.getAttribute('aria-label'),el.getAttribute('title'),el.getAttribute('data-testid'),el.className].filter(Boolean).join(' ').toLowerCase();
       const plus=el=>(el.innerText||'').trim()==='+'||/increase|erh[oö]hen|mehr|plus|increment/.test(label(el));
-      const minus=el=>(el.innerText||'').trim()==='-'||/decrease|reduz|weniger|minus|decrement/.test(label(el));
+      const minus=el=>['-','−','–'].includes((el.innerText||'').trim())||/decrease|reduz|weniger|minus|decrement/.test(label(el));
       for(const p of shown.filter(plus)){
         let parent=p.parentElement;
         for(let depth=0;parent&&depth<6;depth++,parent=parent.parentElement){
