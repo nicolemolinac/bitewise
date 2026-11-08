@@ -151,6 +151,9 @@ def put_user_state_changes(payload: UserStateChangesIn, request: Request):
     """Apply only changed keys; deleted keys remain as tombstones for offline devices."""
     user = request_user(request)
     changed_keys = set(payload.set) | set(payload.delete)
+    overlap = sorted(set(payload.set).intersection(payload.delete))
+    if overlap:
+        raise HTTPException(422, f"Cloud-state keys cannot be set and deleted together: {overlap[:5]}")
     if len(changed_keys) > 100:
         raise HTTPException(413, "Too many cloud-state changes in one request")
     invalid = sorted(key for key in changed_keys if not isinstance(key, str) or not _valid_state_key(key))
