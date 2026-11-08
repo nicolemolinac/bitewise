@@ -169,11 +169,20 @@ def put_user_state_changes(payload: UserStateChangesIn, request: Request):
     db = SessionLocal()
     try:
         user_id = str(user["id"])
+        # Lock the legacy owner row before checking per-key entries. On Postgres,
+        # this serializes simultaneous first writes during lazy migration so two
+        # devices cannot both copy the old snapshot and have one replay stale data
+        # after the other has already applied a newer per-key edit.
+        legacy = (
+            db.query(UserState)
+            .filter(UserState.user_id == user_id)
+            .with_for_update()
+            .first()
+        )
         existing_entries = db.query(UserStateEntry).filter(UserStateEntry.user_id == user_id).all()
         # One-time lazy migration: preserve the existing whole-snapshot state when
         # the first per-key client writes, without overwriting later per-key edits.
         if not existing_entries:
-            legacy = db.get(UserState, user_id)
             if legacy and legacy.state_json:
                 try:
                     old_state = json.loads(legacy.state_json)
