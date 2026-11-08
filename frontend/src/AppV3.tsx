@@ -9,6 +9,7 @@ import {
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const K = 'bitewise.v3.';
+const API_ORIGIN = API.replace(/\\/api\\/?$/, '');
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'dessert' | 'snack';
 type Tab = 'discover'|'picks'|'history'|'plan'|'today'|'basket'|'extras'|'pantry'|'settings';
@@ -50,7 +51,7 @@ async function api(path:string,options?:RequestInit){
 }
 function read<T>(key:string,fallback:T):T{try{const v=localStorage.getItem(K+key);return v?JSON.parse(v):fallback}catch{return fallback}}
 function save(key:string,value:unknown){try{localStorage.setItem(K+key,JSON.stringify(value))}catch{}}
-function money(v?:number|null){return `€${Number(v||0).toFixed(2)}`}
+function mealImageSrc(value?:string){if(!value)return '';return value.startsWith('/api/meal-photos/files/')?API_ORIGIN+value:value}\nfunction money(v?:number|null){return `€${Number(v||0).toFixed(2)}`}
 function cx(...v:(string|false|null|undefined)[]){return v.filter(Boolean).join(' ')}
 function clamp(v:number,min:number,max:number){return Math.min(max,Math.max(min,v))}
 function mealTypeOf(m:Meal):MealType{
@@ -174,7 +175,7 @@ export default function AppV3(){
   const [extraResults,setExtraResults]=useState<Product[]>([]);
   const [detail,setDetail]=useState<Meal|null>(null);
   const [loading,setLoading]=useState(false);
-  const [cartAdding,setCartAdding]=useState(false);
+  const [cartAdding,setCartAdding]=useState(false);\n  const [photoBackfillRunning,setPhotoBackfillRunning]=useState(false);\n  const [photoBackfillReport,setPhotoBackfillReport]=useState('');
   const [cartReport,setCartReport]=useState<any>(null);
   const [error,setError]=useState('');
   const [basket,setBasket]=useState<BasketItem[]>(()=>read('basket',[]));
@@ -258,35 +259,25 @@ export default function AppV3(){
   const factor=portionFactor(profile);const todayIndex=(new Date().getDay()+6)%7;const todaySlots=weeklyPlan[todayIndex]?.slots||[];
   const weeklyStats=useMemo(()=>{let cost=0,calories=0,mealCount=0;weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(!s.meal)return;const portions=dayContexts[idx]?.people||1;cost+=s.meal.cost*factor*portions;calories+=caloriesOf(s.meal)*factor;mealCount++}));return {cost,avgCalories:mealCount?Math.round(calories/7):0,mealCount}},[weeklyPlan,dayContexts,factor]);
 
-  async function attachFreePhotos(fresh:Meal[]){
-    try{
-      const photos=await api('/meal-photos',{method:'POST',body:JSON.stringify({meals:fresh.map(meal=>({
-        name:meal.name,
-        description:meal.description||'',
-        meal_type:mealTypeOf(meal),
-        tags:meal.tags||[],
-        ingredients:meal.ingredients||[]
-      }))})});
-      const enriched=fresh.map((meal,index)=>{
-        const photo=photos?.photos?.[index]||{};
-        return {...meal,image:photo.image||'',image_page:photo.image_page||'',photographer:photo.photographer||''};
-      });
-      setMeals(current=>{
-        const byId=new Map(current.map(meal=>[meal.id,meal]));
-        enriched.forEach(meal=>byId.set(meal.id,meal));
-        return [...byId.values()];
-      });
-      setHistory(current=>current.map(row=>{
-        const updated=enriched.find(meal=>meal.id===row.record_key);
-        return updated?{...row,meal:updated}:row;
-      }));
-    }catch{
-      setMeals(current=>{
-        const byId=new Map(current.map(meal=>[meal.id,meal]));
-        fresh.forEach(meal=>{if(!byId.has(meal.id))byId.set(meal.id,{...meal,image:''})});
-        return [...byId.values()];
-      });
-    }
+  async function attachFreePhotos(fresh:Meal[], historyRows:any[]=[]){
+    const photos=await api('/meal-photos',{method:'POST',body:JSON.stringify({meals:fresh.map(meal=>({name:meal.name,description:meal.description||'',meal_type:mealTypeOf(meal),tags:meal.tags||[],ingredients:meal.ingredients||[]}))})});
+    const enriched=fresh.map((meal,index)=>{const photo=photos?.photos?.[index]||{};return {...meal,image:photo.image||meal.image||'',image_page:photo.image_page||meal.image_page||'',photographer:photo.photographer||meal.photographer||''};});
+    const updates=historyRows.map((row,index)=>{const meal=enriched[index];return meal?.image?{record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',meal}:null;}).filter(Boolean);
+    if(updates.length)await api('/recipe-history',{method:'POST',body:JSON.stringify({records:updates})});
+    setMeals(current=>{const byId=new Map(current.map(meal=>[meal.id,meal]));enriched.forEach(meal=>byId.set(meal.id,meal));return [...byId.values()];});
+    setLiked(current=>current.map(meal=>enriched.find(x=>x.id===meal.id)||meal));
+    setDetail(current=>current?enriched.find(x=>x.id===current.id)||current:current);
+    setHistory(current=>current.map(row=>{const update=updates.find((x:any)=>x.record_key===row.record_key);return update?{...row,meal:update.meal}:row;}));
+    return enriched.filter(meal=>meal.image).length;
+  }
+
+  async function findMissingHistoryPhotos(){
+    const missing=history.filter(row=>row.meal&&!row.meal.image);
+    if(!missing.length){setPhotoBackfillReport('All saved history entries already have photos.');return;}
+    setPhotoBackfillRunning(true);setPhotoBackfillReport('');
+    try{const found=await attachFreePhotos(missing.map(row=>row.meal),missing);setPhotoBackfillReport(`Found and saved ${found} of ${missing.length} missing photos. Add backend/data/recipe_images to Git and push to keep them permanently.`);}
+    catch(e:any){setPhotoBackfillReport('Photo recovery failed: '+e.message);}
+    finally{setPhotoBackfillRunning(false);}
   }
 
   async function generateAI(prompt:string){
@@ -304,7 +295,7 @@ export default function AppV3(){
       const saved=await api('/recipe-history',{method:'POST',body:JSON.stringify({records:requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal}))})});
       if(!saved.ok)throw new Error('Bitewise could not save this discovery to your permanent history.');
       setHistory(prev=>[...requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal})),...prev]);
-      setMeals(requestedMeals);setFilter('all');void attachFreePhotos(requestedMeals);
+      setMeals(requestedMeals);setFilter('all');void attachFreePhotos(requestedMeals,requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal})));
     }catch(e:any){setError(e.message)}finally{setLoading(false)}
   }
   async function react(meal:Meal,action:'like'|'skip'|'dislike'){
@@ -399,7 +390,7 @@ export default function AppV3(){
 
       {tab==='picks'&&<><Title title="Your picks" sub="Only selected ideas become full recipes. Portions adapt to your profile and each day's guest count."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{liked.map(m=><MealCard key={m.id} meal={m} open={()=>setDetail(m)} like={()=>void removePick(m)} skip={()=>void removePick(m)} picked/>)}</div>{liked.length>0&&<button onClick={()=>makeBasket(strategy,extras,owned,true)} className="mt-6 rounded-2xl bg-[#18392b] px-5 py-3 text-sm font-black text-white"><ShoppingBasket size={15} className="mr-2 inline"/>Build adaptive weekly basket</button>}</>}
 
-      {tab==='history'&&<><Title title="Recipe history" sub="Your generated ideas and completed recipes are saved in the permanent Bitewise database."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{history.map((row:any)=><article key={row.record_key} className="rounded-[22px] bg-white p-4 shadow-sm"><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/40">{row.record_type==='recipe'?'Full recipe':'Idea'}</span><span className="rounded-full bg-[#edf3ee] px-2 py-1 text-[10px] font-bold capitalize">{row.status}</span></div><div className="mt-2 font-black">{row.meal?.name||row.name}</div><div className="mt-1 text-xs text-[#18392b]/45">{row.meal?.meal_type||''} · {row.meal?.time||'—'} min</div><div className="mt-3 flex gap-2">{row.record_type==='recipe'?<button onClick={()=>setDetail(row.meal)} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white">Open recipe</button>:<button disabled={row.status==='expanded'||loading} onClick={()=>react(row.meal,'like')} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white disabled:opacity-40">{row.status==='expanded'?'Expanded':'Create recipe'}</button>}</div></article>)}</div>{!history.length&&<Empty text="Your generated ideas and recipes will appear here."/>}</>}
+      {tab==='history'&&<><div className="flex flex-wrap items-end justify-between gap-3"><Title title="Recipe history" sub="Your generated ideas and completed recipes are saved in the permanent Bitewise database."/><button onClick={()=>void findMissingHistoryPhotos()} disabled={photoBackfillRunning||!history.some(row=>row.meal&&!row.meal.image)} className="rounded-xl bg-[#18392b] px-4 py-2.5 text-sm font-black text-white disabled:opacity-40">{photoBackfillRunning?'Finding photos…':'Find missing photos'}</button></div>{photoBackfillReport&&<p className="mt-3 text-xs text-[#18392b]/60">{photoBackfillReport}</p>}<div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{history.map((row:any)=><article key={row.record_key} className="overflow-hidden rounded-[22px] bg-white shadow-sm"><div className="aspect-[4/3] bg-[#e8e5dc]">{row.meal?.image?<img src={mealImageSrc(row.meal.image)} alt={row.meal?.name||row.name} className="h-full w-full object-cover" loading="lazy"/>:<div className="grid h-full place-items-center text-xs font-black uppercase tracking-[.12em] text-[#18392b]/25">Finding photo…</div>}</div><div className="p-4"><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/40">{row.record_type==='recipe'?'Full recipe':'Idea'}</span><span className="rounded-full bg-[#edf3ee] px-2 py-1 text-[10px] font-bold capitalize">{row.status}</span></div><div className="mt-2 font-black">{row.meal?.name||row.name}</div><div className="mt-1 text-xs text-[#18392b]/45">{row.meal?.meal_type||''} · {row.meal?.time||'—'} min</div><div className="mt-3 flex gap-2">{row.record_type==='recipe'?<button onClick={()=>setDetail(row.meal)} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white">Open recipe</button>:<button disabled={row.status==='expanded'} onClick={()=>react(row.meal,'like')} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white disabled:opacity-40">{row.status==='expanded'?'Expanded':'Create recipe'}</button>}</div></div></article>)}</div>{!history.length&&<Empty text="Your generated ideas and recipes will appear here."/>}</>}
 
       {tab==='plan'&&<><div className="flex flex-wrap items-end justify-between gap-3"><Title title="Smart meal calendar" sub="Plan real meals from your saved Picks. Assign portions, avoid repeats and keep the week in sync with your shopping basket."/><div className="flex rounded-full bg-white p-1 shadow-sm">{(['week','month','year'] as CalendarView[]).map(v=><button key={v} onClick={()=>setCalendarView(v)} className={cx('rounded-full px-4 py-2 text-xs font-black capitalize',calendarView===v?'bg-[#18392b] text-white':'text-[#18392b]/45')}>{v}</button>)}</div></div><div className="mt-4 flex flex-wrap items-center gap-2"><button onClick={autoPlanWeek} disabled={!liked.length} className="rounded-xl bg-[#18392b] px-4 py-2.5 text-sm font-black text-white disabled:opacity-40">✨ Auto-plan from Picks</button><button onClick={clearWeek} className="rounded-xl border border-[#18392b]/15 bg-white px-4 py-2.5 text-sm font-black">Clear week</button><span className="text-xs text-[#18392b]/45">Auto-plan balances variety, prep time and estimated cost. You can edit every slot.</span></div><Stats cost={weeklyStats.cost} calories={weeklyStats.avgCalories} count={weeklyStats.mealCount}/>{calendarView==='week'?<div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{weeklyPlan.map((d,i)=><DayCard key={dateKey(d.date)} day={d} index={i} context={dayContexts[i]} update={p=>updateDay(i,p)} open={setDetail} picks={liked} assign={assignMeal}/>)}</div>:calendarView==='month'?<MonthView month={new Date(calendarCursor+'T12:00:00')} assignments={calendarAssignments} picks={liked} assign={assignDateMeal} open={setDetail} navigate={changeCalendarMonth}/>:<YearView year={new Date(calendarCursor+'T12:00:00').getFullYear()} assignments={calendarAssignments} navigate={delta=>setCalendarCursor(String(new Date(calendarCursor+'T12:00:00').getFullYear()+delta)+'-01-01')} chooseMonth={month=>{setCalendarCursor(String(new Date(calendarCursor+'T12:00:00').getFullYear())+'-'+String(month+1).padStart(2,'0')+'-01');setCalendarView('month')}}/>}</>}
 
@@ -444,7 +435,7 @@ export default function AppV3(){
 }
 
 function MealCard({meal,open,like,skip,picked,busy=false}:{meal:Meal;open:()=>void;like:()=>void;skip:()=>void;picked:boolean;busy?:boolean}){
-  return <article className="group overflow-hidden rounded-[24px] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"><button onClick={open} className="block w-full text-left"><div className="aspect-[4/3] overflow-hidden bg-[#e8e5dc]">{meal.image?<img src={meal.image} alt={meal.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" loading="lazy"/>:<div className="grid h-full place-items-center text-xs font-black uppercase tracking-[.12em] text-[#18392b]/25">Finding photo…</div>}</div><div className="p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-black leading-tight">{meal.name}</h3><span className="shrink-0 rounded-full bg-[#dff2df] px-2 py-1 text-[10px] font-black">≈{caloriesOf(meal)} kcal</span></div><div className="mt-2 text-xs text-[#18392b]/45">{meal.time} min · {meal.cuisine} · {money(meal.cost)}</div>{meal.is_concept&&<div className="mt-2 text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/35">Recipe generated only if you pick it</div>}{meal.image_page&&<a href={meal.image_page} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} className="mt-2 block text-[10px] font-bold text-[#18392b]/35">Photo{meal.photographer?` by ${meal.photographer}`:''} · Pexels</a>}</div></button><div className="flex gap-2 px-4 pb-4"><button disabled={busy} onClick={skip} className="rounded-xl border border-[#18392b]/10 p-2 disabled:opacity-40"><X size={14}/></button><button disabled={busy} onClick={like} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white disabled:opacity-40">{picked?'Remove':'♥ I’d eat this'}</button></div></article>
+  return <article className="group overflow-hidden rounded-[24px] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"><button onClick={open} className="block w-full text-left"><div className="aspect-[4/3] overflow-hidden bg-[#e8e5dc]">{meal.image?<img src={mealImageSrc(meal.image)} alt={meal.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" loading="lazy"/>:<div className="grid h-full place-items-center text-xs font-black uppercase tracking-[.12em] text-[#18392b]/25">Finding photo…</div>}</div><div className="p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-black leading-tight">{meal.name}</h3><span className="shrink-0 rounded-full bg-[#dff2df] px-2 py-1 text-[10px] font-black">≈{caloriesOf(meal)} kcal</span></div><div className="mt-2 text-xs text-[#18392b]/45">{meal.time} min · {meal.cuisine} · {money(meal.cost)}</div>{meal.is_concept&&<div className="mt-2 text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/35">Recipe generated only if you pick it</div>}{meal.image_page&&<a href={meal.image_page} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} className="mt-2 block text-[10px] font-bold text-[#18392b]/35">Photo{meal.photographer?` by ${meal.photographer}`:''} · Pexels</a>}</div></button><div className="flex gap-2 px-4 pb-4"><button disabled={busy} onClick={skip} className="rounded-xl border border-[#18392b]/10 p-2 disabled:opacity-40"><X size={14}/></button><button disabled={busy} onClick={like} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white disabled:opacity-40">{picked?'Remove':'♥ I’d eat this'}</button></div></article>
 }
 function RecipeSteps({meal,appliances}:{meal:Meal;appliances:string[]}){const steps=meal.steps?.length?meal.steps:fallbackSteps(meal,appliances);return <div className="mt-5"><div className="text-xs font-black uppercase tracking-[.16em] text-[#18392b]/35">Fastest way</div><div className="mt-3 space-y-2">{steps.map((s,i)=><div key={i} className="flex gap-3 rounded-xl bg-[#f7f5ef] p-3"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#18392b] text-[10px] font-black text-white">{i+1}</span><div className="text-sm"><b>{s.text}</b>{s.minutes?<span className="ml-2 text-xs text-[#18392b]/40">~{s.minutes} min</span>:null}</div></div>)}</div></div>}
 function DayCard({day,index,context,update,open,picks,assign}:{day:{day:number;date:Date;slots:Slot[]};index:number;context:DayContext;update:(p:Partial<DayContext>)=>void;open:(m:Meal)=>void;picks:Meal[];assign:(day:number,type:MealType,mealId:string)=>void}){
