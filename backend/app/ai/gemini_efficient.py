@@ -1,6 +1,7 @@
 import json
 import math
 import re
+import time
 
 from .gemini import (
     DATA_FILE,
@@ -191,6 +192,29 @@ These are examples of specificity and relevance, not a fixed list.
         if not concepts:
             raise RuntimeError("Gemini returned no usable meal concepts.")
         return concepts
+
+    def _generate_once(self, instruction: str):
+        """Retry transient Gemini capacity/rate-limit failures without changing the prompt."""
+        retryable_codes = {429, 500, 502, 503, 504}
+        for attempt in range(3):
+            try:
+                return super()._generate_once(instruction)
+            except Exception as exc:
+                raw_code = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+                try:
+                    code = int(raw_code)
+                except (TypeError, ValueError):
+                    code = None
+                message = str(exc).lower()
+                transient_message = any(token in message for token in (
+                    "429", "500", "502", "503", "504", "unavailable",
+                    "resource_exhausted", "resource exhausted", "too many requests",
+                    "rate limit", "high demand", "overloaded",
+                ))
+                if attempt == 2 or (code not in retryable_codes and not transient_message):
+                    raise
+                # Short bounded backoff: 1s, then 2s. Never retry validation/auth errors.
+                time.sleep(2 ** attempt)
 
     def expand_concept(self, concept: dict, context: str = "", appliances=None):
         if not self.key:
