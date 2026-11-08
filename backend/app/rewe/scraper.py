@@ -410,7 +410,7 @@ def _rewe_cart_stepper_snapshot(page):
     script = r"""
     () => {
       const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'; };
-      const buttons=Array.from(document.querySelectorAll('button'));
+      const buttons=Array.from(document.querySelectorAll('button, [role="button"]'));
       const shown=buttons.filter(visible);
       const label=el=>[el.innerText,el.getAttribute('aria-label'),el.getAttribute('title'),el.getAttribute('data-testid'),el.className].filter(Boolean).join(' ').toLowerCase();
       const plus=el=>(el.innerText||'').trim()==='+'||/increase|erh[oö]hen|mehr|plus|increment/.test(label(el));
@@ -436,7 +436,7 @@ def _rewe_add_button_index(page):
     """Find REWE's add control, including the red icon-only cart-plus button."""
     script = r"""
     () => {
-      const buttons=Array.from(document.querySelectorAll('button'));
+      const buttons=Array.from(document.querySelectorAll('button, [role="button"]'));
       const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>24&&r.height>24&&s.visibility!=='hidden'&&s.display!=='none';};
       const score=el=>{
         const attrs=[el.innerText,el.getAttribute('aria-label'),el.getAttribute('title'),el.getAttribute('data-testid'),el.getAttribute('data-test'),el.className,...Array.from(el.querySelectorAll('svg')).flatMap(svg=>[svg.getAttribute('aria-label'),svg.getAttribute('data-icon'),svg.getAttribute('class')])].filter(Boolean).join(' ').toLowerCase();
@@ -802,7 +802,7 @@ class ReweCatalogScraper:
                             add_index=_rewe_add_button_index(page)
                             if add_index is None:
                                 results.append({"name":name,"status":"not_added","message":"Could not identify REWE's red add-to-cart control"});continue
-                            page.locator("button").nth(add_index).click(timeout=8_000)
+                            page.locator("button, [role='button']").nth(add_index).click(timeout=8_000)
                             for _ in range(30):
                                 page.wait_for_timeout(300)
                                 state=_rewe_cart_stepper_snapshot(page)
@@ -813,12 +813,12 @@ class ReweCatalogScraper:
                         for _ in range(min(99,max(0,target-current))):
                             state=_rewe_cart_stepper_snapshot(page)
                             if state is None:break
-                            page.locator("button").nth(int(state["plus_index"])).click(timeout=5_000)
+                            page.locator("button, [role='button']").nth(int(state["plus_index"])).click(timeout=5_000)
                             page.wait_for_timeout(250)
                         for _ in range(min(99,max(0,current-target))):
                             state=_rewe_cart_stepper_snapshot(page)
                             if state is None:break
-                            page.locator("button").nth(int(state["minus_index"])).click(timeout=5_000)
+                            page.locator("button, [role='button']").nth(int(state["minus_index"])).click(timeout=5_000)
                             page.wait_for_timeout(250)
                         final=_rewe_cart_stepper_snapshot(page)
                         actual=int(final["quantity"]) if final else None
