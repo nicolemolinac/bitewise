@@ -127,7 +127,13 @@ with tempfile.TemporaryDirectory(prefix="bitewise-cloud-sync-qa-") as directory:
             assert exc.status_code in (413, 422)
         else:
             raise AssertionError("Legacy snapshot endpoint accepted an unsafe/oversized payload")
-    assert get_user_state(alice)["state"] == revived["state"]
+    final_alice_state = get_user_state(alice)["state"]
+    assert final_alice_state == {
+        "liked": ["recipe-alice-updated"],
+        "basket": ["new-device-item"],
+        "strategy": "best-value",
+        **{f"cooking:parallel-{index}": {"step": index} for index in range(8)},
+    }, f"Unexpected Alice state after concurrent writes and rejected requests: {final_alice_state}"
 
     # Existing accounts with only a legacy JSON snapshot migrate on first delta write.
     from app.database import SessionLocal, UserState
