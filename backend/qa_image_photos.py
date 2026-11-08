@@ -41,25 +41,40 @@ def test_image_url_filter():
 
 
 def test_recipe_photo_is_downloaded_into_repo_and_reused():
+    from io import BytesIO
+    from PIL import Image
+
     original_dir = image_resolver.IMAGE_DIR
     with tempfile.TemporaryDirectory(prefix="bitewise-photo-store-") as temp:
         image_resolver.IMAGE_DIR = Path(temp)
+        image_bytes = BytesIO()
+        Image.new("RGB", (1800, 1200), (210, 120, 90)).save(image_bytes, format="JPEG", quality=92)
+        jpeg = image_bytes.getvalue()
 
         class FakeResponse:
             headers = {"content-type": "image/jpeg"}
             def raise_for_status(self):
                 return None
             def iter_content(self, chunk_size):
-                yield b"\\xff\\xd8" + (b"recipe-photo" * 150)
+                yield jpeg
 
-        with patch.object(image_resolver.requests, "get", return_value=FakeResponse()):
-            saved = image_resolver._persist_image("https://images.example.com/recipe.jpg", "qa-recipe-key")
-            assert saved.startswith("/api/meal-photos/files/")
-            filename = saved.rsplit("/", 1)[-1]
-            stored = Path(temp) / filename
-            assert stored.is_file() and stored.stat().st_size > 1024
-            assert image_resolver._persist_image(saved, "qa-recipe-key") == saved
-        image_resolver.IMAGE_DIR = original_dir
+        try:
+            with patch.object(image_resolver.requests, "get", return_value=FakeResponse()) as download:
+                saved = image_resolver._persist_image("https://images.example.com/recipe.jpg", "qa-recipe-key")
+                assert saved.startswith("/api/meal-photos/files/")
+                filename = saved.rsplit("/", 1)[-1]
+                stored = Path(temp) / filename
+                assert stored.is_file()
+                assert stored.suffix == ".webp"
+                data = stored.read_bytes()
+                assert data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+                with Image.open(stored) as optimized:
+                    assert optimized.format == "WEBP"
+                    assert optimized.width <= 1200 and optimized.height <= 1200
+                assert image_resolver._persist_image(saved, "qa-recipe-key") == saved
+                assert download.call_count == 1
+        finally:
+            image_resolver.IMAGE_DIR = original_dir
 
 
 def test_meal_photos_endpoint_contract():
