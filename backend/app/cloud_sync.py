@@ -239,19 +239,11 @@ def put_user_state(payload: UserStateIn, request: Request):
             for entry in db.query(UserStateEntry).filter(UserStateEntry.user_id == user_id).all()
         }
         for key, value in payload.state.items():
-            if not isinstance(key, str) or not _valid_state_key(key):
-                continue
-            entry = entries.get(key)
             encoded_value = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-            if entry is None:
-                db.add(UserStateEntry(user_id=user_id, state_key=key, value_json=encoded_value, is_deleted=False))
-            else:
-                entry.value_json = encoded_value
-                entry.is_deleted = False
-        for key, entry in entries.items():
+            _upsert_state_entry(db, user_id, key, encoded_value, False)
+        for key in entries:
             if key not in payload.state:
-                entry.value_json = None
-                entry.is_deleted = True
+                _upsert_state_entry(db, user_id, key, None, True)
         db.commit()
         return {"ok": True, "user_id": user_id}
     finally:
