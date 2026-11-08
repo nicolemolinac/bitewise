@@ -116,6 +116,17 @@ def main():
             {"record_key": "recipe:" + concept_two["id"], "record_type": "recipe", "status": "saved", "meal": recipe_two},
         ]})
         assert saved["saved"] == 4
+
+        # Photo references are part of the persisted meal JSON, not browser-only state.
+        photo_path = "/api/meal-photos/files/" + ("a" * 24) + ".webp"
+        concept_with_photo = {**concept, "image": photo_path}
+        photo_save = call("POST", "/api/recipe-history", {"records": [
+            {"record_key": concept["id"], "record_type": "concept", "status": "expanded", "meal": concept_with_photo},
+        ]})
+        assert photo_save["saved"] == 1
+        refreshed_history = call("GET", "/api/recipe-history")
+        persisted_concept = next(row for row in refreshed_history["records"] if row["record_key"] == concept["id"])
+        assert persisted_concept["meal"]["image"] == photo_path
         call("PATCH", "/api/recipe-history/" + concept["id"], {"status": "expanded"})
         call("PATCH", "/api/recipe-history/" + concept_two["id"], {"status": "expanded"})
     finally:
