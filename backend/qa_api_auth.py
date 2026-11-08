@@ -27,6 +27,11 @@ from app.cloud_sync import requests as auth_requests
 Base.metadata.create_all(engine)
 client = TestClient(server.app)
 
+# Importing the deployed entrypoint installs its production authentication gate
+# on the shared FastAPI app. The tests below exercise the actual deployment stack.
+from app import render_app
+production_client = TestClient(render_app.app)
+
 
 def response(status_code, user=None):
     return SimpleNamespace(status_code=status_code, json=lambda: user or {})
@@ -39,6 +44,46 @@ def main():
         "ALLOWED_USER_EMAIL": "allowed@example.test",
         "SERVICE_TOKEN": "qa-service-token",
     }
+
+    # Production must fail closed if neither Basic Auth nor Supabase is configured.
+    with patch.dict(os.environ, {
+        "APP_USERNAME": "", "APP_PASSWORD": "",
+        "SUPABASE_URL": "", "SUPABASE_PUBLISHABLE_KEY": "",
+        "SERVICE_TOKEN": "",
+    }, clear=False):
+        unconfigured = production_client.get("/api/pantry")
+        assert unconfigured.status_code == 503, unconfigured.text
+
+    # Basic Auth protects the whole deployed app, not only cloud-state endpoints.
+    with patch.dict(os.environ, {
+        "APP_USERNAME": "qa-app-user", "APP_PASSWORD": "qa-app-password",
+        "SUPABASE_URL": "", "SUPABASE_PUBLISHABLE_KEY": "",
+        "SERVICE_TOKEN": "qa-service-token",
+    }, clear=False):
+        no_basic = production_client.get("/api/pantry")
+        assert no_basic.status_code == 401, no_basic.text
+        bad_basic = production_client.get("/api/pantry", auth=("qa-app-user", "wrong"))
+        assert bad_basic.status_code == 401, bad_basic.text
+        good_basic = production_client.get("/api/pantry", auth=("qa-app-user", "qa-app-password"))
+        assert good_basic.status_code == 200, good_basic.text
+        service_basic = production_client.get("/api/pantry", headers={"x-service-token": "qa-service-token"})
+        assert service_basic.status_code == 200, service_basic.text
+
+    # Supabase-only deployment must enforce bearer authentication across API routes.
+    with patch.dict(os.environ, {
+        "APP_USERNAME": "", "APP_PASSWORD": "",
+        "SUPABASE_URL": "https://qa-project.supabase.co",
+        "SUPABASE_PUBLISHABLE_KEY": "qa-publishable-key",
+        "ALLOWED_USER_EMAIL": "allowed@example.test",
+        "SERVICE_TOKEN": "",
+    }, clear=False):
+        no_bearer = production_client.get("/api/pantry")
+        assert no_bearer.status_code == 401, no_bearer.text
+        with patch.object(auth_requests, "get", return_value=response(200, {
+            "id": "qa-allowed-user", "email": "allowed@example.test"
+        })):
+            bearer = production_client.get("/api/pantry", headers={"Authorization": "Bearer valid-token"})
+        assert bearer.status_code == 200, bearer.text
 
     with patch.dict(os.environ, auth_env, clear=False):
         # Protected routes must fail closed when the bearer token is absent.
