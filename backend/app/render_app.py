@@ -19,7 +19,7 @@ def _service_request_allowed(request: Request) -> bool:
 
 @app.middleware("http")
 async def private_basic_auth(request: Request, call_next):
-    if request.url.path == "/api/health" or _service_request_allowed(request):
+    if request.url.path == "/api/health" or request.method == "OPTIONS" or _service_request_allowed(request):
         return await call_next(request)
 
     username = os.getenv("APP_USERNAME", "")
