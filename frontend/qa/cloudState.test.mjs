@@ -65,3 +65,24 @@ test("cloud hydration keeps local-only keys while remote wins conflicts", async 
     },
   );
 });
+
+
+test("remote deletion tombstones remove stale local keys", async () => {
+  const { mergeCloudState } = await import("../src/cloudState.js");
+  assert.deepEqual(
+    mergeCloudState(
+      { liked: ["stale-local"], profile: { servings: 2 }, basket: ["keep-local"] },
+      { basket: ["remote-item"] },
+      ["liked", "profile"],
+    ),
+    { basket: ["remote-item"] },
+  );
+});
+
+test("remote tombstones do not affect unrelated or unsupported keys", async () => {
+  const { mergeCloudState } = await import("../src/cloudState.js");
+  assert.deepEqual(
+    mergeCloudState({ liked: ["local"], profile: { servings: 2 } }, {}, ["products", "not-allowed"]),
+    { liked: ["local"], profile: { servings: 2 } },
+  );
+});
