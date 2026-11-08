@@ -51,6 +51,7 @@ jobs:
               '/api/brain-dump',
               '/api/user-state',
               '/api/meal-photos',
+              '/api/meal-photos/files/{filename}',
               '/api/recipe-history',
               '/api/recipe-history/{record_key:path}',
           }
