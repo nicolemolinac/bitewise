@@ -18,8 +18,26 @@ FIELDS = [
 ]
 
 
+def write_catalog_export(rows, output_path):
+    """Write selected catalog rows and return field-coverage counts."""
+    rows = list(rows)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=FIELDS)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: getattr(row, field, None) for field in FIELDS})
+    total = len(rows)
+    return {
+        "total": total,
+        "with_urls": sum(bool(row.product_url) for row in rows),
+        "with_images": sum(bool(row.image_url) for row in rows),
+        "with_prices": sum(row.price is not None and float(row.price) > 0 for row in rows),
+    }
+
+
 def main():
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     db = SessionLocal()
     try:
         rows = (
@@ -30,22 +48,12 @@ def main():
         )
         if not rows:
             raise RuntimeError("No REWE products found in the configured database.")
-        with OUTPUT.open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=FIELDS)
-            writer.writeheader()
-            for row in rows:
-                writer.writerow({
-                    field: getattr(row, field, None)
-                    for field in FIELDS
-                })
-        with_urls = sum(bool(row.product_url) for row in rows)
-        with_images = sum(bool(row.image_url) for row in rows)
-        with_prices = sum(row.price is not None and float(row.price) > 0 for row in rows)
-        print(f"Exported {len(rows)} REWE products to {OUTPUT}")
-        print(f"Priced products: {with_prices}/{len(rows)}")
-        print(f"Products with direct REWE URL: {with_urls}/{len(rows)}")
-        print(f"Products with image URL: {with_images}/{len(rows)}")
-        if not with_urls:
+        counts = write_catalog_export(rows, OUTPUT)
+        print(f"Exported {counts['total']} REWE products to {OUTPUT}")
+        print(f"Priced products: {counts['with_prices']}/{counts['total']}")
+        print(f"Products with direct REWE URL: {counts['with_urls']}/{counts['total']}")
+        print(f"Products with image URL: {counts['with_images']}/{counts['total']}")
+        if not counts["with_urls"]:
             print("WARNING: This database has no direct product URLs; refresh the REWE catalog before expecting one-click product handoff.")
     finally:
         db.close()
