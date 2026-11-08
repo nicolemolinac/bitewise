@@ -178,7 +178,24 @@ def main():
         rewe_status = call("GET", "/api/rewe/status")
         assert rewe_status["live_data"] is False and rewe_status["data_freshness"] == "catalog_snapshot"
 
-        print("QA PASS: core loop + unit-safe/idempotent/quantity-aware pantry coverage + persistent AI meal Discover/Plan/Shopping integration + REWE status")
+        # Cloud UI state must round-trip and replace atomically without touching the server catalog.
+        cloud_state = {
+            "tab": "calendar",
+            "liked": ["teriyaki-chicken", "lentil-dal"],
+            "calendarAssignments": {"2026-11-09:dinner": "teriyaki-chicken"},
+            "basket": [{"product_id": 12, "packs": 2}],
+            "profile": {"servings": 2, "postcode": "13353"},
+        }
+        cloud_put = call("PUT", "/api/user-state", {"state": cloud_state})
+        assert cloud_put["ok"] is True
+        cloud_get = call("GET", "/api/user-state")
+        assert cloud_get["state"] == cloud_state, "Cloud state did not round-trip without data loss"
+        replacement_state = {"tab": "discover", "liked": ["arrabbiata"]}
+        call("PUT", "/api/user-state", {"state": replacement_state})
+        assert call("GET", "/api/user-state")["state"] == replacement_state, "Cloud state update did not replace the previous snapshot"
+        call("PUT", "/api/user-state", {"state": []}, expected=422)
+
+        print("QA PASS: core loop + pantry ledger + cloud-state round-trip/overwrite/validation + persistent AI meal integration + REWE status")
     finally:
         proc.terminate()
         try: proc.wait(timeout=5)
