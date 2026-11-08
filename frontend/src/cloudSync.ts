@@ -26,6 +26,10 @@ function localSnapshot() {
 function applySnapshot(state: Record<string, unknown>) {
   applyingRemoteSnapshot = true;
   try {
+    const acceptedKeys = new Set(Object.keys(state || {}).filter(key => isCloudStateKey(PREFIX + key)));
+    for (const [key] of Object.entries(localSnapshot())) {
+      if (!acceptedKeys.has(key)) window.localStorage.removeItem(PREFIX + key);
+    }
     for (const [key, value] of Object.entries(state || {})) {
       if (!isCloudStateKey(PREFIX + key)) continue;
       window.localStorage.setItem(PREFIX + key, JSON.stringify(value));
@@ -52,10 +56,11 @@ async function authed(path: string, options?: RequestInit) {
 export async function hydrateCloudState() {
   const remote = await authed('/user-state');
   const local = localSnapshot();
-  if (remote?.state && Object.keys(remote.state).length) {
+  if (remote?.state && (Object.keys(remote.state).length || (remote.deleted_keys || []).length)) {
     const merged = mergeCloudState(local, remote.state, remote.deleted_keys || []);
     applySnapshot(merged);
-    const hasLocalOnlyState = Object.keys(local).some(key => !(key in remote.state));
+    const deleted = new Set(remote.deleted_keys || []);
+    const hasLocalOnlyState = Object.keys(local).some(key => !(key in remote.state) && !deleted.has(key));
     if (hasLocalOnlyState) {
       await authed('/user-state', { method: 'PUT', body: JSON.stringify({ state: merged }) });
       return 'merged';
