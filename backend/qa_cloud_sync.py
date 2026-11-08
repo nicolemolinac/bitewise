@@ -1,6 +1,7 @@
 """Isolated user-state ownership QA; writes only to a temporary SQLite database."""
 import os
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -86,6 +87,18 @@ with tempfile.TemporaryDirectory(prefix="bitewise-cloud-sync-qa-") as directory:
     put_user_state_changes(UserStateChangesIn(set={"strategy": "cheapest"}), alice)
     put_user_state_changes(UserStateChangesIn(set={"strategy": "best-value"}), alice)
     assert get_user_state(alice)["state"]["strategy"] == "best-value"
+
+    # Concurrent devices writing different keys must not lose each other's updates.
+    def write_concurrent_key(index):
+        put_user_state_changes(
+            UserStateChangesIn(set={f"cooking:parallel-{index}": {"step": index}}),
+            alice,
+        )
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(write_concurrent_key, range(8)))
+    concurrent_state = get_user_state(alice)["state"]
+    for index in range(8):
+        assert concurrent_state[f"cooking:parallel-{index}"] == {"step": index}
 
     # Delta requests are bounded just like legacy snapshot requests.
     try:
