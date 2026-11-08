@@ -418,7 +418,7 @@ def _rewe_cart_stepper_snapshot(page):
       for(const p of shown.filter(plus)){
         let parent=p.parentElement;
         for(let depth=0;parent&&depth<6;depth++,parent=parent.parentElement){
-          const group=Array.from(parent.querySelectorAll('button')).filter(visible);
+          const group=Array.from(parent.querySelectorAll('button, [role="button"]')).filter(visible);
           const m=group.find(minus); if(!m||!group.includes(p))continue;
           let q=null; const input=parent.querySelector('input');
           if(input&&/^\d+$/.test(input.value||''))q=Number(input.value);
