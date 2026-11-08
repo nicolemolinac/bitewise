@@ -782,8 +782,10 @@ class ReweCatalogScraper:
                                 field = page.locator(selector).first
                                 if field.count() and field.is_visible() and field.is_enabled():
                                     field.fill(str(packs))
-                                    quantity_set = True
-                                    break
+                                    entered_quantity = field.input_value(timeout=2_000).strip()
+                                    quantity_set = entered_quantity == str(packs)
+                                    if quantity_set:
+                                        break
                             except Exception:
                                 pass
 
