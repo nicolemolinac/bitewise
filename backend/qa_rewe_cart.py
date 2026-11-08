@@ -20,7 +20,11 @@ from fastapi.testclient import TestClient
 
 from app import server
 from app.database import Product, SessionLocal
-from app.rewe.scraper import _canonical_product_url, _cart_add_status
+from app.rewe.scraper import (
+    _canonical_product_url,
+    _cart_add_status,
+    _cart_quantity_submission_allowed,
+)
 
 
 def test_url_and_status_contract():
@@ -41,6 +45,9 @@ def test_url_and_status_contract():
     assert _cart_add_status(True, 1) == "added"
     assert _cart_add_status(True, 3) == "quantity_unconfirmed"
     assert _cart_add_status(False, 1) == "submitted_unverified"
+    assert _cart_quantity_submission_allowed(False, 1) is True
+    assert _cart_quantity_submission_allowed(False, 2) is False
+    assert _cart_quantity_submission_allowed(True, 2) is True
 
 
 def test_cart_endpoint_only_hands_off_valid_rewe_catalog_products():
