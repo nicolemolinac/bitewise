@@ -136,6 +136,10 @@ def _cart_add_status(confirmation_seen: bool, packs_requested: int) -> str:
         return "submitted_unverified"
     return "added" if int(packs_requested) == 1 else "quantity_unconfirmed"
 
+def _cart_quantity_submission_allowed(quantity_set: bool, packs_requested: int) -> bool:
+    """Do not submit a multi-pack request when the requested quantity was not entered."""
+    return int(packs_requested) <= 1 or bool(quantity_set)
+
 
 def _image_url_from_card(box, anchor, base_url: str):
     """Read the real product image from REWE cards, including lazy-loaded variants."""
@@ -782,6 +786,17 @@ class ReweCatalogScraper:
                                     break
                             except Exception:
                                 pass
+
+                        if not _cart_quantity_submission_allowed(quantity_set, packs):
+                            results.append({
+                                "name": name,
+                                "status": "quantity_control_unavailable",
+                                "packs_requested": packs,
+                                "quantity_set": False,
+                                "quantity_verified": False,
+                                "message": "Requested multi-pack quantity could not be entered; product was not added",
+                            })
+                            continue
 
                         add_button = None
                         for pattern in (r"In den Warenkorb", r"Warenkorb hinzufügen"):
