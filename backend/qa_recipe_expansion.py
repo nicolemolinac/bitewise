@@ -184,7 +184,46 @@ def main():
     invalid = client.post("/api/ai/recipe", json={"concept": {"id": "missing-name"}})
     assert invalid.status_code == 422
 
-    print("Recipe flow QA PASS: transient Gemini retries, two independent expansions, nested datetime serialization, idempotent retry, durable history, Picks rehydration, fractional basket and failure handling")
+    # Regression for the REWE Playwright sync-API/event-loop failure. The route
+    # must execute the synchronous scraper in a worker thread, not in FastAPI's
+    # async request loop.
+    import asyncio
+    from types import SimpleNamespace
+
+    cart_db = Mock()
+    cart_db.get.return_value = SimpleNamespace(
+        supermarket="REWE",
+        name_original="QA REWE product",
+        product_url="https://www.rewe.de/produkte/qa-product",
+    )
+
+    def fake_add_products_to_cart(products):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("Sync Playwright was called inside an asyncio event loop")
+        assert products == [{
+            "name": "QA REWE product",
+            "product_url": "https://www.rewe.de/produkte/qa-product",
+            "packs": 2,
+        }]
+        return {"results": [{"name": "QA REWE product", "status": "added"}], "checkout_performed": False}
+
+    with patch("app.server.SessionLocal", return_value=cart_db), patch(
+        "app.rewe.scraper.ReweCatalogScraper.add_products_to_cart",
+        new=fake_add_products_to_cart,
+    ):
+        cart_response = client.post("/api/rewe/cart/add", json={
+            "items": [{"product_id": 123, "packs": 2}],
+        })
+    assert cart_response.status_code == 200, cart_response.text
+    assert cart_response.json()["checkout_performed"] is False
+    assert cart_response.json()["results"][0]["status"] == "added"
+    cart_db.close.assert_called_once()
+
+    print("Recipe flow QA PASS: transient Gemini retries, two independent expansions, nested datetime serialization, idempotent retry, durable history, Picks rehydration, fractional basket, failure handling and REWE worker-thread handoff")
 
 
 if __name__ == "__main__":
