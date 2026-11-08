@@ -44,18 +44,50 @@ def test_url_and_status_contract():
 
 
 def test_rewe_cart_dom_probe_contract():
-    class FakePage:
-        def evaluate(self, script):
-            if "querySelectorAll('button, [role=" in script and "plus_index" in script:
-                return {"plus_index": 8, "minus_index": 7, "quantity": 1}
-            if "backgroundColor" in script and "candidates" in script:
-                return 5
-            raise AssertionError("Unexpected REWE DOM probe")
-
-    page = FakePage()
+    from playwright.sync_api import sync_playwright
     from app.rewe.scraper import _rewe_add_button_index, _rewe_cart_stepper_snapshot
-    assert _rewe_cart_stepper_snapshot(page) == {"plus_index": 8, "minus_index": 7, "quantity": 1}
-    assert _rewe_add_button_index(page) == 5
+
+    html = """
+    <header>
+      <button aria-label="Warenkorb" style="width:48px;height:48px;background:white">
+        <svg aria-label="cart" viewBox="0 0 24 24"><path d="M2 2h2l2 10h12"/></svg>
+      </button>
+    </header>
+    <main>
+      <h1>QA product</h1>
+      <div id="purchase">
+        <button id="add" aria-label="In den Warenkorb" style="width:160px;height:48px;background:rgb(220,20,30);color:white">
+          <svg class="icon-cart-plus" viewBox="0 0 24 24"><path d="M2 2h2l2 10h12M12 5v8M8 9h8"/></svg>
+        </button>
+      </div>
+    </main>
+    <script>
+      document.getElementById('add').addEventListener('click', () => {
+        document.getElementById('purchase').innerHTML =
+          '<div id="stepper"><button aria-label="Weniger">−</button><span id="quantity">1</span><button aria-label="Mehr">+</button></div>';
+        const stepper=document.getElementById('stepper');
+        stepper.querySelector('[aria-label="Mehr"]').addEventListener('click',()=>{document.getElementById('quantity').textContent=String(Number(document.getElementById('quantity').textContent)+1)});
+        stepper.querySelector('[aria-label="Weniger"]').addEventListener('click',()=>{document.getElementById('quantity').textContent=String(Math.max(0,Number(document.getElementById('quantity').textContent)-1))});
+      });
+    </script>
+    """
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.set_content(html)
+            add_index = _rewe_add_button_index(page)
+            assert add_index is not None
+            page.locator("button, [role='button']").nth(add_index).click()
+            state = _rewe_cart_stepper_snapshot(page)
+            assert state and state["quantity"] == 1
+            for _ in range(2):
+                state = _rewe_cart_stepper_snapshot(page)
+                page.locator("button, [role='button']").nth(state["plus_index"]).click()
+            state = _rewe_cart_stepper_snapshot(page)
+            assert state and state["quantity"] == 3
+        finally:
+            browser.close()
 
 
 def test_cart_endpoint_only_hands_off_valid_rewe_catalog_products():
