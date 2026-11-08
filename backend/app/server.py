@@ -1,6 +1,7 @@
 from pathlib import Path
 import hmac
 import json
+import math
 import os
 import uuid
 from datetime import date, datetime
@@ -594,11 +595,18 @@ async def expand_ai_recipe(request: Request):
     concept = payload.get("concept") if isinstance(payload, dict) else None
     context = payload.get("context", "") if isinstance(payload, dict) else ""
     appliances = payload.get("appliances", []) if isinstance(payload, dict) else []
-    try:
-        requested_servings = float(payload.get("servings", 2)) if isinstance(payload, dict) else 2.0
-        people = int(payload.get("people", 1)) if isinstance(payload, dict) else 1
-    except (TypeError, ValueError):
-        raise HTTPException(422, "servings and people must be numeric")
+    raw_servings = payload.get("servings", 2) if isinstance(payload, dict) else 2
+    raw_people = payload.get("people", 1) if isinstance(payload, dict) else 1
+    if (
+        isinstance(raw_servings, bool)
+        or not isinstance(raw_servings, (int, float))
+        or not math.isfinite(raw_servings)
+        or isinstance(raw_people, bool)
+        or not isinstance(raw_people, int)
+    ):
+        raise HTTPException(422, "servings must be a finite number and people must be an integer")
+    requested_servings = float(raw_servings)
+    people = raw_people
     if not 0.1 <= requested_servings <= 12 or not 1 <= people <= 12:
         raise HTTPException(422, "servings must be 0.1–12 and people must be 1–12")
     if not isinstance(concept, dict) or not str(concept.get("name") or "").strip():
