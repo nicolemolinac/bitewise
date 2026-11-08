@@ -49,3 +49,19 @@ test("cloud snapshot includes cooking progress and excludes catalog/cache entrie
     cookingAlerts: true,
   });
 });
+
+test("cloud hydration keeps local-only keys while remote wins conflicts", async () => {
+  const { mergeCloudState } = await import("../src/cloudState.js");
+  assert.deepEqual(
+    mergeCloudState(
+      { liked: ["local-recipe"], profile: { portions: 2 }, basket: ["local-item"] },
+      { liked: ["remote-recipe"], calendarAssignments: { "2026-11-08:dinner": "meal-1" }, products: ["must-not-sync"] },
+    ),
+    {
+      liked: ["remote-recipe"],
+      profile: { portions: 2 },
+      basket: ["local-item"],
+      calendarAssignments: { "2026-11-08:dinner": "meal-1" },
+    },
+  );
+});
