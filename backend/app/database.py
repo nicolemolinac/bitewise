@@ -455,7 +455,9 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         return round(base_price + deposit, 2), unit_price
 
     fallback = _snapshot_float(raw_price)
-    if fallback is None:
+    # Negative checkout prices are malformed source data, not valid discounts.
+    # Keep the product visible but do not expose a negative price or unit cost.
+    if fallback is None or fallback < 0:
         return None, None
     # The raw per-unit field in old exports is inconsistent for multipacks
     # (sometimes it refers to one inner unit). Recompute from the normalized pack.
