@@ -140,6 +140,10 @@ def _cart_quantity_submission_allowed(quantity_set: bool, packs_requested: int) 
     """Do not submit a multi-pack request when the requested quantity was not entered."""
     return int(packs_requested) <= 1 or bool(quantity_set)
 
+def _cart_quantity_matches(entered_quantity: str, packs_requested: int) -> bool:
+    """Require an exact read-back of the requested package count."""
+    return str(entered_quantity).strip() == str(int(packs_requested))
+
 
 def _image_url_from_card(box, anchor, base_url: str):
     """Read the real product image from REWE cards, including lazy-loaded variants."""
@@ -782,8 +786,8 @@ class ReweCatalogScraper:
                                 field = page.locator(selector).first
                                 if field.count() and field.is_visible() and field.is_enabled():
                                     field.fill(str(packs))
-                                    entered_quantity = field.input_value(timeout=2_000).strip()
-                                    quantity_set = entered_quantity == str(packs)
+                                    entered_quantity = field.input_value(timeout=2_000)
+                                    quantity_set = _cart_quantity_matches(entered_quantity, packs)
                                     if quantity_set:
                                         break
                             except Exception:
