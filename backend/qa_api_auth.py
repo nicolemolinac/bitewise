@@ -109,6 +109,17 @@ def main():
             expired = client.get("/api/user-state", headers={"Authorization": "Bearer expired-token"})
         assert expired.status_code == 401, expired.text
 
+        # A valid Supabase user must still be denied if the single-owner
+        # account allowlist is missing; shared pantry/planner tables are not multi-tenant.
+        with patch.dict(os.environ, {"ALLOWED_USER_EMAIL": ""}, clear=False):
+            with patch.object(auth_requests, "get", return_value=response(200, {
+                "id": "qa-any-user", "email": "any@example.test"
+            })):
+                missing_allowlist = client.get(
+                    "/api/user-state", headers={"Authorization": "Bearer valid-token"}
+                )
+        assert missing_allowlist.status_code == 503, missing_allowlist.text
+
         # A valid session for a different account must be denied by the allowlist.
         wrong_user = {"id": "qa-other-user", "email": "other@example.test"}
         with patch.object(auth_requests, "get", return_value=response(200, wrong_user)):
