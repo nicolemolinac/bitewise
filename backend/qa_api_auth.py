@@ -60,6 +60,11 @@ def main():
         "SUPABASE_URL": "", "SUPABASE_PUBLISHABLE_KEY": "",
         "SERVICE_TOKEN": "qa-service-token",
     }, clear=False):
+        preflight = production_client.options("/api/pantry", headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+        })
+        assert preflight.status_code == 200, preflight.text
         no_basic = production_client.get("/api/pantry")
         assert no_basic.status_code == 401, no_basic.text
         bad_basic = production_client.get("/api/pantry", auth=("qa-app-user", "wrong"))
