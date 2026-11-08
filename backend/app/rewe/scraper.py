@@ -421,8 +421,8 @@ def _rewe_cart_stepper_snapshot(page):
           const group=Array.from(parent.querySelectorAll('button')).filter(visible);
           const m=group.find(minus); if(!m||!group.includes(p))continue;
           let q=null; const input=parent.querySelector('input');
-          if(input&&/^\\d+$/.test(input.value||''))q=Number(input.value);
-          if(q===null){const t=(parent.innerText||'').replace(/\\s+/g,' ').trim();const match=t.match(/(?:^|\\s)(\\d{1,2})(?:\\s|$)/);if(match)q=Number(match[1]);}
+          if(input&&/^\d+$/.test(input.value||''))q=Number(input.value);
+          if(q===null){const t=(parent.innerText||'').replace(/\s+/g,' ').trim();const match=t.match(/(?:^|\s)(\d{1,2})(?:\s|$)/);if(match)q=Number(match[1]);}
           if(Number.isInteger(q)&&q>=0&&q<=99)return {plus_index:buttons.indexOf(p),minus_index:buttons.indexOf(m),quantity:q};
         }
       }
@@ -442,7 +442,7 @@ def _rewe_add_button_index(page):
         const attrs=[el.innerText,el.getAttribute('aria-label'),el.getAttribute('title'),el.getAttribute('data-testid'),el.getAttribute('data-test'),el.className,...Array.from(el.querySelectorAll('svg')).flatMap(svg=>[svg.getAttribute('aria-label'),svg.getAttribute('data-icon'),svg.getAttribute('class')])].filter(Boolean).join(' ').toLowerCase();
         let n=0;if(/warenkorb|add.?to.?cart|cart|basket/.test(attrs))n+=10;
         if(/hinzuf[uü]gen|kaufen|bestellen/.test(attrs))n+=5;
-        const bg=getComputedStyle(el).backgroundColor.match(/\\d+/g)||[];
+        const bg=getComputedStyle(el).backgroundColor.match(/\d+/g)||[];
         if(bg.length>=3&&Number(bg[0])>130&&Number(bg[1])<100&&Number(bg[2])<100&&el.querySelector('svg'))n+=4;
         if(el.querySelector('svg'))n+=1;return n;
       };
