@@ -16,6 +16,7 @@ from sqlalchemy import or_
 from .ai.gemini import GeminiService
 from .ai.image_resolver import resolve_meal_images
 from .database import AppSetting, CatalogRun, PantryConsumption, PantryItem, Plan, PlannedMeal, Product, ProductDetails, ProductIntelligence, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
+from .cloud_sync import router as cloud_router
 from .recommendations.engine import build_preference_profile, rank_meals, score_meal
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
@@ -26,6 +27,7 @@ from .shopping.optimizer import STRATEGIES, _convert_quantity, build_basket, con
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 app = FastAPI(title='Bitewise API', version='2.0')
+app.include_router(cloud_router)
 @app.post("/api/meal-photos")
 async def meal_photos(request: Request):
     """Resolve aesthetic Google Images photos for a batch of generated meals.
