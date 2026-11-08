@@ -11,6 +11,37 @@ let syncRequested = false;
 let applyingRemoteSnapshot = false;
 const pendingSet = new Map<string, unknown>();
 const pendingDelete = new Set<string>();
+const PENDING_STORAGE_KEY = 'bitewise.internal.cloudPending.v1';
+
+function persistPendingState() {
+  try {
+    if (!pendingSet.size && !pendingDelete.size) {
+      window.localStorage.removeItem(PENDING_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify({
+      set: Object.fromEntries(pendingSet),
+      delete: [...pendingDelete],
+    }));
+  } catch (error) {
+    console.warn('Bitewise could not persist pending cloud changes', error);
+  }
+}
+
+try {
+  const rawPending = window.localStorage.getItem(PENDING_STORAGE_KEY);
+  if (rawPending) {
+    const pending = JSON.parse(rawPending);
+    for (const [key, value] of Object.entries(pending?.set || {})) {
+      if (isCloudStateKey(PREFIX + key)) pendingSet.set(key, value);
+    }
+    for (const key of pending?.delete || []) {
+      if (isCloudStateKey(PREFIX + key)) pendingDelete.add(key);
+    }
+  }
+} catch (error) {
+  console.warn('Bitewise could not restore pending cloud changes', error);
+}
 
 function localSnapshot() {
   const entries: Array<[string, string | null]> = [];
@@ -103,22 +134,23 @@ function schedulePendingSync(delayMs: number) {
         syncRequested = false;
         const set = Object.fromEntries(pendingSet);
         const del = Array.from(pendingDelete);
-        pendingSet.clear();
-        pendingDelete.clear();
         try {
           await authed('/user-state/changes', {
             method: 'PUT',
             body: JSON.stringify({ set, delete: del }),
           });
+          // Acknowledge only the exact values sent. Newer edits made while the
+          // request was in flight remain queued for the next delta.
+          for (const [key, value] of Object.entries(set)) {
+            if (!pendingDelete.has(key) && JSON.stringify(pendingSet.get(key)) === JSON.stringify(value)) {
+              pendingSet.delete(key);
+            }
+          }
+          for (const key of del) pendingDelete.delete(key);
+          persistPendingState();
         } catch (error) {
           failed = true;
-          // Retain failed deltas unless a newer local edit for that key exists.
-          for (const [key, value] of Object.entries(set)) {
-            if (!pendingSet.has(key) && !pendingDelete.has(key)) pendingSet.set(key, value);
-          }
-          for (const key of del) {
-            if (!pendingSet.has(key)) pendingDelete.add(key);
-          }
+          persistPendingState();
           console.warn('Bitewise cloud sync failed', error);
           break;
         }
@@ -140,6 +172,7 @@ export function queueCloudSync(storageKey?: string, rawValue?: string, deleted =
     if (deleted) {
       pendingSet.delete(key);
       pendingDelete.add(key);
+      persistPendingState();
     } else {
       try {
         pendingSet.set(key, JSON.parse(rawValue ?? "null"));
@@ -147,6 +180,7 @@ export function queueCloudSync(storageKey?: string, rawValue?: string, deleted =
         pendingSet.set(key, rawValue ?? "");
       }
       pendingDelete.delete(key);
+      persistPendingState();
     }
   } else if (!storageKey) {
     // Compatibility for existing callers: queue a full allowlisted snapshot as
@@ -155,6 +189,7 @@ export function queueCloudSync(storageKey?: string, rawValue?: string, deleted =
       pendingSet.set(key, value);
       pendingDelete.delete(key);
     }
+    persistPendingState();
   }
   syncRequested = true;
   schedulePendingSync(500);
