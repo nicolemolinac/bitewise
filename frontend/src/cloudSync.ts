@@ -1,5 +1,5 @@
 import { getAccessToken } from './auth';
-import { CLOUD_STATE_KEYS, createCloudStateSnapshot, isCloudStateKey } from './cloudState.js';
+import { CLOUD_STATE_KEYS, createCloudStateSnapshot, isCloudStateKey, mergeCloudState } from './cloudState.js';
 export { CLOUD_STATE_KEYS, isCloudStateKey } from './cloudState.js';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -43,13 +43,19 @@ async function authed(path: string, options?: RequestInit) {
 
 export async function hydrateCloudState() {
   const remote = await authed('/user-state');
+  const local = localSnapshot();
   if (remote?.state && Object.keys(remote.state).length) {
-    applySnapshot(remote.state);
+    const merged = mergeCloudState(local, remote.state);
+    applySnapshot(merged);
+    const hasLocalOnlyState = Object.keys(local).some(key => !(key in remote.state));
+    if (hasLocalOnlyState) {
+      await authed('/user-state', { method: 'PUT', body: JSON.stringify({ state: merged }) });
+      return 'merged';
+    }
     return 'downloaded';
   }
-  const state = localSnapshot();
-  if (Object.keys(state).length) {
-    await authed('/user-state', { method: 'PUT', body: JSON.stringify({ state }) });
+  if (Object.keys(local).length) {
+    await authed('/user-state', { method: 'PUT', body: JSON.stringify({ state: local }) });
     return 'uploaded';
   }
   return 'empty';
