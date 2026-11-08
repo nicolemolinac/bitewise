@@ -27,15 +27,28 @@ export const CLOUD_STATE_KEYS = new Set([
   'owned',
   'customProducts',
   'customProductSchedule',
+  'cookingAlerts',
 ]);
 
 let syncTimer: number | null = null;
 let syncing = false;
+let syncRequested = false;
+
+export function isCloudStateKey(storageKey: string) {
+  if (!storageKey.startsWith(PREFIX)) return false;
+  const key = storageKey.slice(PREFIX.length);
+  // Cooking sessions are one key per recipe, e.g. cooking:recipe-123.
+  return CLOUD_STATE_KEYS.has(key) || /^cooking:[^:]+$/.test(key);
+}
 
 function localSnapshot() {
   const state: Record<string, unknown> = {};
-  for (const key of CLOUD_STATE_KEYS) {
-    const raw = window.localStorage.getItem(PREFIX + key);
+  // Iterate actual localStorage keys so dynamic Cooking Mode sessions are included.
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const storageKey = window.localStorage.key(index);
+    if (!storageKey || !isCloudStateKey(storageKey)) continue;
+    const key = storageKey.slice(PREFIX.length);
+    const raw = window.localStorage.getItem(storageKey);
     if (raw == null) continue;
     try {
       state[key] = JSON.parse(raw);
@@ -48,14 +61,9 @@ function localSnapshot() {
 
 function applySnapshot(state: Record<string, unknown>) {
   for (const [key, value] of Object.entries(state || {})) {
-    if (!CLOUD_STATE_KEYS.has(key)) continue;
+    if (!isCloudStateKey(PREFIX + key)) continue;
     window.localStorage.setItem(PREFIX + key, JSON.stringify(value));
   }
-}
-
-export function isCloudStateKey(storageKey: string) {
-  if (!storageKey.startsWith(PREFIX)) return false;
-  return CLOUD_STATE_KEYS.has(storageKey.slice(PREFIX.length));
 }
 
 async function authed(path: string, options?: RequestInit) {
@@ -87,19 +95,27 @@ export async function hydrateCloudState() {
 }
 
 export function queueCloudSync() {
-  if (syncTimer) window.clearTimeout(syncTimer);
+  syncRequested = true;
+  if (syncTimer !== null) window.clearTimeout(syncTimer);
   syncTimer = window.setTimeout(async () => {
+    syncTimer = null;
     if (syncing) return;
     syncing = true;
     try {
-      await authed('/user-state', {
-        method: 'PUT',
-        body: JSON.stringify({ state: localSnapshot() }),
-      });
+      // If local state changes while a request is in flight, send a fresh
+      // snapshot after it completes rather than silently dropping that change.
+      while (syncRequested) {
+        syncRequested = false;
+        await authed('/user-state', {
+          method: 'PUT',
+          body: JSON.stringify({ state: localSnapshot() }),
+        });
+      }
     } catch (error) {
       console.warn('Bitewise cloud sync failed', error);
     } finally {
       syncing = false;
+      if (syncRequested) queueCloudSync();
     }
   }, 500);
 }
