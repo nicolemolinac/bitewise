@@ -1,45 +1,15 @@
 import { getAccessToken } from './auth';
+import { CLOUD_STATE_KEYS, isCloudStateKey } from './cloudState.js';
+export { CLOUD_STATE_KEYS, isCloudStateKey } from './cloudState.js';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const PREFIX = 'bitewise.v3.';
 
-// Only personal/UI state is allowed to travel between devices. The REWE product
-// catalog remains server-side in Postgres and is queried on demand by the app.
-// This explicit allowlist prevents a future catalog/cache key from accidentally
-// copying thousands of products into phone localStorage.
-export const CLOUD_STATE_KEYS = new Set([
-  'tab',
-  'liked',
-  'skipped',
-  'mealType',
-  'filter',
-  'brain',
-  'appliances',
-  'profile',
-  'dayContexts',
-  'calendarAssignments',
-  'calendarView',
-  'calendarCursor',
-  'extras',
-  'basket',
-  'summary',
-  'strategy',
-  'owned',
-  'customProducts',
-  'customProductSchedule',
-  'cookingAlerts',
-]);
+const PREFIX = 'bitewise.v3.';
 
 let syncTimer: number | null = null;
 let syncing = false;
 let syncRequested = false;
-
-export function isCloudStateKey(storageKey: string) {
-  if (!storageKey.startsWith(PREFIX)) return false;
-  const key = storageKey.slice(PREFIX.length);
-  // Cooking sessions are one key per recipe, e.g. cooking:recipe-123.
-  return CLOUD_STATE_KEYS.has(key) || /^cooking:[^:]+$/.test(key);
-}
 
 function localSnapshot() {
   const state: Record<string, unknown> = {};
