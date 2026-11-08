@@ -20,7 +20,13 @@ from fastapi.testclient import TestClient
 
 from app import server
 from app.database import Product, SessionLocal
-from app.rewe.scraper import _canonical_product_url, _cart_add_status
+from app.rewe.scraper import (
+    _canonical_product_url,
+    _cart_add_status,
+    _cart_quantity_submission_allowed,
+    _cart_quantity_matches,
+    _validated_cart_packs,
+)
 
 
 def test_url_and_status_contract():
@@ -41,6 +47,17 @@ def test_url_and_status_contract():
     assert _cart_add_status(True, 1) == "added"
     assert _cart_add_status(True, 3) == "quantity_unconfirmed"
     assert _cart_add_status(False, 1) == "submitted_unverified"
+    assert _cart_quantity_submission_allowed(False, 1) is True
+    assert _cart_quantity_submission_allowed(False, 2) is False
+    assert _cart_quantity_submission_allowed(True, 2) is True
+    assert _cart_quantity_matches("2", 2) is True
+    assert _cart_quantity_matches(" 2 ", 2) is True
+    assert _cart_quantity_matches("1", 2) is False
+    assert _cart_quantity_matches("2.0", 2) is False
+    assert _cart_quantity_matches("", 2) is False
+    assert [_validated_cart_packs(value) for value in (1, 2, 99)] == [1, 2, 99]
+    for invalid_packs in (0, -1, 100, 1.5, 2.0, "2", True, None):
+        assert _validated_cart_packs(invalid_packs) is None, invalid_packs
 
 
 def test_cart_endpoint_only_hands_off_valid_rewe_catalog_products():
@@ -103,6 +120,21 @@ def test_cart_endpoint_only_hands_off_valid_rewe_catalog_products():
         assert invalid.status_code == 422, invalid.text
         assert len(handed_off) == 1, "Invalid catalog rows must never reach the CDP handoff"
 
+        # Invalid quantities must fail closed; they must never be silently
+        # rounded, clamped or defaulted before reaching the authenticated cart.
+        for invalid_packs in (0, -2, 100, 1.5, 2.0, "2", True, None):
+            response = client.post("/api/rewe/cart/add", json={
+                "items": [{"product_id": rewe_id, "packs": invalid_packs}]
+            })
+            assert response.status_code == 422, (invalid_packs, response.text)
+        assert len(handed_off) == 1, "Invalid quantities must never reach the CDP handoff"
+
+        too_many = client.post("/api/rewe/cart/add", json={
+            "items": [{"product_id": rewe_id, "packs": 1}] * 101
+        })
+        assert too_many.status_code == 422, too_many.text
+        assert len(handed_off) == 1, "Oversized baskets must never reach the CDP handoff"
+
         empty = client.post("/api/rewe/cart/add", json={"items": []})
         assert empty.status_code == 422, empty.text
 
@@ -110,7 +142,7 @@ def test_cart_endpoint_only_hands_off_valid_rewe_catalog_products():
 def main():
     test_url_and_status_contract()
     test_cart_endpoint_only_hands_off_valid_rewe_catalog_products()
-    print("REWE cart handoff QA PASS: HTTPS URL allowlist, truthful quantity status, endpoint product filtering, no checkout")
+    print("REWE cart handoff QA PASS: HTTPS URL allowlist, strict 1..99 integer quantities, 100-item limit, endpoint product filtering, no checkout")
 
 
 if __name__ == "__main__":

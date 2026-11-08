@@ -114,10 +114,18 @@ def main():
             {"record_key": "recipe:" + concept["id"], "record_type": "recipe", "status": "saved", "meal": recipe},
             {"record_key": concept_two["id"], "record_type": "concept", "status": "expanded", "meal": concept_two},
             {"record_key": "recipe:" + concept_two["id"], "record_type": "recipe", "status": "saved", "meal": recipe_two},
+            # Ordinary catalog Picks must also survive reload and remain shoppable.
+            {"record_key": "recipe:teriyaki-chicken", "record_type": "recipe", "status": "saved", "meal": {
+                "id": "teriyaki-chicken", "name": "Chicken Teriyaki Bowl",
+                "ingredients": [["rice", 160, "g"]], "base_servings": 2,
+            }},
         ]})
-        assert saved["saved"] == 4
+        assert saved["saved"] == 5
         call("PATCH", "/api/recipe-history/" + concept["id"], {"status": "expanded"})
         call("PATCH", "/api/recipe-history/" + concept_two["id"], {"status": "expanded"})
+        # AI-generated concepts must accept feedback before/without being in the seed list.
+        call("POST", "/api/events", {"meal_id": concept["id"], "action": "like"})
+        call("POST", "/api/events", {"meal_id": concept_two["id"], "action": "skip"})
     finally:
         stop_api(proc)
 
@@ -144,9 +152,12 @@ def main():
     proc = start_api()
     try:
         history = call("GET", "/api/recipe-history")
-        assert history["count"] == 4
+        assert history["count"] == 5
+        concept_status = {row["record_key"]: row["status"] for row in history["records"] if row["record_type"] == "concept"}
+        assert concept_status[concept["id"]] == "saved"
+        assert concept_status[concept_two["id"]] == "skipped"
         saved_recipe_ids = {row["meal"].get("id") for row in history["records"] if row["record_type"] == "recipe"}
-        assert saved_recipe_ids == {first["id"], second["id"]}, saved_recipe_ids
+        assert saved_recipe_ids == {first["id"], second["id"], "teriyaki-chicken"}, saved_recipe_ids
         basket = call("POST", "/api/shopping", {
             "meal_ids": [first["id"]],
             "servings": {first["id"]: 2},
@@ -157,7 +168,15 @@ def main():
         rice_item = next(row for row in basket["items"] if row["ingredient"] == "rice")
         assert rice_item["product"]["name_original"] == "REWE Beste Wahl Langkornreis 500g"
         assert rice_item["total"] == 1.49
-        print("QA PASS: recipe history survives restart and shopping resolves real REWE catalog products")
+        seed_basket = call("POST", "/api/shopping", {
+            "meal_ids": ["teriyaki-chicken"],
+            "servings": {"teriyaki-chicken": 2},
+            "owned": [],
+            "mode": "best-value",
+        })
+        assert seed_basket["meals"] == 1 and seed_basket["servings"] == 2
+        assert next(row for row in seed_basket["items"] if row["ingredient"] == "rice")["total"] == 1.49
+        print("QA PASS: AI and ordinary Picks survive restart and resolve real REWE catalog products")
     finally:
         stop_api(proc)
         if DB.exists():

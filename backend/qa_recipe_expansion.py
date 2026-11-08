@@ -61,6 +61,21 @@ def main():
     second_recipe = {**GENERATED_RECIPE, "name": "Creamy tomato pasta", "generated_at": datetime(2026, 11, 6, 13, 45, tzinfo=timezone.utc)}
     service.expand_concept.side_effect = [dict(GENERATED_RECIPE), second_recipe]
 
+    # Reject malformed and silently coercible portion inputs before Gemini is called.
+    with patch("app.server.EfficientGeminiService", return_value=service):
+        for invalid_payload in (
+            {"concept": CONCEPT, "people": 1.5},
+            {"concept": CONCEPT, "people": "2"},
+            {"concept": CONCEPT, "people": True},
+            {"concept": CONCEPT, "servings": True},
+            {"concept": CONCEPT, "servings": "2"},
+            {"concept": CONCEPT, "servings": 0},
+            {"concept": CONCEPT, "servings": 13},
+        ):
+            invalid_response = client.post("/api/ai/recipe", json=invalid_payload)
+            assert invalid_response.status_code == 422, (invalid_payload, invalid_response.text)
+        service.expand_concept.assert_not_called()
+
     # The first selection expands once, namespaces the recipe ID, and writes both
     # the expanded concept and saved full recipe to durable history.
     with patch("app.server.EfficientGeminiService", return_value=service):

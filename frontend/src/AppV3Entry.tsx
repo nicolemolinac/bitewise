@@ -55,12 +55,31 @@ if (typeof window !== 'undefined') {
   const syncMarker = '__bitewiseCloudStoragePatched__';
   if (!w[syncMarker]) {
     const originalSetItem = Storage.prototype.setItem;
+    const originalRemoveItem = Storage.prototype.removeItem;
+    const originalClear = Storage.prototype.clear;
     Storage.prototype.setItem = function(key: string, value: string) {
       originalSetItem.call(this, key, value);
       if (this === window.localStorage && key.startsWith(V3)) {
         window.dispatchEvent(new CustomEvent('bitewise:statechange', { detail: { key, value } }));
       }
-      if (this === window.localStorage && isCloudStateKey(key)) queueCloudSync();
+      if (this === window.localStorage && isCloudStateKey(key)) queueCloudSync(key, value);
+    };
+    // Deletions must sync too; otherwise an old cloud value can reappear on
+    // another device the next time the account hydrates.
+    Storage.prototype.removeItem = function(key: string) {
+      originalRemoveItem.call(this, key);
+      if (this === window.localStorage && isCloudStateKey(key)) queueCloudSync(key, undefined, true);
+    };
+    Storage.prototype.clear = function() {
+      const removedKeys: string[] = [];
+      if (this === window.localStorage) {
+        for (let index = 0; index < this.length; index += 1) {
+          const key = this.key(index);
+          if (key && isCloudStateKey(key)) removedKeys.push(key);
+        }
+      }
+      originalClear.call(this);
+      for (const key of removedKeys) queueCloudSync(key, undefined, true);
     };
     w[syncMarker] = true;
   }

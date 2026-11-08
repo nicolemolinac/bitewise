@@ -38,6 +38,8 @@ type Meal = {
   tags: string[];
   ingredients: [string, number, string][];
   image: string;
+  recommendation_reasons?: string[];
+  recommendation_score?: number;
 };
 
 type Product = {
@@ -279,13 +281,29 @@ export default function App() {
     });
   }
 
+  async function requestAIIdeas(prompt: string) {
+    const result = await api('/ai/meals', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    });
+    const incoming: Meal[] = result.meals || [];
+    const savedLiked = readStored<Meal[]>('likedMeals', likedMeals);
+    const savedSkipped = readStored<string[]>('skipped', skipped);
+    setMeals(incoming.filter(meal =>
+      !savedLiked.some(item => item.id === meal.id) && !savedSkipped.includes(meal.id)
+    ));
+    if (result.intent) setBrainResult(result.intent);
+  }
+
   async function applyBrainDump() {
     if (!brainDump.trim()) return;
     await run(async () => {
       const result = await api('/brain-dump', { method: 'POST', body: JSON.stringify({ prompt: brainDump }) });
       setBrainResult(result.constraints);
       setMode(result.mode);
-      await loadMeals(result.mode);
+      // The AI creates fresh ideas from the user's natural-language request.
+      // Local ranking then personalizes the order using feedback and pantry state.
+      await requestAIIdeas(brainDump.trim());
     });
   }
 
@@ -436,7 +454,26 @@ export default function App() {
           <Discover
             meals={meals}
             mode={mode}
-            setMode={async next => { setMode(next); await run(() => loadMeals(next)); }}
+            setMode={async next => {
+              setMode(next);
+              const modePrompts: Record<string, string> = {
+                random: 'Create a fresh varied mix of appealing meal ideas',
+                quick: 'Prioritize quick meals under 30 minutes with low effort and minimal cleanup',
+                cheap: 'Prioritize genuinely budget-friendly meals with sensible ingredient reuse',
+                healthy: 'Prioritize balanced, nutritious everyday meals without sacrificing taste',
+                'high-protein': 'Prioritize satisfying high-protein meals',
+                'one-pot': 'Prioritize one-pot or one-pan meals with very little washing up',
+                'meal-prep': 'Prioritize meals that keep well and work for meal prep',
+                asian: 'Focus on Asian-inspired meals',
+                mexican: 'Focus on Mexican-inspired meals',
+                italian: 'Focus on Italian-inspired meals',
+                mediterranean: 'Focus on Mediterranean-inspired meals',
+                'latin-american': 'Focus on Latin American-inspired meals',
+                german: 'Focus on German-inspired meals',
+              };
+              const prompt = [brainDump.trim(), modePrompts[next] || modePrompts.random].filter(Boolean).join('. ');
+              await run(() => requestAIIdeas(prompt));
+            }}
             brainDump={brainDump}
             setBrainDump={setBrainDump}
             brainResult={brainResult}
@@ -564,10 +601,10 @@ function Discover(props: any) {
       </div>
 
       <div className="mt-6 rounded-[28px] bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-black/35"><Sparkles size={14} /> Brain Dump</div>
+        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-black/35"><Sparkles size={14} /> Tell Bitewise what you feel like eating</div>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <input value={brainDump} onChange={e => setBrainDump(e.target.value)} onKeyDown={e => e.key === 'Enter' && applyBrainDump()} placeholder="Fancy but easy tonight · cheap Mexican · I have chicken and rice..." className="min-w-0 flex-1 rounded-2xl bg-[#f3f1eb] px-4 py-3 text-sm outline-none" />
-          <button onClick={applyBrainDump} className="rounded-2xl bg-black px-5 py-3 text-sm font-black text-white">Apply</button>
+          <input value={brainDump} onChange={e => setBrainDump(e.target.value)} onKeyDown={e => e.key === 'Enter' && applyBrainDump()} placeholder="Something fresh and high-protein · cheap Mexican · I have chicken and rice..." className="min-w-0 flex-1 rounded-2xl bg-[#f3f1eb] px-4 py-3 text-sm outline-none" />
+          <button onClick={applyBrainDump} className="rounded-2xl bg-black px-5 py-3 text-sm font-black text-white">Find ideas with AI</button>
         </div>
         {brainResult && <div className="mt-3 flex flex-wrap gap-2 text-xs">{Object.entries(brainResult).filter(([,v]) => v !== null && v !== false && v !== '').slice(0,6).map(([k,v]) => <span key={k} className="rounded-full bg-[#f3f1eb] px-3 py-1.5 font-bold">{k}: {String(v)}</span>)}</div>}
       </div>
@@ -586,9 +623,10 @@ function MealCard({ meal, like, skip, dislike }: { meal: Meal; like: () => void;
     <article className="overflow-hidden rounded-[28px] bg-white shadow-sm">
       <div className="relative aspect-[4/3] bg-[#e8e4dc]">
         {meal.image ? <img src={meal.image} alt={meal.name} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center"><ChefHat size={44} className="text-black/15" /></div>}
-        <div className="absolute left-4 top-4 flex gap-2"><span className="rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-black">{meal.cuisine}</span><span className="rounded-full bg-black/75 px-3 py-1.5 text-[11px] font-black text-white">{money(meal.cost)}</span></div>
+        <div className="absolute left-4 top-4 flex gap-2"><span className="rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-black">{meal.cuisine}</span><span title="Approximate AI estimate per serving; the REWE basket calculates product-based costs later" className="rounded-full bg-black/75 px-3 py-1.5 text-[11px] font-black text-white">~{money(meal.cost)}</span></div>
       </div>
       <div className="p-5"><h3 className="text-xl font-black">{meal.name}</h3><p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-black/45">{meal.description}</p>
+        {meal.recommendation_reasons?.length ? <p className="mt-2 text-xs font-semibold leading-5 text-emerald-700">{meal.recommendation_reasons[0]}</p> : null}
         <div className="mt-4 flex flex-wrap gap-2"><Pill><Clock3 size={12} /> {meal.time} min</Pill><Pill>{meal.difficulty}</Pill>{meal.tags?.slice(0,2).map(tag => <Pill key={tag}>{tag}</Pill>)}</div>
         <div className="mt-5 grid grid-cols-[auto_auto_1fr] gap-2"><button onClick={dislike} className="rounded-xl border border-black/10 p-3" title="Don't show me this"><Trash2 size={16}/></button><button onClick={skip} className="rounded-xl border border-black/10 p-3"><X size={16}/></button><button onClick={like} className="flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-black text-white"><Heart size={16}/> I'd eat this</button></div>
       </div>
@@ -632,7 +670,7 @@ function ShoppingPage({ basket, summary, strategy, setStrategy, owned, toggleOwn
       const markedOwned = owned.includes(item.ingredient);
       return <div key={item.ingredient} className="rounded-[24px] bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><button onClick={() => toggleOwned(item.ingredient)} title={markedOwned ? 'Need to buy this instead' : 'I already have this'} className={classNames('mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border', markedOwned?'border-black bg-black text-white':'border-black/15')}>{markedOwned&&<Check size={13}/>}</button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black capitalize">{item.ingredient}</h3>{item.badge && <span className="rounded-full bg-[#f3f1eb] px-2.5 py-1 text-[10px] font-black">{item.badge}</span>}</div><div className="mt-1 text-xs text-black/40">Need {item.needed_quantity ?? item.quantity} {item.unit}{item.pantry_used ? ` · pantry covers ${item.pantry_used} ${item.unit}`:''}</div>{markedOwned ? <div className="mt-4 rounded-2xl bg-[#f6f4ef] p-4"><div className="text-sm font-black">Marked as already at home</div><div className="mt-1 text-xs text-black/45">Bitewise will not add a REWE product while this is marked as owned.</div><button onClick={() => toggleOwned(item.ingredient)} className="mt-3 rounded-xl bg-black px-3 py-2 text-xs font-black text-white">Need to buy instead</button></div> : item.product ? <div className="mt-4 flex flex-col justify-between gap-3 rounded-2xl bg-[#f6f4ef] p-4 sm:flex-row sm:items-center"><div><div className="text-sm font-black">{item.product.name_original}</div><div className="mt-1 text-xs text-black/45">{item.product.brand || 'REWE'} · {item.product.package_size} {item.product.package_unit} · {item.packs} pack{item.packs===1?'':'s'}</div>{item.why && <div className="mt-1 text-[11px] text-black/35">{item.why}</div>}</div><div className="flex items-center gap-2"><b>{money(item.total)}</b>{item.product.id && <button onClick={() => changeProduct(item)} className="rounded-xl bg-white px-3 py-2 text-xs font-black shadow-sm">Change product</button>}{isExactReweProductUrl(item.product.product_url) && <a href={item.product.product_url!} target="_blank" rel="noreferrer" className="rounded-xl bg-white p-2" title="Open exact product on REWE"><ExternalLink size={14}/></a>}</div></div> : <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{item.badge === '🏠 Uses Pantry' ? 'Fully covered by your Pantry inventory.' : 'No compatible catalog product yet.'}</div>}<div className="mt-3 flex gap-2">{!markedOwned && item.product?.id && <button onClick={() => purchase(item)} className="flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-xs font-black text-white"><PackageCheck size={14}/>Purchased → pantry</button>}</div></div></div></div>;
     })}</div>
-      <aside className="h-fit rounded-[28px] bg-black p-6 text-white lg:sticky lg:top-24"><div className="text-xs font-black uppercase tracking-[.18em] text-white/40">Basket summary</div><div className="mt-3 text-4xl font-black">{money(summary?.total)}</div><div className="mt-2 text-sm text-white/50">{money(summary?.cost_per_serving)} / serving</div><div className="mt-6 space-y-3 border-t border-white/10 pt-5 text-sm"><Summary label="Items" value={basket.length}/><Summary label="Waste estimate" value={`${summary?.waste || 0}`}/><Summary label="Pantry-assisted" value={summary?.pantry_savings_items || 0}/><Summary label="Strategy" value={summary?.strategy || strategy}/></div></aside></div>}
+      <aside className="h-fit rounded-[28px] bg-black p-6 text-white lg:sticky lg:top-24"><div className="text-xs font-black uppercase tracking-[.18em] text-white/40">Basket summary</div><div className="mt-3 text-4xl font-black">{money(summary?.total)}</div><div className="mt-2 text-sm text-white/50">Checkout · {money(summary?.checkout_cost_per_serving ?? summary?.cost_per_serving)} / serving</div><div className="mt-1 text-xs text-white/35">Estimated value used · {money(summary?.consumed_cost_per_serving)} / serving</div><div className="mt-6 space-y-3 border-t border-white/10 pt-5 text-sm"><Summary label="Items" value={basket.length}/><Summary label="Estimated leftovers" value={Object.entries(summary?.waste_by_unit || {}).map(([unit, quantity]) => `${quantity} ${unit}`).join(" · ") || "None estimated"}/><Summary label="Pantry-assisted" value={summary?.pantry_savings_items || 0}/><Summary label="Strategy" value={summary?.strategy || strategy}/></div></aside></div>}
   </section>;
 }
 

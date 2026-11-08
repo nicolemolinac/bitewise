@@ -1,7 +1,9 @@
 import asyncio
 import json
+import math
 import os
 import re
+import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -13,15 +15,19 @@ from sqlalchemy import or_
 
 from .ai.gemini import GeminiService
 from .ai.image_resolver import resolve_meal_images
-from .database import AppSetting, CatalogRun, PantryItem, Plan, PlannedMeal, Product, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
-from .recommendations.engine import score_meal
+from .database import AppSetting, CatalogRun, PantryConsumption, PantryItem, Plan, PlannedMeal, Product, ProductDetails, ProductIntelligence, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
+from .cloud_sync import router as cloud_router
+from .recommendations.engine import build_preference_profile, rank_meals, score_meal
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
-from .shopping.optimizer import STRATEGIES, build_basket, consolidate
+from .ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type, ingredient_search_terms
+from .catalog.intelligence import CLASSIFIER_VERSION, classify_product
+from .shopping.optimizer import STRATEGIES, _convert_quantity, build_basket, consolidate, summarize_waste
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 app = FastAPI(title='Bitewise API', version='2.0')
+app.include_router(cloud_router)
 @app.post("/api/meal-photos")
 async def meal_photos(request: Request):
     """Resolve aesthetic Google Images photos for a batch of generated meals.
@@ -52,21 +58,176 @@ def rows(model):
  finally:db.close()
 def setting(db,key,default):
  item=db.get(AppSetting,key);return item.value if item else default
-def normalize_ingredient(value):return re.sub(r'\s+',' ',value.lower().strip())
+def normalize_ingredient(value):return re.sub(r'\\s+',' ',value.lower().strip())
+def catalog_product_fingerprint(item):
+ def get(key):return item.get(key) if isinstance(item,dict) else getattr(item,key,None)
+ return (
+  normalize_ingredient(get('name_original') or get('name_normalized') or ''),
+  round(float(get('package_size') or 0),4),
+  str(get('package_unit') or '').lower(),
+  round(float(get('price') or 0),4) if get('price') is not None else None,
+  round(float(get('price_per_unit') or 0),8) if get('price_per_unit') is not None else None,
+  str(get('category') or '').lower(),
+  str(get('brand') or '').lower(),
+  str(get('product_url') or ''),
+ )
 def product_dict(p):
  if p is None:return None
  return {'id':p.id,'supermarket':p.supermarket,'external_id':p.external_id,'ingredient':p.ingredient,'name_original':p.name_original,'name_normalized':p.name_normalized,'translated_name':p.translated_name,'brand':p.brand,'category':p.category,'package_size':p.package_size,'package_unit':p.package_unit,'price':p.price,'price_per_unit':p.price_per_unit,'currency':p.currency,'product_url':p.product_url,'image_url':p.image_url,'availability':p.availability,'postcode_context':p.postcode_context,'last_checked_at':p.last_checked_at}
+def validate_ingredient_candidate(ingredient, product):
+ get = product.get if isinstance(product, dict) else lambda key, default=None: getattr(product, key, default)
+ title = ' '.join(str(get(key) or '') for key in ('name_original','name_normalized','translated_name','name'))
+ match_type = ingredient_product_match_type(ingredient, title, get('category'))
+ if not match_type:
+  return None
+ profile = classify_product({
+  'name_original':get('name_original'),'name_normalized':get('name_normalized'),
+  'translated_name':get('translated_name'),'brand':get('brand'),'category':get('category'),
+ })
+ plant_milk_substitute = (
+  normalize_ingredient(ingredient) == 'milk'
+  and match_type == 'substitute'
+  and profile.product_type == 'beverage'
+ )
+ if (
+  profile.is_complete_meal
+  or profile.product_type in {'non_food','snack'}
+  or (profile.product_type == 'beverage' and not plant_milk_substitute)
+  or profile.culinary_role in {
+   'soup','salad','dessert','potato_side','seasoning_mix','topping','filled_pasta',
+  }
+ ):
+  return None
+ return match_type, profile.as_dict()
+
 def meal_by_id(meal_id):return next((m for m in MEALS if m['id']==meal_id),None)
 def pantry_snapshot(db):return {r.ingredient.lower():{'quantity':r.quantity,'unit':r.unit,'confidence':r.confidence} for r in db.query(PantryItem).all()}
 
 class CatalogAdapter:
- def __init__(self,db):self.db=db
+ def __init__(self,db):
+  self.db=db
+  self._search_cache={}
+ def get_by_id(self,product_id):
+  product=self.db.get(Product,product_id)
+  return product_dict(product) if product else None
+ def _profile(self,product,stored=None):
+  # Recompute legacy persisted profiles after taxonomy changes so stale rows
+  # cannot reintroduce false meal or non-food ingredient matches.
+  if stored is not None and stored.classifier_version == CLASSIFIER_VERSION:
+   return {
+    'product_type':stored.product_type,
+    'culinary_role':stored.culinary_role,
+    'dish_families':json.loads(stored.dish_families_json or '[]'),
+    'preparation_state':stored.preparation_state,
+    'storage_type':stored.storage_type,
+    'convenience_level':stored.convenience_level,
+    'is_complete_meal':stored.is_complete_meal,
+    'confidence':stored.confidence,
+    'evidence':json.loads(stored.evidence_json or '[]'),
+    'classifier_version':stored.classifier_version,
+   }
+  return classify_product({
+   'name_original':product.name_original,'name_normalized':product.name_normalized,
+   'translated_name':product.translated_name,'brand':product.brand,'category':product.category,
+  }).as_dict()
  def search(self,ingredient):
-  needle=normalize_ingredient(ingredient);direct=self.db.query(Product).filter(Product.ingredient==needle).limit(40).all()
-  if not direct:direct=self.db.query(Product).filter(or_(Product.name_normalized.ilike(f'%{needle}%'),Product.name_original.ilike(f'%{needle}%'),Product.translated_name.ilike(f'%{needle}%'),Product.brand.ilike(f'%{needle}%'))).limit(40).all()
-  if direct:return [product_dict(x) for x in direct]
-  exact=[p for p in PRODUCTS if p['ingredient']==needle];fallback=exact or [p for p in PRODUCTS if needle in p['ingredient'].lower() or p['ingredient'].lower() in needle][:5]
-  return [{'id':None,'supermarket':'REWE','ingredient':p['ingredient'],'name_original':p.get('name',p['ingredient']),'name_normalized':p.get('name',p['ingredient']).lower(),'brand':p.get('brand'),'package_size':p.get('pack_qty',1),'package_unit':p.get('unit','unit'),'price':p.get('price'),'price_per_unit':p.get('unit_price'),'product_url':p.get('url'),'availability':'fixture'} for p in fallback]
+  needle=normalize_ingredient(ingredient)
+  if needle in self._search_cache:
+   return [dict(item) for item in self._search_cache[needle]]
+  # Search aliases against actual product titles across the complete REWE catalog.
+  # Product.ingredient is only an import hint; it is never accepted as proof of a match.
+  terms=ingredient_search_terms(needle)
+  title_filters=[]
+  for term in terms:
+   pattern=f'%{term}%'
+   title_filters.extend([
+    Product.name_original.ilike(pattern),Product.name_normalized.ilike(pattern),
+    Product.translated_name.ilike(pattern),
+   ])
+  if not title_filters:return []
+  rows=self.db.query(Product).filter(
+   Product.supermarket=='REWE'
+  ).filter(or_(*title_filters)).all()
+  if not rows:
+   # Keep the small legacy fixture fallback for isolated demo data, but validate
+   # its displayed title with the same strict matcher as real catalog products.
+   fallback=[]
+   for item in PRODUCTS:
+    title=item.get('name') or item.get('ingredient') or ''
+    match_type=ingredient_product_match_type(needle,title,item.get('category'))
+    if not match_type:continue
+    fallback.append({
+     'id':None,'supermarket':'REWE','ingredient':item.get('ingredient',needle),
+     'name_original':title,'name_normalized':title.lower(),'brand':item.get('brand'),
+     'package_size':item.get('pack_qty',1),'package_unit':item.get('unit','unit'),
+     'price':item.get('price'),'price_per_unit':item.get('unit_price'),
+     'product_url':item.get('url'),'availability':'fixture',
+     'ingredient_match_type':match_type,
+    })
+   self._search_cache[needle]=[dict(item) for item in fallback]
+   return [dict(item) for item in fallback]
+  profile_rows=self.db.query(ProductIntelligence).filter(
+   ProductIntelligence.product_id.in_([product.id for product in rows])
+  ).all()
+  profiles={profile.product_id:profile for profile in profile_rows}
+  candidates=[]
+  for product in rows:
+   title=' '.join(str(value or '') for value in (
+    product.name_original,product.name_normalized,product.translated_name
+   ))
+   match_type=ingredient_product_match_type(needle,title,product.category)
+   if not match_type:continue
+   intelligence=self._profile(product,profiles.get(product.id))
+   # Complete dishes and non-food SKUs are never culinary ingredient matches.
+   # This also protects the matcher when a non-food product title contains an
+   # ingredient word such as chicken, milk or lemon.
+   blocked_roles={'soup','salad','dessert','potato_side','seasoning_mix','topping','filled_pasta'}
+   # Filled pasta is excluded from generic "pasta" matching, but must remain
+   # available when the recipe explicitly asks for tortellini or ravioli.
+   if needle in {'tortellini','ravioli'}:
+    blocked_roles.discard('filled_pasta')
+   plant_milk_markers = (
+    'haferdrink','hafer drink','sojadrink','soja drink','mandeldrink','mandel drink',
+    'kokosdrink','kokos drink','reisdrink','reis drink','erbsendrink','mandelmilch',
+   )
+   normalized_title = re.sub(r'[^a-z0-9äöüß]+',' ',title.lower()).strip()
+   is_plant_milk_substitute = (
+    needle == 'milk'
+    and match_type == 'substitute'
+    and any(marker in f' {normalized_title} ' for marker in plant_milk_markers)
+   )
+   if (
+    intelligence.get('is_complete_meal')
+    or intelligence.get('product_type') in {'non_food','snack'}
+    or (
+     intelligence.get('product_type') == 'beverage'
+     and not is_plant_milk_substitute
+    )
+    or intelligence.get('culinary_role') in blocked_roles
+   ):continue
+   item=product_dict(product)
+   item['ingredient_match_type']=match_type
+   item['intelligence']=intelligence
+   candidates.append(item)
+  # Return every validated candidate; the basket optimizer, not an arbitrary
+  # SQL LIMIT 40, chooses the best package/price/waste trade-off.
+  candidates.sort(key=lambda item: (
+   0 if item['ingredient_match_type']=='exact' else 1,
+   -float(item['intelligence'].get('confidence') or 0),
+   float(item.get('price') or 1e12),
+  ))
+  # Scraped snapshots can contain the same SKU more than once under different
+  # snapshot IDs. Remove only exact product/pack/price duplicates; retain rows
+  # with different prices so conflicting price observations remain visible.
+  deduplicated=[]
+  seen_fingerprints=set()
+  for item in candidates:
+   fingerprint=catalog_product_fingerprint(item)
+   if fingerprint in seen_fingerprints:continue
+   seen_fingerprints.add(fingerprint)
+   deduplicated.append(item)
+  self._search_cache[needle]=[dict(item) for item in deduplicated]
+  return [dict(item) for item in deduplicated]
 
 class EventIn(BaseModel):meal_id:str;action:str|None=None;event:str|None=None
 class PantryIn(BaseModel):ingredient:str;quantity:float=1;unit:str='unit';confidence:str='user_confirmed';source:str='manual';notes:str|None=None;expiry_date:str|None=None
@@ -86,21 +247,31 @@ class SwapMealIn(BaseModel):meal_id:str|None=None
 def health():return {'ok':True,'version':'2.0'}
 @app.get('/api/meals')
 def get_meals(mode:str='random'):
- events=rows(UserEvent);pantry=rows(PantryItem);meals=sorted(MEALS,key=lambda m:score_meal(m,events,pantry,mode),reverse=True);disliked={e.meal_id for e in events if e.action=='dislike'};seen={e.meal_id for e in events if e.action in ('like','skip','cooked','eaten')};eligible=[m for m in meals if m['id'] not in disliked];fresh=[m for m in eligible if m['id'] not in seen];return {'meals':(fresh+eligible)[:12],'mode':mode}
+ events=rows(UserEvent);pantry=rows(PantryItem);meals=rank_meals(MEALS,events,pantry,mode);disliked={e.meal_id for e in events if e.action=='dislike'};seen={e.meal_id for e in events if e.action in ('like','skip','cooked','eaten')};eligible=[m for m in meals if m['id'] not in disliked];fresh=[m for m in eligible if m['id'] not in seen];return {'meals':(fresh+eligible)[:12],'mode':mode}
 @app.get('/api/meals/{meal_id}')
 def get_meal(meal_id:str):
  meal=meal_by_id(meal_id)
  if not meal:raise HTTPException(404,'Meal not found')
  return meal
 @app.post('/api/events')
-def add_event(payload:EventIn):
+def add_event(payload:EventIn,request:Request):
  action=payload.action or payload.event
  if action not in {'like','skip','dislike','cooked','eaten','undo-dislike'}:raise HTTPException(422,'Unsupported event')
- if not meal_by_id(payload.meal_id):raise HTTPException(404,'Meal not found')
  db=SessionLocal()
  try:
-  if action=='undo-dislike':db.query(UserEvent).filter(UserEvent.meal_id==payload.meal_id,UserEvent.action=='dislike').delete()
-  else:db.add(UserEvent(meal_id=payload.meal_id,action=action))
+  # AI concepts are persisted independently from the static seed-meal list.
+  user=getattr(request.state,'bitewise_user',None) or {}
+  owner=str(user.get('id') or user.get('email') or 'local')[:160]
+  history=db.query(RecipeHistory).filter_by(user_id=owner,record_key=payload.meal_id).first()
+  if not meal_by_id(payload.meal_id) and history is None:raise HTTPException(404,'Meal not found')
+  if action=='undo-dislike':
+   db.query(UserEvent).filter(UserEvent.meal_id==payload.meal_id,UserEvent.action=='dislike').delete()
+   if history:history.status='discovered'
+  else:
+   db.add(UserEvent(meal_id=payload.meal_id,action=action))
+   if history:
+    history.status={'like':'saved','skip':'skipped','dislike':'disliked','cooked':'cooked','eaten':'cooked'}.get(action,history.status)
+    history.updated_at=datetime.utcnow()
   db.commit()
  finally:db.close()
  return {'ok':True,'action':action}
@@ -109,11 +280,57 @@ def dislikes():
  db=SessionLocal()
  try:ids=[x.meal_id for x in db.query(UserEvent).filter(UserEvent.action=='dislike').all()];return {'meals':[m for m in MEALS if m['id'] in ids]}
  finally:db.close()
+def _pantry_unit_base(unit):
+ unit=str(unit or '').strip().lower()
+ aliases={
+  'g':('mass',1.0),'gram':('mass',1.0),'grams':('mass',1.0),
+  'kg':('mass',1000.0),'kilogram':('mass',1000.0),'kilograms':('mass',1000.0),
+  'ml':('volume',1.0),'milliliter':('volume',1.0),'milliliters':('volume',1.0),
+  'l':('volume',1000.0),'liter':('volume',1000.0),'liters':('volume',1000.0),
+  'tbsp':('volume',15.0),'tablespoon':('volume',15.0),'tablespoons':('volume',15.0),
+  'tsp':('volume',5.0),'teaspoon':('volume',5.0),'teaspoons':('volume',5.0),
+  'cup':('volume',250.0),'cups':('volume',250.0),
+  'piece':('count',1.0),'pieces':('count',1.0),'pc':('count',1.0),'pcs':('count',1.0),
+  'unit':('count',1.0),'units':('count',1.0),'stk':('count',1.0),'st':('count',1.0),
+ }
+ return aliases.get(unit)
+
+
 def consume_meal_from_pantry(db,meal,servings=2):
- factor=servings/2;consumed=[]
- for ingredient,amount,unit in meal['ingredients']:
-  item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first()
-  if item and item.unit==unit:used=min(item.quantity,amount*factor);item.quantity=max(0,item.quantity-amount*factor);consumed.append({'ingredient':ingredient,'quantity':round(used,2),'unit':unit})
+ factor=servings/2
+ consumed=[]
+ if not meal or not isinstance(meal.get('ingredients'),list):
+  return consumed
+ for entry in meal['ingredients']:
+  if not isinstance(entry,(list,tuple)) or len(entry)<3:
+   continue
+  ingredient,amount,unit=entry[:3]
+  try:
+   required=float(amount)*factor
+  except (TypeError,ValueError):
+   continue
+  if required<=0:
+   continue
+  item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(str(ingredient))).first()
+  if not item or item.quantity<=0:
+   continue
+  recipe_unit=_pantry_unit_base(unit)
+  pantry_unit=_pantry_unit_base(item.unit)
+  if recipe_unit and pantry_unit:
+   if recipe_unit[0]!=pantry_unit[0]:
+    continue
+   required_base=required*recipe_unit[1]
+   available_base=float(item.quantity)*pantry_unit[1]
+   used_base=min(available_base,required_base)
+   item.quantity=max(0.0,float(item.quantity)-used_base/pantry_unit[1])
+   used=used_base/recipe_unit[1]
+  elif str(item.unit or '').strip().lower()==str(unit or '').strip().lower():
+   used=min(float(item.quantity),required)
+   item.quantity=max(0.0,float(item.quantity)-used)
+  else:
+   # Unknown or incompatible units must never be guessed or consumed.
+   continue
+  consumed.append({'ingredient':ingredient,'quantity':round(used,3),'unit':unit})
  return consumed
 @app.post('/api/meals/{meal_id}/eaten')
 def eaten(meal_id:str,servings:int=2):
@@ -183,13 +400,54 @@ def products(q:str='',ingredient:str|None=None):
  db=SessionLocal()
  try:
   query=db.query(Product)
-  if ingredient:query=query.filter(Product.ingredient==normalize_ingredient(ingredient))
+  if ingredient:
+   matched=CatalogAdapter(db).search(ingredient)
+   matched_ids=[item.get('id') for item in matched if item.get('id') is not None]
+   query=query.filter(Product.id.in_(matched_ids)) if matched_ids else query.filter(Product.id==-1)
   if q:
-   needle=q.lower().strip();query=query.filter(or_(Product.name_normalized.ilike(f'%{needle}%'),Product.name_original.ilike(f'%{needle}%'),Product.translated_name.ilike(f'%{needle}%'),Product.brand.ilike(f'%{needle}%'),Product.ingredient.ilike(f'%{needle}%')))
+   needle=q.lower().strip();query=query.filter(or_(Product.name_normalized.ilike(f'%{needle}%'),Product.name_original.ilike(f'%{needle}%'),Product.translated_name.ilike(f'%{needle}%'),Product.brand.ilike(f'%{needle}%')))
   return {'products':[product_dict(p) for p in query.limit(80).all()]}
  finally:db.close()
 @app.get('/api/products/search')
 def search_products(q:str='',ingredient:str|None=None):return products(q=q,ingredient=ingredient)
+
+@app.get('/api/products/intelligence')
+def products_intelligence(role:str|None=None,family:str|None=None,complete_meals:bool|None=None,limit:int=40):
+ db=SessionLocal()
+ try:
+  query=db.query(Product,ProductIntelligence).join(ProductIntelligence,ProductIntelligence.product_id==Product.id)
+  if role:query=query.filter(ProductIntelligence.culinary_role==role.strip().lower())
+  if family:query=query.filter(ProductIntelligence.dish_families_json.ilike(f'%"{family.strip().lower()}"%'))
+  if complete_meals is not None:query=query.filter(ProductIntelligence.is_complete_meal==complete_meals)
+  rows=query.order_by(ProductIntelligence.confidence.desc(),Product.price.asc()).limit(max(1,min(limit,100))).all()
+  items=[]
+  for product,profile in rows:
+   item=product_dict(product)
+   item['intelligence']={'product_type':profile.product_type,'culinary_role':profile.culinary_role,'dish_families':json.loads(profile.dish_families_json or '[]'),'preparation_state':profile.preparation_state,'storage_type':profile.storage_type,'convenience_level':profile.convenience_level,'is_complete_meal':profile.is_complete_meal,'confidence':profile.confidence,'evidence':json.loads(profile.evidence_json or '[]'),'classifier_version':profile.classifier_version}
+   items.append(item)
+  return {'items':items,'count':len(items),'filters':{'role':role,'family':family,'complete_meals':complete_meals}}
+ finally:db.close()
+@app.get('/api/catalog/intelligence/status')
+def catalog_intelligence_status():
+ db=SessionLocal()
+ try:
+  total=db.query(Product).filter(Product.supermarket=='REWE').count()
+  classified=db.query(ProductIntelligence).join(Product,Product.id==ProductIntelligence.product_id).filter(Product.supermarket=='REWE').count()
+  meals=db.query(ProductIntelligence).join(Product,Product.id==ProductIntelligence.product_id).filter(Product.supermarket=='REWE',ProductIntelligence.is_complete_meal.is_(True)).count()
+  details=db.query(ProductDetails).join(Product,Product.id==ProductDetails.product_id).filter(Product.supermarket=='REWE').count()
+  return {'products':total,'classified':classified,'classification_pending':max(0,total-classified),'complete_meal_candidates':meals,'product_details_records':details,'details_scraping_started':False}
+ finally:db.close()
+@app.get('/api/products/{product_id}/details')
+def product_details(product_id:int):
+ db=SessionLocal()
+ try:
+  product=db.get(Product,product_id)
+  if not product:raise HTTPException(404,'Product not found')
+  details=db.query(ProductDetails).filter_by(product_id=product_id).first()
+  if not details:return {'product_id':product_id,'status':'pending','nutrition':None,'ingredients':None,'allergens':None}
+  return {'product_id':product_id,'status':details.details_status,'source':details.source,'source_url':details.source_url,'ean':details.ean,'ingredients':details.ingredients_text,'allergens':json.loads(details.allergens_json) if details.allergens_json else None,'traces':json.loads(details.traces_json) if details.traces_json else None,'additives':json.loads(details.additives_json) if details.additives_json else None,'nutrition':{'basis':details.nutrition_basis,'energy_kj':details.energy_kj,'energy_kcal':details.energy_kcal,'fat_g':details.fat_g,'saturated_fat_g':details.saturated_fat_g,'carbohydrates_g':details.carbohydrates_g,'sugars_g':details.sugars_g,'fibre_g':details.fibre_g,'protein_g':details.protein_g,'salt_g':details.salt_g},'preparation':json.loads(details.preparation_json) if details.preparation_json else None,'storage_instructions':details.storage_instructions,'origin':details.origin,'fetched_at':details.fetched_at}
+ finally:db.close()
+
 @app.get('/api/products/validate')
 def validate_product(product_id:int):
  db=SessionLocal()
@@ -199,16 +457,78 @@ def validate_product(product_id:int):
   return {'valid':True,'product':product_dict(product)}
  finally:db.close()
 @app.get('/api/products/{product_id}/alternatives')
-def alternatives(product_id:int,needed_qty:float|None=None,unit:str|None=None):
+def alternatives(product_id:int,needed_qty:float|None=None,unit:str|None=None,ingredient:str|None=None):
  db=SessionLocal()
  try:
   current=db.get(Product,product_id)
   if not current:raise HTTPException(404,'Product not found')
-  query=db.query(Product).filter(Product.id!=product_id).filter(or_(Product.ingredient==current.ingredient,Product.category==current.category));prs=query.limit(40).all()
-  if unit:prs=[p for p in prs if p.package_unit==unit]
-  def estimate(row):
-   quantity=needed_qty or row.package_size;packs=max(1,int((quantity+row.package_size-1)//row.package_size)) if row.package_size else 1;return packs*(row.price or 9999)+max(0,packs*row.package_size-quantity)/max(quantity,1)
-  prs.sort(key=estimate);return {'current':product_dict(current),'alternatives':[product_dict(x) for x in prs[:20]]}
+  requested_unit=unit or current.package_unit
+  # Product.ingredient is often a normalized SKU title, not a canonical ingredient.
+  # Prefer the recipe ingredient supplied by AppV3; otherwise infer the most specific
+  # culinary term from the selected product title.
+  ingredient_key=normalize_ingredient(ingredient or '')
+  if not ingredient_key:
+   title=' '.join(str(value or '') for value in (
+    current.name_original,current.name_normalized,current.translated_name
+   ))
+   inferred=canonical_ingredient_terms(title)
+   ingredient_key=inferred[0] if inferred else normalize_ingredient(current.ingredient)
+  if not ingredient_key:
+   raise HTTPException(422,'Could not identify the recipe ingredient for product alternatives')
+  # Reuse the same full-catalog, title-validated matcher as recipe costing.
+  # Do not query by Product.ingredient equality or truncate by aisle/category.
+  candidates=CatalogAdapter(db).search(ingredient_key)
+  compatible=[]
+  for candidate in candidates:
+   if str(candidate.get('supermarket') or '').strip().lower()!='rewe':
+    continue
+   if candidate.get('id') is None or str(candidate.get('id'))==str(product_id):
+    continue
+   try:
+    price=float(candidate.get('price'))
+    package_size=float(candidate.get('package_size') or 0)
+   except (TypeError,ValueError,OverflowError):
+    continue
+   if price<=0 or package_size<=0:
+    continue
+   if str(candidate.get('availability') or '').strip().lower() in {'unavailable','out_of_stock','not_available','discontinued'}:
+    continue
+   if _convert_quantity(1,requested_unit,candidate.get('package_unit')) is None:
+    continue
+   title=' '.join(str(value or '') for value in (
+    candidate.get('name_original'),candidate.get('name_normalized'),candidate.get('translated_name')
+   ))
+   validated=validate_ingredient_candidate(ingredient_key,candidate)
+   if not validated:continue
+   match_type,profile=validated
+   if not match_type:
+    continue
+   intelligence=candidate.get('intelligence') or {}
+   if intelligence.get('is_complete_meal'):
+    continue
+   quantity=float(needed_qty) if needed_qty is not None else float(current.package_size or 1)
+   converted=_convert_quantity(quantity,requested_unit,candidate.get('package_unit'))
+   if converted is None:
+    continue
+   packs=max(1,math.ceil(converted/package_size))
+   purchased=packs*package_size
+   checkout=packs*price
+   consumed=checkout*min(1.0,converted/purchased)
+   unit_price=float(candidate.get('price_per_unit') or price/package_size)
+   compatible.append({
+    **candidate,
+    'ingredient_match_type':match_type,
+    'packs_for_quantity':packs,
+    'estimated_checkout_cost':round(checkout,2),
+    'estimated_consumed_cost':round(consumed,2),
+    'price_per_package_unit':unit_price,
+   })
+  compatible.sort(key=lambda item:(
+   item.get('price_per_package_unit',float('inf')),
+   item.get('estimated_checkout_cost',float('inf')),
+   item.get('name_original') or ''
+  ))
+  return {'current':product_dict(current),'ingredient':ingredient_key,'alternatives':compatible[:20]}
  finally:db.close()
 @app.post('/api/products/replace')
 def replace_product(payload:ProductOverrideIn):
@@ -216,10 +536,23 @@ def replace_product(payload:ProductOverrideIn):
  try:
   product=db.get(Product,payload.product_id)
   if not product:raise HTTPException(404,'Product not found')
+  if str(product.supermarket or '').strip().lower()!='rewe':
+   raise HTTPException(422,'Only REWE catalog products can be selected for a REWE ingredient')
+  if product.price is None or product.price<=0:
+   raise HTTPException(422,'Selected product has no valid price and cannot be used in the shopping basket')
+  if str(product.availability or '').strip().lower() in {'unavailable','out_of_stock','not_available','discontinued'}:
+   raise HTTPException(422,'Selected product is marked unavailable')
+  product_title=' '.join(str(value or '') for value in (product.name_original,product.name_normalized,product.translated_name))
+  validated=validate_ingredient_candidate(ingredient,product)
+  if not validated:
+   raise HTTPException(422,'Selected product is a complete meal, non-food item or incompatible culinary product')
+  match_type,profile=validated
+  if not match_type:
+   raise HTTPException(422,'Selected product is not a compatible exact match or curated culinary substitute')
   row=db.query(ProductOverride).filter_by(ingredient=ingredient).first()
   if row:row.product_id=product.id
   else:db.add(ProductOverride(ingredient=ingredient,product_id=product.id))
-  db.commit();return {'ok':True,'product':product_dict(product),'ingredient':ingredient}
+  db.commit();return {'ok':True,'product':product_dict(product),'ingredient':ingredient,'match_type':match_type}
  finally:db.close()
 @app.delete('/api/products/replace/{ingredient}')
 def restore_product(ingredient:str):
@@ -271,7 +604,13 @@ def purchase(payload:PurchaseIn):
  try:
   product=db.get(Product,payload.product_id)
   if not product:raise HTTPException(404,'Product not found')
-  ingredient=normalize_ingredient(payload.ingredient or product.ingredient);amount=product.package_size*payload.packs;item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first()
+  product_profile=CatalogAdapter(db)._profile(product)
+  if product_profile.get('product_type') in {'non_food','beverage','snack'} or product_profile.get('culinary_role') in {'soup','salad','dessert','potato_side','seasoning_mix','topping'}:
+   raise HTTPException(422,'Non-ingredient products cannot be added to the ingredient pantry.')
+  inferred=canonical_ingredient_terms(product.name_original or product.name_normalized)
+  ingredient=normalize_ingredient(payload.ingredient or (inferred[0] if inferred else ''))
+  if not ingredient:raise HTTPException(422,'A canonical ingredient is required when this product title cannot identify one safely.')
+  amount=product.package_size*payload.packs;item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first()
   if item and item.unit!=product.package_unit:raise HTTPException(409,f'Pantry already tracks {ingredient} in {item.unit}; cannot safely merge {product.package_unit}.')
   if item:item.quantity+=amount;item.confidence='estimated';item.source='purchase'
   else:db.add(PantryItem(ingredient=ingredient,quantity=amount,unit=product.package_unit,confidence='estimated',source='purchase'))
@@ -310,14 +649,14 @@ def shopping(payload:BasketIn,request:Request):
      selected.append(meal);selected_ids.add(meal['id'])
   if not selected:raise HTTPException(422,'Select at least one valid saved recipe')
   servings_map={m['id']:max(0.1,float(payload.servings.get(m['id'],2))) for m in selected};requirements=consolidate(selected,servings_map)
-  overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['total'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'waste':waste,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
+  overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['checkout_cost'] for x in basket),2);consumed_total=round(sum(x['consumed_cost'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);waste_by_unit=summarize_waste(basket);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'checkout_total':total,'consumed_cost':consumed_total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'checkout_cost_per_serving':round(total/total_servings,2) if total_servings else 0,'consumed_cost_per_serving':round(consumed_total/total_servings,2) if total_servings else 0,'waste':waste,'waste_by_unit':waste_by_unit,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
  finally:db.close()
 def serialize_planned_meal(row):
  meal=meal_by_id(row.meal_id);return {'id':row.id,'plan_id':row.plan_id,'meal_id':row.meal_id,'day_index':row.day_index,'meal_type':row.meal_type,'servings':row.servings,'status':row.status,'meal':meal}
 def serialize_plan(db,plan):
  meals=db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan.id).order_by(PlannedMeal.day_index,PlannedMeal.meal_type).all();return {'id':plan.id,'weeks':plan.weeks,'servings':plan.servings,'strategy':plan.strategy,'budget':plan.budget,'start_date':plan.start_date,'status':plan.status,'meals':[serialize_planned_meal(r) for r in meals]}
 def ranked_plan_candidates(db,requested_ids=None):
- events=db.query(UserEvent).all();pantry=db.query(PantryItem).all();pool=[m for m in MEALS if not requested_ids or m['id'] in requested_ids];disliked={e.meal_id for e in events if e.action=='dislike'};pool=[m for m in pool if m['id'] not in disliked];return sorted(pool,key=lambda m:score_meal(m,events,pantry,'random'),reverse=True)
+ events=db.query(UserEvent).all();pantry=db.query(PantryItem).all();pool=[m for m in MEALS if not requested_ids or m['id'] in requested_ids];disliked={e.meal_id for e in events if e.action=='dislike'};pool=[m for m in pool if m['id'] not in disliked];return rank_meals(pool,events,pantry,'random')
 @app.post('/api/plans')
 def create_plan(payload:PlanCreateIn):
  if payload.weeks not in (1,2,4):raise HTTPException(422,'Weeks must be 1, 2, or 4')
@@ -355,6 +694,9 @@ def move_planned_meal(plan_id:int,planned_meal_id:int,payload:PlannedMealPatch):
   row=db.get(PlannedMeal,planned_meal_id);plan=db.get(Plan,plan_id)
   if not plan or not row or row.plan_id!=plan_id:raise HTTPException(404,'Planned meal not found')
   values=payload.model_dump(exclude_none=True)
+  consumed=db.query(PantryConsumption).filter_by(planned_meal_id=row.id).first()
+  if values and (consumed or row.status in ('cooked','eaten')):
+   raise HTTPException(409,'A cooked/eaten meal cannot be edited because its pantry consumption is already recorded')
   if 'day_index' in values and not (0<=values['day_index']<plan.weeks*7):raise HTTPException(422,'day_index outside plan range')
   if 'servings' in values and values['servings']<1:raise HTTPException(422,'servings must be positive')
   for k,v in values.items():setattr(row,k,v)
@@ -366,6 +708,9 @@ def remove_planned_meal(plan_id:int,planned_meal_id:int):
  try:
   row=db.get(PlannedMeal,planned_meal_id)
   if not row or row.plan_id!=plan_id:raise HTTPException(404,'Planned meal not found')
+  consumed=db.query(PantryConsumption).filter_by(planned_meal_id=row.id).first()
+  if consumed or row.status in ('cooked','eaten'):
+   raise HTTPException(409,'A cooked/eaten meal cannot be removed because its pantry consumption is already recorded')
   db.delete(row);db.commit();return {'ok':True}
  finally:db.close()
 @app.post('/api/plans/{plan_id}/meals/{planned_meal_id}/swap')
@@ -374,6 +719,9 @@ def swap_planned_meal(plan_id:int,planned_meal_id:int,payload:SwapMealIn):
  try:
   row=db.get(PlannedMeal,planned_meal_id)
   if not row or row.plan_id!=plan_id:raise HTTPException(404,'Planned meal not found')
+  consumed=db.query(PantryConsumption).filter_by(planned_meal_id=row.id).first()
+  if consumed or row.status in ('cooked','eaten'):
+   raise HTTPException(409,'A cooked/eaten meal cannot be swapped because its pantry consumption is already recorded')
   ids={x.meal_id for x in db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan_id).all()}
   if payload.meal_id:
    replacement=meal_by_id(payload.meal_id)
@@ -390,6 +738,7 @@ def regenerate_plan(plan_id:int):
   plan=db.get(Plan,plan_id)
   if not plan:raise HTTPException(404,'Plan not found')
   candidates=ranked_plan_candidates(db);rows_to_update=db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan_id,PlannedMeal.status=='planned').order_by(PlannedMeal.day_index).all()
+  if rows_to_update and not candidates:raise HTTPException(409,'No eligible meals available to regenerate this plan')
   for i,row in enumerate(rows_to_update):row.meal_id=candidates[i%len(candidates)]['id']
   db.commit();return serialize_plan(db,plan)
  finally:db.close()
@@ -400,10 +749,18 @@ def planned_meal_status(plan_id:int,planned_meal_id:int,payload:PlannedMealStatu
  try:
   row=db.get(PlannedMeal,planned_meal_id)
   if not row or row.plan_id!=plan_id:raise HTTPException(404,'Planned meal not found')
-  previous=row.status;row.status=payload.status;consumed=[]
-  if payload.status in ('cooked','eaten') and previous not in ('cooked','eaten'):
-   meal=meal_by_id(row.meal_id);consumed=consume_meal_from_pantry(db,meal,row.servings);db.add(UserEvent(meal_id=row.meal_id,action=payload.status))
-  db.commit();return {**serialize_planned_meal(row),'consumed':consumed}
+  previous=row.status;row.status=payload.status;consumed=[];already_consumed=False
+  if payload.status in ('cooked','eaten'):
+   ledger=db.query(PantryConsumption).filter_by(planned_meal_id=row.id).first()
+   if ledger:
+    already_consumed=True
+   else:
+    meal=meal_by_id(row.meal_id)
+    if meal:
+     consumed=consume_meal_from_pantry(db,meal,row.servings)
+     db.add(PantryConsumption(planned_meal_id=row.id,meal_id=row.meal_id,consumed_json=json.dumps(consumed,ensure_ascii=False)))
+     db.add(UserEvent(meal_id=row.meal_id,action=payload.status))
+  db.commit();return {**serialize_planned_meal(row),'consumed':consumed,'already_consumed':already_consumed}
  finally:db.close()
 @app.get('/api/today')
 def today(plan_id:int|None=Query(default=None)):
@@ -413,12 +770,70 @@ def today(plan_id:int|None=Query(default=None)):
   if not plan:return {'plan':None,'date':date.today().isoformat(),'meals':[]}
   start=date.fromisoformat(plan.start_date);day_index=(date.today()-start).days
   if day_index<0 or day_index>=plan.weeks*7:return {'plan':serialize_plan(db,plan),'date':date.today().isoformat(),'day_index':day_index,'meals':[]}
-  day_meals=db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan.id,PlannedMeal.day_index==day_index).all();pantry_names={p.ingredient.lower() for p in db.query(PantryItem).filter(PantryItem.quantity>0).all()};serialized=[]
+  day_meals=db.query(PlannedMeal).filter(PlannedMeal.plan_id==plan.id,PlannedMeal.day_index==day_index).all();pantry=pantry_snapshot(db);serialized=[]
   for row in day_meals:
-   item=serialize_planned_meal(row);ingredients=item['meal']['ingredients'] if item['meal'] else [];covered=sum(1 for name,_,_ in ingredients if name.lower() in pantry_names);item['pantry_coverage_pct']=round(covered/len(ingredients)*100) if ingredients else 0;serialized.append(item)
+   item=serialize_planned_meal(row);ingredients=item['meal']['ingredients'] if item['meal'] else [];covered=0
+   for name,amount,unit in ingredients:
+    stock=pantry.get(str(name).lower())
+    if not stock:
+     continue
+    available=_convert_quantity(stock.get('quantity',0),stock.get('unit'),unit)
+    required=float(amount)*row.servings/2
+    if available is not None and available+1e-9>=required:
+     covered+=1
+   item['pantry_covered_ingredients']=covered;item['pantry_total_ingredients']=len(ingredients);item['pantry_coverage_pct']=round(covered/len(ingredients)*100) if ingredients else 0;serialized.append(item)
   return {'plan':{'id':plan.id,'strategy':plan.strategy,'budget':plan.budget},'date':date.today().isoformat(),'day_index':day_index,'meals':serialized}
  finally:db.close()
 @app.post('/api/ai/meals')
-def ai_meals(payload:BrainDumpIn):
- try:return {'meals':GeminiService().generate_meals(payload.prompt)}
+def ai_meals(payload:BrainDumpIn,request:Request):
+ prompt=payload.prompt.strip()
+ if not prompt:raise HTTPException(422,'Describe what you feel like eating first')
+ try:
+  # Gemini creates the meal ideas; the local engine then personalizes their order.
+  generated=GeminiService().generate_meals(prompt)
+  intent=brain_dump(payload)
+  user=getattr(request.state,'bitewise_user',None) or {}
+  owner=str(user.get('id') or user.get('email') or 'local')[:160]
+  db=SessionLocal()
+  try:
+   # Persist concepts so likes/skips survive restarts and become future learning signals.
+   for meal in generated:
+    key=str(meal.get('id') or '').strip()[:180]
+    if not key:continue
+    row=db.query(RecipeHistory).filter_by(user_id=owner,record_key=key).first()
+    record_type='concept' if meal.get('is_concept') else 'recipe'
+    if row is None:
+     row=RecipeHistory(id=str(uuid.uuid5(uuid.NAMESPACE_URL,f'bitewise:{owner}:{key}')),user_id=owner,record_key=key,record_type=record_type,status='discovered',name=str(meal.get('name') or 'Meal')[:180],prompt=prompt[:4000],meal_json=json.dumps(meal,ensure_ascii=False))
+     db.add(row)
+    else:
+     row.record_type=record_type
+     row.name=str(meal.get('name') or row.name)[:180]
+     row.prompt=prompt[:4000]
+     row.meal_json=json.dumps(meal,ensure_ascii=False)
+     row.updated_at=datetime.utcnow()
+   db.commit()
+   events=db.query(UserEvent).all()
+   pantry=db.query(PantryItem).filter(PantryItem.quantity>0).all()
+   history_rows=db.query(RecipeHistory).filter_by(user_id=owner).all()
+   preference_pool=list(MEALS)
+   for row in history_rows:
+    try:
+     stored=json.loads(row.meal_json)
+     if isinstance(stored,dict) and stored.get('id'):preference_pool.append(stored)
+    except Exception:continue
+   preference_pool.extend(generated)
+   profile=build_preference_profile(events,preference_pool)
+   ranked=rank_meals(generated,events,pantry,intent.get('mode'),profile=profile)
+   for meal in ranked:
+    meal['recommendation_score']=round(score_meal(meal,events,pantry,intent.get('mode'),profile),3)
+    reasons=[]
+    cuisine=str(meal.get('cuisine') or '').lower()
+    if profile['cuisines'].get(cuisine,0)>0:reasons.append('Matches cuisines you have liked before')
+    liked_tags=[str(tag).lower() for tag in meal.get('tags') or [] if profile['tags'].get(str(tag).lower(),0)>0]
+    if liked_tags:reasons.append('Fits food styles you tend to enjoy: '+', '.join(liked_tags[:2]))
+    if intent.get('mode')=='quick' and (meal.get('time') or 999)<=30:reasons.append('Fits your quick-meal request')
+    if not reasons:reasons.append('Selected for fit with your request and variety')
+    meal['recommendation_reasons']=reasons
+   return {'meals':ranked,'intent':intent.get('constraints',{}),'ranking':'personalized_hybrid','ideas_generated_by':'gemini'}
+  finally:db.close()
  except Exception as exc:raise HTTPException(502,f'Gemini generation failed: {str(exc)[:300]}')

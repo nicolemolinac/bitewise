@@ -28,7 +28,7 @@ from app.database import AppSetting, CatalogRun, Product, SessionLocal  # noqa: 
 PRODUCT_FIELDS = [
     "supermarket", "external_id", "ingredient", "name_original", "name_normalized",
     "translated_name", "brand", "category", "package_size", "package_unit", "price",
-    "price_per_unit", "currency", "product_url", "availability", "postcode_context",
+    "price_per_unit", "currency", "product_url", "image_url", "availability", "postcode_context",
     "first_seen_at", "last_seen_at", "last_checked_at", "last_price",
 ]
 

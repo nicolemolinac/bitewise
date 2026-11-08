@@ -130,11 +130,26 @@ def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
     return urlunsplit((parts.scheme or "https", parts.netloc, parts.path, parts.query, ""))
 
 
+def _validated_cart_packs(value) -> int | None:
+    """Accept only explicit integer package counts in the supported 1..99 range."""
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 99:
+        return None
+    return value
+
+
 def _cart_add_status(confirmation_seen: bool, packs_requested: int) -> str:
     """Never report multi-pack additions as verified without reading the cart quantity."""
     if not confirmation_seen:
         return "submitted_unverified"
     return "added" if int(packs_requested) == 1 else "quantity_unconfirmed"
+
+def _cart_quantity_submission_allowed(quantity_set: bool, packs_requested: int) -> bool:
+    """Do not submit a multi-pack request when the requested quantity was not entered."""
+    return int(packs_requested) <= 1 or bool(quantity_set)
+
+def _cart_quantity_matches(entered_quantity: str, packs_requested: int) -> bool:
+    """Require an exact read-back of the requested package count."""
+    return str(entered_quantity).strip() == str(int(packs_requested))
 
 
 def _image_url_from_card(box, anchor, base_url: str):
@@ -752,7 +767,14 @@ class ReweCatalogScraper:
                 for item in products:
                     name = str(item.get("name") or "REWE product")
                     product_url = _canonical_product_url(item.get("product_url") or "")
-                    packs = max(1, min(99, int(item.get("packs") or 1)))
+                    packs = _validated_cart_packs(item.get("packs", 1))
+                    if packs is None:
+                        results.append({
+                            "name": name,
+                            "status": "rejected",
+                            "message": "Package quantity must be an integer between 1 and 99",
+                        })
+                        continue
                     if not product_url:
                         results.append({"name": name, "status": "rejected", "message": "Not a verified REWE product URL"})
                         continue
@@ -778,10 +800,23 @@ class ReweCatalogScraper:
                                 field = page.locator(selector).first
                                 if field.count() and field.is_visible() and field.is_enabled():
                                     field.fill(str(packs))
-                                    quantity_set = True
-                                    break
+                                    entered_quantity = field.input_value(timeout=2_000)
+                                    quantity_set = _cart_quantity_matches(entered_quantity, packs)
+                                    if quantity_set:
+                                        break
                             except Exception:
                                 pass
+
+                        if not _cart_quantity_submission_allowed(quantity_set, packs):
+                            results.append({
+                                "name": name,
+                                "status": "quantity_control_unavailable",
+                                "packs_requested": packs,
+                                "quantity_set": False,
+                                "quantity_verified": False,
+                                "message": "Requested multi-pack quantity could not be entered; product was not added",
+                            })
+                            continue
 
                         add_button = None
                         for pattern in (r"In den Warenkorb", r"Warenkorb hinzufügen"):

@@ -4,7 +4,7 @@ import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint, create_engine, text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -74,6 +74,57 @@ class Product(Base):
     last_price: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
+class ProductIntelligence(Base):
+    """Derived culinary metadata. Safe to recompute without changing source catalog data."""
+    __tablename__ = "product_intelligence"
+    __table_args__ = (UniqueConstraint("product_id", name="uq_product_intelligence_product"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    product_type: Mapped[str] = mapped_column(String(40), default="ingredient", index=True)
+    culinary_role: Mapped[str] = mapped_column(String(40), default="ingredient", index=True)
+    dish_families_json: Mapped[str] = mapped_column(Text, default="[]")
+    preparation_state: Mapped[str] = mapped_column(String(40), default="unknown")
+    storage_type: Mapped[str] = mapped_column(String(30), default="unknown")
+    convenience_level: Mapped[int] = mapped_column(Integer, default=1)
+    is_complete_meal: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    evidence_json: Mapped[str] = mapped_column(Text, default="[]")
+    classifier_version: Mapped[str] = mapped_column(String(30), default="1.0.0")
+    classified_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ProductDetails(Base):
+    """Separately sourced REWE product-page facts; populated by a future isolated job."""
+    __tablename__ = "product_details"
+    __table_args__ = (UniqueConstraint("product_id", name="uq_product_details_product"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    details_status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
+    source: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ean: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    ingredients_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    allergens_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    traces_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    additives_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    nutrition_basis: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    energy_kj: Mapped[float | None] = mapped_column(Float, nullable=True)
+    energy_kcal: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fat_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    saturated_fat_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    carbohydrates_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sugars_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fibre_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    protein_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    salt_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preparation_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    storage_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    origin: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class ProductOverride(Base):
     __tablename__ = "product_overrides"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -92,6 +143,18 @@ class UserState(Base):
     __tablename__ = "user_state"
     user_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     state_json: Mapped[str] = mapped_column(Text, default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class UserStateEntry(Base):
+    """Per-key cloud state with durable tombstones for cross-device deletion."""
+    __tablename__ = "user_state_entries"
+    __table_args__ = (UniqueConstraint("user_id", "state_key", name="uq_user_state_entry_user_key"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True)
+    state_key: Mapped[str] = mapped_column(String(180))
+    value_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
@@ -141,6 +204,17 @@ class PlannedMeal(Base):
     meal_type: Mapped[str] = mapped_column(String(30), default="dinner")
     servings: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(30), default="planned")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PantryConsumption(Base):
+    __tablename__ = "pantry_consumptions"
+    __table_args__ = (UniqueConstraint("planned_meal_id", name="uq_pantry_consumption_planned_meal"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    planned_meal_id: Mapped[int] = mapped_column(Integer, index=True)
+    meal_id: Mapped[str] = mapped_column(String(80), index=True)
+    consumed_json: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -317,43 +391,172 @@ def _snapshot_float(value, default=None):
         return default
 
 
+def _snapshot_package_unit(name: str, current_unit: str) -> str:
+    """Resolve a source unit typo when the displayed unit-price basis and pack label agree."""
+    text = re.sub(r"\([^)]*1\s*(?:kg|l|stück|stk\.?)\s*=[^)]*\)", " ", name or "", flags=re.I)
+    reference = re.search(r"1\s*(kg|l)\s*=", name or "", re.I)
+    if not reference:
+        return current_unit
+    basis = reference.group(1).lower()
+    if basis == "kg" and current_unit == "ml" and re.search(
+        r"\d+\s*[x×]\s*\d+(?:[.,]\d+)?\s*g\b", text, re.I
+    ):
+        return "g"
+    if basis == "l" and current_unit == "g" and re.search(
+        r"\d+\s*[x×]\s*\d+(?:[.,]\d+)?\s*ml\b", text, re.I
+    ):
+        return "ml"
+    return current_unit
+
+
 def _snapshot_package_size(name: str, current_size: float, current_unit: str) -> float:
-    """Correct multi-packs such as 2x200ml and 4x50g in older scraper exports."""
-    match = re.search(r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b", name or "", re.I)
-    if not match:
-        return current_size
-    count = int(match.group(1))
-    amount = float(match.group(2).replace(",", "."))
-    source_unit = match.group(3).lower()
-    if source_unit == "kg":
-        amount *= 1000
-        source_unit = "g"
-    elif source_unit == "l":
-        amount *= 1000
-        source_unit = "ml"
-    return count * amount if source_unit == current_unit else current_size
+    """Normalize multipacks and repair obvious ml/l or g/kg source-unit typos."""
+    text = re.sub(r"\([^)]*1\s*(?:kg|l|stück|stk\.?)\s*=[^)]*\)", " ", name or "", flags=re.I)
+    def normalized_amount(amount, unit):
+        value = float(amount.replace(",", "."))
+        unit = unit.lower()
+        if unit == "kg":
+            return value * 1000, "g"
+        if unit == "l":
+            return value * 1000, "ml"
+        return value, unit
+
+    multipacks = list(re.finditer(
+        r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
+        text, re.I
+    ))
+    # In REWE titles the first expression is the real inner-pack format
+    # (e.g. 2x140g); a later "2x280g" often repeats the already-total quantity.
+    for match in multipacks:
+        amount, unit = normalized_amount(match.group(2), match.group(3))
+        if unit == current_unit:
+            return int(match.group(1)) * amount
+
+    # Some legacy rows contain a malformed first unit (e.g. 0,75ml 0,75l).
+    # Prefer the last explicit package-size token matching the corrected unit.
+    sizes = list(re.finditer(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b", text, re.I))
+    for match in reversed(sizes):
+        amount, unit = normalized_amount(match.group(1), match.group(2))
+        if unit == current_unit:
+            return amount
+    return current_size
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
-    """Convert displayed €/kg or €/l unit prices into actual package checkout prices."""
+    """Normalize package checkout price, unit price and German bottle deposits (Pfand)."""
     match = re.search(
-        r"1\s*(kg|l|stück|stk\.?)\s*=\s*(\d+[,.]\d{2})\s*€",
+        r"1\s*(kg|l|stück|stk\.?)\s*=\s*(\d+(?:[,.]\d{1,2})?)\s*€",
         name or "",
         re.I,
     )
     unit_price = _snapshot_float(match.group(2)) if match else None
     standard_unit = match.group(1).lower() if match else ""
+    deposit_match = re.search(
+        r"zzgl\.?\s*(\d+[,.]\d{2})\s*€\s*Pfand", name or "", re.I
+    )
+    deposit = _snapshot_float(deposit_match.group(1)) if deposit_match else 0.0
+
     if unit_price is not None and standard_unit == "kg" and package_unit == "g":
-        return round(unit_price * package_size / 1000, 2), unit_price / 1000
+        base_price = unit_price * package_size / 1000
+        return round(base_price + deposit, 2), unit_price / 1000
     if unit_price is not None and standard_unit == "l" and package_unit == "ml":
-        return round(unit_price * package_size / 1000, 2), unit_price / 1000
+        base_price = unit_price * package_size / 1000
+        return round(base_price + deposit, 2), unit_price / 1000
     if unit_price is not None and standard_unit.startswith(("stk", "stück")) and package_unit == "unit":
-        return round(unit_price * package_size, 2), unit_price
+        base_price = unit_price * package_size
+        return round(base_price + deposit, 2), unit_price
+
     fallback = _snapshot_float(raw_price)
-    per_unit = _snapshot_float(raw_price_per_unit)
-    if per_unit is None and fallback is not None and package_size > 0:
-        per_unit = fallback / package_size
-    return fallback, per_unit
+    # Negative checkout prices are malformed source data, not valid discounts.
+    # Keep the product visible but do not expose a negative price or unit cost.
+    if fallback is None or fallback < 0:
+        return None, None
+    # The raw per-unit field in old exports is inconsistent for multipacks
+    # (sometimes it refers to one inner unit). Recompute from the normalized pack.
+    factor = 1000 if package_unit in {"kg", "l"} else 1
+    denominator = float(package_size or 0) * factor
+    per_unit = fallback / denominator if denominator > 0 else _snapshot_float(raw_price_per_unit)
+    return round(fallback + deposit, 2), per_unit
+
+
+def _read_rewe_snapshot_rows(snapshot_path: Path) -> list[dict]:
+    """Read and validate the committed catalog CSV before any database writes."""
+    if not snapshot_path.is_file() or snapshot_path.stat().st_size < 2:
+        return []
+
+    expected_columns = [
+        "id", "supermarket", "external_id", "ingredient", "name_original",
+        "name_normalized", "translated_name", "brand", "category", "package_size",
+        "package_unit", "price", "price_per_unit", "currency", "product_url",
+        "image_url", "availability", "postcode_context", "first_seen_at",
+        "last_seen_at", "last_checked_at", "last_price",
+    ]
+    legacy_columns = [
+        "id", "supermarket", "ingredient", "name_original", "name_normalized",
+        "translated_name", "brand", "category", "package_size", "package_unit",
+        "price", "price_per_unit", "currency", "availability", "last_seen_at",
+        "last_checked_at",
+    ]
+    required = {"id", "supermarket", "ingredient", "name_original", "name_normalized"}
+    header_markers = required | {"external_id", "product_url", "price"}
+    rows = []
+    seen_external_ids = {}
+
+    try:
+        with snapshot_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            first_row = next(csv.reader(handle), [])
+            handle.seek(0)
+            first_values = {str(value).strip() for value in first_row}
+            if first_values & header_markers:
+                if not required.issubset(first_values):
+                    missing = sorted(required - first_values)
+                    raise ValueError(f"REWE CSV snapshot header is missing required columns: {missing}")
+                if len(first_row) != len(set(first_row)):
+                    raise ValueError("REWE CSV snapshot header contains duplicate columns")
+                reader = csv.DictReader(handle, strict=True)
+            else:
+                if len(first_row) == len(expected_columns):
+                    fieldnames = expected_columns
+                elif len(first_row) == len(legacy_columns):
+                    fieldnames = legacy_columns
+                else:
+                    raise ValueError(
+                        f"REWE CSV snapshot has {len(first_row)} columns; expected "
+                        f"{len(legacy_columns)} (legacy) or {len(expected_columns)} (full)"
+                    )
+                reader = csv.DictReader(handle, fieldnames=fieldnames, strict=True)
+
+            for row_number, row in enumerate(reader, start=2):
+                if not row or all(value is None or not str(value).strip() for value in row.values()):
+                    continue
+                if None in row:
+                    raise ValueError(f"REWE CSV snapshot row {row_number} has unexpected extra columns")
+                supermarket = str(row.get("supermarket") or "REWE").strip().upper()
+                name = str(row.get("name_original") or "").strip()
+                if supermarket != "REWE" or not name:
+                    continue
+                source_id = str(row.get("id") or "").strip() or str(len(rows) + 1)
+                external_id = str(row.get("external_id") or "").strip() or f"csv-snapshot-{source_id}"
+                # Repeated identical rows are harmless export noise; conflicting
+                # records for one provider SKU are ambiguous and abort the import.
+                fingerprint = tuple(sorted(
+                    (str(key), str(value or "").strip())
+                    for key, value in row.items() if key != "id"
+                ))
+                previous = seen_external_ids.get(external_id)
+                if previous is not None:
+                    if previous != fingerprint:
+                        raise ValueError(
+                            f"REWE CSV snapshot contains conflicting rows for external_id {external_id!r}"
+                        )
+                    continue
+                seen_external_ids[external_id] = fingerprint
+                row["_source_id"] = source_id
+                rows.append(row)
+    except csv.Error as exc:
+        raise ValueError(f"REWE CSV snapshot is malformed: {exc}") from exc
+
+    return rows
 
 
 def _auto_import_rewe_csv_snapshot() -> None:
@@ -383,77 +586,41 @@ def _auto_import_rewe_csv_snapshot() -> None:
         postcode = setting_row.value if setting_row and setting_row.value else "13353"
         now = datetime.utcnow()
         products = []
-        expected_columns = [
-            "id", "supermarket", "external_id", "ingredient", "name_original",
-            "name_normalized", "translated_name", "brand", "category", "package_size",
-            "package_unit", "price", "price_per_unit", "currency", "product_url",
-            "image_url", "availability", "postcode_context", "first_seen_at",
-            "last_seen_at", "last_checked_at", "last_price",
-        ]
-        legacy_columns = [
-            "id", "supermarket", "ingredient", "name_original", "name_normalized",
-            "translated_name", "brand", "category", "package_size", "package_unit",
-            "price", "price_per_unit", "currency", "availability", "last_seen_at",
-            "last_checked_at",
-        ]
-        required = {"id", "supermarket", "ingredient", "name_original", "name_normalized"}
-        with snapshot_path.open("r", encoding="utf-8-sig", newline="") as handle:
-            first_row = next(csv.reader(handle), [])
-            handle.seek(0)
-            # Accept both proper headered CSV and the existing sqlite3 export,
-            # which contains the selected columns but no header row.
-            if required.issubset(set(first_row)):
-                reader = csv.DictReader(handle)
-            else:
-                if len(first_row) == len(expected_columns):
-                    fieldnames = expected_columns
-                elif len(first_row) == len(legacy_columns):
-                    fieldnames = legacy_columns
-                else:
-                    raise ValueError(
-                        f"REWE CSV snapshot has {len(first_row)} columns; expected "
-                        f"{len(legacy_columns)} (legacy) or {len(expected_columns)} (full)"
-                    )
-                reader = csv.DictReader(handle, fieldnames=fieldnames)
-
-            for row in reader:
-                supermarket = str(row.get("supermarket") or "REWE").strip().upper()
-                name = str(row.get("name_original") or "").strip()
-                if supermarket != "REWE" or not name:
-                    continue
-                source_id = str(row.get("id") or "").strip()
-                if not source_id:
-                    source_id = str(len(products) + 1)
-                package_size = _snapshot_float(row.get("package_size"), 1.0)
-                package_size = package_size if package_size and package_size > 0 else 1.0
-                package_unit = str(row.get("package_unit") or "unit").strip()[:20]
-                package_size = _snapshot_package_size(name, package_size, package_unit)
-                pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
-                    name, package_size, package_unit, row.get("price"), row.get("price_per_unit")
-                )
-                products.append(Product(
-                    supermarket="REWE",
-                    external_id=(str(row.get("external_id") or "").strip() or f"csv-snapshot-{source_id}"),
-                    ingredient=str(row.get("ingredient") or "").strip()[:100] or "unknown",
-                    name_original=name[:300],
-                    name_normalized=str(row.get("name_normalized") or name.lower()).strip()[:300],
-                    translated_name=(str(row.get("translated_name") or "").strip()[:300] or None),
-                    brand=(str(row.get("brand") or "").strip()[:120] or None),
-                    category=(str(row.get("category") or "").strip()[:120] or None),
-                    package_size=package_size,
-                    package_unit=package_unit,
-                    price=pack_price,
-                    price_per_unit=normalized_price_per_unit,
-                    currency=str(row.get("currency") or "EUR").strip()[:6],
-                    product_url=(str(row.get("product_url") or "").strip() or None),
-                    image_url=(str(row.get("image_url") or "").strip() or None),
-                    availability=str(row.get("availability") or "unknown").strip()[:30],
-                    postcode_context=(str(row.get("postcode_context") or postcode).strip()[:12]),
-                    first_seen_at=_parse_snapshot_dt(row.get("first_seen_at")) or _parse_snapshot_dt(row.get("last_seen_at")) or now,
-                    last_seen_at=_parse_snapshot_dt(row.get("last_seen_at")) or now,
-                    last_checked_at=_parse_snapshot_dt(row.get("last_checked_at")) or now,
-                    last_price=_snapshot_float(row.get("last_price")),
-                ))
+        for row in _read_rewe_snapshot_rows(snapshot_path):
+            supermarket = str(row.get("supermarket") or "REWE").strip().upper()
+            name = str(row.get("name_original") or "").strip()
+            source_id = row.get("_source_id") or str(len(products) + 1)
+            package_size = _snapshot_float(row.get("package_size"), 1.0)
+            package_size = package_size if package_size and package_size > 0 else 1.0
+            package_unit = str(row.get("package_unit") or "unit").strip()[:20]
+            package_unit = _snapshot_package_unit(name, package_unit)
+            package_size = _snapshot_package_size(name, package_size, package_unit)
+            pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
+                name, package_size, package_unit, row.get("price"), row.get("price_per_unit")
+            )
+            products.append(Product(
+                supermarket="REWE",
+                external_id=(str(row.get("external_id") or "").strip() or f"csv-snapshot-{source_id}"),
+                ingredient=str(row.get("ingredient") or "").strip()[:100] or "unknown",
+                name_original=name[:300],
+                name_normalized=str(row.get("name_normalized") or name.lower()).strip()[:300],
+                translated_name=(str(row.get("translated_name") or "").strip()[:300] or None),
+                brand=(str(row.get("brand") or "").strip()[:120] or None),
+                category=(str(row.get("category") or "").strip()[:120] or None),
+                package_size=package_size,
+                package_unit=package_unit,
+                price=pack_price,
+                price_per_unit=normalized_price_per_unit,
+                currency=str(row.get("currency") or "EUR").strip()[:6],
+                product_url=(str(row.get("product_url") or "").strip() or None),
+                image_url=(str(row.get("image_url") or "").strip() or None),
+                availability=str(row.get("availability") or "unknown").strip()[:30],
+                postcode_context=(str(row.get("postcode_context") or postcode).strip()[:12]),
+                first_seen_at=_parse_snapshot_dt(row.get("first_seen_at")) or _parse_snapshot_dt(row.get("last_seen_at")) or now,
+                last_seen_at=_parse_snapshot_dt(row.get("last_seen_at")) or now,
+                last_checked_at=_parse_snapshot_dt(row.get("last_checked_at")) or now,
+                last_price=_snapshot_float(row.get("last_price")),
+            ))
 
         if not products:
             return

@@ -76,7 +76,12 @@ export default function MvpControls() {
       setLeftovers([]);
       return;
     }
-    const servings = Object.fromEntries(planned.map(x => [x.meal_id, x.servings]));
+    // The same recipe can appear on several days. Sum its servings instead
+    // of letting Object.fromEntries silently keep only the last occurrence.
+    const servings = planned.reduce<Record<string, number>>((totals, row) => {
+      totals[row.meal_id] = (totals[row.meal_id] || 0) + Number(row.servings || 0);
+      return totals;
+    }, {});
     const data = await api('/shopping', {
       method: 'POST',
       body: JSON.stringify({
@@ -132,7 +137,26 @@ export default function MvpControls() {
         setMessage('No AI meals were generated. Check GEMINI_API_KEY in backend/.env.');
         return;
       }
-      setMessage(`Added ${generated.length} new meals to Bitewise. Reloading Discover…`);
+      // Persist generated concepts before reporting success or reloading.
+      // This keeps Planner Tools and Discover on the same durable recipe history.
+      const records = generated
+        .filter(meal => meal && meal.id && meal.name)
+        .map(meal => ({
+          record_key: meal.id,
+          record_type: 'concept',
+          status: 'discovered',
+          prompt: aiPrompt.trim(),
+          meal,
+        }));
+      if (!records.length) {
+        setMessage('The AI response did not contain any saveable meals. Please try again.');
+        return;
+      }
+      await api('/recipe-history', {
+        method: 'POST',
+        body: JSON.stringify({ records }),
+      });
+      setMessage(`Saved ${records.length} new meal ideas to Bitewise. Reloading Discover…`);
       setTimeout(() => window.location.reload(), 700);
     } catch (err: any) {
       setMessage(err?.message || 'Could not generate AI meals');

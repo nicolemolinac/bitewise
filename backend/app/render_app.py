@@ -8,6 +8,7 @@ from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from .server import app
+from .cloud_sync import auth_enabled
 
 
 def _service_request_allowed(request: Request) -> bool:
@@ -18,13 +19,19 @@ def _service_request_allowed(request: Request) -> bool:
 
 @app.middleware("http")
 async def private_basic_auth(request: Request, call_next):
-    if request.url.path == "/api/health" or _service_request_allowed(request):
+    if request.url.path == "/api/health" or request.method == "OPTIONS" or _service_request_allowed(request):
         return await call_next(request)
 
     username = os.getenv("APP_USERNAME", "")
     password = os.getenv("APP_PASSWORD", "")
+    if not username and not password:
+        # Never publish the production app without at least one authentication
+        # mechanism. Supabase bearer auth is enforced by server.private_bitewise.
+        if auth_enabled():
+            return await call_next(request)
+        return PlainTextResponse("Bitewise authentication is not configured.", status_code=503)
     if not username or not password:
-        return await call_next(request)
+        return PlainTextResponse("Bitewise authentication is misconfigured.", status_code=503)
 
     header = request.headers.get("authorization", "")
     ok = False

@@ -1,6 +1,8 @@
 import math
 from collections import defaultdict
 
+from ..ingredient_aliases import canonical_ingredient_terms
+
 
 STRATEGIES = {
     "maximum-savings",
@@ -13,7 +15,7 @@ STRATEGIES = {
 
 
 def consolidate(meals, servings_map):
-    grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": []})
+    grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": [], "source_ingredient_names": [], "ingredient": None})
     canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
     for meal in meals:
         servings = max(0.1, float(servings_map.get(meal["id"], 2) or 2))
@@ -29,16 +31,24 @@ def consolidate(meals, servings_map):
             else:
                 # Keep semantically different units (e.g. cloves vs pieces) separate.
                 normalized_quantity = float(quantity)
-            key = (name.lower().strip(), normalized_unit)
+            canonical_terms = canonical_ingredient_terms(name)
+            canonical_name = canonical_terms[0] if len(canonical_terms) == 1 else name.lower().strip()
+            key = (canonical_name, normalized_unit)
             row = grouped[key]
+            if row["ingredient"] is None:
+                row["ingredient"] = name
             row["quantity"] += normalized_quantity * factor
             row["source_meals"].append(meal["name"])
+            row["source_ingredient_names"].append(name)
     return [
         {
             "ingredient": ingredient,
+            "display_ingredient": value["ingredient"],
+            "canonical_ingredient": ingredient,
             "quantity": round(value["quantity"], 2),
             "unit": unit,
             "source_meals": list(dict.fromkeys(value["source_meals"])),
+            "source_ingredient_names": list(dict.fromkeys(value["source_ingredient_names"])),
         }
         for (ingredient, unit), value in grouped.items()
     ]
@@ -51,6 +61,7 @@ _UNIT_ALIASES = {
     "liter": "l", "litre": "l", "liters": "l", "litres": "l", "l": "l",
     "stück": "piece", "stuck": "piece", "pcs": "piece", "pc": "piece",
     "pieces": "piece", "piece": "piece", "unit": "piece", "units": "piece",
+    "clove": "clove", "cloves": "clove",
     "tbsp": "tbsp", "tablespoon": "tbsp", "tablespoons": "tbsp",
     "tsp": "tsp", "teaspoon": "tsp", "teaspoons": "tsp",
     "cup": "cup", "cups": "cup",
@@ -112,25 +123,47 @@ def _candidate_score(mode, total, waste_ratio, unit_price, reuse_count, product)
     if mode == "less-waste":
         return total + waste_ratio * max(total, 1) * 2.0
     if mode == "plan-efficiency":
-        reuse_bonus = min(reuse_count, 5) * 0.25
-        return total + waste_ratio * max(total, 1) * 1.6 - reuse_bonus
+        # Reused ingredients deserve stronger package-efficiency weighting:
+        # unlike a flat bonus, this changes the trade-off between candidates.
+        reuse_weight = 1.6 + min(reuse_count, 5) * 0.15
+        return total + waste_ratio * max(total, 1) * reuse_weight
     if mode == "premium":
         return total * 0.25 + waste_ratio * max(total, 1) * 0.35 - premium * 2.0 + unit_price * 0.03
     return total + waste_ratio * max(total, 1) * 1.15 + unit_price * 0.05 - min(reuse_count, 4) * 0.12 - premium * 0.15
 
 
 def _badge(mode, waste_ratio, reuse_count, product, cheapest_total, total):
-    if waste_ratio <= 0.08:
-        return "♻️ Low Waste"
-    if mode in ("cheapest", "maximum-savings") or abs(total - cheapest_total) < 0.01:
+    # The badge must explain the active strategy, not hide it behind a
+    # secondary property such as low package waste.
+    if mode in ("cheapest", "maximum-savings"):
         return "💰 Cheapest"
-    if mode == "plan-efficiency" or reuse_count >= 3:
-        return "🔥 Best for Plan"
     if mode == "premium":
         return "✨ Premium"
+    if mode == "plan-efficiency":
+        return "🔥 Best for Plan"
+    if waste_ratio <= 0.08:
+        return "♻️ Low Waste"
+    if abs(total - cheapest_total) < 0.01:
+        return "💰 Cheapest"
     if _premium_signal(product) > 0.5:
         return "🟢 Good Value"
     return "⭐ Best Value"
+
+
+
+def summarize_waste(basket):
+    """Aggregate estimated package leftovers by unit; never add grams to milliliters."""
+    totals = defaultdict(float)
+    for row in basket:
+        try:
+            quantity = float(row.get("waste") or 0)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if not math.isfinite(quantity) or quantity <= 0:
+            continue
+        unit = _normal_unit(row.get("package_unit") or row.get("unit") or "piece")
+        totals[unit] += quantity
+    return {unit: round(quantity, 2) for unit, quantity in sorted(totals.items())}
 
 
 def build_basket(requirements, adapter, mode="best-value", owned=None, overrides=None, pantry=None):
@@ -188,9 +221,29 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         candidates = []
         raw_products = list(adapter.search(ingredient) or [])
         override_id = overrides.get(ingredient)
+        # A user's saved choice must remain selectable even when it falls
+        # outside the adapter's capped top-40 search result.
+        if override_id is not None and hasattr(adapter, "get_by_id"):
+            selected_override = adapter.get_by_id(override_id)
+            if selected_override and all(str(p.get("id")) != str(override_id) for p in raw_products):
+                # Revalidate the user's saved choice against the actual recipe
+                # ingredient so curated substitutions are never mislabeled exact.
+                # Manual overrides must pass the same semantic and complete-meal
+                # checks as normal catalog search; a saved ID is not a trust bypass.
+                from ..main import validate_ingredient_candidate
+                validated = validate_ingredient_candidate(ingredient, selected_override)
+                if validated:
+                    match_type, intelligence = validated
+                    selected_override["ingredient_match_type"] = match_type
+                    selected_override["intelligence"] = intelligence
+                    raw_products.append(selected_override)
         for product in raw_products:
             price = product.get("price")
-            if price is None or str(product.get("availability") or "").lower() in {
+            try:
+                price_value = float(price)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if not math.isfinite(price_value) or price_value <= 0 or str(product.get("availability") or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
             }:
                 continue
@@ -201,10 +254,11 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             packs = max(1, math.ceil(needed_in_pack_unit / pack_qty))
             purchased_quantity = packs * pack_qty
             waste_in_pack_unit = max(0.0, purchased_quantity - needed_in_pack_unit)
-            checkout_cost = packs * float(price)
+            checkout_cost = packs * price_value
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
-            waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1.0)
-            unit_price = _number(product, "unit_price", "price_per_unit", default=float(price) / pack_qty)
+            # Waste is relative to the actual requested quantity, including sub-unit amounts.
+            waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1e-9)
+            unit_price = _number(product, "unit_price", "price_per_unit", default=price_value / pack_qty)
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             # Exact matches win over substitutions; a substitute is used only when
             # no exact priced/available option is present.

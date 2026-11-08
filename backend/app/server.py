@@ -1,6 +1,7 @@
 from pathlib import Path
 import hmac
 import json
+import math
 import os
 import uuid
 from datetime import date, datetime
@@ -15,12 +16,13 @@ from sqlalchemy import or_
 # are available both locally and in the deployed cloud entrypoint.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-from .cloud_sync import auth_enabled, authenticate_request, router as cloud_router
+from .cloud_sync import auth_enabled, authenticate_request
 from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
 from .ingredient_aliases import ingredient_product_match_type, ingredient_search_terms, ingredient_substitution_name
+from .catalog.intelligence import classify_product
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -40,33 +42,61 @@ def _multilingual_catalog_search(self, ingredient):
         pattern = f"%{term}%"
         clauses.extend(
             [
-                Product.ingredient.ilike(pattern),
                 Product.name_normalized.ilike(pattern),
                 Product.name_original.ilike(pattern),
                 Product.translated_name.ilike(pattern),
             ]
         )
 
-    rows = self.db.query(Product).filter(or_(*clauses)).limit(240).all()
+    rows = self.db.query(Product).filter(
+        Product.supermarket == "REWE"
+    ).filter(or_(*clauses)).all()
     if rows:
         # Search columns improve recall, but the actual product title must independently
         # confirm compatibility. Catalog ingredient labels can be broad or misclassified.
-        match_types = {
-            row.id: ingredient_product_match_type(
-                ingredient,
-                " ".join(str(value or "") for value in (
-                    row.name_original, row.name_normalized, row.translated_name
-                )),
+        match_types = {}
+        profiles = {}
+        for row in rows:
+            title = " ".join(str(value or "") for value in (
+                row.name_original, row.name_normalized, row.translated_name
+            ))
+            match_type = ingredient_product_match_type(ingredient, title, row.category)
+            if not match_type:
+                continue
+            profile = classify_product({
+                "name_original": row.name_original,
+                "name_normalized": row.name_normalized,
+                "translated_name": row.translated_name,
+                "brand": row.brand,
+                "category": row.category,
+            })
+            # A complete prepared dish is never an ingredient, even if its title
+            # contains the requested protein (e.g. shrimp curry or chicken lasagna).
+            # Plant-based milk is intentionally classified as a beverage for
+            # product intelligence, but remains a valid culinary substitute for milk.
+            is_plant_milk_substitute = (
+                str(ingredient or "").strip().lower() == "milk"
+                and match_type == "substitute"
+                and profile.product_type == "beverage"
             )
-            for row in rows
-        }
-        rows = [row for row in rows if match_types.get(row.id)]
+            if (
+                profile.is_complete_meal
+                or profile.product_type in {"non_food", "snack"}
+                or (profile.product_type == "beverage" and not is_plant_milk_substitute)
+                or profile.culinary_role in {
+                    "soup", "salad", "dessert", "potato_side",
+                    "seasoning_mix", "topping", "filled_pasta",
+                }
+            ):
+                continue
+            match_types[row.id] = match_type
+            profiles[row.id] = profile
+        rows = [row for row in rows if row.id in match_types]
     if rows:
         alias_set = {x.lower() for x in aliases}
 
         def score(row):
             fields = [
-                str(row.ingredient or "").lower(),
                 str(row.translated_name or "").lower(),
                 str(row.name_normalized or "").lower(),
                 str(row.name_original or "").lower(),
@@ -91,6 +121,16 @@ def _multilingual_catalog_search(self, ingredient):
             return best
 
         rows.sort(key=score, reverse=True)
+        # app.server replaces CatalogAdapter.search, so deduplicate here too.
+        # Keep the highest-ranked observation and retain legitimate price/pack variants.
+        deduplicated_rows = []
+        seen_fingerprints = set()
+        for row in rows:
+            fingerprint = main_module.catalog_product_fingerprint(row)
+            if fingerprint in seen_fingerprints:
+                continue
+            seen_fingerprints.add(fingerprint)
+            deduplicated_rows.append(row)
         return [
             {
                 **main_module.product_dict(row),
@@ -101,8 +141,9 @@ def _multilingual_catalog_search(self, ingredient):
                         row.name_original, row.name_normalized, row.translated_name
                     )),
                 ) if match_types.get(row.id) == "substitute" else None,
+                "intelligence": profiles[row.id].as_dict(),
             }
-            for row in rows[:40]
+            for row in deduplicated_rows
         ]
 
     # Never substitute seed/demo products for a real REWE catalog match.
@@ -183,6 +224,198 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
 
     recipe["adaptations"] = adaptations
     return adaptations
+
+
+
+def _build_convenience_options(db, recipe: dict) -> dict:
+    """Find real catalog products for the homemade, component-shortcut and ready-meal levels."""
+    import re
+    from sqlalchemy import or_
+
+    Product = main_module.Product
+    recipe_name = str(recipe.get("name") or "").lower()
+    ingredient_text = " ".join(
+        str(item[0] if isinstance(item, (list, tuple)) and item else item).lower()
+        for item in recipe.get("ingredients", [])
+    )
+
+    ready_terms = []
+    for pattern, terms in [
+        (r"lasagne|lasagna", ["lasagne", "lasagna"]),
+        (r"pizza", ["pizza"]),
+        (r"curry", ["curry"]),
+        (r"bolognese", ["bolognese"]),
+        (r"burger", ["burger"]),
+        (r"auflauf|casserole|gratin", ["auflauf", "gratin"]),
+        (r"rice bowl|reis bowl", ["rice bowl", "reis bowl"]),
+        (r"chili con carne|chili", ["chili", "chili con carne"]),
+        (r"schnitzel", ["schnitzel"]),
+        (r"quiche", ["quiche"]),
+        (r"ramen", ["ramen", "nudelsuppe"]),
+        (r"soup", ["suppe", "soup"]),
+        (r"stuffed bell pepper", ["gefüllte paprika", "gefuellte paprika"]),
+        (r"meatballs", ["frikadellen", "hackbällchen", "hackbaellchen"]),
+    ]:
+        if re.search(pattern, recipe_name):
+            ready_terms.extend(terms)
+
+    excluded = {"unavailable", "out_of_stock", "not_available", "discontinued"}
+
+    def title_of(product):
+        return " ".join(str(value or "") for value in (
+            product.name_original, product.name_normalized, product.translated_name
+        ))
+
+    def profile_of(product):
+        return classify_product({
+            "name_original": product.name_original,
+            "name_normalized": product.name_normalized,
+            "translated_name": product.translated_name,
+            "brand": product.brand,
+            "category": product.category,
+        })
+
+    def eligible(product):
+        try:
+            price = float(product.price)
+        except (TypeError, ValueError, OverflowError):
+            return False
+        return (
+            price > 0
+            and str(product.availability or "unknown").strip().lower() not in excluded
+        )
+
+    def serialize(product, profile):
+        return {
+            "id": product.id,
+            "name": product.name_original,
+            "price": product.price,
+            "package_size": product.package_size,
+            "package_unit": product.package_unit,
+            "category": product.category,
+            "availability": product.availability,
+            "product_type": profile.product_type,
+            "culinary_role": profile.culinary_role,
+            "preparation_state": profile.preparation_state,
+            "storage_type": profile.storage_type,
+            "convenience_level": profile.convenience_level,
+            "is_complete_meal": profile.is_complete_meal,
+        }
+
+    shortcut_patterns = []
+    shortcut_terms = []
+    if any(term in ingredient_text for term in ("tomato passata", "tomato sauce", "tomato paste", "passata", "bolognese", "sauce", "salsa")):
+        shortcut_patterns.append(r"tomatensauce|tomatensoße|passata|bolognese|pastasauce|pesto")
+        shortcut_terms.extend(["tomatensauce", "tomatensoße", "passata", "bolognese", "pastasauce", "pesto"])
+    if any(term in ingredient_text for term in ("vegetable", "vegetables", "verdura", "carrot", "broccoli", "pepper", "onion", "spinach")):
+        shortcut_patterns.append(r"gemüse|gemuese|broccoli|paprika|zwiebel|möhren|karotten|blattspinat|spinat")
+        shortcut_terms.extend(["gemüse", "gemuese", "broccoli", "paprika", "zwiebel", "möhren", "karotten", "blattspinat", "spinat"])
+    if any(term in ingredient_text for term in ("chicken", "hähnchen", "beef", "meat")):
+        shortcut_patterns.append(r"gegart|vorgegart|hähnchen-filetstreifen gebraten|hähnchenbrust gebraten")
+        shortcut_terms.extend(["gegart", "vorgegart", "hähnchen-filetstreifen gebraten", "hähnchenbrust gebraten"])
+    if "pizza dough" in ingredient_text:
+        shortcut_patterns.append(r"pizzateig")
+        shortcut_terms.append("pizzateig")
+    if "rice" in ingredient_text:
+        shortcut_patterns.append(r"express.?reis|vorgegart.*reis|reis.*vorgegart|reis im beutel")
+        shortcut_terms.extend(["expressreis", "express-reis", "vorgegart", "reis im beutel"])
+    if any(term in ingredient_text for term in ("salmon", "shrimp", "prawn", "fish", "tuna", "lachs", "garnelen")):
+        shortcut_patterns.append(r"lachs|salmon|garnelen|shrimp|prawn|fischfilet|thunfisch|tuna")
+        shortcut_terms.extend(["lachs", "salmon", "garnelen", "shrimp", "prawn", "fischfilet", "thunfisch", "tuna"])
+    if any(term in ingredient_text for term in ("tofu",)):
+        shortcut_patterns.append(r"tofu")
+        shortcut_terms.append("tofu")
+    if any(term in ingredient_text for term in ("chickpea", "chickpeas", "bean", "beans", "lentil", "lentils")):
+        shortcut_patterns.append(r"kichererbsen|kichererbse|bohnen|linsen|chickpea|kidney.?bohnen|beans")
+        shortcut_terms.extend(["kichererbsen", "kichererbse", "bohnen", "linsen", "chickpea", "kidney-bohnen"])
+    if any(term in ingredient_text for term in ("potato", "potatoes")):
+        shortcut_patterns.append(r"kartoffeln|kartoffelwürfel|kartoffelwuerfel|vorgekochte kartoffeln|kartoffelsalat|bratkartoffeln")
+        shortcut_terms.extend(["kartoffeln", "kartoffelwürfel", "kartoffelwuerfel", "kartoffelsalat", "bratkartoffeln"])
+
+    # Query only titles relevant to this recipe's actual shortcut families. The
+    # previous full-catalog scan classified every SKU for every expansion.
+    catalog_terms = list(dict.fromkeys(ready_terms + shortcut_terms))
+    catalog_rows = []
+    if catalog_terms:
+        title_filters = []
+        for term in catalog_terms:
+            pattern = f"%{term}%"
+            title_filters.extend([
+                Product.name_original.ilike(pattern),
+                Product.name_normalized.ilike(pattern),
+                Product.translated_name.ilike(pattern),
+            ])
+        catalog_rows = (
+            db.query(Product)
+            .filter(Product.supermarket == "REWE", Product.price.isnot(None), Product.price > 0)
+            .filter(or_(*title_filters))
+            .all()
+        )
+
+    required_title_groups = []
+    if any(term in ingredient_text for term in ("chicken", "hähnchen")):
+        required_title_groups.append(("hähnchen", "haehnchen", "chicken"))
+    if any(term in ingredient_text for term in ("ground beef", "beef", "rind")):
+        required_title_groups.append(("rind", "rinder", "beef", "hackfleisch", "bolognese"))
+    if any(term in ingredient_text for term in ("lentil", "lentils", "linse", "linsen")):
+        required_title_groups.append(("linse", "linsen", "lentil", "vegan", "vegetar"))
+    if any(term in ingredient_text for term in ("salmon", "shrimp", "fish", "tuna")):
+        required_title_groups.append(("lachs", "salmon", "garnelen", "shrimp", "fisch", "fish", "thunfisch", "tuna"))
+
+    animal_protein_terms = (
+        "chicken", "hähnchen", "haehnchen", "beef", "rind", "pork", "schwein",
+        "bacon", "speck", "ham", "schinken", "sausage", "wurst", "meat",
+        "salmon", "lachs", "shrimp", "garnelen", "fish", "fisch", "tuna",
+        "thunfisch", "duck", "ente", "lamb", "lamm", "turkey", "truthahn",
+        "mussels", "miesmuscheln", "sardine", "sardinen",
+    )
+    vegetarian_recipe = not any(term in ingredient_text for term in animal_protein_terms)
+    ready_products = []
+    if ready_terms:
+        for product in catalog_rows:
+            if not eligible(product):
+                continue
+            profile = profile_of(product)
+            title = title_of(product).lower()
+            if not profile.is_complete_meal or not any(term in title for term in ready_terms):
+                continue
+            if vegetarian_recipe and any(term in title for term in animal_protein_terms):
+                continue
+            if required_title_groups and not all(
+                any(term in title for term in group) for group in required_title_groups
+            ):
+                continue
+            ready_products.append(serialize(product, profile))
+        ready_products.sort(key=lambda item: (float(item.get("price") or 1e12), item["name"].lower()))
+
+    shortcut_products = []
+    if shortcut_patterns:
+        for product in catalog_rows:
+            if not eligible(product):
+                continue
+            profile = profile_of(product)
+            # Never expose a full dish as a recipe component. Shortcuts must be a
+            # prepared component, a frozen/pre-cut item or a ready-to-use staple.
+            if profile.is_complete_meal:
+                continue
+            if not (
+                profile.product_type == "prepared_component"
+                or profile.storage_type == "frozen"
+                or profile.convenience_level >= 2
+            ):
+                continue
+            title = title_of(product).lower()
+            if any(re.search(pattern, title) for pattern in shortcut_patterns):
+                shortcut_products.append(serialize(product, profile))
+        shortcut_products.sort(key=lambda item: (float(item.get("price") or 1e12), item["name"].lower()))
+
+    return {
+        "ready_made": ready_products[:4],
+        "shortcuts": shortcut_products[:5],
+        "stock_note": "Catalog listing only; live availability is unknown. Prices are package prices.",
+    }
+
+
 
 def _json_history_default(value):
     """Convert common Python values to stable JSON-safe history values."""
@@ -362,11 +595,18 @@ async def expand_ai_recipe(request: Request):
     concept = payload.get("concept") if isinstance(payload, dict) else None
     context = payload.get("context", "") if isinstance(payload, dict) else ""
     appliances = payload.get("appliances", []) if isinstance(payload, dict) else []
-    try:
-        requested_servings = float(payload.get("servings", 2)) if isinstance(payload, dict) else 2.0
-        people = int(payload.get("people", 1)) if isinstance(payload, dict) else 1
-    except (TypeError, ValueError):
-        raise HTTPException(422, "servings and people must be numeric")
+    raw_servings = payload.get("servings", 2) if isinstance(payload, dict) else 2
+    raw_people = payload.get("people", 1) if isinstance(payload, dict) else 1
+    if (
+        isinstance(raw_servings, bool)
+        or not isinstance(raw_servings, (int, float))
+        or not math.isfinite(raw_servings)
+        or isinstance(raw_people, bool)
+        or not isinstance(raw_people, int)
+    ):
+        raise HTTPException(422, "servings must be a finite number and people must be an integer")
+    requested_servings = float(raw_servings)
+    people = raw_people
     if not 0.1 <= requested_servings <= 12 or not 1 <= people <= 12:
         raise HTTPException(422, "servings must be 0.1–12 and people must be 1–12")
     if not isinstance(concept, dict) or not str(concept.get("name") or "").strip():
@@ -442,6 +682,8 @@ async def expand_ai_recipe(request: Request):
                 "catalog_coverage": round((len(matched_rows) + len(covered_rows)) / len(basket), 4) if basket else 1.0,
                 "currency": "EUR",
             }
+            # Convenience variants are local catalog lookups; no extra Gemini call.
+            recipe["convenience_options"] = _build_convenience_options(db, recipe)
         finally:
             db.close()
         # Normalize every nested value (notably REWE last_checked_at datetimes) before
@@ -464,7 +706,6 @@ app.router.routes = [
     )
 ]
 app.include_router(rewe_refresh_router)
-app.include_router(cloud_router)
 app.include_router(migration_router)
 
 
@@ -479,15 +720,22 @@ async def add_rewe_products_to_cart(request: Request):
     items = payload.get("items", []) if isinstance(payload, dict) else []
     if not isinstance(items, list) or not items:
         raise HTTPException(422, "At least one product is required")
+    if len(items) > 100:
+        raise HTTPException(422, "A maximum of 100 products can be added at once")
     db = SessionLocal()
     try:
         products = []
-        for item in items[:100]:
+        for item in items:
             if not isinstance(item, dict):
                 continue
+            raw_packs = item.get("packs", 1)
+            # Reject rather than silently clamp/coerce: a changed quantity can
+            # put a different basket into the user's authenticated REWE account.
+            if isinstance(raw_packs, bool) or not isinstance(raw_packs, int) or not 1 <= raw_packs <= 99:
+                raise HTTPException(422, "packs must be an integer between 1 and 99")
+            packs = raw_packs
             try:
                 product_id = int(item.get("product_id"))
-                packs = max(1, min(99, int(item.get("packs") or 1)))
             except (TypeError, ValueError):
                 continue
             product = db.get(main_module.Product, product_id)
