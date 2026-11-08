@@ -46,7 +46,7 @@ def test_url_and_status_contract():
 def test_rewe_cart_dom_probe_contract():
     class FakePage:
         def evaluate(self, script):
-            if "querySelectorAll('button')" in script and "plus_index" in script:
+            if "querySelectorAll('button, [role=" in script and "plus_index" in script:
                 return {"plus_index": 8, "minus_index": 7, "quantity": 1}
             if "backgroundColor" in script and "candidates" in script:
                 return 5
