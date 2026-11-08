@@ -47,7 +47,11 @@ with tempfile.TemporaryDirectory(prefix="bitewise-cloud-sync-qa-") as directory:
     # Updating one user must not overwrite the other user's snapshot.
     put_user_state(UserStateIn(state={"liked": ["recipe-alice-updated"]}), alice)
     assert get_user_state(bob)["state"] == bob_state
-    assert get_user_state(alice)["state"] == {"liked": ["recipe-alice-updated"]}
+    legacy_snapshot_update = get_user_state(alice)
+    assert legacy_snapshot_update["state"] == {"liked": ["recipe-alice-updated"]}
+    assert "profile" in legacy_snapshot_update["deleted_keys"], (
+        "Legacy full-snapshot writes must create durable tombstones for omitted keys"
+    )
 
     # Two devices updating different keys must merge rather than replace snapshots.
     put_user_state_changes(UserStateChangesIn(set={"basket": ["device-one-item"]}), alice)
