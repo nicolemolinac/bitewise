@@ -36,7 +36,8 @@ def _sanitize_steps(value):
         elif isinstance(raw, dict):
             text = str(raw.get("text") or raw.get("step") or "").strip()
             try:
-                minutes = int(raw.get("minutes")) if raw.get("minutes") is not None else None
+                raw_minutes = raw.get("minutes")
+                minutes = int(raw_minutes) if raw_minutes is not None and not isinstance(raw_minutes, bool) else None
                 if minutes is not None and not 0 <= minutes <= 240:
                     minutes = None
             except Exception:
@@ -79,6 +80,8 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
         if not ingredient:
             continue
         try:
+            if isinstance(quantity, bool):
+                continue
             quantity = float(quantity)
         except (TypeError, ValueError, OverflowError):
             continue
@@ -90,17 +93,20 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
         return None
 
     try:
-        raw_minutes = float(raw.get("time") or 30)
+        raw_time = raw.get("time")
+        raw_minutes = 30 if isinstance(raw_time, bool) else float(raw_time or 30)
         minutes = max(5, min(240, int(raw_minutes))) if math.isfinite(raw_minutes) else 30
     except (TypeError, ValueError, OverflowError):
         minutes = 30
     try:
-        raw_cost = float(raw.get("cost") or 3.5)
+        raw_raw_cost = raw.get("cost")
+        raw_cost = 3.5 if isinstance(raw_raw_cost, bool) else float(raw_raw_cost or 3.5)
         cost = max(.5, min(50, raw_cost)) if math.isfinite(raw_cost) else 3.5
     except (TypeError, ValueError, OverflowError):
         cost = 3.5
     try:
-        raw_calories = float(raw.get("calories") or 500)
+        raw_raw_calories = raw.get("calories")
+        raw_calories = 500 if isinstance(raw_raw_calories, bool) else float(raw_raw_calories or 500)
         calories = max(50, min(1800, int(raw_calories))) if math.isfinite(raw_calories) else 500
     except (TypeError, ValueError, OverflowError):
         calories = 500
