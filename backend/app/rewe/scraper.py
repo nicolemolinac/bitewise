@@ -427,7 +427,7 @@ def _rewe_cart_stepper_snapshot(page):
           if (input && /^\d+$/.test(input.value||'')) q = Number(input.value);
           if (q===null) {
             const t=(parent.innerText||'').replace(/\s+/g,' ').trim();
-            const match=t.match(/(?:^|\s)(\d{1,2})(?:\s|$)/);
+            const match=t.match(/(?:^|[^\d])(\d{1,2})(?:[^\d]|$)/);
             if(match)q=Number(match[1]);
           }
           if(Number.isInteger(q)&&q>=0&&q<=99)return {plus_index:allButtons.indexOf(p),minus_index:allButtons.indexOf(m),quantity:q};
