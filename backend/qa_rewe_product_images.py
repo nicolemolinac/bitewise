@@ -1,7 +1,11 @@
 import ast
+import csv
+import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 from app.rewe.scraper import ReweCatalogScraper
+from export_rewe_catalog import write_catalog_export
 
 
 def main():
@@ -27,6 +31,32 @@ def main():
     )
     assert "product_url" in export_fields, "Catalog export must preserve direct REWE product URLs"
     assert "image_url" in export_fields, "Catalog export must preserve REWE product image URLs"
+
+    # Test actual CSV serialization, not only the presence of field names.
+    fixture = SimpleNamespace(
+        **{field: None for field in export_fields},
+        id=987654,
+        supermarket="REWE",
+        external_id="qa-export-123",
+        ingredient="cola",
+        name_original="QA Cola",
+        name_normalized="qa cola",
+        package_size=1.5,
+        package_unit="l",
+        price=1.49,
+        price_per_unit=0.993,
+        currency="EUR",
+        product_url="https://www.rewe.de/shop/p/qa-cola/123",
+        image_url="https://img.rewe.de/product/qa-cola.webp",
+    )
+    with tempfile.TemporaryDirectory(prefix="bitewise-export-roundtrip-") as directory:
+        output = Path(directory) / "catalog.csv"
+        counts = write_catalog_export([fixture], output)
+        with output.open(encoding="utf-8", newline="") as handle:
+            exported = next(csv.DictReader(handle))
+        assert exported["product_url"] == fixture.product_url, exported
+        assert exported["image_url"] == fixture.image_url, exported
+        assert counts == {"total": 1, "with_urls": 1, "with_images": 1, "with_prices": 1}, counts
 
     html = """
     <html><body>
@@ -89,6 +119,7 @@ def main():
         f"REWE extraction QA passed: {len(expected)}/{len(expected)} product images "
         f"and {len(expected_product_urls)}/{len(expected_product_urls)} exact product URLs"
     )
+    print("REWE export round-trip QA passed: product_url, image_url and price coverage preserved")
 
 
 if __name__ == "__main__":
