@@ -712,15 +712,21 @@ async def add_rewe_products_to_cart(request: Request):
     items = payload.get("items", []) if isinstance(payload, dict) else []
     if not isinstance(items, list) or not items:
         raise HTTPException(422, "At least one product is required")
+    if len(items) > 100:
+        raise HTTPException(422, "A maximum of 100 products can be added at once")
     db = SessionLocal()
     try:
         products = []
-        for item in items[:100]:
+        for item in items:
             if not isinstance(item, dict):
                 continue
+            raw_packs = item.get("packs", 1)
+            # Reject rather than silently clamp/coerce: a changed quantity can
+            # put a different basket into the user's authenticated REWE account.
+            if isinstance(raw_packs, bool) or not isinstance(raw_packs, int) or not 1 <= raw_packs <= 99:
+                raise HTTPException(422, "packs must be an integer between 1 and 99")
             try:
                 product_id = int(item.get("product_id"))
-                packs = max(1, min(99, int(item.get("packs") or 1)))
             except (TypeError, ValueError):
                 continue
             product = db.get(main_module.Product, product_id)
