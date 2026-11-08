@@ -40,6 +40,28 @@ def test_image_url_filter():
     assert not image_resolver._usable_url("http://images.example.com/meal.jpg")
 
 
+def test_recipe_photo_is_downloaded_into_repo_and_reused():
+    original_dir = image_resolver.IMAGE_DIR
+    with tempfile.TemporaryDirectory(prefix="bitewise-photo-store-") as temp:
+        image_resolver.IMAGE_DIR = Path(temp)
+
+        class FakeResponse:
+            headers = {"content-type": "image/jpeg"}
+            def raise_for_status(self):
+                return None
+            def iter_content(self, chunk_size):
+                yield b"\\xff\\xd8" + (b"recipe-photo" * 150)
+
+        with patch.object(image_resolver.requests, "get", return_value=FakeResponse()):
+            saved = image_resolver._persist_image("https://images.example.com/recipe.jpg", "qa-recipe-key")
+            assert saved.startswith("/api/meal-photos/files/")
+            filename = saved.rsplit("/", 1)[-1]
+            stored = Path(temp) / filename
+            assert stored.is_file() and stored.stat().st_size > 1024
+            assert image_resolver._persist_image(saved, "qa-recipe-key") == saved
+        image_resolver.IMAGE_DIR = original_dir
+
+
 def test_meal_photos_endpoint_contract():
     seen = []
 
@@ -82,6 +104,7 @@ def test_meal_photos_rejects_non_list_payload():
 if __name__ == "__main__":
     test_query_is_specific_and_aesthetic()
     test_image_url_filter()
+    test_recipe_photo_is_downloaded_into_repo_and_reused()
     test_meal_photos_endpoint_contract()
     test_meal_photos_rejects_non_list_payload()
     print("IMAGE QA PASS: query, URL filtering, endpoint contract and validation")
