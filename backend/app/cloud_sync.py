@@ -5,13 +5,33 @@ import requests
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from .database import SessionLocal, UserState
+from .database import SessionLocal, UserState, UserStateEntry
 
 router = APIRouter(prefix="/api")
 
 
 class UserStateIn(BaseModel):
     state: dict = Field(default_factory=dict)
+
+
+class UserStateChangesIn(BaseModel):
+    set: dict = Field(default_factory=dict)
+    delete: list[str] = Field(default_factory=list)
+
+
+CLOUD_STATE_KEYS = {
+    "tab", "liked", "skipped", "mealType", "filter", "brain", "appliances",
+    "profile", "dayContexts", "calendarAssignments", "calendarView", "calendarCursor",
+    "extras", "basket", "summary", "strategy", "owned", "customProducts",
+    "customProductSchedule", "cookingAlerts",
+}
+
+
+def _valid_state_key(key: str) -> bool:
+    return key in CLOUD_STATE_KEYS or (
+        key.startswith("cooking:") and len(key) <= 180 and key.count(":") == 1
+        and bool(key.split(":", 1)[1].strip())
+    )
 
 
 def auth_enabled() -> bool:
@@ -76,7 +96,84 @@ def get_user_state(request: Request):
                     state = parsed
             except Exception:
                 state = {}
-        return {"user_id": user["id"], "email": user.get("email"), "state": state, "updated_at": row.updated_at if row else None}
+        entries = db.query(UserStateEntry).filter(UserStateEntry.user_id == str(user["id"])).all()
+        deleted_keys = []
+        for entry in entries:
+            if entry.is_deleted:
+                state.pop(entry.state_key, None)
+                deleted_keys.append(entry.state_key)
+            elif entry.value_json is not None:
+                try:
+                    state[entry.state_key] = json.loads(entry.value_json)
+                except (TypeError, ValueError):
+                    state.pop(entry.state_key, None)
+        return {
+            "user_id": user["id"], "email": user.get("email"), "state": state,
+            "deleted_keys": deleted_keys,
+            "updated_at": max((entry.updated_at for entry in entries if entry.updated_at), default=(row.updated_at if row else None)),
+        }
+    finally:
+        db.close()
+
+
+@router.put("/user-state/changes")
+def put_user_state_changes(payload: UserStateChangesIn, request: Request):
+    """Apply only changed keys; deleted keys remain as tombstones for offline devices."""
+    user = request_user(request)
+    changed_keys = set(payload.set) | set(payload.delete)
+    if len(changed_keys) > 100:
+        raise HTTPException(413, "Too many cloud-state changes in one request")
+    invalid = sorted(key for key in changed_keys if not isinstance(key, str) or not _valid_state_key(key))
+    if invalid:
+        raise HTTPException(422, f"Unsupported cloud-state keys: {invalid[:5]}")
+
+    db = SessionLocal()
+    try:
+        user_id = str(user["id"])
+        existing_entries = db.query(UserStateEntry).filter(UserStateEntry.user_id == user_id).all()
+        # One-time lazy migration: preserve the existing whole-snapshot state when
+        # the first per-key client writes, without overwriting later per-key edits.
+        if not existing_entries:
+            legacy = db.get(UserState, user_id)
+            if legacy and legacy.state_json:
+                try:
+                    old_state = json.loads(legacy.state_json)
+                except (TypeError, ValueError):
+                    old_state = {}
+                if isinstance(old_state, dict):
+                    for key, value in old_state.items():
+                        if isinstance(key, str) and _valid_state_key(key):
+                            db.add(UserStateEntry(
+                                user_id=user_id, state_key=key,
+                                value_json=json.dumps(value, ensure_ascii=False, separators=(",", ":")),
+                                is_deleted=False,
+                            ))
+                    db.flush()
+
+        for key in payload.delete:
+            entry = db.query(UserStateEntry).filter_by(user_id=user_id, state_key=key).one_or_none()
+            if entry is None:
+                db.add(UserStateEntry(user_id=user_id, state_key=key, value_json=None, is_deleted=True))
+            else:
+                entry.value_json = None
+                entry.is_deleted = True
+
+        for key, value in payload.set.items():
+            if key in payload.delete:
+                continue
+            entry = db.query(UserStateEntry).filter_by(user_id=user_id, state_key=key).one_or_none()
+            encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+            if entry is None:
+                db.add(UserStateEntry(user_id=user_id, state_key=key, value_json=encoded, is_deleted=False))
+            else:
+                entry.value_json = encoded
+                entry.is_deleted = False
+
+        db.commit()
+        return {"ok": True, "user_id": user_id, "changed": len(changed_keys)}
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
