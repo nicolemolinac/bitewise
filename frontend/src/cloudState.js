@@ -43,3 +43,13 @@ export function createCloudStateSnapshot(entries, prefix = 'bitewise.v3.') {
   }
   return state;
 }
+
+export function mergeCloudState(localState, remoteState) {
+  const acceptedRemote = {};
+  for (const [key, value] of Object.entries(remoteState || {})) {
+    if (isCloudStateKey(`bitewise.v3.${key}`)) acceptedRemote[key] = value;
+  }
+  // Remote wins for keys present on both devices; local-only keys are retained
+  // and can be uploaded so first-device data is not stranded locally.
+  return { ...(localState || {}), ...acceptedRemote };
+}
