@@ -146,6 +146,18 @@ class UserState(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class UserStateEntry(Base):
+    """Per-key cloud state with durable tombstones for cross-device deletion."""
+    __tablename__ = "user_state_entries"
+    __table_args__ = (UniqueConstraint("user_id", "state_key", name="uq_user_state_entry_user_key"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True)
+    state_key: Mapped[str] = mapped_column(String(180))
+    value_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class CatalogRun(Base):
     __tablename__ = "catalog_runs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
