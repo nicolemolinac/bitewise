@@ -78,7 +78,23 @@ with tempfile.TemporaryDirectory(prefix="bitewise-cloud-sync-qa-") as directory:
     else:
         raise AssertionError("Catalog state must never be accepted by cloud sync")
 
+    # Existing accounts with only a legacy JSON snapshot migrate on first delta write.
+    from app.database import SessionLocal, UserState
+    db = SessionLocal()
+    try:
+        db.add(UserState(user_id="qa-legacy-user", state_json='{"liked":["legacy-pick"],"profile":{"servings":3},"products":[1]}'))
+        db.commit()
+    finally:
+        db.close()
+    legacy_user = request("qa-legacy-user", "legacy@example.test")
+    put_user_state_changes(UserStateChangesIn(set={"basket": ["migrated-device-item"]}), legacy_user)
+    assert get_user_state(legacy_user)["state"] == {
+        "liked": ["legacy-pick"],
+        "profile": {"servings": 3},
+        "basket": ["migrated-device-item"],
+    }, "Legacy state migration must preserve allowlisted keys and exclude catalog state"
+
     # New per-key writes remain scoped to the authenticated user ID.
     assert get_user_state(bob)["state"] == bob_state
 
-    print("CLOUD SYNC QA PASS: account isolation, multi-device per-key merge, tombstones, key allowlist")
+    print("CLOUD SYNC QA PASS: account isolation, multi-device per-key merge, tombstones, legacy migration, key allowlist")
