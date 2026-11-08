@@ -575,40 +575,40 @@ def _auto_import_rewe_csv_snapshot() -> None:
         now = datetime.utcnow()
         products = []
         for row in _read_rewe_snapshot_rows(snapshot_path):
-                supermarket = str(row.get("supermarket") or "REWE").strip().upper()
-                name = str(row.get("name_original") or "").strip()
-                source_id = row.get("_source_id") or str(len(products) + 1)
-                package_size = _snapshot_float(row.get("package_size"), 1.0)
-                package_size = package_size if package_size and package_size > 0 else 1.0
-                package_unit = str(row.get("package_unit") or "unit").strip()[:20]
-                package_unit = _snapshot_package_unit(name, package_unit)
-                package_size = _snapshot_package_size(name, package_size, package_unit)
-                pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
-                    name, package_size, package_unit, row.get("price"), row.get("price_per_unit")
-                )
-                products.append(Product(
-                    supermarket="REWE",
-                    external_id=(str(row.get("external_id") or "").strip() or f"csv-snapshot-{source_id}"),
-                    ingredient=str(row.get("ingredient") or "").strip()[:100] or "unknown",
-                    name_original=name[:300],
-                    name_normalized=str(row.get("name_normalized") or name.lower()).strip()[:300],
-                    translated_name=(str(row.get("translated_name") or "").strip()[:300] or None),
-                    brand=(str(row.get("brand") or "").strip()[:120] or None),
-                    category=(str(row.get("category") or "").strip()[:120] or None),
-                    package_size=package_size,
-                    package_unit=package_unit,
-                    price=pack_price,
-                    price_per_unit=normalized_price_per_unit,
-                    currency=str(row.get("currency") or "EUR").strip()[:6],
-                    product_url=(str(row.get("product_url") or "").strip() or None),
-                    image_url=(str(row.get("image_url") or "").strip() or None),
-                    availability=str(row.get("availability") or "unknown").strip()[:30],
-                    postcode_context=(str(row.get("postcode_context") or postcode).strip()[:12]),
-                    first_seen_at=_parse_snapshot_dt(row.get("first_seen_at")) or _parse_snapshot_dt(row.get("last_seen_at")) or now,
-                    last_seen_at=_parse_snapshot_dt(row.get("last_seen_at")) or now,
-                    last_checked_at=_parse_snapshot_dt(row.get("last_checked_at")) or now,
-                    last_price=_snapshot_float(row.get("last_price")),
-                ))
+            supermarket = str(row.get("supermarket") or "REWE").strip().upper()
+            name = str(row.get("name_original") or "").strip()
+            source_id = row.get("_source_id") or str(len(products) + 1)
+            package_size = _snapshot_float(row.get("package_size"), 1.0)
+            package_size = package_size if package_size and package_size > 0 else 1.0
+            package_unit = str(row.get("package_unit") or "unit").strip()[:20]
+            package_unit = _snapshot_package_unit(name, package_unit)
+            package_size = _snapshot_package_size(name, package_size, package_unit)
+            pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
+                name, package_size, package_unit, row.get("price"), row.get("price_per_unit")
+            )
+            products.append(Product(
+                supermarket="REWE",
+                external_id=(str(row.get("external_id") or "").strip() or f"csv-snapshot-{source_id}"),
+                ingredient=str(row.get("ingredient") or "").strip()[:100] or "unknown",
+                name_original=name[:300],
+                name_normalized=str(row.get("name_normalized") or name.lower()).strip()[:300],
+                translated_name=(str(row.get("translated_name") or "").strip()[:300] or None),
+                brand=(str(row.get("brand") or "").strip()[:120] or None),
+                category=(str(row.get("category") or "").strip()[:120] or None),
+                package_size=package_size,
+                package_unit=package_unit,
+                price=pack_price,
+                price_per_unit=normalized_price_per_unit,
+                currency=str(row.get("currency") or "EUR").strip()[:6],
+                product_url=(str(row.get("product_url") or "").strip() or None),
+                image_url=(str(row.get("image_url") or "").strip() or None),
+                availability=str(row.get("availability") or "unknown").strip()[:30],
+                postcode_context=(str(row.get("postcode_context") or postcode).strip()[:12]),
+                first_seen_at=_parse_snapshot_dt(row.get("first_seen_at")) or _parse_snapshot_dt(row.get("last_seen_at")) or now,
+                last_seen_at=_parse_snapshot_dt(row.get("last_seen_at")) or now,
+                last_checked_at=_parse_snapshot_dt(row.get("last_checked_at")) or now,
+                last_price=_snapshot_float(row.get("last_price")),
+            ))
 
         if not products:
             return
