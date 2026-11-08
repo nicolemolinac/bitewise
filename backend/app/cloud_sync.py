@@ -93,7 +93,7 @@ def get_user_state(request: Request):
             try:
                 parsed = json.loads(row.state_json)
                 if isinstance(parsed, dict):
-                    state = parsed
+                    state = {key: value for key, value in parsed.items() if isinstance(key, str) and _valid_state_key(key)}
             except Exception:
                 state = {}
         entries = db.query(UserStateEntry).filter(UserStateEntry.user_id == str(user["id"])).all()
@@ -190,6 +190,26 @@ def put_user_state(payload: UserStateIn, request: Request):
             row.state_json = encoded
         else:
             db.add(UserState(user_id=user_id, state_json=encoded))
+        # Keep the legacy snapshot endpoint compatible with clients that have not
+        # yet switched to per-key changes. Missing keys become durable tombstones.
+        entries = {
+            entry.state_key: entry
+            for entry in db.query(UserStateEntry).filter(UserStateEntry.user_id == user_id).all()
+        }
+        for key, value in payload.state.items():
+            if not isinstance(key, str) or not _valid_state_key(key):
+                continue
+            entry = entries.get(key)
+            encoded_value = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+            if entry is None:
+                db.add(UserStateEntry(user_id=user_id, state_key=key, value_json=encoded_value, is_deleted=False))
+            else:
+                entry.value_json = encoded_value
+                entry.is_deleted = False
+        for key, entry in entries.items():
+            if key not in payload.state:
+                entry.value_json = None
+                entry.is_deleted = True
         db.commit()
         return {"ok": True, "user_id": user_id}
     finally:
