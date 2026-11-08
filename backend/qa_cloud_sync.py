@@ -75,6 +75,17 @@ with tempfile.TemporaryDirectory(prefix="bitewise-cloud-sync-qa-") as directory:
     assert revived["state"]["basket"] == ["new-device-item"]
     assert "basket" not in revived["deleted_keys"]
 
+    # Ambiguous updates that both set and delete one key are rejected.
+    try:
+        put_user_state_changes(
+            UserStateChangesIn(set={"basket": ["ambiguous"]}, delete=["basket"]),
+            alice,
+        )
+    except HTTPException as exc:
+        assert exc.status_code == 422
+    else:
+        raise AssertionError("A key cannot be set and deleted in the same cloud delta")
+
     # Cloud-state API must not accept catalog/cache payloads from a client.
     try:
         put_user_state_changes(UserStateChangesIn(set={"products": [{"id": 1}]}), alice)
