@@ -1,3 +1,5 @@
+import asyncio
+import copy
 from pathlib import Path
 import hmac
 import json
@@ -392,7 +394,7 @@ async def expand_ai_recipe(request: Request):
         finally:
             existing_db.close()
     try:
-        recipe = EfficientGeminiService().expand_concept(concept, str(context or ""), appliances)
+        recipe = copy.deepcopy(EfficientGeminiService().expand_concept(concept, str(context or ""), appliances))
         if concept_id:
             # Gemini may reuse a generic recipe ID across separate ideas. Give
             # each expansion a stable ID derived from its originating concept.
@@ -504,7 +506,7 @@ async def add_rewe_products_to_cart(request: Request):
         raise HTTPException(422, "No valid REWE catalog products were supplied")
     try:
         from .rewe.scraper import ReweCatalogScraper
-        return ReweCatalogScraper().add_products_to_cart(products)
+        return await asyncio.to_thread(ReweCatalogScraper().add_products_to_cart, products)
     except Exception as exc:
         raise HTTPException(502, f"REWE cart handoff failed: {str(exc)[:300]}")
 
