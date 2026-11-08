@@ -152,6 +152,8 @@ jobs:
         run: node --test qa/apiResponse.test.mjs
       - name: Frontend REWE URL allowlist regression QA
         run: node --test qa/reweUrl.test.mjs
+      - name: Frontend cloud state and Cooking Mode sync policy QA
+        run: node --test qa/cloudState.test.mjs
       - name: Capture npm audit findings without hiding them in CI logs
         run: |
           npm audit --json > npm-audit.json || true
