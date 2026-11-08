@@ -182,11 +182,11 @@ def put_user_state_changes(payload: UserStateChangesIn, request: Request):
                 if isinstance(old_state, dict):
                     for key, value in old_state.items():
                         if isinstance(key, str) and _valid_state_key(key):
-                            db.add(UserStateEntry(
-                                user_id=user_id, state_key=key,
-                                value_json=json.dumps(value, ensure_ascii=False, separators=(",", ":")),
-                                is_deleted=False,
-                            ))
+                            _upsert_state_entry(
+                                db, user_id, key,
+                                json.dumps(value, ensure_ascii=False, separators=(",", ":")),
+                                False,
+                            )
                     db.flush()
 
         for key in payload.delete:
