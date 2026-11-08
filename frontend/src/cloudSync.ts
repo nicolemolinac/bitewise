@@ -88,6 +88,51 @@ export async function hydrateCloudState() {
   return 'empty';
 }
 
+function schedulePendingSync(delayMs: number) {
+  if (syncTimer !== null) window.clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(async () => {
+    syncTimer = null;
+    if (syncing) {
+      syncRequested = true;
+      return;
+    }
+    syncing = true;
+    let failed = false;
+    try {
+      while (syncRequested || pendingSet.size || pendingDelete.size) {
+        syncRequested = false;
+        const set = Object.fromEntries(pendingSet);
+        const del = Array.from(pendingDelete);
+        pendingSet.clear();
+        pendingDelete.clear();
+        try {
+          await authed('/user-state/changes', {
+            method: 'PUT',
+            body: JSON.stringify({ set, delete: del }),
+          });
+        } catch (error) {
+          failed = true;
+          // Retain failed deltas unless a newer local edit for that key exists.
+          for (const [key, value] of Object.entries(set)) {
+            if (!pendingSet.has(key) && !pendingDelete.has(key)) pendingSet.set(key, value);
+          }
+          for (const key of del) {
+            if (!pendingSet.has(key)) pendingDelete.add(key);
+          }
+          console.warn('Bitewise cloud sync failed', error);
+          break;
+        }
+      }
+    } finally {
+      syncing = false;
+      if (syncRequested || pendingSet.size || pendingDelete.size) {
+        // Back off on network/auth errors instead of retrying every 500 ms.
+        schedulePendingSync(failed ? 5000 : 500);
+      }
+    }
+  }, delayMs);
+}
+
 export function queueCloudSync(storageKey?: string, rawValue?: string, deleted = false) {
   if (applyingRemoteSnapshot) return;
   if (storageKey && isCloudStateKey(storageKey)) {
@@ -112,39 +157,5 @@ export function queueCloudSync(storageKey?: string, rawValue?: string, deleted =
     }
   }
   syncRequested = true;
-  if (syncTimer !== null) window.clearTimeout(syncTimer);
-  syncTimer = window.setTimeout(async () => {
-    syncTimer = null;
-    if (syncing) return;
-    syncing = true;
-    try {
-      while (syncRequested || pendingSet.size || pendingDelete.size) {
-        syncRequested = false;
-        const set = Object.fromEntries(pendingSet);
-        const del = Array.from(pendingDelete);
-        pendingSet.clear();
-        pendingDelete.clear();
-        try {
-          await authed('/user-state/changes', {
-            method: 'PUT',
-            body: JSON.stringify({ set, delete: del }),
-          });
-        } catch (error) {
-          // Retain failed deltas unless a newer local edit for that key exists.
-          for (const [key, value] of Object.entries(set)) {
-            if (!pendingSet.has(key) && !pendingDelete.has(key)) pendingSet.set(key, value);
-          }
-          for (const key of del) {
-            if (!pendingSet.has(key)) pendingDelete.add(key);
-          }
-          throw error;
-        }
-      }
-    } catch (error) {
-      console.warn('Bitewise cloud sync failed', error);
-    } finally {
-      syncing = false;
-      if (syncRequested || pendingSet.size || pendingDelete.size) queueCloudSync();
-    }
-  }, 500);
+  schedulePendingSync(500);
 }
