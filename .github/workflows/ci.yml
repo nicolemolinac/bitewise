@@ -164,6 +164,8 @@ jobs:
         run: node --test qa/reweUrl.test.mjs
       - name: Frontend cloud state and Cooking Mode sync policy QA
         run: node --test qa/cloudState.test.mjs
+      - name: Frontend offline cloud queue recovery and race QA
+        run: node --test qa/cloudPending.test.mjs
       - name: Capture npm audit findings without hiding them in CI logs
         run: |
           npm audit --json > npm-audit.json || true
