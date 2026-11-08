@@ -17,6 +17,17 @@ def main():
     assert "product_url" in product_fields, "Cloud migration must preserve REWE product URLs"
     assert "image_url" in product_fields, "Cloud migration must preserve REWE product image URLs"
 
+    exporter_path = Path(__file__).resolve().parent / "export_rewe_catalog.py"
+    exporter_tree = ast.parse(exporter_path.read_text(encoding="utf-8"))
+    export_fields = next(
+        ast.literal_eval(node.value)
+        for node in exporter_tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "FIELDS" for target in node.targets)
+    )
+    assert "product_url" in export_fields, "Catalog export must preserve direct REWE product URLs"
+    assert "image_url" in export_fields, "Catalog export must preserve REWE product image URLs"
+
     html = """
     <html><body>
       <article>
