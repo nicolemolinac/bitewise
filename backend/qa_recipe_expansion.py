@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 from app import server
 from app.ai.gemini import GeminiService as BaseGeminiService
 import app.ai.gemini_efficient as efficient_module
+import app.ai.gemini as gemini_module
 
 
 CONCEPT = {
@@ -74,6 +75,20 @@ def main():
         assert retried == (successful_response, "gemini-3.1-flash-lite")
         assert generate_once.call_count == 3
         assert [call.args[0] for call in sleep.call_args_list] == [1, 2]
+
+    # Regression for the actual second-recipe bug: _persist_generated returns the
+    # same dict object held in MEALS. The API used to attach REWE product_matches
+    # (containing datetime last_checked_at values) to that object. The next
+    # generation then tried to json.dumps the polluted global MEALS list.
+    with patch.object(gemini_module, "MEALS", []):
+        first_persisted = gemini_module._persist_generated([dict(GENERATED_RECIPE)])
+        first_persisted[0]["product_matches"] = [{"last_checked_at": datetime(2026, 11, 6, 13, 45)}]
+        second_raw = {**GENERATED_RECIPE, "id": "second-recipe", "name": "Second QA recipe"}
+        second_persisted = gemini_module._persist_generated([second_raw])
+        assert len(second_persisted) == 1
+        stored = __import__("json").loads(gemini_module.DATA_FILE.read_text(encoding="utf-8"))
+        assert len(stored) == 2
+        assert "product_matches" not in stored[0]
 
     client = TestClient(server.app)
     service = Mock()
