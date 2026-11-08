@@ -84,12 +84,22 @@ async function authed(path: string, options?: RequestInit) {
   return r.json();
 }
 
-async function pushStateChanges(set: Record<string, unknown>) {
-  if (!Object.keys(set).length) return;
+async function pushStateChanges(set: Record<string, unknown>, deleted: string[] = []) {
+  if (!Object.keys(set).length && !deleted.length) return;
   await authed('/user-state/changes', {
     method: 'PUT',
-    body: JSON.stringify({ set, delete: [] }),
+    body: JSON.stringify({ set, delete: deleted }),
   });
+}
+
+function acknowledgePending(sentSet: Record<string, unknown>, sentDelete: string[]) {
+  for (const [key, value] of Object.entries(sentSet)) {
+    if (!pendingDelete.has(key) && JSON.stringify(pendingSet.get(key)) === JSON.stringify(value)) {
+      pendingSet.delete(key);
+    }
+  }
+  for (const key of sentDelete) pendingDelete.delete(key);
+  persistPendingState();
 }
 
 export async function hydrateCloudState() {
@@ -97,26 +107,30 @@ export async function hydrateCloudState() {
   const local = localSnapshot();
   const remoteState = remote?.state || {};
   const deleted = new Set<string>(remote?.deleted_keys || []);
-  if (Object.keys(remoteState).length || deleted.size) {
-    const merged = mergeCloudState(local, remoteState, [...deleted]);
-    applySnapshot(merged);
-    // Upload only genuinely local-only keys. Never replace a whole snapshot:
-    // another device may have written unrelated keys since this GET started.
-    const localOnly: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(local)) {
-      if (!(key in remoteState) && !deleted.has(key)) localOnly[key] = value;
+  const unsyncedSet = Object.fromEntries(pendingSet);
+  const unsyncedDelete = [...pendingDelete];
+  const merged = mergeCloudState(local, remoteState, [...deleted]);
+  // A locally queued edit is newer than the last successful cloud snapshot.
+  Object.assign(merged, unsyncedSet);
+  for (const key of unsyncedDelete) delete merged[key];
+  applySnapshot(merged);
+
+  // Upload only genuinely local-only keys plus durable pending edits. Never
+  // replace a whole snapshot: another device may have written other keys.
+  const changes: Record<string, unknown> = { ...unsyncedSet };
+  for (const [key, value] of Object.entries(local)) {
+    if (!(key in remoteState) && !deleted.has(key) && !(key in unsyncedSet) && !pendingDelete.has(key)) {
+      changes[key] = value;
     }
-    if (Object.keys(localOnly).length) {
-      await pushStateChanges(localOnly);
-      return 'merged';
-    }
-    return 'downloaded';
   }
-  if (Object.keys(local).length) {
-    await pushStateChanges(local);
-    return 'uploaded';
+  const hadRemote = Object.keys(remoteState).length > 0 || deleted.size > 0;
+  const hadLocal = Object.keys(local).length > 0;
+  if (Object.keys(changes).length || unsyncedDelete.length) {
+    await pushStateChanges(changes, unsyncedDelete);
+    acknowledgePending(unsyncedSet, unsyncedDelete);
+    return hadRemote ? 'merged' : 'uploaded';
   }
-  return 'empty';
+  return hadRemote ? 'downloaded' : (hadLocal ? 'empty' : 'empty');
 }
 
 function schedulePendingSync(delayMs: number) {
