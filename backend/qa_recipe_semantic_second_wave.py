@@ -136,6 +136,14 @@ def main():
             f"unresolved={missing}"
         )
 
+        # The committed snapshot has no whole-mussel SKU. The only title hits
+        # are a soup name and broad "Frutti di Mare" mixes; neither proves
+        # mussels as a distinct ingredient, so this must remain visibly unmatched.
+        expected_assortment_gap = {"Mussels in white wine": ["mussels"]}
+        assert missing == expected_assortment_gap, (
+            f"Unexpected recipe assortment gaps or new false negatives: {missing}"
+        )
+
         meals = [base._recipe_meal(name, ingredients) for name, ingredients in RECIPES.items()]
         servings = {meal["id"]: (3 if i % 5 == 0 else 2) for i, meal in enumerate(meals)}
         requirements = base.consolidate(meals, servings)
