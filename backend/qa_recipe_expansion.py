@@ -213,7 +213,7 @@ def main():
 
     with patch("app.server.SessionLocal", return_value=cart_db), patch(
         "app.rewe.scraper.ReweCatalogScraper.add_products_to_cart",
-        new=fake_add_products_to_cart,
+        new=staticmethod(fake_add_products_to_cart),
     ):
         cart_response = client.post("/api/rewe/cart/add", json={
             "items": [{"product_id": 123, "packs": 2}],
