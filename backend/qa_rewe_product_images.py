@@ -1,7 +1,22 @@
+import ast
+from pathlib import Path
+
 from app.rewe.scraper import ReweCatalogScraper
 
 
 def main():
+    # Cloud migration must preserve both fields extracted from REWE product cards.
+    migration_path = Path(__file__).resolve().parent / "migrate_rewe_snapshot.py"
+    migration_tree = ast.parse(migration_path.read_text(encoding="utf-8"))
+    product_fields = next(
+        ast.literal_eval(node.value)
+        for node in migration_tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "PRODUCT_FIELDS" for target in node.targets)
+    )
+    assert "product_url" in product_fields, "Cloud migration must preserve REWE product URLs"
+    assert "image_url" in product_fields, "Cloud migration must preserve REWE product image URLs"
+
     html = """
     <html><body>
       <article>
