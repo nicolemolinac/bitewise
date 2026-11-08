@@ -178,7 +178,8 @@ export default function AppV3(){
   const [detail,setDetail]=useState<Meal|null>(null);
   const [loading,setLoading]=useState(false);
   const [cartAdding,setCartAdding]=useState(false);
-  const [photoBackfillRunning,setPhotoBackfillRunning]=useState(false);\n  const [photoBackfillReport,setPhotoBackfillReport]=useState('');
+  const [photoBackfillRunning,setPhotoBackfillRunning]=useState(false);
+  const [photoBackfillReport,setPhotoBackfillReport]=useState('');
   const [cartReport,setCartReport]=useState<any>(null);
   const [error,setError]=useState('');
   const [basket,setBasket]=useState<BasketItem[]>(()=>read('basket',[]));
