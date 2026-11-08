@@ -36,8 +36,12 @@ def main():
             ["water", 200, "milliliters"],
             ["unknown", 1, "handful"],
             ["broken", "a splash", "ml"],
+            ["boolean quantity", True, "g"],
         ],
-        "steps": "This must not become one step per character.",
+        "steps": [
+            {"text": "Boolean timer must be discarded", "minutes": True},
+            {"text": "String timer must be discarded", "minutes": "2"},
+        ],
     })
     assert meal is not None
     assert meal["ingredients"] == [
@@ -51,7 +55,22 @@ def main():
     assert meal["calories"] == 500
     assert meal["meal_type"] == "dinner"
     assert meal["tags"] == ["AI Generated"]
-    assert meal["steps"] == []
+    assert meal["steps"] == [
+        {"text": "Boolean timer must be discarded", "minutes": None},
+        {"text": "String timer must be discarded", "minutes": 2},
+    ]
+
+    boolean_metadata = _sanitize_meal({
+        "name": "Boolean metadata test",
+        "time": True,
+        "cost": True,
+        "calories": True,
+        "ingredients": [["rice", 50, "g"]],
+    })
+    assert boolean_metadata is not None
+    assert boolean_metadata["time"] == 30
+    assert boolean_metadata["cost"] == 3.5
+    assert boolean_metadata["calories"] == 500
 
     assert _sanitize_meal({"name": "No usable ingredients", "ingredients": [
         ["salt", 0, "g"], ["oil", float("inf"), "ml"]
