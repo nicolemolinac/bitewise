@@ -1,9 +1,11 @@
+import hashlib
 import json
 import logging
 import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+import requests
 from urllib.parse import quote_plus
 
 from playwright.sync_api import sync_playwright
@@ -12,7 +14,9 @@ logger = logging.getLogger(__name__)
 CDP_ENDPOINT = os.getenv("BITEWISE_CHROME_CDP_URL", "http://127.0.0.1:9222").rstrip("/")
 
 CACHE_FILE = Path(__file__).resolve().parents[2] / "data" / "meal_image_cache.json"
+IMAGE_DIR = Path(__file__).resolve().parents[2] / "data" / "recipe_images"
 CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 _HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132 Safari/537.36",
@@ -181,6 +185,35 @@ def _search_one(page, meal: dict) -> dict[str, str]:
             pass
 
 
+def _persist_image(image_url: str, key: str) -> str:
+    """Download a discovered photo into backend/data/recipe_images for Git persistence."""
+    value=str(image_url or "").strip()
+    if value.startswith("/api/meal-photos/files/"):
+        return value if (IMAGE_DIR/Path(value).name).is_file() else ""
+    if not value.startswith("https://"):return ""
+    try:
+        response=requests.get(value,headers=_HEADERS,timeout=20,stream=True)
+        response.raise_for_status()
+        mime=(response.headers.get("content-type") or "").split(";",1)[0].lower()
+        ext={"image/jpeg":".jpg","image/png":".png","image/webp":".webp","image/gif":".gif"}.get(mime)
+        if not ext:return ""
+        chunks=[];total=0
+        for chunk in response.iter_content(64*1024):
+            if not chunk:continue
+            total+=len(chunk)
+            if total>8*1024*1024:return ""
+            chunks.append(chunk)
+        if total<1024:return ""
+        name=hashlib.sha256(key.encode("utf-8")).hexdigest()[:24]+ext
+        target=IMAGE_DIR/name
+        if not target.is_file():
+            tmp=target.with_suffix(target.suffix+".tmp");tmp.write_bytes(b"".join(chunks));tmp.replace(target)
+        return "/api/meal-photos/files/"+name
+    except Exception:
+        logger.warning("Could not persist recipe image %s",value[:160],exc_info=True)
+        return ""
+
+
 def resolve_meal_images(meals: list[dict], *, force: bool = False) -> list[dict[str, str]]:
     """Resolve a batch of meal photos with one local Chrome/Chromium session.
 
@@ -196,14 +229,10 @@ def resolve_meal_images(meals: list[dict], *, force: bool = False) -> list[dict[
         key = _cache_key(meal)
         cached = cache.get(key)
         if not force and isinstance(cached, dict) and cached.get("image"):
-            image = str(cached.get("image") or "")
-            if image not in used_images:
-                results[index] = {
-                    "image": image,
-                    "image_page": str(cached.get("image_page") or ""),
-                    "photographer": "",
-                    "search_query": str(cached.get("search_query") or _query(meal)),
-                }
+            image = _persist_image(str(cached.get("image") or ""), key)
+            if image and image not in used_images:
+                results[index] = {"image":image,"image_page":str(cached.get("image_page") or ""),"photographer":"","search_query":str(cached.get("search_query") or _query(meal))}
+                cached["image"] = image
                 used_images.add(image)
                 continue
         pending.append((index, key, meal))
@@ -225,12 +254,14 @@ def resolve_meal_images(meals: list[dict], *, force: bool = False) -> list[dict[
                         candidates = _search_one(page, meal)
                         chosen = next((x for x in candidates if x["image"] not in used_images), None)
                         if chosen:
-                            results[index] = chosen
-                            used_images.add(chosen["image"])
-                            cache[key] = {
-                                **chosen,
-                                "updated_at": datetime.now(timezone.utc).isoformat(),
-                            }
+                            stored_image = _persist_image(chosen["image"], key)
+                            if stored_image:
+                                stored = {**chosen, "image": stored_image, "source_image": chosen["image"]}
+                                results[index] = stored
+                                used_images.add(stored_image)
+                                cache[key] = {**stored, "updated_at": datetime.now(timezone.utc).isoformat()}
+                            else:
+                                results[index] = {"image":"","image_page":chosen.get("image_page",""),"photographer":"","search_query":query}
                             logger.info("Found image for %s", query)
                         else:
                             results[index] = {"image": "", "image_page": "", "photographer": "", "search_query": query}
