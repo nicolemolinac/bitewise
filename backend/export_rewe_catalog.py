@@ -39,10 +39,12 @@ def main():
                     for field in FIELDS
                 })
         with_urls = sum(bool(row.product_url) for row in rows)
+        with_images = sum(bool(row.image_url) for row in rows)
         with_prices = sum(row.price is not None and float(row.price) > 0 for row in rows)
         print(f"Exported {len(rows)} REWE products to {OUTPUT}")
         print(f"Priced products: {with_prices}/{len(rows)}")
         print(f"Products with direct REWE URL: {with_urls}/{len(rows)}")
+        print(f"Products with image URL: {with_images}/{len(rows)}")
         if not with_urls:
             print("WARNING: This database has no direct product URLs; refresh the REWE catalog before expecting one-click product handoff.")
     finally:
