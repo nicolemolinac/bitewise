@@ -5,8 +5,6 @@ export { CLOUD_STATE_KEYS, isCloudStateKey } from './cloudState.js';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const PREFIX = 'bitewise.v3.';
 
-const PREFIX = 'bitewise.v3.';
-
 let syncTimer: number | null = null;
 let syncing = false;
 let syncRequested = false;
