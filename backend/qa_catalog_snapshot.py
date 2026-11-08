@@ -93,6 +93,10 @@ def main():
     )
     assert multipack_price == 5.99
     assert abs(multipack_per_ml - (5.99 / 588)) < 0.000001
+    invalid_price, invalid_unit_price = _snapshot_pack_pricing(
+        "Plain product 500g", 500, "g", -2.50, -0.005
+    )
+    assert invalid_price is None and invalid_unit_price is None
 
     db = SessionLocal()
     try:
