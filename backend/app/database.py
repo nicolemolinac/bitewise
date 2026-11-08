@@ -467,6 +467,86 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
     return round(fallback + deposit, 2), per_unit
 
 
+def _read_rewe_snapshot_rows(snapshot_path: Path) -> list[dict]:
+    """Read and validate the committed catalog CSV before any database writes."""
+    if not snapshot_path.is_file() or snapshot_path.stat().st_size < 2:
+        return []
+
+    expected_columns = [
+        "id", "supermarket", "external_id", "ingredient", "name_original",
+        "name_normalized", "translated_name", "brand", "category", "package_size",
+        "package_unit", "price", "price_per_unit", "currency", "product_url",
+        "image_url", "availability", "postcode_context", "first_seen_at",
+        "last_seen_at", "last_checked_at", "last_price",
+    ]
+    legacy_columns = [
+        "id", "supermarket", "ingredient", "name_original", "name_normalized",
+        "translated_name", "brand", "category", "package_size", "package_unit",
+        "price", "price_per_unit", "currency", "availability", "last_seen_at",
+        "last_checked_at",
+    ]
+    required = {"id", "supermarket", "ingredient", "name_original", "name_normalized"}
+    header_markers = required | {"external_id", "product_url", "price"}
+    rows = []
+    seen_external_ids = {}
+
+    try:
+        with snapshot_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            first_row = next(csv.reader(handle), [])
+            handle.seek(0)
+            first_values = {str(value).strip() for value in first_row}
+            if first_values & header_markers:
+                if not required.issubset(first_values):
+                    missing = sorted(required - first_values)
+                    raise ValueError(f"REWE CSV snapshot header is missing required columns: {missing}")
+                if len(first_row) != len(set(first_row)):
+                    raise ValueError("REWE CSV snapshot header contains duplicate columns")
+                reader = csv.DictReader(handle)
+            else:
+                if len(first_row) == len(expected_columns):
+                    fieldnames = expected_columns
+                elif len(first_row) == len(legacy_columns):
+                    fieldnames = legacy_columns
+                else:
+                    raise ValueError(
+                        f"REWE CSV snapshot has {len(first_row)} columns; expected "
+                        f"{len(legacy_columns)} (legacy) or {len(expected_columns)} (full)"
+                    )
+                reader = csv.DictReader(handle, fieldnames=fieldnames)
+
+            for row_number, row in enumerate(reader, start=2):
+                if not row or all(value is None or not str(value).strip() for value in row.values()):
+                    continue
+                if None in row:
+                    raise ValueError(f"REWE CSV snapshot row {row_number} has unexpected extra columns")
+                supermarket = str(row.get("supermarket") or "REWE").strip().upper()
+                name = str(row.get("name_original") or "").strip()
+                if supermarket != "REWE" or not name:
+                    continue
+                source_id = str(row.get("id") or "").strip() or str(len(rows) + 1)
+                external_id = str(row.get("external_id") or "").strip() or f"csv-snapshot-{source_id}"
+                # Repeated identical rows are harmless export noise; conflicting
+                # records for one provider SKU are ambiguous and abort the import.
+                fingerprint = tuple(sorted(
+                    (str(key), str(value or "").strip())
+                    for key, value in row.items() if key != "id"
+                ))
+                previous = seen_external_ids.get(external_id)
+                if previous is not None:
+                    if previous != fingerprint:
+                        raise ValueError(
+                            f"REWE CSV snapshot contains conflicting rows for external_id {external_id!r}"
+                        )
+                    continue
+                seen_external_ids[external_id] = fingerprint
+                row["_source_id"] = source_id
+                rows.append(row)
+    except csv.Error as exc:
+        raise ValueError(f"REWE CSV snapshot is malformed: {exc}") from exc
+
+    return rows
+
+
 def _auto_import_rewe_csv_snapshot() -> None:
     """Seed an empty product table from the committed REWE CSV snapshot exactly once.
 
@@ -494,47 +574,10 @@ def _auto_import_rewe_csv_snapshot() -> None:
         postcode = setting_row.value if setting_row and setting_row.value else "13353"
         now = datetime.utcnow()
         products = []
-        expected_columns = [
-            "id", "supermarket", "external_id", "ingredient", "name_original",
-            "name_normalized", "translated_name", "brand", "category", "package_size",
-            "package_unit", "price", "price_per_unit", "currency", "product_url",
-            "image_url", "availability", "postcode_context", "first_seen_at",
-            "last_seen_at", "last_checked_at", "last_price",
-        ]
-        legacy_columns = [
-            "id", "supermarket", "ingredient", "name_original", "name_normalized",
-            "translated_name", "brand", "category", "package_size", "package_unit",
-            "price", "price_per_unit", "currency", "availability", "last_seen_at",
-            "last_checked_at",
-        ]
-        required = {"id", "supermarket", "ingredient", "name_original", "name_normalized"}
-        with snapshot_path.open("r", encoding="utf-8-sig", newline="") as handle:
-            first_row = next(csv.reader(handle), [])
-            handle.seek(0)
-            # Accept both proper headered CSV and the existing sqlite3 export,
-            # which contains the selected columns but no header row.
-            if required.issubset(set(first_row)):
-                reader = csv.DictReader(handle)
-            else:
-                if len(first_row) == len(expected_columns):
-                    fieldnames = expected_columns
-                elif len(first_row) == len(legacy_columns):
-                    fieldnames = legacy_columns
-                else:
-                    raise ValueError(
-                        f"REWE CSV snapshot has {len(first_row)} columns; expected "
-                        f"{len(legacy_columns)} (legacy) or {len(expected_columns)} (full)"
-                    )
-                reader = csv.DictReader(handle, fieldnames=fieldnames)
-
-            for row in reader:
+        for row in _read_rewe_snapshot_rows(snapshot_path):
                 supermarket = str(row.get("supermarket") or "REWE").strip().upper()
                 name = str(row.get("name_original") or "").strip()
-                if supermarket != "REWE" or not name:
-                    continue
-                source_id = str(row.get("id") or "").strip()
-                if not source_id:
-                    source_id = str(len(products) + 1)
+                source_id = row.get("_source_id") or str(len(products) + 1)
                 package_size = _snapshot_float(row.get("package_size"), 1.0)
                 package_size = package_size if package_size and package_size > 0 else 1.0
                 package_unit = str(row.get("package_unit") or "unit").strip()[:20]
