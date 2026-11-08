@@ -7,6 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy import or_
@@ -42,6 +43,18 @@ async def meal_photos(request: Request):
     ]
     photos = await asyncio.to_thread(resolve_meal_images, meals)
     return {"photos": photos}
+
+
+@app.get("/api/meal-photos/files/{filename}")
+def get_meal_photo(filename: str):
+    """Serve recipe images committed inside the repository."""
+    if not re.fullmatch(r"[a-f0-9]{24}\\.(?:jpg|png|webp|gif)", filename):
+        raise HTTPException(404, "Recipe image not found")
+    image_path = Path(__file__).resolve().parents[1] / "data" / "recipe_images" / filename
+    if not image_path.is_file():
+        raise HTTPException(404, "Recipe image not found")
+    media_type = {".jpg":"image/jpeg",".png":"image/png",".webp":"image/webp",".gif":"image/gif"}[image_path.suffix]
+    return FileResponse(image_path, media_type=media_type, headers={"Cache-Control":"public, max-age=31536000, immutable"})
 
 
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in os.getenv('CORS_ORIGINS','http://localhost:5173').split(',') if x.strip()],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
