@@ -1,9 +1,12 @@
 import json
 import os
+from datetime import datetime
 
 import requests
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from .database import SessionLocal, UserState, UserStateEntry
 
@@ -32,6 +35,33 @@ def _valid_state_key(key: str) -> bool:
         key.startswith("cooking:") and len(key) <= 180 and key.count(":") == 1
         and bool(key.split(":", 1)[1].strip())
     )
+
+
+def _upsert_state_entry(db, user_id: str, key: str, value_json: str | None, is_deleted: bool) -> None:
+    """Atomically insert/update one key on both supported database engines."""
+    values = {
+        "user_id": user_id,
+        "state_key": key,
+        "value_json": value_json,
+        "is_deleted": is_deleted,
+        "updated_at": datetime.utcnow(),
+    }
+    dialect = db.bind.dialect.name
+    if dialect == "sqlite":
+        statement = sqlite_insert(UserStateEntry).values(**values)
+    elif dialect == "postgresql":
+        statement = postgresql_insert(UserStateEntry).values(**values)
+    else:
+        raise RuntimeError(f"Unsupported cloud-state database dialect: {dialect}")
+    statement = statement.on_conflict_do_update(
+        index_elements=[UserStateEntry.user_id, UserStateEntry.state_key],
+        set_={
+            "value_json": statement.excluded.value_json,
+            "is_deleted": statement.excluded.is_deleted,
+            "updated_at": statement.excluded.updated_at,
+        },
+    )
+    db.execute(statement)
 
 
 def auth_enabled() -> bool:
@@ -126,6 +156,15 @@ def put_user_state_changes(payload: UserStateChangesIn, request: Request):
     invalid = sorted(key for key in changed_keys if not isinstance(key, str) or not _valid_state_key(key))
     if invalid:
         raise HTTPException(422, f"Unsupported cloud-state keys: {invalid[:5]}")
+    try:
+        encoded_values = {
+            key: json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+            for key, value in payload.set.items()
+        }
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(422, "Cloud state contains values that cannot be serialized") from exc
+    if sum(len(value.encode("utf-8")) for value in encoded_values.values()) > 1_000_000:
+        raise HTTPException(413, "Cloud-state changes exceed 1 MB")
 
     db = SessionLocal()
     try:
@@ -151,23 +190,12 @@ def put_user_state_changes(payload: UserStateChangesIn, request: Request):
                     db.flush()
 
         for key in payload.delete:
-            entry = db.query(UserStateEntry).filter_by(user_id=user_id, state_key=key).one_or_none()
-            if entry is None:
-                db.add(UserStateEntry(user_id=user_id, state_key=key, value_json=None, is_deleted=True))
-            else:
-                entry.value_json = None
-                entry.is_deleted = True
+            _upsert_state_entry(db, user_id, key, None, True)
 
-        for key, value in payload.set.items():
+        for key, encoded in encoded_values.items():
             if key in payload.delete:
                 continue
-            entry = db.query(UserStateEntry).filter_by(user_id=user_id, state_key=key).one_or_none()
-            encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-            if entry is None:
-                db.add(UserStateEntry(user_id=user_id, state_key=key, value_json=encoded, is_deleted=False))
-            else:
-                entry.value_json = encoded
-                entry.is_deleted = False
+            _upsert_state_entry(db, user_id, key, encoded, False)
 
         db.commit()
         return {"ok": True, "user_id": user_id, "changed": len(changed_keys)}
