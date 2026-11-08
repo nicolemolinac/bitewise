@@ -181,11 +181,25 @@ def put_user_state_changes(payload: UserStateChangesIn, request: Request):
 @router.put("/user-state")
 def put_user_state(payload: UserStateIn, request: Request):
     user = request_user(request)
+    # Legacy snapshot clients are still supported during migration, but the
+    # endpoint must enforce the same allowlist and payload bounds as delta writes.
+    if not isinstance(payload.state, dict):
+        raise HTTPException(422, "Cloud state must be a JSON object")
+    if len(payload.state) > 100:
+        raise HTTPException(413, "Too many cloud-state keys")
+    invalid = sorted(key for key in payload.state if not isinstance(key, str) or not _valid_state_key(key))
+    if invalid:
+        raise HTTPException(422, f"Unsupported cloud-state keys: {invalid[:5]}")
+    try:
+        encoded = json.dumps(payload.state, ensure_ascii=False, separators=(",", ":"))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(422, "Cloud state contains values that cannot be serialized") from exc
+    if len(encoded.encode("utf-8")) > 1_000_000:
+        raise HTTPException(413, "Cloud-state snapshot exceeds 1 MB")
     db = SessionLocal()
     try:
         user_id = str(user["id"])
         row = db.get(UserState, user_id)
-        encoded = json.dumps(payload.state, ensure_ascii=False, separators=(",", ":"))
         if row:
             row.state_json = encoded
         else:
