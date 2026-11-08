@@ -33,22 +33,23 @@ def main():
     assert "image_url" in export_fields, "Catalog export must preserve REWE product image URLs"
 
     # Test actual CSV serialization, not only the presence of field names.
-    fixture = SimpleNamespace(
-        **{field: None for field in export_fields},
-        id=987654,
-        supermarket="REWE",
-        external_id="qa-export-123",
-        ingredient="cola",
-        name_original="QA Cola",
-        name_normalized="qa cola",
-        package_size=1.5,
-        package_unit="l",
-        price=1.49,
-        price_per_unit=0.993,
-        currency="EUR",
-        product_url="https://www.rewe.de/shop/p/qa-cola/123",
-        image_url="https://img.rewe.de/product/qa-cola.webp",
-    )
+    fixture_data = {field: None for field in export_fields}
+    fixture_data.update({
+        "id": 987654,
+        "supermarket": "REWE",
+        "external_id": "qa-export-123",
+        "ingredient": "cola",
+        "name_original": "QA Cola",
+        "name_normalized": "qa cola",
+        "package_size": 1.5,
+        "package_unit": "l",
+        "price": 1.49,
+        "price_per_unit": 0.993,
+        "currency": "EUR",
+        "product_url": "https://www.rewe.de/shop/p/qa-cola/123",
+        "image_url": "https://img.rewe.de/product/qa-cola.webp",
+    })
+    fixture = SimpleNamespace(**fixture_data)
     with tempfile.TemporaryDirectory(prefix="bitewise-export-roundtrip-") as directory:
         output = Path(directory) / "catalog.csv"
         counts = write_catalog_export([fixture], output)
