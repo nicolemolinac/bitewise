@@ -406,24 +406,31 @@ def _ensure_chrome_for_testing(playwright, endpoint):
 
 
 def _rewe_cart_stepper_snapshot(page):
-    """Read REWE's visible minus/value/plus quantity control."""
+    """Read REWE's visible quantity control within the product content, not the header cart."""
     script = r"""
     () => {
+      const root = document.querySelector('main') || document.body;
+      const allButtons = Array.from(document.querySelectorAll('button, [role="button"]'));
+      const buttons = allButtons.filter(el => root.contains(el));
       const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'; };
-      const buttons=Array.from(document.querySelectorAll('button, [role="button"]'));
-      const shown=buttons.filter(visible);
-      const label=el=>[el.innerText,el.getAttribute('aria-label'),el.getAttribute('title'),el.getAttribute('data-testid'),el.className].filter(Boolean).join(' ').toLowerCase();
-      const plus=el=>(el.innerText||'').trim()==='+'||/increase|erh[oö]hen|mehr|plus|increment/.test(label(el));
-      const minus=el=>['-','−','–'].includes((el.innerText||'').trim())||/decrease|reduz|weniger|minus|decrement/.test(label(el));
-      for(const p of shown.filter(plus)){
-        let parent=p.parentElement;
-        for(let depth=0;parent&&depth<6;depth++,parent=parent.parentElement){
-          const group=Array.from(parent.querySelectorAll('button, [role="button"]')).filter(visible);
-          const m=group.find(minus); if(!m||!group.includes(p))continue;
-          let q=null; const input=parent.querySelector('input');
-          if(input&&/^\d+$/.test(input.value||''))q=Number(input.value);
-          if(q===null){const t=(parent.innerText||'').replace(/\s+/g,' ').trim();const match=t.match(/(?:^|\s)(\d{1,2})(?:\s|$)/);if(match)q=Number(match[1]);}
-          if(Number.isInteger(q)&&q>=0&&q<=99)return {plus_index:buttons.indexOf(p),minus_index:buttons.indexOf(m),quantity:q};
+      const label = el => [el.innerText,el.getAttribute('aria-label'),el.getAttribute('title'),el.getAttribute('data-testid'),el.className].filter(Boolean).join(' ').toLowerCase();
+      const plus = el => (el.innerText||'').trim()==='+' || /increase|erh[oö]hen|mehr|plus|increment/.test(label(el));
+      const minus = el => ['-','−','–'].includes((el.innerText||'').trim()) || /decrease|reduz|weniger|minus|decrement/.test(label(el));
+      for (const p of buttons.filter(el => visible(el) && plus(el))) {
+        let parent = p.parentElement;
+        for (let depth=0;parent&&depth<6;depth++,parent=parent.parentElement) {
+          const group = Array.from(parent.querySelectorAll('button, [role="button"]')).filter(el => visible(el));
+          const m = group.find(minus);
+          if (!m || !group.includes(p)) continue;
+          let q = null;
+          const input = parent.querySelector('input');
+          if (input && /^\\d+$/.test(input.value||'')) q = Number(input.value);
+          if (q===null) {
+            const t=(parent.innerText||'').replace(/\\s+/g,' ').trim();
+            const match=t.match(/(?:^|\\s)(\\d{1,2})(?:\\s|$)/);
+            if(match)q=Number(match[1]);
+          }
+          if(Number.isInteger(q)&&q>=0&&q<=99)return {plus_index:allButtons.indexOf(p),minus_index:allButtons.indexOf(m),quantity:q};
         }
       }
       return null;
@@ -433,20 +440,29 @@ def _rewe_cart_stepper_snapshot(page):
 
 
 def _rewe_add_button_index(page):
-    """Find REWE's add control, including the red icon-only cart-plus button."""
+    """Find the red cart-plus action in the product content, excluding header navigation."""
     script = r"""
     () => {
-      const buttons=Array.from(document.querySelectorAll('button, [role="button"]'));
-      const visible=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>24&&r.height>24&&s.visibility!=='hidden'&&s.display!=='none';};
-      const score=el=>{
-        const attrs=[el.innerText,el.getAttribute('aria-label'),el.getAttribute('title'),el.getAttribute('data-testid'),el.getAttribute('data-test'),el.className,...Array.from(el.querySelectorAll('svg')).flatMap(svg=>[svg.getAttribute('aria-label'),svg.getAttribute('data-icon'),svg.getAttribute('class')])].filter(Boolean).join(' ').toLowerCase();
-        let n=0;if(/warenkorb|add.?to.?cart|cart|basket/.test(attrs))n+=10;
-        if(/hinzuf[uü]gen|kaufen|bestellen/.test(attrs))n+=5;
-        const bg=getComputedStyle(el).backgroundColor.match(/\d+/g)||[];
-        if(bg.length>=3&&Number(bg[0])>130&&Number(bg[1])<100&&Number(bg[2])<100&&el.querySelector('svg'))n+=4;
-        if(el.querySelector('svg'))n+=1;return n;
+      const root = document.querySelector('main') || document.body;
+      const allButtons = Array.from(document.querySelectorAll('button, [role="button"]'));
+      const buttons = allButtons.filter(el => root.contains(el));
+      const visible = el => { const r=el.getBoundingClientRect(), s=getComputedStyle(el); return r.width>24&&r.height>24&&s.visibility!=='hidden'&&s.display!=='none'; };
+      const score = el => {
+        const attrs = [el.innerText,el.getAttribute('aria-label'),el.getAttribute('title'),el.getAttribute('data-testid'),el.getAttribute('data-test'),el.className,...Array.from(el.querySelectorAll('svg')).flatMap(svg=>[svg.getAttribute('aria-label'),svg.getAttribute('data-icon'),svg.getAttribute('class')])].filter(Boolean).join(' ').toLowerCase();
+        const hasCart = /warenkorb|cart|basket/.test(attrs);
+        const hasPlus = /\\+|plus|add.?to.?cart|hinzuf[uü]gen/.test(attrs);
+        const hasSvg = !!el.querySelector('svg');
+        const bg = getComputedStyle(el).backgroundColor.match(/\\d+/g)||[];
+        const red = bg.length>=3&&Number(bg[0])>130&&Number(bg[1])<110&&Number(bg[2])<110;
+        let points = 0;
+        if(hasCart)points+=5;
+        if(hasPlus)points+=4;
+        if(red&&hasSvg)points+=5;
+        if(red&&hasPlus)points+=3;
+        if(/in den warenkorb|add.?to.?cart/.test(attrs))points+=5;
+        return points;
       };
-      const candidates=buttons.map((el,index)=>({index,points:visible(el)?score(el):0})).filter(x=>x.points>=4).sort((x,y)=>y.points-x.points);
+      const candidates = buttons.map(el=>({index:allButtons.indexOf(el),points:visible(el)?score(el):0})).filter(x=>x.points>=10).sort((a,b)=>b.points-a.points);
       return candidates.length?candidates[0].index:null;
     }"""
     try: return page.evaluate(script)
