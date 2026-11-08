@@ -725,6 +725,7 @@ async def add_rewe_products_to_cart(request: Request):
             # put a different basket into the user's authenticated REWE account.
             if isinstance(raw_packs, bool) or not isinstance(raw_packs, int) or not 1 <= raw_packs <= 99:
                 raise HTTPException(422, "packs must be an integer between 1 and 99")
+            packs = raw_packs
             try:
                 product_id = int(item.get("product_id"))
             except (TypeError, ValueError):
