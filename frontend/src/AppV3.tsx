@@ -231,10 +231,6 @@ export default function AppV3(){
           }));
         }).catch(()=>{});
       }
-      const savedConcepts=records
-        .filter((x:any)=>x.record_type==='concept'&&!['expanded','disliked','removed','skipped'].includes(x.status))
-        .slice(0,24).map((x:any)=>x.meal).filter(Boolean);
-      if(savedConcepts.length)void attachFreePhotos(savedConcepts);
       const apiOwned=(ss.items||[]).filter((x:any)=>x.state==='owned').map((x:any)=>x.ingredient);if(apiOwned.length)setOwned(apiOwned);
     }catch(e:any){setError(e.message)}
   }
@@ -304,7 +300,7 @@ export default function AppV3(){
       const saved=await api('/recipe-history',{method:'POST',body:JSON.stringify({records:requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal}))})});
       if(!saved.ok)throw new Error('Bitewise could not save this discovery to your permanent history.');
       setHistory(prev=>[...requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal})),...prev]);
-      setMeals(requestedMeals);setFilter('all');void attachFreePhotos(requestedMeals,requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal})));
+      setMeals(requestedMeals);setFilter('all');void attachFreePhotos(requestedMeals,requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal}))).catch((e:any)=>setError('Could not save recipe photos: '+e.message));
     }catch(e:any){setError(e.message)}finally{setLoading(false)}
   }
   async function react(meal:Meal,action:'like'|'skip'|'dislike'){
