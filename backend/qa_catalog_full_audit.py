@@ -319,7 +319,7 @@ def main():
             "sugar snap peas": "REWE Beste Wahl Kaiserschoten 200g",
             "garden cress": "REWE Bio Gartenkresse 1 Stück",
             "skyr": "Milu Skyr Natur 450g",
-            "ham": "Billie Green Vegane Schinkenwürfel 3x30g",
+            "ham": "Die Thüringer Bierschinken 100g",
             "sausage": "Eberswalder Bockwurst 500g",
             "salami": "Eberswalder Original Knüppelsalami 300g",
             "beef": "Black Angus Rinder-Filet ca. 200g",
