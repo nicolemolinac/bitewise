@@ -44,12 +44,24 @@ export function createCloudStateSnapshot(entries, prefix = 'bitewise.v3.') {
   return state;
 }
 
-export function mergeCloudState(localState, remoteState) {
+export function mergeCloudState(localState, remoteState, deletedKeys = []) {
   const acceptedRemote = {};
   for (const [key, value] of Object.entries(remoteState || {})) {
     if (isCloudStateKey(`bitewise.v3.${key}`)) acceptedRemote[key] = value;
   }
   // Remote wins for keys present on both devices; local-only keys are retained
   // and can be uploaded so first-device data is not stranded locally.
-  return { ...(localState || {}), ...acceptedRemote };
+  const merged = { ...(localState || {}), ...acceptedRemote };
+  // A remote tombstone is an explicit deletion, not a missing field. Treat it
+  // as the winning remote value so stale offline snapshots cannot resurrect it.
+  for (const key of deletedKeys || []) {
+    if (_isStateKey(key)) delete merged[key];
+  }
+  return merged;
+}
+
+function _isStateKey(key) {
+  return typeof key === "string" && (
+    CLOUD_STATE_KEYS.has(key) || /^cooking:[^:]+$/.test(key)
+  );
 }
