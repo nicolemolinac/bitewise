@@ -250,6 +250,12 @@ def main():
             "chicken", "Hühneraufstrich", "fleisch-wurst-fisch"
         ) is None, "Chicken spread must not be matched as chicken meat"
         assert ingredient_product_match_type(
+            "sausage", "Eberswalder Bratwurst vegetarisch 200g", "fleisch-wurst-fisch"
+        ) is None, "Vegetarian bratwurst must not be presented as an exact meat sausage"
+        assert ingredient_product_match_type(
+            "ham", "Billie Green Vegane Schinkenwürfel 3x30g", "fleisch-wurst-fisch"
+        ) is None, "Vegan ham-style cubes must not be presented as exact ham"
+        assert ingredient_product_match_type(
             "celery", "REWE Knollensellerie", "obst-gemuese"
         ) == "substitute", "Celeriac must be labeled as a substitute for celery stalk"
         assert ingredient_product_match_type(
