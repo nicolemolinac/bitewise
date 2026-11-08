@@ -130,6 +130,13 @@ def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
     return urlunsplit((parts.scheme or "https", parts.netloc, parts.path, parts.query, ""))
 
 
+def _validated_cart_packs(value) -> int | None:
+    """Accept only explicit integer package counts in the supported 1..99 range."""
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 99:
+        return None
+    return value
+
+
 def _cart_add_status(confirmation_seen: bool, packs_requested: int) -> str:
     """Never report multi-pack additions as verified without reading the cart quantity."""
     if not confirmation_seen:
@@ -760,7 +767,14 @@ class ReweCatalogScraper:
                 for item in products:
                     name = str(item.get("name") or "REWE product")
                     product_url = _canonical_product_url(item.get("product_url") or "")
-                    packs = max(1, min(99, int(item.get("packs") or 1)))
+                    packs = _validated_cart_packs(item.get("packs", 1))
+                    if packs is None:
+                        results.append({
+                            "name": name,
+                            "status": "rejected",
+                            "message": "Package quantity must be an integer between 1 and 99",
+                        })
+                        continue
                     if not product_url:
                         results.append({"name": name, "status": "rejected", "message": "Not a verified REWE product URL"})
                         continue
