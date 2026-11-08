@@ -216,7 +216,7 @@ _ALIAS_GROUPS = [
     ("peas", "pea", "erbse", "erbsen"),
     ("ham", "schinken", "bauernschinken", "kochschinken", "serranoschinken", "schwarzwälder schinken", "prosciutto", "rohschinken", "bierschinken"),
     ("bacon", "speck", "bacon"),
-    ("sausage", "sausages", "wurst", "würstchen", "wuerstchen", "chorizo", "wiener", "wiener würstchen", "teewurst", "jagdwurst", "fleischwurst", "bockwurst", "bratwurst", "knacker"),
+    ("sausage", "sausages", "wurst", "würstchen", "wuerstchen", "chorizo", "wiener", "wiener würstchen", "teewurst", "jagdwurst", "fleischwurst", "bockwurst", "knacker"),
     ("turkey", "pute", "putenfleisch", "puten", "putenfilet", "puten filet", "putenfiletstreifen", "puten filetstreifen", "putengeschnetzeltes", "putenmedaillons", "putenschnitzel", "putenschenkel"),
     ("wrap", "wraps", "tortilla", "tortillas", "weizentortilla"),
     # Common REWE catalog compounds that were missing from the original vocabulary.
