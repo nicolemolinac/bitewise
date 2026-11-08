@@ -79,7 +79,7 @@ with tempfile.TemporaryDirectory(prefix="bitewise-cloud-sync-qa-") as directory:
         raise AssertionError("Catalog state must never be accepted by cloud sync")
 
     # Legacy snapshot endpoint enforces the same key allowlist as delta writes.
-    for invalid_state in ({"products": [{"id": 1}]}, {"liked": ["x"] * 100001}):
+    for invalid_state in ({"products": [{"id": 1}]}, {"liked": "x" * 1_000_001}):
         try:
             put_user_state(UserStateIn(state=invalid_state), alice)
         except HTTPException as exc:
