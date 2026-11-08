@@ -5,7 +5,10 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from io import BytesIO
+
 import requests
+from PIL import Image, ImageOps
 from urllib.parse import quote_plus
 
 from playwright.sync_api import sync_playwright
@@ -186,31 +189,55 @@ def _search_one(page, meal: dict) -> dict[str, str]:
 
 
 def _persist_image(image_url: str, key: str) -> str:
-    """Download a discovered photo into backend/data/recipe_images for Git persistence."""
-    value=str(image_url or "").strip()
+    """Download, optimize as WebP and persist a recipe photo inside the Git repo."""
+    value = str(image_url or "").strip()
     if value.startswith("/api/meal-photos/files/"):
-        return value if (IMAGE_DIR/Path(value).name).is_file() else ""
-    if not value.startswith("https://"):return ""
+        filename = Path(value).name
+        return value if re.fullmatch(r"[a-f0-9]{24}\\.webp", filename) and (IMAGE_DIR / filename).is_file() else ""
+    if not value.startswith("https://"):
+        return ""
+
+    name = hashlib.sha256(key.encode("utf-8")).hexdigest()[:24] + ".webp"
+    target = IMAGE_DIR / name
+    if target.is_file():
+        return "/api/meal-photos/files/" + name
+
     try:
-        response=requests.get(value,headers=_HEADERS,timeout=20,stream=True)
+        response = requests.get(value, headers=_HEADERS, timeout=20, stream=True)
         response.raise_for_status()
-        mime=(response.headers.get("content-type") or "").split(";",1)[0].lower()
-        ext={"image/jpeg":".jpg","image/png":".png","image/webp":".webp","image/gif":".gif"}.get(mime)
-        if not ext:return ""
-        chunks=[];total=0
-        for chunk in response.iter_content(64*1024):
-            if not chunk:continue
-            total+=len(chunk)
-            if total>8*1024*1024:return ""
+        mime = (response.headers.get("content-type") or "").split(";", 1)[0].lower()
+        if mime not in {"image/jpeg", "image/png", "image/webp", "image/gif"}:
+            return ""
+        chunks = []
+        total = 0
+        for chunk in response.iter_content(64 * 1024):
+            if not chunk:
+                continue
+            total += len(chunk)
+            if total > 8 * 1024 * 1024:
+                return ""
             chunks.append(chunk)
-        if total<1024:return ""
-        name=hashlib.sha256(key.encode("utf-8")).hexdigest()[:24]+ext
-        target=IMAGE_DIR/name
-        if not target.is_file():
-            tmp=target.with_suffix(target.suffix+".tmp");tmp.write_bytes(b"".join(chunks));tmp.replace(target)
-        return "/api/meal-photos/files/"+name
+        raw = b"".join(chunks)
+        if len(raw) < 256:
+            return ""
+
+        with Image.open(BytesIO(raw)) as source:
+            source.seek(0)
+            image = ImageOps.exif_transpose(source).convert("RGB")
+            image.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+            output = BytesIO()
+            image.save(output, format="WEBP", quality=82, method=6)
+            optimized = output.getvalue()
+        if len(optimized) < 100 or len(optimized) > 1_500_000:
+            return ""
+
+        IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_suffix(".webp.tmp")
+        temporary.write_bytes(optimized)
+        temporary.replace(target)
+        return "/api/meal-photos/files/" + name
     except Exception:
-        logger.warning("Could not persist recipe image %s",value[:160],exc_info=True)
+        logger.warning("Could not persist recipe image %s", value[:160], exc_info=True)
         return ""
 
 
