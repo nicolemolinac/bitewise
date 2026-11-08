@@ -40,7 +40,7 @@ def main():
         ],
         "steps": [
             {"text": "Boolean timer must be discarded", "minutes": True},
-            {"text": "String timer must be discarded", "minutes": "2"},
+            {"text": "Numeric-string timer is normalized", "minutes": "2"},
         ],
     })
     assert meal is not None
