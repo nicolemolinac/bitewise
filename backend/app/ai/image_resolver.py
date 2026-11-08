@@ -202,6 +202,7 @@ def _persist_image(image_url: str, key: str) -> str:
     if target.is_file():
         return "/api/meal-photos/files/" + name
 
+    response = None
     try:
         response = requests.get(value, headers=_HEADERS, timeout=20, stream=True)
         response.raise_for_status()
@@ -223,7 +224,11 @@ def _persist_image(image_url: str, key: str) -> str:
 
         with Image.open(BytesIO(raw)) as source:
             source.seek(0)
-            image = ImageOps.exif_transpose(source).convert("RGB")
+            if source.width < 1 or source.height < 1 or source.width * source.height > 30_000_000:
+                return ""
+            rgba = ImageOps.exif_transpose(source).convert("RGBA")
+            image = Image.new("RGB", rgba.size, (255, 255, 255))
+            image.paste(rgba, mask=rgba.getchannel("A"))
             image.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
             output = BytesIO()
             image.save(output, format="WEBP", quality=82, method=6)
@@ -239,6 +244,12 @@ def _persist_image(image_url: str, key: str) -> str:
     except Exception:
         logger.warning("Could not persist recipe image %s", value[:160], exc_info=True)
         return ""
+    finally:
+        if response is not None:
+            try:
+                response.close()
+            except Exception:
+                pass
 
 
 def resolve_meal_images(meals: list[dict], *, force: bool = False) -> list[dict[str, str]]:
