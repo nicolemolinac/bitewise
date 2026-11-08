@@ -16,6 +16,8 @@ os.environ["SUPABASE_PUBLISHABLE_KEY"] = ""
 from fastapi.testclient import TestClient
 
 from app import server
+from app.ai.gemini import GeminiService as BaseGeminiService
+import app.ai.gemini_efficient as efficient_module
 
 
 CONCEPT = {
@@ -56,6 +58,23 @@ GENERATED_RECIPE = {
 
 
 def main():
+    # Transient Gemini capacity/rate-limit errors retry twice, then succeed.
+    retry_service = object.__new__(server.EfficientGeminiService)
+    successful_response = Mock(text="[]")
+    with patch.object(
+        BaseGeminiService,
+        "_generate_once",
+        side_effect=[
+            RuntimeError("503 UNAVAILABLE: high demand"),
+            RuntimeError("429 RESOURCE_EXHAUSTED"),
+            (successful_response, "gemini-3.1-flash-lite"),
+        ],
+    ) as generate_once, patch.object(efficient_module.time, "sleep") as sleep:
+        retried = retry_service._generate_once("same recipe prompt")
+        assert retried == (successful_response, "gemini-3.1-flash-lite")
+        assert generate_once.call_count == 3
+        assert [call.args[0] for call in sleep.call_args_list] == [1, 2]
+
     client = TestClient(server.app)
     service = Mock()
     second_recipe = {**GENERATED_RECIPE, "name": "Creamy tomato pasta", "generated_at": datetime(2026, 11, 6, 13, 45, tzinfo=timezone.utc)}
@@ -150,7 +169,7 @@ def main():
     invalid = client.post("/api/ai/recipe", json={"concept": {"id": "missing-name"}})
     assert invalid.status_code == 422
 
-    print("Recipe flow QA PASS: two independent expansions, nested datetime serialization, idempotent retry, durable history, Picks rehydration, fractional basket and failure handling")
+    print("Recipe flow QA PASS: transient Gemini retries, two independent expansions, nested datetime serialization, idempotent retry, durable history, Picks rehydration, fractional basket and failure handling")
 
 
 if __name__ == "__main__":
