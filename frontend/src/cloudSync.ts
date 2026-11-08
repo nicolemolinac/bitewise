@@ -1,5 +1,5 @@
 import { getAccessToken } from './auth';
-import { CLOUD_STATE_KEYS, isCloudStateKey } from './cloudState.js';
+import { CLOUD_STATE_KEYS, createCloudStateSnapshot, isCloudStateKey } from './cloudState.js';
 export { CLOUD_STATE_KEYS, isCloudStateKey } from './cloudState.js';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -10,21 +10,14 @@ let syncing = false;
 let syncRequested = false;
 
 function localSnapshot() {
-  const state: Record<string, unknown> = {};
+  const entries: Array<[string, string | null]> = [];
   // Iterate actual localStorage keys so dynamic Cooking Mode sessions are included.
   for (let index = 0; index < window.localStorage.length; index += 1) {
     const storageKey = window.localStorage.key(index);
-    if (!storageKey || !isCloudStateKey(storageKey)) continue;
-    const key = storageKey.slice(PREFIX.length);
-    const raw = window.localStorage.getItem(storageKey);
-    if (raw == null) continue;
-    try {
-      state[key] = JSON.parse(raw);
-    } catch {
-      state[key] = raw;
-    }
+    if (!storageKey) continue;
+    entries.push([storageKey, window.localStorage.getItem(storageKey)]);
   }
-  return state;
+  return createCloudStateSnapshot(entries, PREFIX);
 }
 
 function applySnapshot(state: Record<string, unknown>) {
