@@ -78,6 +78,19 @@ with tempfile.TemporaryDirectory(prefix="bitewise-cloud-sync-qa-") as directory:
     else:
         raise AssertionError("Catalog state must never be accepted by cloud sync")
 
+    # Per-key upserts must support repeated writes to the same key.
+    put_user_state_changes(UserStateChangesIn(set={"strategy": "cheapest"}), alice)
+    put_user_state_changes(UserStateChangesIn(set={"strategy": "best-value"}), alice)
+    assert get_user_state(alice)["state"]["strategy"] == "best-value"
+
+    # Delta requests are bounded just like legacy snapshot requests.
+    try:
+        put_user_state_changes(UserStateChangesIn(set={"basket": "x" * 1_000_001}), alice)
+    except HTTPException as exc:
+        assert exc.status_code == 413
+    else:
+        raise AssertionError("Oversized cloud-state delta must be rejected")
+
     # Legacy snapshot endpoint enforces the same key allowlist as delta writes.
     for invalid_state in ({"products": [{"id": 1}]}, {"liked": "x" * 1_000_001}):
         try:
