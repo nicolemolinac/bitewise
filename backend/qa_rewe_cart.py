@@ -24,6 +24,7 @@ from app.rewe.scraper import (
     _canonical_product_url,
     _cart_add_status,
     _cart_quantity_submission_allowed,
+    _cart_quantity_matches,
 )
 
 
@@ -48,6 +49,11 @@ def test_url_and_status_contract():
     assert _cart_quantity_submission_allowed(False, 1) is True
     assert _cart_quantity_submission_allowed(False, 2) is False
     assert _cart_quantity_submission_allowed(True, 2) is True
+    assert _cart_quantity_matches("2", 2) is True
+    assert _cart_quantity_matches(" 2 ", 2) is True
+    assert _cart_quantity_matches("1", 2) is False
+    assert _cart_quantity_matches("2.0", 2) is False
+    assert _cart_quantity_matches("", 2) is False
 
 
 def test_cart_endpoint_only_hands_off_valid_rewe_catalog_products():
