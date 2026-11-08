@@ -54,11 +54,18 @@ jobs:
         run: python qa_ai_discovery.py
       - name: Gemini catalog prompt context false-positive QA
         run: python qa_catalog_prompt_context.py
-      - name: Import API and verify critical routes
+      - name: Cloud user-state isolation QA
+        run: python qa_cloud_sync.py
+      - name: Import production and local API entrypoints and verify critical routes
         run: |
           python - <<'PY'
+          from app.main import app as local_app
+          from app.render_app import app as production_app
           from app.server import app
-          paths = {route.path for route in app.routes}
+          paths = {route.path for route in production_app.routes}
+          local_paths = {route.path for route in local_app.routes}
+          assert '/api/user-state' in paths, 'Production entrypoint is missing cloud-state routes'
+          assert '/api/user-state' in local_paths, 'Local entrypoint is missing cloud-state routes'
           required = {
               '/api/health',
               '/api/meals',
