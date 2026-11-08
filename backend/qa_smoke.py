@@ -1,3 +1,4 @@
+import base64
 import json
 import subprocess
 import os
@@ -17,7 +18,11 @@ BASE = "http://127.0.0.1:8011"
 
 def call(method, path, payload=None, expected=200):
     data = None if payload is None else json.dumps(payload).encode()
-    req = Request(BASE + path, data=data, method=method, headers={"Content-Type": "application/json"})
+    basic = base64.b64encode(b"qa-user:qa-password").decode("ascii")
+    req = Request(BASE + path, data=data, method=method, headers={
+        "Content-Type": "application/json",
+        "Authorization": f"Basic {basic}",
+    })
     try:
         with urlopen(req, timeout=10) as response:
             body = response.read().decode()
@@ -62,6 +67,12 @@ def main():
     env["BITEWISE_AI_MEALS_PATH"] = str(AI_DATA)
     env["DATABASE_URL"] = ""  # Never let a local .env redirect QA writes to hosted Postgres.
     env["AUTO_RESTORE_LOCAL_REWE"] = "false"
+    # The production entrypoint now fails closed without authentication.
+    # Use disposable test-only Basic Auth credentials for this isolated smoke app.
+    env["APP_USERNAME"] = "qa-user"
+    env["APP_PASSWORD"] = "qa-password"
+    env["SUPABASE_URL"] = ""
+    env["SUPABASE_PUBLISHABLE_KEY"] = ""
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.render_app:app", "--host", "127.0.0.1", "--port", "8011"],
         cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
