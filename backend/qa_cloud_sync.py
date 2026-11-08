@@ -78,6 +78,16 @@ with tempfile.TemporaryDirectory(prefix="bitewise-cloud-sync-qa-") as directory:
     else:
         raise AssertionError("Catalog state must never be accepted by cloud sync")
 
+    # Legacy snapshot endpoint enforces the same key allowlist as delta writes.
+    for invalid_state in ({"products": [{"id": 1}]}, {"liked": ["x"] * 100001}):
+        try:
+            put_user_state(UserStateIn(state=invalid_state), alice)
+        except HTTPException as exc:
+            assert exc.status_code in (413, 422)
+        else:
+            raise AssertionError("Legacy snapshot endpoint accepted an unsafe/oversized payload")
+    assert get_user_state(alice)["state"] == revived["state"]
+
     # Existing accounts with only a legacy JSON snapshot migrate on first delta write.
     from app.database import SessionLocal, UserState
     db = SessionLocal()
