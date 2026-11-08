@@ -149,7 +149,14 @@ def _persist_generated(generated: list[dict]) -> list[dict]:
             meal["id"] = f"{base}-{suffix}"[:80]; suffix += 1
         if not meal: continue
         MEALS.append(meal); existing.add(meal["id"]); clean.append(meal)
-    # Only persist the canonical recipe fields. The returned dict is also stored in\n    # MEALS and later enriched by the API with catalog matches (including datetimes);\n    # serializing those response-only fields made the NEXT recipe expansion crash.\n    persisted = [\n        sanitized for meal in MEALS if meal.get("source") == "gemini"\n        if (sanitized := _sanitize_meal(meal)) is not None\n    ]\n    DATA_FILE.write_text(json.dumps(persisted, ensure_ascii=False, indent=2), encoding="utf-8")
+    # Only persist canonical recipe fields. The API enriches returned recipes with
+    # catalog matches (including datetimes); those response-only fields must not
+    # leak back into the global MEALS list and break the NEXT recipe expansion.
+    persisted = [
+        sanitized for meal in MEALS if meal.get("source") == "gemini"
+        if (sanitized := _sanitize_meal(meal)) is not None
+    ]
+    DATA_FILE.write_text(json.dumps(persisted, ensure_ascii=False, indent=2), encoding="utf-8")
     return clean
 
 
