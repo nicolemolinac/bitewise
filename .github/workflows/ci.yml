@@ -87,6 +87,7 @@ jobs:
               '/api/brain-dump',
               '/api/ai/meals',
               '/api/user-state',
+              '/api/user-state/changes',
               '/api/meal-photos',
               '/api/recipe-history',
               '/api/recipe-history/{record_key:path}',
