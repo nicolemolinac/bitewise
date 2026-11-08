@@ -63,7 +63,7 @@ def main():
     env["DATABASE_URL"] = ""  # Never let a local .env redirect QA writes to hosted Postgres.
     env["AUTO_RESTORE_LOCAL_REWE"] = "false"
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8011"],
+        [sys.executable, "-m", "uvicorn", "app.render_app:app", "--host", "127.0.0.1", "--port", "8011"],
         cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
     try:
@@ -178,7 +178,7 @@ def main():
         rewe_status = call("GET", "/api/rewe/status")
         assert rewe_status["live_data"] is False and rewe_status["data_freshness"] == "catalog_snapshot"
 
-        # Cloud UI state must round-trip and replace atomically without touching the server catalog.
+        # Exercise the same render_app entrypoint used in production, including the cloud-state router.\n        # Cloud UI state must round-trip and replace atomically without touching the server catalog.
         cloud_state = {
             "tab": "calendar",
             "liked": ["teriyaki-chicken", "lentil-dal"],
