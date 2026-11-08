@@ -14,12 +14,65 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app.database import (
     AppSetting, CatalogRun, Product, SessionLocal, _auto_import_rewe_csv_snapshot,
-    _snapshot_pack_pricing, _snapshot_package_size, _snapshot_package_unit,
+    _read_rewe_snapshot_rows, _snapshot_pack_pricing, _snapshot_package_size, _snapshot_package_unit,
 )
 from app.ingredient_aliases import canonical_ingredient_terms, ingredient_product_match_type, ingredient_search_terms
 
 
+def _write_csv(path, content):
+    path.write_text(content, encoding="utf-8")
+
+
+def qa_snapshot_csv_validation():
+    with tempfile.TemporaryDirectory(prefix="bitewise-csv-validation-qa-") as directory:
+        root = Path(directory)
+        valid = root / "valid.csv"
+        header = "id,supermarket,external_id,ingredient,name_original,name_normalized,price\n"
+        row = '1,REWE,sku-1,salmon,Salmon Fillet 200g,salmon fillet 200g,4.99\n'
+        _write_csv(valid, header + row + row)
+        parsed = _read_rewe_snapshot_rows(valid)
+        assert len(parsed) == 1, f"Identical duplicate SKU rows should be deduplicated: {len(parsed)}"
+        assert parsed[0]["external_id"] == "sku-1"
+
+        conflict = root / "conflict.csv"
+        _write_csv(conflict, header + row + '2,REWE,sku-1,tuna,Tuna Fillet 200g,tuna fillet 200g,5.99\n')
+        try:
+            _read_rewe_snapshot_rows(conflict)
+        except ValueError as exc:
+            assert "conflicting rows" in str(exc)
+        else:
+            raise AssertionError("Conflicting duplicate external IDs must abort CSV parsing")
+
+        missing_header = root / "missing-header.csv"
+        _write_csv(missing_header, "id,supermarket,external_id,name_original\n1,REWE,sku-1,Salmon 200g\n")
+        try:
+            _read_rewe_snapshot_rows(missing_header)
+        except ValueError as exc:
+            assert "missing required columns" in str(exc)
+        else:
+            raise AssertionError("CSV with missing required header columns must fail")
+
+        malformed = root / "malformed.csv"
+        _write_csv(malformed, header + '3,REWE,sku-3,rice,Rice 1kg,rice 1kg,2.99,unexpected-extra-column\n')
+        try:
+            _read_rewe_snapshot_rows(malformed)
+        except ValueError as exc:
+            assert "unexpected extra columns" in str(exc)
+        else:
+            raise AssertionError("CSV rows with extra fields must fail")
+
+        wrong_width = root / "wrong-width.csv"
+        _write_csv(wrong_width, "1,REWE,sku-1,salmon,Salmon Fillet 200g\n")
+        try:
+            _read_rewe_snapshot_rows(wrong_width)
+        except ValueError as exc:
+            assert "columns; expected" in str(exc)
+        else:
+            raise AssertionError("Headerless CSV with unsupported column count must fail")
+
+
 def main():
+    qa_snapshot_csv_validation()
     pack_price, price_per_gram = _snapshot_pack_pricing(
         "Alete Kinderkeks 180g (1 kg = 11,06 €)", 180, "g", 11.06, 0.0614
     )
