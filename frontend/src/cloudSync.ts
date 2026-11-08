@@ -8,6 +8,9 @@ const PREFIX = 'bitewise.v3.';
 let syncTimer: number | null = null;
 let syncing = false;
 let syncRequested = false;
+let applyingRemoteSnapshot = false;
+const pendingSet = new Map<string, unknown>();
+const pendingDelete = new Set<string>();
 
 function localSnapshot() {
   const entries: Array<[string, string | null]> = [];
@@ -21,9 +24,14 @@ function localSnapshot() {
 }
 
 function applySnapshot(state: Record<string, unknown>) {
-  for (const [key, value] of Object.entries(state || {})) {
-    if (!isCloudStateKey(PREFIX + key)) continue;
-    window.localStorage.setItem(PREFIX + key, JSON.stringify(value));
+  applyingRemoteSnapshot = true;
+  try {
+    for (const [key, value] of Object.entries(state || {})) {
+      if (!isCloudStateKey(PREFIX + key)) continue;
+      window.localStorage.setItem(PREFIX + key, JSON.stringify(value));
+    }
+  } finally {
+    applyingRemoteSnapshot = false;
   }
 }
 
@@ -45,7 +53,7 @@ export async function hydrateCloudState() {
   const remote = await authed('/user-state');
   const local = localSnapshot();
   if (remote?.state && Object.keys(remote.state).length) {
-    const merged = mergeCloudState(local, remote.state);
+    const merged = mergeCloudState(local, remote.state, remote.deleted_keys || []);
     applySnapshot(merged);
     const hasLocalOnlyState = Object.keys(local).some(key => !(key in remote.state));
     if (hasLocalOnlyState) {
@@ -61,7 +69,29 @@ export async function hydrateCloudState() {
   return 'empty';
 }
 
-export function queueCloudSync() {
+export function queueCloudSync(storageKey?: string, rawValue?: string, deleted = false) {
+  if (applyingRemoteSnapshot) return;
+  if (storageKey && isCloudStateKey(storageKey)) {
+    const key = storageKey.slice(PREFIX.length);
+    if (deleted) {
+      pendingSet.delete(key);
+      pendingDelete.add(key);
+    } else {
+      try {
+        pendingSet.set(key, JSON.parse(rawValue ?? "null"));
+      } catch {
+        pendingSet.set(key, rawValue ?? "");
+      }
+      pendingDelete.delete(key);
+    }
+  } else if (!storageKey) {
+    // Compatibility for existing callers: queue a full allowlisted snapshot as
+    // per-key updates rather than replacing another device's unrelated keys.
+    for (const [key, value] of Object.entries(localSnapshot())) {
+      pendingSet.set(key, value);
+      pendingDelete.delete(key);
+    }
+  }
   syncRequested = true;
   if (syncTimer !== null) window.clearTimeout(syncTimer);
   syncTimer = window.setTimeout(async () => {
@@ -69,20 +99,33 @@ export function queueCloudSync() {
     if (syncing) return;
     syncing = true;
     try {
-      // If local state changes while a request is in flight, send a fresh
-      // snapshot after it completes rather than silently dropping that change.
-      while (syncRequested) {
+      while (syncRequested || pendingSet.size || pendingDelete.size) {
         syncRequested = false;
-        await authed('/user-state', {
-          method: 'PUT',
-          body: JSON.stringify({ state: localSnapshot() }),
-        });
+        const set = Object.fromEntries(pendingSet);
+        const del = Array.from(pendingDelete);
+        pendingSet.clear();
+        pendingDelete.clear();
+        try {
+          await authed('/user-state/changes', {
+            method: 'PUT',
+            body: JSON.stringify({ set, delete: del }),
+          });
+        } catch (error) {
+          // Retain failed deltas unless a newer local edit for that key exists.
+          for (const [key, value] of Object.entries(set)) {
+            if (!pendingSet.has(key) && !pendingDelete.has(key)) pendingSet.set(key, value);
+          }
+          for (const key of del) {
+            if (!pendingSet.has(key)) pendingDelete.add(key);
+          }
+          throw error;
+        }
       }
     } catch (error) {
       console.warn('Bitewise cloud sync failed', error);
     } finally {
       syncing = false;
-      if (syncRequested) queueCloudSync();
+      if (syncRequested || pendingSet.size || pendingDelete.size) queueCloudSync();
     }
   }, 500);
 }
