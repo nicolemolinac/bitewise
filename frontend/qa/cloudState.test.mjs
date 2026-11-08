@@ -32,3 +32,20 @@ test("allowlist remains explicit and excludes product catalog state", () => {
   assert.equal(CLOUD_STATE_KEYS.has("products"), false);
   assert.equal(CLOUD_STATE_KEYS.has("catalog"), false);
 });
+
+test("cloud snapshot includes cooking progress and excludes catalog/cache entries", async () => {
+  const { createCloudStateSnapshot } = await import("../src/cloudState.js");
+  const snapshot = createCloudStateSnapshot([
+    ["bitewise.v3.liked", '["recipe-1"]'],
+    ["bitewise.v3.cooking:recipe-1", JSON.stringify({ completed: [0, 2], timers: { 1: { remaining: 45 } } })],
+    ["bitewise.v3.cookingAlerts", "true"],
+    ["bitewise.v3.products", '[{"id":1}]'],
+    ["bitewise.v3.reweCache", '{"large":"cache"}'],
+    ["other-app.profile", '{"name":"not ours"}'],
+  ]);
+  assert.deepEqual(snapshot, {
+    liked: ["recipe-1"],
+    "cooking:recipe-1": { completed: [0, 2], timers: { 1: { remaining: 45 } } },
+    cookingAlerts: true,
+  });
+});
