@@ -319,6 +319,20 @@ def main():
             "sugar snap peas": "REWE Beste Wahl Kaiserschoten 200g",
             "garden cress": "REWE Bio Gartenkresse 1 Stück",
             "skyr": "Milu Skyr Natur 450g",
+            "ham": "Billie Green Vegane Schinkenwürfel 3x30g",
+            "sausage": "Eberswalder Bockwurst 500g",
+            "salami": "Eberswalder Original Knüppelsalami 300g",
+            "beef": "Black Angus Rinder-Filet ca. 200g",
+            "butter": "Andechser Natur Bio-Almbutter 250g",
+            "yogurt": "Andechser Natur Bio-Jogurt mild 500g",
+            "vegetable broth": "Feine Küche Jürgen Langbein Bio Gemüse-Fond 400ml",
+            "salt": "Bad Reichenhaller Markensalz 500g",
+            "oil": "Becel Omega-3 Pflanzenöl Classic 500ml",
+            "tomato sauce": "Bautz'ner Fix Tomatensoße 400ml",
+            "teriyaki sauce": "Bamboo Garden Bio Teriyaki Sauce 200ml",
+            "five spice": "Bamboo Garden Five Spice 35g",
+            "dumplings": "Bibigo Gyoza Korean Style BBQ vegan 300g",
+            "vegan burger": "Beyond Meat Beyond Burger vegan 226g",
         }
         for expected, title in semantic_examples.items():
             terms = canonical_ingredient_terms(title)
