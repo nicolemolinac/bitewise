@@ -53,22 +53,36 @@ async function authed(path: string, options?: RequestInit) {
   return r.json();
 }
 
+async function pushStateChanges(set: Record<string, unknown>) {
+  if (!Object.keys(set).length) return;
+  await authed('/user-state/changes', {
+    method: 'PUT',
+    body: JSON.stringify({ set, delete: [] }),
+  });
+}
+
 export async function hydrateCloudState() {
   const remote = await authed('/user-state');
   const local = localSnapshot();
-  if (remote?.state && (Object.keys(remote.state).length || (remote.deleted_keys || []).length)) {
-    const merged = mergeCloudState(local, remote.state, remote.deleted_keys || []);
+  const remoteState = remote?.state || {};
+  const deleted = new Set<string>(remote?.deleted_keys || []);
+  if (Object.keys(remoteState).length || deleted.size) {
+    const merged = mergeCloudState(local, remoteState, [...deleted]);
     applySnapshot(merged);
-    const deleted = new Set(remote.deleted_keys || []);
-    const hasLocalOnlyState = Object.keys(local).some(key => !(key in remote.state) && !deleted.has(key));
-    if (hasLocalOnlyState) {
-      await authed('/user-state', { method: 'PUT', body: JSON.stringify({ state: merged }) });
+    // Upload only genuinely local-only keys. Never replace a whole snapshot:
+    // another device may have written unrelated keys since this GET started.
+    const localOnly: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(local)) {
+      if (!(key in remoteState) && !deleted.has(key)) localOnly[key] = value;
+    }
+    if (Object.keys(localOnly).length) {
+      await pushStateChanges(localOnly);
       return 'merged';
     }
     return 'downloaded';
   }
   if (Object.keys(local).length) {
-    await authed('/user-state', { method: 'PUT', body: JSON.stringify({ state: local }) });
+    await pushStateChanges(local);
     return 'uploaded';
   }
   return 'empty';
