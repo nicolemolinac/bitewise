@@ -69,6 +69,15 @@ def main():
         service_basic = production_client.get("/api/pantry", headers={"x-service-token": "qa-service-token"})
         assert service_basic.status_code == 200, service_basic.text
 
+    # Half-configured Basic Auth is a deployment error, not an authentication bypass.
+    with patch.dict(os.environ, {
+        "APP_USERNAME": "qa-app-user", "APP_PASSWORD": "",
+        "SUPABASE_URL": "", "SUPABASE_PUBLISHABLE_KEY": "",
+        "SERVICE_TOKEN": "",
+    }, clear=False):
+        partial_basic = production_client.get("/api/pantry")
+        assert partial_basic.status_code == 503, partial_basic.text
+
     # Supabase-only deployment must enforce bearer authentication across API routes.
     with patch.dict(os.environ, {
         "APP_USERNAME": "", "APP_PASSWORD": "",
