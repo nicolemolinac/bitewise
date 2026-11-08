@@ -15,7 +15,7 @@ from sqlalchemy import or_
 # are available both locally and in the deployed cloud entrypoint.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-from .cloud_sync import auth_enabled, authenticate_request, router as cloud_router
+from .cloud_sync import auth_enabled, authenticate_request
 from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
@@ -698,7 +698,6 @@ app.router.routes = [
     )
 ]
 app.include_router(rewe_refresh_router)
-app.include_router(cloud_router)
 app.include_router(migration_router)
 
 
