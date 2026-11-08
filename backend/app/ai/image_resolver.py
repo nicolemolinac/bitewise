@@ -193,7 +193,7 @@ def _persist_image(image_url: str, key: str) -> str:
     value = str(image_url or "").strip()
     if value.startswith("/api/meal-photos/files/"):
         filename = Path(value).name
-        return value if re.fullmatch(r"[a-f0-9]{24}\\.webp", filename) and (IMAGE_DIR / filename).is_file() else ""
+        return value if re.fullmatch(r"[a-f0-9]{24}[.]webp", filename) and (IMAGE_DIR / filename).is_file() else ""
     if not value.startswith("https://"):
         return ""
 
