@@ -501,7 +501,7 @@ def _read_rewe_snapshot_rows(snapshot_path: Path) -> list[dict]:
                     raise ValueError(f"REWE CSV snapshot header is missing required columns: {missing}")
                 if len(first_row) != len(set(first_row)):
                     raise ValueError("REWE CSV snapshot header contains duplicate columns")
-                reader = csv.DictReader(handle)
+                reader = csv.DictReader(handle, strict=True)
             else:
                 if len(first_row) == len(expected_columns):
                     fieldnames = expected_columns
@@ -512,7 +512,7 @@ def _read_rewe_snapshot_rows(snapshot_path: Path) -> list[dict]:
                         f"REWE CSV snapshot has {len(first_row)} columns; expected "
                         f"{len(legacy_columns)} (legacy) or {len(expected_columns)} (full)"
                     )
-                reader = csv.DictReader(handle, fieldnames=fieldnames)
+                reader = csv.DictReader(handle, fieldnames=fieldnames, strict=True)
 
             for row_number, row in enumerate(reader, start=2):
                 if not row or all(value is None or not str(value).strip() for value in row.values()):
