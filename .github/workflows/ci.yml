@@ -56,6 +56,8 @@ jobs:
         run: python qa_catalog_prompt_context.py
       - name: Cloud user-state isolation QA
         run: python qa_cloud_sync.py
+      - name: API authentication and account-boundary QA
+        run: python qa_api_auth.py
       - name: Import production and local API entrypoints and verify critical routes
         run: |
           python - <<'PY'
