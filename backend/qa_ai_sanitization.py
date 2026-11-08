@@ -57,7 +57,7 @@ def main():
     assert meal["tags"] == ["AI Generated"]
     assert meal["steps"] == [
         {"text": "Boolean timer must be discarded", "minutes": None},
-        {"text": "String timer must be discarded", "minutes": 2},
+        {"text": "Numeric-string timer is normalized", "minutes": 2},
     ]
 
     boolean_metadata = _sanitize_meal({
