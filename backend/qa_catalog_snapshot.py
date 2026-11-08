@@ -61,6 +61,15 @@ def qa_snapshot_csv_validation():
         else:
             raise AssertionError("CSV rows with extra fields must fail")
 
+        broken_quote = root / "broken-quote.csv"
+        _write_csv(broken_quote, header + '4,REWE,sku-4,salmon,"Unclosed product name\n')
+        try:
+            _read_rewe_snapshot_rows(broken_quote)
+        except ValueError as exc:
+            assert "malformed" in str(exc)
+        else:
+            raise AssertionError("CSV with an unterminated quoted field must fail")
+
         wrong_width = root / "wrong-width.csv"
         _write_csv(wrong_width, "1,REWE,sku-1,salmon,Salmon Fillet 200g\n")
         try:
