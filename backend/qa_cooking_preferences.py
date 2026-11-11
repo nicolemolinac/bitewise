@@ -1,3 +1,13 @@
+import os
+from pathlib import Path
+import tempfile
+
+_QA_TEMP = tempfile.TemporaryDirectory(prefix="bitewise-ai-qa-")
+os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_TEMP.name) / "qa.sqlite")
+os.environ["BITEWISE_AI_MEALS_PATH"] = str(Path(_QA_TEMP.name) / "ai_meals.json")
+os.environ["DATABASE_URL"] = ""
+os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
+
 from app.ai.gemini_efficient import cooking_preferences_instruction
 
 

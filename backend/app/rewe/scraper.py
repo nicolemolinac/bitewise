@@ -81,9 +81,16 @@ def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
         return None
     absolute = urljoin(base_url, value)
     parts = urlsplit(absolute)
-    if parts.netloc not in {"www.rewe.de", "rewe.de"} or "/shop/p/" not in parts.path:
+    if parts.scheme.lower() != "https" or parts.netloc.lower() not in {"www.rewe.de", "rewe.de"} or not parts.path.startswith("/shop/p/"):
         return None
     return urlunsplit((parts.scheme or "https", parts.netloc, parts.path, parts.query, ""))
+
+
+def _cart_add_status(confirmation_seen: bool, packs_requested: int) -> str:
+    """Never report multi-pack additions as verified without reading the cart quantity."""
+    if not confirmation_seen:
+        return "submitted_unverified"
+    return "added" if int(packs_requested) == 1 else "quantity_unconfirmed"
 
 
 def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
@@ -649,7 +656,7 @@ class ReweCatalogScraper:
                 page = next(
                     (candidate for candidate in context.pages
                      if urlsplit(candidate.url).hostname
-                     and urlsplit(candidate.url).hostname.lower().endswith("rewe.de")),
+                     and urlsplit(candidate.url).hostname.lower() in {"www.rewe.de", "rewe.de"}),
                     None,
                 )
                 if page is None:
@@ -707,13 +714,22 @@ class ReweCatalogScraper:
                         page.wait_for_timeout(1_400)
                         confirmation = page.locator("body").inner_text(timeout=8_000)
                         confirmed = bool(re.search(r"hinzugefügt|zum Warenkorb gelegt|Warenkorb wurde aktualisiert", confirmation, re.I))
-                        fully_confirmed = confirmed and (packs == 1 or quantity_set)
+                        status = _cart_add_status(confirmed, packs)
                         results.append({
                             "name": name,
-                            "status": "added" if fully_confirmed else ("quantity_unconfirmed" if confirmed else "submitted_unverified"),
+                            "status": status,
                             "packs_requested": packs,
                             "quantity_set": quantity_set,
-                            "message": "REWE displayed an add confirmation" if confirmed else "Add action was clicked; verify the cart before checkout",
+                            "quantity_verified": False,
+                            "message": (
+                                "REWE displayed an add confirmation"
+                                if status == "added"
+                                else (
+                                    "REWE displayed an add confirmation, but cart quantity was not read back; verify before checkout"
+                                    if status == "quantity_unconfirmed"
+                                    else "Add action was clicked; verify the cart before checkout"
+                                )
+                            ),
                         })
                     except Exception as exc:
                         results.append({"name": name, "status": "error", "message": str(exc)[:240]})
@@ -773,7 +789,7 @@ class ReweCatalogScraper:
                     (
                         candidate for candidate in context.pages
                         if urlsplit(candidate.url).hostname
-                        and urlsplit(candidate.url).hostname.lower().endswith("rewe.de")
+                        and urlsplit(candidate.url).hostname.lower() in {"www.rewe.de", "rewe.de"}
                     ),
                     None,
                 )
