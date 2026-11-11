@@ -20,7 +20,7 @@ from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
-from .ingredient_aliases import ingredient_aliases
+from .ingredient_aliases import ingredient_aliases, ingredient_name_matches
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -49,24 +49,24 @@ def _multilingual_catalog_search(self, ingredient):
 
     rows = self.db.query(Product).filter(or_(*clauses)).limit(120).all()
     if rows:
-        alias_set = {x.lower() for x in aliases}
+        # Search may use broad catalog columns for recall, but the actual product
+        # title must independently confirm culinary compatibility. Never trust a
+        # generic/misclassified Product.ingredient field on its own.
+        rows = [
+            row for row in rows
+            if ingredient_name_matches(
+                ingredient,
+                " ".join(str(value or "") for value in (
+                    row.name_original, row.name_normalized, row.translated_name
+                )),
+            )
+        ]
 
         def score(row):
-            fields = [
-                str(row.ingredient or "").lower(),
-                str(row.translated_name or "").lower(),
-                str(row.name_normalized or "").lower(),
-                str(row.name_original or "").lower(),
-            ]
-            best = 0
-            for alias in alias_set:
-                for field in fields:
-                    if field == alias:
-                        best = max(best, 100)
-                    elif field.startswith(alias + " ") or field.endswith(" " + alias):
-                        best = max(best, 80)
-                    elif alias in field:
-                        best = max(best, 60 if len(alias) >= 4 else 40)
+            title = " ".join(str(value or "").lower() for value in (
+                row.name_original, row.name_normalized, row.translated_name
+            ))
+            best = 100 if title else 0
             if row.price is not None:
                 best += 10
             if str(row.availability or "").lower() == "available":
@@ -242,6 +242,13 @@ async def expand_ai_recipe(request: Request):
     concept = payload.get("concept") if isinstance(payload, dict) else None
     context = payload.get("context", "") if isinstance(payload, dict) else ""
     appliances = payload.get("appliances", []) if isinstance(payload, dict) else []
+    try:
+        requested_servings = float(payload.get("servings", 2)) if isinstance(payload, dict) else 2.0
+        people = int(payload.get("people", 1)) if isinstance(payload, dict) else 1
+    except (TypeError, ValueError):
+        raise HTTPException(422, "servings and people must be numeric")
+    if not 0.1 <= requested_servings <= 12 or not 1 <= people <= 12:
+        raise HTTPException(422, "servings must be 0.1–12 and people must be 1–12")
     if not isinstance(concept, dict) or not str(concept.get("name") or "").strip():
         raise HTTPException(422, "A meal concept with a name is required")
     try:
@@ -254,7 +261,11 @@ async def expand_ai_recipe(request: Request):
         # Product matching and costing are deterministic backend work: no second Gemini call.
         db = SessionLocal()
         try:
-            requirements = main_module.consolidate([recipe], {recipe["id"]: 2})
+            # Gemini recipes use a stable two-serving ingredient baseline. Scale
+            # matching and consumed-cost calculations to the actual requested
+            # portion count (profile portion factor × people for that day).
+            recipe["base_servings"] = 2
+            requirements = main_module.consolidate([recipe], {recipe["id"]: requested_servings})
             overrides = {row.ingredient: row.product_id for row in db.query(main_module.ProductOverride).all()}
             basket = main_module.build_basket(
                 requirements,
@@ -280,10 +291,19 @@ async def expand_ai_recipe(request: Request):
                 "catalog_ready": db.query(main_module.Product).filter(main_module.Product.supermarket == "REWE").count() > 0,
                 "checkout_total": checkout_total if matched_rows else None,
                 "consumed_cost": consumed_total if matched_rows else None,
+                "servings": round(requested_servings, 2),
+                "people": people,
+                "cost_per_serving": round(consumed_total / requested_servings, 2) if matched_rows else None,
+                "cost_scope": "matched_ingredients_only",
                 "currency": "EUR",
             }
         finally:
             db.close()
+        # Normalize every nested value before history persistence and the API
+        # response. Some generated/model metadata may contain datetime objects;
+        # one such value must never make an otherwise valid recipe expansion fail.
+        recipe = json.loads(json.dumps(recipe, ensure_ascii=False, default=_json_history_default))
+        concept = json.loads(json.dumps(concept, ensure_ascii=False, default=_json_history_default))
         if concept_id:
             _upsert_recipe_history(request, concept_id, "concept", "expanded", concept, str(context or ""))
             _upsert_recipe_history(request, f"recipe:{concept_id}", "recipe", "saved", recipe, str(context or ""))
