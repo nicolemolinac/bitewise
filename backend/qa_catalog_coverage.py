@@ -21,6 +21,7 @@ from types import SimpleNamespace
 
 from app import server
 from app.database import Product, SessionLocal
+from app.rewe.scraper import package
 
 
 def _usable_catalog_candidate(product):
@@ -132,6 +133,7 @@ def main():
             for row in products
         )
         inconsistent_unit_prices = []
+        package_name_mismatches = []
         for row in products:
             try:
                 pack_price = float(row.price) if row.price is not None else None
@@ -155,6 +157,28 @@ def main():
                     "expected_price_per_unit": round(expected_unit_price, 8),
                     "relative_error": round(relative_error, 3),
                 })
+            parsed_size, parsed_unit = package(row.name_original or "")
+            if parsed_size is not None and parsed_unit:
+                stored_unit = str(row.package_unit or "").strip().lower()
+                stored_size = float(row.package_size) if row.package_size is not None else None
+                if stored_unit == "kg":
+                    stored_size = stored_size * 1000 if stored_size is not None else None
+                    stored_unit = "g"
+                elif stored_unit == "l":
+                    stored_size = stored_size * 1000 if stored_size is not None else None
+                    stored_unit = "ml"
+                elif stored_unit == "piece":
+                    stored_unit = "unit"
+                if (
+                    stored_size is None or not math.isfinite(stored_size) or stored_size <= 0
+                    or stored_unit != parsed_unit
+                    or abs(stored_size - parsed_size) / parsed_size > 0.05
+                ):
+                    package_name_mismatches.append({
+                        "id": row.id, "name": row.name_original,
+                        "stored_size": row.package_size, "stored_unit": row.package_unit,
+                        "title_size": parsed_size, "title_unit": parsed_unit,
+                    })
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         stale = sum(row.last_checked_at is None or row.last_checked_at < cutoff for row in products)
 
@@ -207,6 +231,9 @@ def main():
         print(f"Invalid package sizes/units: {invalid_packages}")
         print(f"Package size not parsed by source extractor: {unknown_package_units} (not automatically a REWE data error)")
         print(f"Price/unit inconsistencies (>15%): {len(inconsistent_unit_prices)}")
+        print(f"Package sizes disagree with explicit product-title sizes: {len(package_name_mismatches)}")
+        for row in package_name_mismatches[:30]:
+            print("PACKAGE/TITLE MISMATCH:", row)
         for row in inconsistent_unit_prices[:30]:
             print("PRICE/UNIT MISMATCH:", row)
         print(f"Availability distribution: {dict(availability)}")
