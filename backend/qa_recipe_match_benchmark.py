@@ -351,9 +351,9 @@ def main():
                         )
                     alternative_patterns = {
                         "grated cheddar cheese": (("gouda", "emmental", "gratinkase", "reibe", "gerieben", "streukase"), None),
-                        "burger buns": (("burger", "hamburger", "brioche", "brotchen", "sesam"), None),
+                        "burger buns": (("hamburgerbrot", "hamburger brot", "burgerbrot", "burger brot", "brioche", "kaiserbrot", "kaiser brot", "sesambrot", "sesam brot", "burger bun"), None),
                         "curry powder": (("curry", "currypaste", "curry paste", "garam masala", "currypulver", "kurkuma"), None),
-                        "rolled oats": (("hafer", "oat", "porridge", "muesli", "granola", "cereal"), None),
+                        "rolled oats": (("haferflocken", "hafer schmelzflocken", "oat flakes", "porridge", "muesli", "granola"), None),
                         "red cabbage": (("rotkohl", "rotkraut", "red cabbage", "weisskohl", "weisskraut", "white cabbage", "spitzkohl", "coleslaw"), None),
                     }
                     if ingredient in alternative_patterns:
