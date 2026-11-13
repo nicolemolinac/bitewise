@@ -537,7 +537,9 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     for term in substitutes:
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
-            if _curated_cross_form_substitute(ingredient, normalized, title) and category_compatible:
+            if _curated_cross_form_substitute(
+                ingredient, normalized, title + " " + normalize_text(product_category)
+            ) and category_compatible:
                 return "suggested_substitution"
             if form_compatible and category_compatible:
                 return "substitute"
