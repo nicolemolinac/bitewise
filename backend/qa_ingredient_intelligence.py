@@ -160,7 +160,15 @@ def run():
         {"form": "bread"}, "brot-cerealien-aufstriche"
     ) == "substitute"
     assert ingredient_product_match_type(
+        "burger buns", "Mühlenkraft Proteinmehl Brot & Brötchen 800g",
+        {"form": "bread"}, "kochen-backen"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
         "curry powder", "Bamboo Garden Thai Curry Paste 100g",
+        {"form": "powder"}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "curry powder", "REWE Bio Garam Masala gemahlen 30g",
         {"form": "powder"}, "oele-sossen-gewuerze"
     ) == "suggested_substitution"
     assert ingredient_product_match_type(
