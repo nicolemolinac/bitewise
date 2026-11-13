@@ -3,6 +3,11 @@
 Run from backend/: python index_rewe_semantics.py
 First run downloads the compact multilingual model; no Gemini calls are made.
 """
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
 from app.database import SessionLocal
 from app.semantic_catalog import index_rewe_products
 
