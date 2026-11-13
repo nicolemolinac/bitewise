@@ -15,7 +15,7 @@ from app.ingredient_intelligence import (
     ingredient_product_match_type,
     _category_compatible,
     _form_compatible,
-    ingredient_search_terms,
+    ingredient_search_terms as _ingredient_search_terms_fn,
     ingredient_substitution_name,
     ingredient_suggested_substitution_name,
     normalize_recipe_intelligence,
@@ -98,7 +98,7 @@ def test_common_english_ingredients_have_german_catalog_terms():
         "mayonnaise": "salatmayonnaise", "paprika powder": "paprikapulver",
     }
     for ingredient, german_term in expected.items():
-        assert german_term in ingredient_search_terms(ingredient), (
+        assert german_term in _ingredient_search_terms_fn(ingredient), (
             f"Missing German catalog term {german_term!r} for {ingredient!r}"
         )
 
@@ -160,7 +160,7 @@ def run():
     assert shredded_fallback["shredded lettuce"]["form"] == "unspecified"
     assert ingredient_product_match_type("shredded lettuce", "REWE Eisbergsalat 1 Stück") == "exact"
     assert normalize_text("weiß") == "weiss"
-    assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
+    assert "dosenmais" in _ingredient_search_terms_fn("canned corn", intelligence)
     assert ingredient_product_match_type("frozen sweet corn", "REWE Zuckermais tiefgekühlt 450g", {"form": "frozen", "aliases": ["Zuckermais tiefgekühlt"]}, "Tiefkühlkost") == "exact"
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
     assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
@@ -210,14 +210,14 @@ def run():
         "frozen french fries", "REWE Speisekartoffeln 2kg", intelligence
     ) == "suggested_substitution"
     assert ingredient_product_match_type("frozen french fries", "REWE Speisekartoffeln 2kg", intelligence, "Obst & Gemüse") == "suggested_substitution"
-    assert "rapsol" not in ingredient_search_terms("vegetable oil", intelligence)
+    assert "rapsol" not in _ingredient_search_terms_fn("vegetable oil", intelligence)
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
     rapeseed_match = ingredient_product_match_type("vegetable oil", "REWE Rapsöl 1L", intelligence)
     if rapeseed_match != "substitute":
         from app.ingredient_intelligence import _SUBSTITUTION_TERMS, _category_compatible, _form_compatible
         print("DEBUG rapeseed substitute:", {
             "result": rapeseed_match,
-            "terms": ingredient_search_terms("vegetable oil", intelligence),
+            "terms": _ingredient_search_terms_fn("vegetable oil", intelligence),
             "candidate_terms": ingredient_candidate_search_terms("vegetable oil", intelligence),
             "substitutions": _SUBSTITUTION_TERMS.get("vegetable oil"),
             "form_ok": _form_compatible("liquid", "rewe rapsol 1l", "vegetable oil"),
@@ -267,7 +267,7 @@ def run():
     if raw_chicken_match != "exact":
         print("DEBUG raw chicken:", {
             "result": raw_chicken_match,
-            "terms": ingredient_search_terms("chicken breast", chicken_profile),
+            "terms": _ingredient_search_terms_fn("chicken breast", chicken_profile),
             "form_ok": _form_compatible("fresh", "rewe hahnchenbrustfilet 400g fleisch wurst fisch", "chicken breast"),
             "category_ok": _category_compatible("chicken breast", "Fleisch-Wurst-Fisch", "rewe hahnchenbrustfilet 400g", "fresh"),
         })
@@ -304,7 +304,7 @@ def run():
     if fresh_cilantro_result != "exact":
         print("DEBUG fresh cilantro:", {
             "result": fresh_cilantro_result,
-            "terms": ingredient_search_terms("fresh cilantro", fresh_herb),
+            "terms": _ingredient_search_terms_fn("fresh cilantro", fresh_herb),
             "form_ok": _form_compatible("fresh", "koriander frische krauter", "fresh cilantro"),
             "category_ok": _category_compatible("fresh cilantro", "Frische Kräuter", "koriander", "fresh"),
         })
