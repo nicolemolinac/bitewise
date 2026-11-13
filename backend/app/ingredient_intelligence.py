@@ -202,7 +202,7 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         return False
     if form == "hard" and not any(token in title for token in ("shell", "schale", "knusprig", "crunchy", "hard taco")):
         return False
-    if form in {"powder", "pulver"} and not any(token in title for token in ("pulver", "powder", "gemahlen", "speisestarke", "maisstarke", "kartoffelstarke", "staerke", "starke")):
+    if form in {"powder", "pulver"} and not any(token in title for token in ("pulver", "powder", "gemahlen", "speisestarke", "maisstarke", "kartoffelstarke", "staerke", "starke", "gewurz", "gewurzmischung", "paprika")):
         return False
     if form in {"pre cooked", "precooked"}:
         if any(token in title for token in ("roh", "raw")):
