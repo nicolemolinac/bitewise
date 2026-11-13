@@ -118,11 +118,11 @@ def _form_compatible(form: str, title: str) -> bool:
     form = normalize_text(form)
     if form == "fresh" and any(token in title for token in ("tiefkuhl", "frozen", "konserve", "dose", "getrocknet", "gemahlen")):
         return False
-    if form in {"canned", "konserve"} and any(token in title for token in ("tiefkuhl", "frozen")):
+    if form in {"canned", "konserve"} and any(token in title for token in ("tiefkuhl", "frozen", "frisch", "fresh")):
         return False
     if form in {"grated", "gerieben"} and not any(token in title for token in ("gerieben", "geraspelt", "grated")):
         return False
-    if form == "soft" and any(token in title for token in ("chips", "nacho", "hard shell", "taco shell", "knusprig", "crunchy", "snack", "knabberartikel", "salzig")):
+    if form == "soft" and any(token in title for token in ("chips", "nacho", "hard shell", "taco shell", "knusprig", "crunchy", "snack", "knabberartikel", "salzig", "salted", "gesalzen")):
         return False
     if form == "hard" and not any(token in title for token in ("shell", "schale", "knusprig", "crunchy", "hard taco")):
         return False
