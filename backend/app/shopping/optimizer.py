@@ -2,7 +2,7 @@ import math
 from collections import defaultdict
 
 from ..ingredient_aliases import ingredient_aliases
-from ..ingredient_intelligence import validate_ingredient_unit
+from ..ingredient_intelligence import ingredient_substitution_name, validate_ingredient_unit
 
 
 STRATEGIES = {
@@ -265,7 +265,18 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         for product in raw_products:
             if product.get("ingredient_match_type") in {"semantic_candidate", "suggested_substitution"}:
                 if override_id is not None and str(product.get("id")) == str(override_id):
-                    product = {**product, "ingredient_match_type": "exact"}
+                    semantic_type = product.get("semantic_match_type")
+                    if semantic_type == "substitute":
+                        product = {
+                            **product,
+                            "ingredient_match_type": "substitute",
+                            "ingredient_substitute": ingredient_substitution_name(
+                                ingredient, product.get("name_original") or product.get("name_normalized") or "",
+                                intelligence,
+                            ),
+                        }
+                    else:
+                        product = {**product, "ingredient_match_type": "user_confirmed_semantic"}
                 else:
                     semantic_suggestions.append(product)
                     continue
@@ -350,9 +361,13 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 "Used a curated culinary substitute because an exact catalog match was not selected."
                 if selected_match_type == "substitute"
                 else (
-                    "Matched against a priced catalog product. " + chosen["unit_conversion_note"]
-                    if chosen.get("unit_conversion_note")
-                    else "Matched against a priced catalog product using compatible units."
+                    "You confirmed this semantic product suggestion. Verify that it is suitable for the recipe."
+                    if selected_match_type == "user_confirmed_semantic"
+                    else (
+                        "Matched against a priced catalog product. " + chosen["unit_conversion_note"]
+                        if chosen.get("unit_conversion_note")
+                        else "Matched against a priced catalog product using compatible units."
+                    )
                 )
             ),
             "availability_status": availability_status,
