@@ -388,7 +388,7 @@ def main():
                 price = product.get("price")
                 price_text = f"€{float(price):.2f}" if price is not None else "no price"
                 if row["match_status"] in {"matched", "substituted"}:
-                    ingredient_key = normalize_text(ingredient)
+                    ingredient_key = normalize_text(row.get("ingredient") or "")
                     title_key = normalize_text(title)
                     if ingredient_key == "chicken breast":
                         assert not any(token in title_key for token in (
