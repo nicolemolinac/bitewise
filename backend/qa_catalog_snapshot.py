@@ -16,6 +16,7 @@ os.environ["BITEWISE_REPAIR_CATALOG_SNAPSHOT"] = "true"
 from app.database import (
     AppSetting, CatalogRun, Product, SessionLocal, _auto_import_rewe_csv_snapshot,
     _snapshot_pack_pricing, _snapshot_package_size, _snapshot_package_details, _snapshot_float,
+    _repair_rewe_package_metadata_once,
 )
 
 
@@ -154,6 +155,41 @@ def main():
         ).first()
         assert toilet_paper is not None
         assert toilet_paper.package_size == 1200 and toilet_paper.package_unit == "unit"
+    finally:
+        db.close()
+
+    # Simulate a legacy row with a placeholder package size and a unit price
+    # calculated against that placeholder. The one-time migration must repair it
+    # from the matching REWE product title without changing its valid checkout price.
+    db = SessionLocal()
+    try:
+        legacy = db.query(Product).filter(
+            Product.name_original.like("Alete bewusst Kinderkeks Schoko%")
+        ).first()
+        assert legacy is not None
+        legacy.package_size = 1
+        legacy.package_unit = "unknown"
+        legacy.price_per_unit = 1.99
+        db.query(AppSetting).filter(
+            AppSetting.key == "rewe_package_metadata_repair_v2"
+        ).delete(synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
+
+    _repair_rewe_package_metadata_once()
+    db = SessionLocal()
+    try:
+        repaired = db.query(Product).filter(
+            Product.name_original.like("Alete bewusst Kinderkeks Schoko%")
+        ).first()
+        assert repaired is not None
+        assert repaired.package_size == 180 and repaired.package_unit == "g"
+        assert repaired.price is not None and abs(repaired.price - 1.99) < 0.02
+        assert repaired.price_per_unit is not None
+        assert abs(repaired.price_per_unit - (1.99 / 180)) < 1e-6
+        repair_marker = db.get(AppSetting, "rewe_package_metadata_repair_v2")
+        assert repair_marker is not None and "matched=" in repair_marker.value
     finally:
         db.close()
 
