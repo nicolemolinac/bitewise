@@ -156,6 +156,15 @@ def _contains_phrase(title: str, phrase: str) -> bool:
 
 def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     form = normalize_text(form)
+    ingredient_name = normalize_text(ingredient)
+    if ingredient_name == "butter" and any(
+        token in title for token in ("peanut butter", "erdnussbutter", "mandelbutter", "nussbutter")
+    ):
+        return False
+    if ingredient_name in {"pasta", "spaghetti", "trofie pasta"} and any(
+        token in title for token in ("udon", "ramen", "soba", "glasnudel", "reisnudel", "instant noodles")
+    ):
+        return False
     ingredient_tokens = set(normalize_text(ingredient).split())
     fresh_produce_tokens = {"garlic", "onion", "potato", "tomato", "lettuce", "cilantro", "coriander", "carrot", "olive"}
     compound_product_terms = ("wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen", "suppe", "brustfilet", "hahnchen", "chicken", "garnelen", "shrimp", "tempeh", "mettwurst", "pesto", "brot", "bread", "butter", "aufstrich")
@@ -241,7 +250,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     }
     sauces = {
         "tomato passata", "tomato paste", "fresh basil pesto", "mayonnaise", "soy sauce", "salsa",
-        "caesar dressing", "vegetable stock", "coconut milk", "honey",
+        "caesar dressing", "vegetable stock", "coconut milk",
     }
 
     if name in produce:
@@ -284,10 +293,11 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         return category_key in allowed
     if name in sauces:
         allowed = {"oele-sossen-gewuerze", "fertiggerichte-konserven"}
-        if name == "salsa":
-            allowed.add("suesses-salziges")
         if name == "honey":
-            allowed.update({"brot-cerealien-aufstriche", "kochen-backen"})
+            return (
+                category_key in {"brot-cerealien-aufstriche", "kochen-backen", "suesses-salziges"}
+                and not any(token in title_key for token in ("senfsauce", "honey mustard", "honig senf", "riegel", "muesli", "snack"))
+            )
         return category_key in allowed
     return True
 
@@ -370,8 +380,15 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
 def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = None) -> dict:
     name = normalize_text(ingredient)
     normalized_unit = normalize_text(unit)
-    family = next((key for key, hints in _FAMILY_HINTS.items()
+    bell_pepper_names = {
+        "bell pepper", "red bell pepper", "green bell pepper", "yellow bell pepper",
+        "red pepper", "green pepper", "yellow pepper",
+    }
+    family = (
+        "produce" if name in bell_pepper_names
+        else next((key for key, hints in _FAMILY_HINTS.items()
                    if any(normalize_text(hint) in name.split() for hint in hints)), None)
+    )
     if family is None:
         return {"valid": True, "family": None, "reason": None}
     allowed = set(_UNIT_FAMILIES[family])
