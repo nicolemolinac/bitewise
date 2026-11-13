@@ -69,6 +69,22 @@ _SUBSTITUTION_TERMS = {
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
 }
 
+_PROPOSED_SUBSTITUTION_SYNONYMS = {
+    "rapeseed oil": ("rapsol", "rapsoel", "canola oil", "rapeseed oil"),
+    "sunflower oil": ("sonnenblumenol", "sonnenblumenoel", "sunflower oil"),
+    "olive oil": ("olivenol", "olivenoel", "olive oil"),
+    "fresh potatoes": ("speisekartoffeln", "kartoffeln", "fresh potatoes"),
+    "coriander leaves": ("koriandergrun", "korianderblatter", "coriander leaves"),
+}
+
+
+def _proposed_term_visible(title: str, term: str) -> bool:
+    normalized = normalize_text(term)
+    if normalized and _contains_phrase(title, normalized):
+        return True
+    synonyms = _PROPOSED_SUBSTITUTION_SYNONYMS.get(normalized, ())
+    return any(_contains_phrase(title, normalize_text(value)) for value in synonyms)
+
 # Ingredient-family unit expectations. Unknown families remain permissive.
 _UNIT_FAMILIES = {
     "oil": {"ml", "l", "tbsp", "tsp"},
@@ -339,7 +355,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         proposed = [proposed]
     for term in proposed if isinstance(proposed, list) else []:
         normalized = normalize_text(term)
-        if normalized and _contains_phrase(title, normalized) and form_compatible and category_compatible:
+        if normalized and _proposed_term_visible(title, normalized) and form_compatible and category_compatible:
             return "suggested_substitution"
     return None
 
@@ -364,7 +380,7 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
         proposed = [proposed]
     for term in sorted(proposed if isinstance(proposed, list) else [], key=lambda value: -len(normalize_text(value))):
         normalized = normalize_text(term)
-        if normalized and _contains_phrase(title, normalized):
+        if normalized and _proposed_term_visible(title, normalized):
             return str(term)
     return None
 
