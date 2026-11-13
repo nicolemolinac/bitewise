@@ -267,11 +267,14 @@ export default function AppV3(){
       resolved.push(...(photos?.photos||[]));
     }
     const enriched=fresh.map((meal,index)=>{const photo=resolved[index]||{};return {...meal,image:photo.image||meal.image||'',image_page:photo.image_page||meal.image_page||'',photographer:photo.photographer||meal.photographer||''};});
+    // Refresh the DB snapshot because a user may have expanded a concept while
+    // this asynchronous Google Images search was still running.
+    const historySnapshot=(await api('/recipe-history').catch(()=>({records:history}))).records||history;
     const updates:any[]=historyRows.map((row,index)=>{const meal=enriched[index];return row&&meal?.image?{record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',meal}:null;}).filter(Boolean);
     const photosByConcept=new Map(enriched.filter(meal=>meal.id&&meal.image).map(meal=>[meal.id,meal]));
     // If a user picks an idea before Google Images finishes, the recipe row may
     // already exist without a photo. Propagate the concept photo to that row too.
-    history.forEach((row:any)=>{
+    historySnapshot.forEach((row:any)=>{
       if(row.record_type!=='recipe'||row.meal?.image)return;
       const sourceId=String(row.meal?.source_concept_id||String(row.record_key||'').replace(/^recipe:/,''));
       const photo=photosByConcept.get(sourceId);
