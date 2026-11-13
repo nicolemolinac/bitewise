@@ -153,7 +153,7 @@ def run():
     assert ingredient_product_match_type(
         "red cabbage", "REWE Weißkohl frisch 1 Stück",
         {"form": "fresh"}, "obst-gemuese"
-    ) == "suggested_substitution"
+    ) == "substitute"
     assert ingredient_product_match_type(
         "burger buns", "REWE Weizenbrötchen 6 Stück",
         {"form": "bread"}, "brot-cerealien-aufstriche"
