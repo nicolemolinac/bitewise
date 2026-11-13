@@ -2,7 +2,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base, Product, SessionLocal
+from app.database import Base, Product, ProductSemanticEmbedding, SessionLocal
 from app.catalog_intelligence import search_catalog_opportunities
 from app import semantic_catalog
 
@@ -48,7 +48,7 @@ def run():
         real_session.close()
 
     engine = create_engine("sqlite://")
-    Base.metadata.create_all(engine, tables=[Product.__table__])
+    Base.metadata.create_all(engine, tables=[Product.__table__, ProductSemanticEmbedding.__table__])
     session = sessionmaker(bind=engine)()
     try:
         session.add_all([
