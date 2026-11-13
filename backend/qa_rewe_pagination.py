@@ -75,6 +75,40 @@ def main():
         )
         browser_pages += len(browser_result)
 
+    # Repeated content and the hard page cap must fail closed, not masquerade as
+    # a complete category (which could trigger destructive stale-product cleanup).
+    duplicate_scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
+    duplicate_scraper.session = type("DuplicateSession", (), {
+        "get": lambda self, url, **kwargs: FakeResponse(product_page(urlsplit(url).path, 1))
+    })()
+    try:
+        list(duplicate_scraper.pages(REWE_CATEGORY_URLS[0]))
+        raise AssertionError("Repeated pagination content must raise")
+    except RuntimeError as exc:
+        assert "repeated page content" in str(exc).lower()
+
+    import app.rewe.scraper as scraper_module
+    original_limit = scraper_module.MAX_CATEGORY_PAGES
+    try:
+        scraper_module.MAX_CATEGORY_PAGES = 2
+        capped_scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
+        capped_scraper.session = FakeSession()
+        try:
+            list(capped_scraper.pages(REWE_CATEGORY_URLS[0]))
+            raise AssertionError("Hitting the pagination cap with pages pending must raise")
+        except RuntimeError as exc:
+            assert "safety limit" in str(exc).lower()
+
+        browser_duplicate = ReweCatalogScraper(delay=0, browser_enabled=False)
+        browser_duplicate._browser_category_html = lambda page, url: product_page(urlsplit(url).path, 1)
+        try:
+            list(browser_duplicate._browser_category_pages(object(), REWE_CATEGORY_URLS[0]))
+            raise AssertionError("Browser repeated pagination content must raise")
+        except RuntimeError as exc:
+            assert "repeated page content" in str(exc).lower()
+    finally:
+        scraper_module.MAX_CATEGORY_PAGES = original_limit
+
     assert len(REWE_CATEGORY_URLS) == 17, (
         f"Expected 17 configured category URLs, found {len(REWE_CATEGORY_URLS)}"
     )
