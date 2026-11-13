@@ -64,6 +64,8 @@ def package(text: str):
         return None, None
     multiplier = int(match.group(1) or 1)
     amount = float(match.group(2).replace(",", ".")) * multiplier
+    if not math.isfinite(amount) or amount <= 0:
+        return None, None
     unit = match.group(3).lower()
     if unit == "kg":
         return amount * 1000, "g"
