@@ -38,13 +38,17 @@ class FakeSession:
 
 
 def compact_page(category_path: str, page_number: int) -> str:
-    product_id = f"{category_path.rsplit('/', 1)[-1]}-long-{page_number}"
-    # Mirrors REWE's compact pagination strip: 1, 2, 3, …, last page.
-    links = "".join(f'<a href="?page={n}">{n}</a>' for n in (1, 2, 3, 139))
-    return (
-        f'<html><body><article><a href="/shop/p/{product_id}">'
-        f'Product {product_id}</a></article><nav>{links}</nav></body></html>'
+    category = category_path.rsplit("/", 1)[-1]
+    # Mirrors a 5,527-product REWE category: 40 cards on full pages and 7 on
+    # the final page, with a compact pager showing 1, 2, 3, …, 139.
+    card_count = 7 if page_number == 139 else 40
+    products = "".join(
+        f'<article><a href="/shop/p/{category}-long-{page_number}-{i}">'
+        f'Product {page_number}-{i}</a></article>'
+        for i in range(card_count)
     )
+    links = "".join(f'<a href="?page={n}">{n}</a>' for n in (1, 2, 3, 139))
+    return f'<html><body><p>5.527 Produkte</p>{products}<nav>{links}</nav></body></html>'
 
 
 class LongPaginationSession:
