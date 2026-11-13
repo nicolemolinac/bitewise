@@ -220,6 +220,43 @@ def run():
     assert ingredient_product_match_type("tortillas", "Chio Tortillas Original Salted Snacks", soft_form) is None
     assert ingredient_product_match_type("tortillas", "Old El Paso Weizentortillas 320g", soft_form) == "exact"
     assert ingredient_product_match_type("hard taco shells", "Chio Tortillas Original Salted Snacks", hard_form) is None
+    # Similar words must not turn prepared foods into raw ingredients.
+    oil_profile = {"vegetable oil": {"canonical": "vegetable oil", "form": "liquid", "aliases": ["Sonnenblumenöl", "Rapsöl"]}}
+    assert ingredient_product_match_type(
+        "vegetable oil", "Thomy Delikatess-Mayonnaise mit reinem Sonnenblumenöl 100ml",
+        oil_profile, "Öle, Soßen & Gewürze"
+    ) is None
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Rapsöl 1L", oil_profile, "Öle, Soßen & Gewürze"
+    ) == "exact"
+
+    chicken_profile = {"chicken breast": {"canonical": "chicken breast", "form": "fresh", "aliases": ["Hähnchenbrustfilet"]}}
+    assert ingredient_product_match_type(
+        "chicken breast", "ja! Delikatess-Hähnchenbrustfilet gepökelt, gebacken 100g",
+        chicken_profile, "Fleisch-Wurst-Fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "REWE Hähnchenbrustfilet 400g",
+        chicken_profile, "Fleisch-Wurst-Fisch"
+    ) == "exact"
+
+    fish_profile = {"white fish fillet": {"canonical": "white fish fillet", "form": "fresh", "aliases": ["Alaska Seelachs"]}}
+    assert ingredient_product_match_type(
+        "white fish fillet", "Nadler Alaska Seelachs Mus 125g",
+        fish_profile, "Fleisch-Wurst-Fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "white fish fillet", "Alaska Seelachs Filet 400g",
+        fish_profile, "Fleisch-Wurst-Fisch"
+    ) == "exact"
+
+    assert ingredient_product_match_type(
+        "butter", "BE-KIND Protein Crunchy Peanut Butter 50g", None, "Käse-Eier-Molkerei"
+    ) is None
+    assert ingredient_product_match_type(
+        "salsa", "Alnatura Bio Mais Röllchen Milde Salsa 125g", None, "Süßes-Salziges"
+    ) is None
+
     fresh_herb = {"fresh cilantro": {"canonical": "fresh cilantro", "name_de": "Frischer Koriander", "form": "fresh", "aliases": ["Koriander"]}}
     assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Gewürze") is None
     fresh_cilantro_result = ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Frische Kräuter")
