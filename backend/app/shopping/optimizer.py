@@ -306,8 +306,16 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
 
         if not candidates:
             base.update({
-                "match_reason": "No available catalog product with a compatible unit and a real price was found.",
-                "why": "No compatible priced REWE product found.",
+                "semantic_suggestions": semantic_suggestions[:5],
+                "match_reason": (
+                    "No high-confidence match was found. Semantic product suggestions are shown for your review."
+                    if semantic_suggestions else
+                    "No available catalog product with a compatible unit and a real price was found."
+                ),
+                "why": (
+                    "Review the possible products before selecting one."
+                    if semantic_suggestions else "No compatible priced REWE product found."
+                ),
             })
             output.append(base)
             continue
