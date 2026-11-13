@@ -255,11 +255,19 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         unit = _normal_unit(requirement["unit"])
         pantry_row = pantry.get(ingredient)
         pantry_used = 0.0
-        if pantry_row:
-            converted_pantry, _ = _convert_ingredient_quantity(pantry_row.get("quantity", 0), pantry_row.get("unit"), unit, ingredient)
-            if converted_pantry is not None:
-                pantry_used = min(requested, max(0.0, converted_pantry))
-        needed = max(0.0, requested - pantry_used)
+        valid_requested = math.isfinite(requested) and requested >= 0
+        if valid_requested and pantry_row:
+            try:
+                pantry_quantity = float(pantry_row.get("quantity", 0))
+            except (TypeError, ValueError):
+                pantry_quantity = float("nan")
+            if math.isfinite(pantry_quantity) and pantry_quantity >= 0:
+                converted_pantry, _ = _convert_ingredient_quantity(
+                    pantry_quantity, pantry_row.get("unit"), unit, ingredient
+                )
+                if converted_pantry is not None and math.isfinite(converted_pantry):
+                    pantry_used = min(requested, max(0.0, converted_pantry))
+        needed = max(0.0, requested - pantry_used) if valid_requested else 0.0
 
         base = {
             **requirement,
@@ -286,7 +294,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "selected_by_user": False,
         }
 
-        if not math.isfinite(requested) or requested < 0:
+        if not valid_requested:
             base.update({
                 "match_reason": "Recipe quantity is invalid (must be a finite, non-negative number).",
                 "why": "Correct the ingredient quantity before shopping.",
