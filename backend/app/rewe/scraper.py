@@ -195,6 +195,31 @@ def _cart_add_status(confirmation_seen: bool, packs_requested: int) -> str:
     return "added" if int(packs_requested) == 1 else "quantity_unconfirmed"
 
 
+def _product_card_container(anchor, base_url: str):
+    """Find the nearest ancestor containing one product and its price/pack details."""
+    best = anchor
+    for parent in anchor.parents:
+        if parent.name not in {"article", "li", "div"}:
+            continue
+        product_urls = {
+            _canonical_product_url(link.get("href", ""), base_url)
+            for link in parent.select('a[href*="/shop/p/"]')
+        }
+        product_urls.discard(None)
+        if len(product_urls) != 1:
+            continue
+        best = parent
+        text = " ".join(parent.stripped_strings)
+        if re.search(
+            r"(?:€|EUR|Euro)\s*\d+[,.]\d{2}|\d+[,.]\d{2}\s*(?:€|EUR|Euro)|"
+            r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stk\.?|stück|st\.)\s*=",
+            text,
+            re.I,
+        ):
+            return parent
+    return best
+
+
 def _image_url_from_card(box, anchor, base_url: str):
     """Read the real product image from REWE cards, including lazy-loaded variants."""
     nodes = []
@@ -668,7 +693,7 @@ class ReweCatalogScraper:
             href = _canonical_product_url(anchor.get("href", ""), url)
             if not href:
                 continue
-            box = anchor.find_parent(["article", "li"]) or anchor.find_parent("div") or anchor
+            box = _product_card_container(anchor, url)
             raw = " ".join(box.stripped_strings)
             visible = " ".join(anchor.stripped_strings)
             if len(raw) < 4:
@@ -726,8 +751,28 @@ class ReweCatalogScraper:
             # Merge complementary data instead of discarding a later image-bearing card.
             merged = dict(current)
             for key, value in product.items():
-                if value is not None and (merged.get(key) is None or merged.get(key) == ""):
+                if value is None or value == "":
+                    continue
+                if merged.get(key) is None or merged.get(key) == "":
                     merged[key] = value
+                    continue
+                if key in {"package_size", "package_unit"} and (
+                    str(merged.get("package_unit") or "").strip().lower() in {"", "unknown"}
+                    and str(product.get("package_unit") or "").strip().lower() not in {"", "unknown"}
+                ):
+                    merged[key] = value
+                    continue
+                if key == "price":
+                    try:
+                        old_price = float(merged.get("price"))
+                        new_price = float(value)
+                    except (TypeError, ValueError):
+                        old_price, new_price = float("nan"), float("nan")
+                    if (
+                        (not math.isfinite(old_price) or old_price <= 0)
+                        and math.isfinite(new_price) and new_price > 0
+                    ):
+                        merged[key] = value
             unique[dedupe_key] = merged
         return list(unique.values())
 
