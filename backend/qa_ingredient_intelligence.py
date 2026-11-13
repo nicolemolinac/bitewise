@@ -87,7 +87,7 @@ def run():
     assert ingredient_product_match_type(
         "frozen french fries", "REWE Speisekartoffeln 2kg", intelligence
     ) == "substitute"
-    assert ingredient_product_match_type("frozen french fries", "REWE Speisekartoffeln 2kg", intelligence, "Obst & Gemüse") == "substitute"
+    assert ingredient_product_match_type("frozen french fries", "REWE Speisekartoffeln 2kg", intelligence, "Obst & Gemüse") == "suggested_substitution"
     assert ingredient_product_match_type("vegetable oil", "REWE Rapsöl 1L", intelligence) == "substitute"
     assert ingredient_product_match_type("vegetable oil", "REWE Olivenöl 1L", intelligence) is None
     assert ingredient_substitution_name(
@@ -169,7 +169,7 @@ def run():
         "id": 14, "name_original": "REWE Speisekartoffeln 2kg",
         "package_size": 2, "package_unit": "kg", "price": 3.49,
         "availability": "available", "ingredient_match_type": "semantic_candidate",
-        "semantic_match_type": "substitute",
+        "semantic_match_type": "suggested_substitution",
     }]})
     potato_requirement = [{
         "ingredient": "frozen french fries", "quantity": 300, "unit": "g",
