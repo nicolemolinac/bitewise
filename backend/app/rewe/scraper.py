@@ -75,16 +75,30 @@ def package(text: str):
 
 
 def _displayed_unit_price(text: str):
-    """Read REWE's reference price (€/kg or €/l), not the checkout pack price."""
+    """Return the normalized price per g, ml or piece from a REWE reference price."""
     match = re.search(
-        r"\b1\s*(kg|l)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
+        r"\b(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|stk\.?|stück|st\.)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
         text,
         re.I,
     )
     if not match:
         return None, None
-    amount = float(match.group(2).replace(",", "."))
-    return amount, "g" if match.group(1).lower() == "kg" else "ml"
+    reference_quantity = float(match.group(1).replace(",", "."))
+    amount = float(match.group(3).replace(",", "."))
+    raw_unit = match.group(2).lower()
+    if raw_unit == "kg":
+        reference_quantity *= 1000
+        unit = "g"
+    elif raw_unit == "l":
+        reference_quantity *= 1000
+        unit = "ml"
+    elif raw_unit in {"g", "ml"}:
+        unit = raw_unit
+    else:
+        unit = "unit"
+    if not math.isfinite(reference_quantity) or reference_quantity <= 0 or amount <= 0:
+        return None, None
+    return amount / reference_quantity, unit
 
 
 def price_details(text: str, package_size=None, package_unit=None):
@@ -110,7 +124,7 @@ def price_details(text: str, package_size=None, package_unit=None):
         # before looking for a separate explicit pack price; if none exists,
         # leave the product unpriced rather than inventing a 1,000x cost.
         checkout_text = re.sub(
-            r"\b1\s*(?:kg|l)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+            r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stk\.?|stück|st\.)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
             " ",
             text,
             flags=re.I,
