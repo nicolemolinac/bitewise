@@ -13,7 +13,12 @@ from .database import (
     SessionLocal,
     ShoppingState,
 )
-from .rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper
+from .rewe.scraper import (
+    REWE_CATEGORY_MINIMUM_PRODUCTS,
+    REWE_CATEGORY_URLS,
+    ReweCatalogScraper,
+    category_slug_from_url,
+)
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
@@ -22,6 +27,31 @@ logger = logging.getLogger(__name__)
 def _setting(db, key: str, default: str) -> str:
     item = db.get(AppSetting, key)
     return item.value if item else default
+
+
+def _is_complete_healthy_rewe_report(report: dict) -> bool:
+    """Only reconcile deletions after every category is complete and sufficiently populated."""
+    if (
+        report.get("status") != "healthy"
+        or report.get("categories_failed", 0) != 0
+        or report.get("categories_processed", 0) != len(REWE_CATEGORY_URLS)
+        or report.get("categories_successful", 0) != len(REWE_CATEGORY_URLS)
+    ):
+        return False
+    counts = report.get("category_product_counts")
+    if not isinstance(counts, dict):
+        return False
+    expected_categories = {category_slug_from_url(url) for url in REWE_CATEGORY_URLS}
+    if not expected_categories.issubset(counts):
+        return False
+    for category, minimum in REWE_CATEGORY_MINIMUM_PRODUCTS.items():
+        try:
+            count = int(counts.get(category, 0))
+        except (TypeError, ValueError):
+            return False
+        if count < minimum:
+            return False
+    return True
 
 
 def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: datetime) -> None:
@@ -190,12 +220,7 @@ def rewe_refresh_safe():
 
         report = ReweCatalogScraper().run(upsert, postcode)
 
-        complete_healthy = (
-            report.get("status") == "healthy"
-            and report.get("categories_failed", 0) == 0
-            and report.get("categories_processed", 0) == len(REWE_CATEGORY_URLS)
-            and report.get("categories_successful", 0) == len(REWE_CATEGORY_URLS)
-        )
+        complete_healthy = _is_complete_healthy_rewe_report(report)
 
         reconciliation = {
             "removed": 0,
