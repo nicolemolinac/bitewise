@@ -75,6 +75,8 @@ def run():
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
         assert not any("Hundefutter" in name for name in pizza_names), pizza_names
         assert all(row["convenience_type"] in {"ready_meal", "meal_kit", "ready_to_cook", "prepared_component", "catalog_product"} for row in pizza["products"])
+        pizza_types = {row["convenience_type"] for row in pizza["products"]}
+        assert {"meal_kit", "ready_to_cook"}.issubset(pizza_types), pizza_types
 
         chili = search_catalog_opportunities(session, "chili con carne", limit=10)
         chili_names = [row["name_original"] for row in chili["products"]]
