@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import time
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from urllib.parse import parse_qs, urljoin, urlsplit, urlunsplit
 
@@ -47,6 +48,11 @@ HEADERS = {
     "Pragma": "no-cache",
     "Upgrade-Insecure-Requests": "1",
 }
+
+
+def _round_money(value) -> float:
+    """Round checkout prices to cents using retail half-up rounding."""
+    return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def normalize(value: str) -> str:
@@ -194,7 +200,8 @@ def price_details(text: str, package_size=None, package_unit=None):
         and size is not None and math.isfinite(size) and size > 0
         and package_unit == reference_unit
     ):
-        return round(reference_price * size, 2), reference_price
+        pack_total = Decimal(str(reference_price)) * Decimal(str(size))
+        return float(pack_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)), reference_price
     return None, None
 
 
