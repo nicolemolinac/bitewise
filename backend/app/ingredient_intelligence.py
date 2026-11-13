@@ -116,8 +116,13 @@ def _contains_phrase(title: str, phrase: str) -> bool:
     return bool(phrase and (" " + phrase + " ") in (" " + title + " "))
 
 
-def _form_compatible(form: str, title: str) -> bool:
+def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     form = normalize_text(form)
+    ingredient_tokens = set(normalize_text(ingredient).split())
+    fresh_produce_tokens = {"garlic", "onion", "potato", "tomato", "lettuce", "cilantro", "coriander", "carrot", "olive"}
+    compound_product_terms = ("wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen", "suppe", "brustfilet", "hahnchen", "chicken", "garnelen", "shrimp", "tempeh", "mettwurst", "pesto", "brot", "bread", "butter", "aufstrich")
+    if ingredient_tokens & fresh_produce_tokens and any(token in title for token in compound_product_terms):
+        return False
     if form == "fresh" and any(token in title for token in ("tiefkuhl", "frozen", "konserve", "dose", "getrocknet", "gemahlen", "gewurze", "gewurz", "spices", "seasonings")):
         return False
     if form in {"frozen", "tiefkuhl"} and any(token in title for token in ("chips", "snack", "knabberartikel")):
@@ -142,7 +147,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     if not title:
         return None
     profile = _profile_lookup(intelligence, ingredient)
-    if not _form_compatible(str(profile.get("form") or ""), title + " " + normalize_text(product_category)):
+    if not _form_compatible(str(profile.get("form") or ""), title + " " + normalize_text(product_category), ingredient):
         return None
     terms = ingredient_search_terms(ingredient, intelligence)
     if any(_contains_phrase(title, term) for term in terms):
