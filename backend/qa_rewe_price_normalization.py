@@ -1,6 +1,6 @@
 """Regression QA for REWE package prices and multi-pack quantity normalization."""
 from bs4 import BeautifulSoup
-from app.rewe.scraper import _json_ld_products, _offer_availability, package, price_details
+from app.rewe.scraper import _json_ld_products, _offer_availability, package, price_details, ReweCatalogScraper
 
 
 def main():
@@ -149,6 +149,26 @@ def main():
     )
     milk_rows = [row for row in near_match if row["name_original"] == "Milk"]
     assert len(milk_rows) == 1 and milk_rows[0]["product_url"] is None
+
+    # Nested title wrappers must not hide the product's own pack size and price.
+    nested_card_html = """<html><body><div class="product-grid">
+      <div class="product-card">
+        <div class="product-title"><a href="/shop/p/rice/123">Rice</a></div>
+        <div class="product-details"><span>500g</span><span>1,79 €</span></div>
+      </div>
+      <div class="product-card">
+        <div class="product-title"><a href="/shop/p/milk/456">Milk</a></div>
+        <div class="product-details"><span>1L</span><span>0,99 €</span></div>
+      </div>
+    </div></body></html>"""
+    extracted_cards = ReweCatalogScraper(delay=0, browser_enabled=False).extract(
+        nested_card_html, "https://www.rewe.de/shop/c/test/", "Lebensmittel"
+    )
+    by_name = {row["name_original"]: row for row in extracted_cards}
+    assert by_name["Rice"]["package_size"] == 500 and by_name["Rice"]["package_unit"] == "g"
+    assert by_name["Rice"]["price"] == 1.79
+    assert by_name["Milk"]["package_size"] == 1000 and by_name["Milk"]["package_unit"] == "ml"
+    assert by_name["Milk"]["price"] == 0.99
 
     print("REWE price QA PASS: €/kg and €/l converted to pack prices; multipacks normalized")
 
