@@ -349,9 +349,8 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
     if isinstance(proposed, str):
         proposed = [proposed]
     for term in sorted(proposed if isinstance(proposed, list) else [], key=lambda value: -len(normalize_text(value))):
-        if isinstance(term, str) and any(
-            _contains_phrase(title, candidate) for candidate in ingredient_search_terms(term)
-        ):
+        normalized = normalize_text(term)
+        if normalized and _contains_phrase(title, normalized):
             return str(term)
     return None
 
