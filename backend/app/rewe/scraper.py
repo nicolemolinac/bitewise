@@ -54,7 +54,7 @@ def normalize(value: str) -> str:
 
 
 def _reference_price_pattern():
-    return r"\b(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?"
+    return r"\b(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?"
 
 
 def package(text: str):
@@ -105,6 +105,8 @@ def _displayed_unit_price(text: str):
     elif unit == "l":
         quantity *= 1000
         unit = "ml"
+    elif unit in {"stück", "stk", "stk.", "st."}:
+        unit = "unit"
     if quantity <= 0:
         return None, None
     return amount / quantity, unit
