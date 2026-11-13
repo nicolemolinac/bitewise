@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+import math
 
 from fastapi import APIRouter, HTTPException
 
@@ -21,6 +22,75 @@ logger = logging.getLogger(__name__)
 def _setting(db, key: str, default: str) -> str:
     item = db.get(AppSetting, key)
     return item.value if item else default
+
+
+def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: datetime) -> None:
+    """Merge a partial REWE card without erasing previously verified product facts."""
+    raw_price = data.get("price")
+    try:
+        incoming_price = float(raw_price) if raw_price is not None else None
+    except (TypeError, ValueError):
+        incoming_price = None
+    valid_price = incoming_price is not None and math.isfinite(incoming_price) and incoming_price > 0
+
+    raw_size = data.get("package_size")
+    try:
+        incoming_size = float(raw_size) if raw_size is not None else None
+    except (TypeError, ValueError):
+        incoming_size = None
+    incoming_unit = str(data.get("package_unit") or "").strip().lower()
+    valid_package = (
+        incoming_size is not None and math.isfinite(incoming_size) and incoming_size > 0
+        and incoming_unit not in {"", "unknown"}
+    )
+
+    if valid_price and existing.price is not None:
+        try:
+            previous_price = float(existing.price)
+            if math.isfinite(previous_price) and previous_price > 0 and previous_price != incoming_price:
+                existing.last_price = previous_price
+        except (TypeError, ValueError):
+            pass
+
+    # A new price with no parsed pack size belongs to the existing SKU/package;
+    # keep its known size and derive a coherent unit price from that size.
+    for key, value in data.items():
+        if not hasattr(existing, key):
+            continue
+        if key in {"image_url", "product_url", "brand", "category"} and not value:
+            continue
+        if key == "price":
+            if not valid_price:
+                continue
+            setattr(existing, key, incoming_price)
+            continue
+        if key == "price_per_unit":
+            if valid_price and value is not None:
+                try:
+                    unit_price = float(value)
+                except (TypeError, ValueError):
+                    unit_price = None
+                if unit_price is not None and math.isfinite(unit_price) and unit_price > 0:
+                    existing.price_per_unit = unit_price
+            continue
+        if key in {"package_size", "package_unit"}:
+            # Never replace a known mass/volume pack with the scraper's
+            # 1 x unknown fallback when the card did not expose its size.
+            if valid_package and (valid_price or existing.price is None):
+                setattr(existing, key, incoming_size if key == "package_size" else incoming_unit)
+            continue
+        setattr(existing, key, value)
+
+    if valid_price and data.get("price_per_unit") is None:
+        try:
+            known_size = float(existing.package_size)
+            if math.isfinite(known_size) and known_size > 0:
+                existing.price_per_unit = incoming_price / known_size
+        except (TypeError, ValueError):
+            pass
+    existing.postcode_context = current_postcode
+    existing.last_seen_at = now
+    existing.last_checked_at = now
 
 
 def _remove_stale_rewe_products(db, seen_external_ids: set[str], before_count: int):
@@ -96,19 +166,7 @@ def rewe_refresh_safe():
             now = datetime.utcnow()
 
             if existing:
-                incoming_price = data.get("price")
-                if existing.price != incoming_price:
-                    existing.last_price = existing.price
-                for key, value in data.items():
-                    if not hasattr(existing, key):
-                        continue
-                    # Missing fields from a partial card must never erase saved catalog data.
-                    if key in {"image_url", "product_url"} and not value:
-                        continue
-                    setattr(existing, key, value)
-                existing.postcode_context = current_postcode
-                existing.last_seen_at = now
-                existing.last_checked_at = now
+                _merge_rewe_product_data(existing, data, current_postcode, now)
                 db.flush()
                 return False
 
