@@ -259,9 +259,17 @@ def main():
             "kaese-eier-molkerei": categories.get("kaese-eier-molkerei", 0),
             "tiefkuehlkost": categories.get("tiefkuehlkost", 0),
         }
+        department_minimums = {
+            "brot-cerealien-aufstriche": 1000,
+            "fleisch-wurst-fisch": 1000,
+            "obst-gemuese": 1000,
+            "kaese-eier-molkerei": 1500,
+            "tiefkuehlkost": 1000,
+        }
         incomplete_departments = {
-            category: count for category, count in large_departments.items()
-            if count < 1000
+            category: {"count": count, "minimum": department_minimums[category]}
+            for category, count in large_departments.items()
+            if count < department_minimums[category]
         }
         if incomplete_departments:
             print(
