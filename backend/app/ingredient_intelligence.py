@@ -212,26 +212,27 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         token in title for token in ("udon", "ramen", "soba", "glasnudel", "reisnudel", "instant noodles")
     ):
         return False
-    if ingredient_name in {
+    rice_ingredient_names = {
         "rice", "white rice", "brown rice", "basmati rice", "jasmine rice",
         "long grain rice", "short grain rice", "wild rice", "risotto rice",
-    } and "tilda" in title and "250g" in title:
-        # REWE's Tilda 250g pouches are microwave-ready rice meals/sides.
-        return False
-    } and any(
-        token in title for token in (
-            "express", "mikrowelle", "microwave", "gekocht", "vorgekocht",
-            "ready to eat", "vorgegart", "vorgedampft", "gedampft", "steamed", "2 minuten",
-            "vegetable rice", "golden vegetable",
-            "kuko", "kurzkoch", "reis fit basmati", "tilda sticky rice",
-            "fried rice", "egg fried", "risotto steinpilz", "djuvec",
-            "griechischer reis", "tomatenreis",
-            "gemuesereis", "gemuese reis", "gemuese", "tomaten", "curry",
-            "curryreis", "gewuerz", "pikant", "mediterran", "oriental",
-            "mexikanisch", "mexiko", "bowl",
-        )
-    ):
-        return False
+    }
+    if ingredient_name in rice_ingredient_names:
+        if "tilda" in title and "250g" in title:
+            # REWE's Tilda 250g pouches are microwave-ready rice meals/sides.
+            return False
+        if any(
+            token in title for token in (
+                "express", "mikrowelle", "microwave", "gekocht", "vorgekocht",
+                "ready to eat", "vorgegart", "vorgedampft", "gedampft", "steamed", "2 minuten",
+                "vegetable rice", "golden vegetable", "kuko", "kurzkoch",
+                "reis fit basmati", "tilda sticky rice", "fried rice", "egg fried",
+                "risotto steinpilz", "djuvec", "griechischer reis", "tomatenreis",
+                "gemuesereis", "gemuese reis", "gemuese", "tomaten", "curry",
+                "curryreis", "gewuerz", "pikant", "mediterran", "oriental",
+                "mexikanisch", "mexiko", "bowl",
+            )
+        ):
+            return False
     ingredient_tokens = set(normalize_text(ingredient).split())
     fresh_produce_tokens = {"garlic", "onion", "potato", "tomato", "lettuce", "cilantro", "coriander", "carrot", "olive"}
     compound_product_terms = ("wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen", "suppe", "brustfilet", "hahnchen", "chicken", "garnelen", "shrimp", "tempeh", "mettwurst", "pesto", "brot", "bread", "butter", "aufstrich")
