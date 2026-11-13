@@ -35,7 +35,7 @@ _BASE_TERMS = {
     "cumin": ("cumin", "kreuzkummel", "kreuzkuemmel", "kreuz kummel"),
     "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemuse bruhe", "bruhwurfel gemuse", "bruhwuerfel gemuse", "bruhwurfel"),
     "cooking cream": ("cooking cream", "kochcreme", "kochsahne", "sahne zum kochen"),
-    "burger buns": ("burger buns", "burger bun", "brioche burger buns", "brioche buns", "hamburger brotchen", "hamburgerbrotchen", "hamburgerbroetchen", "burger brotchen", "burgerbrotchen", "burgerbroetchen", "sesam brotchen", "sesambrötchen", "sesambroetchen", "brötchen", "broetchen"),
+    "burger buns": ("burger buns", "burger bun", "brioche burger buns", "brioche buns", "hamburger brotchen", "hamburgerbrotchen", "hamburgerbroetchen", "burger brotchen", "burgerbrotchen", "burgerbroetchen", "sesam brotchen", "sesambrötchen", "sesambroetchen", "weizen brotchen", "weizen broetchen", "brötchen", "broetchen"),
     "caesar dressing": ("caesar dressing", "caesar salat dressing", "caesar sauce", "salatdressing caesar"),
     "croutons": ("croutons", "brotcroutons", "croûtons"),
     "canned chopped tomatoes": ("canned chopped tomatoes", "stuckige tomaten", "tomaten stuecke", "tomaten in stuecken"),
@@ -342,7 +342,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name == "burger buns" and any(
         term in title_key for term in (
             "hamburgerbrotchen", "burgerbrotchen", "burger bun",
-            "kaiserbrotchen", "weizenbrotchen", "sesambrotchen",
+            "kaiserbrotchen", "weizenbrotchen", "weizen brotchen", "weizen broetchen", "sesambrotchen",
             "dinkelbrotchen", "mehrkornbrotchen", "laugenbrotchen",
         )
     ) and category_key in {
