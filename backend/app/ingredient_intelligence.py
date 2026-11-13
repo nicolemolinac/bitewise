@@ -219,7 +219,9 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         token in title for token in (
             "express", "mikrowelle", "microwave", "gekocht", "vorgekocht",
             "ready to eat", "vorgedampft", "gedampft", "steamed", "2 minuten",
-            "kuko", "kurzkoch", "reis fit basmati", "djuvec", "griechischer reis", "tomatenreis",
+            "kuko", "kurzkoch", "reis fit basmati", "tilda sticky rice",
+            "fried rice", "egg fried", "risotto steinpilz", "djuvec",
+            "griechischer reis", "tomatenreis",
             "gemuesereis", "gemuese reis", "gemuese", "tomaten", "curry",
             "curryreis", "gewuerz", "pikant", "mediterran", "oriental",
             "mexikanisch", "mexiko", "bowl",
