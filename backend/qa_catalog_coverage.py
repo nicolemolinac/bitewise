@@ -46,6 +46,16 @@ def main():
         name_original="Rice 500g", price=float("nan"), availability="unknown",
     )
     assert server._catalog_search_score(priced, {"rice"}, "exact") > server._catalog_search_score(invalid, {"rice"}, "exact")
+    valid_substitute = SimpleNamespace(
+        ingredient="rice", translated_name=None, name_normalized="rice alternative",
+        name_original="Rice alternative", price=1.49, availability="available",
+    )
+    unavailable_exact = SimpleNamespace(
+        ingredient="rice", translated_name=None, name_normalized="rice 500g",
+        name_original="Rice 500g", price=1.99, availability="out_of_stock",
+    )
+    assert server._catalog_search_score(valid_substitute, {"rice"}, "substitute") > server._catalog_search_score(invalid, {"rice"}, "exact")
+    assert server._catalog_search_score(valid_substitute, {"rice"}, "substitute") > server._catalog_search_score(unavailable_exact, {"rice"}, "exact")
 
     db = SessionLocal()
     try:
