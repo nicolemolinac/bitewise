@@ -39,6 +39,7 @@ def run():
                 print(f"REAL REWE SEARCH [{real_query}] ({real_result.get('retrieval')}): {names}")
                 if real_query == "pizza":
                     assert any("Bistro Baguette" in name for name in names), names
+                    assert any("Flammkuchen" in name for name in names), names
                     assert not any("Taco Kit" in name for name in names), names
                 if real_query == "chili con carne":
                     assert any("Chili con Carne" in name for name in names), names
