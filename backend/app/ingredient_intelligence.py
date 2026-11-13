@@ -47,7 +47,7 @@ _BASE_TERMS = {
 _SUBSTITUTION_TERMS = {
     "vegetable oil": ("sunflower oil", "rapeseed oil", "sonnenblumenol", "rapsol", "ripsol"),
     "sunflower oil": ("vegetable oil", "rapeseed oil", "pflanzenol", "rapsol"),
-    "frozen french fries": ("fresh potato", "potato", "kartoffeln", "speisekartoffeln"),
+    "frozen french fries": ("fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"),
     "parmesan cheese": ("grana padano", "grana padano gerieben"),
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
 }
