@@ -11,6 +11,7 @@ os.environ["DATABASE_URL"] = ""
 os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_DB_DIR.name) / "qa.sqlite")
 
 from app.ingredient_intelligence import (
+    _category_compatible, _form_compatible,
     ingredient_candidate_search_terms,
     ingredient_product_match_type,
     ingredient_search_terms,
@@ -169,10 +170,19 @@ def run():
         "white fish fillet", "REWE Alaska Seelachsfilet paniert 800g",
         {"form": "fresh"}, "tiefkuehlkost"
     ) is None
-    assert ingredient_product_match_type(
-        "red cabbage", "Rotkohl ca. 1,8kg 1 Stück ca. 1800 g",
-        {"form": "fresh"}, "fertiggerichte-konserven"
-    ) is None, "Prepared red cabbage must not match a fresh raw cabbage ingredient"
+    prepared_red_title = "Rotkohl ca. 1,8kg 1 Stück ca. 1800 g"
+    prepared_red_normal = normalize_text(prepared_red_title)
+    prepared_red_category = _category_compatible(
+        "red cabbage", "fertiggerichte-konserven", prepared_red_normal, "fresh"
+    )
+    prepared_red_form = _form_compatible(
+        "fresh", prepared_red_normal + " fertiggerichte konserven", "red cabbage"
+    )
+    prepared_red_match = ingredient_product_match_type(
+        "red cabbage", prepared_red_title, {"form": "fresh"}, "fertiggerichte-konserven"
+    )
+    print("DEBUG PREPARED RED:", prepared_red_match, prepared_red_category, prepared_red_form)
+    assert prepared_red_match is None, "Prepared red cabbage must not match a fresh raw cabbage ingredient"
     assert ingredient_product_match_type(
         "rolled oats", "Kellogs Special Crunchy Oat Granola Mixed Berries 320g",
         {"form": "unspecified"}, "brot-cerealien-aufstriche"
