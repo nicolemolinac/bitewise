@@ -149,7 +149,8 @@ def ingredient_substitution_name(ingredient: str, product_text: str, intelligenc
     for term in sorted(substitutes, key=lambda value: -len(normalize_text(value))):
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
-            return str(term)
+            labels = {"rapsol": "rapeseed oil", "sonnenblumenol": "sunflower oil"}
+            return labels.get(normalized, str(term))
     return None
 
 
