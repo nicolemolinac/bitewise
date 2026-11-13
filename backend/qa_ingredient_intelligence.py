@@ -135,6 +135,15 @@ def run():
         "grated cheddar cheese", "REWE Gouda gerieben 200g", {"form": "grated"}, "kaese-eier-molkerei"
     ) == "substitute"
     assert ingredient_product_match_type(
+        "romaine lettuce", "REWE Beste Wahl Romana Salatherzen 3 Stück", {"form": "fresh"}, "obst-gemuese"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "red cabbage", "REWE Weißkohl frisch 1 Stück", {"form": "fresh"}, "obst-gemuese"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "curry powder", "REWE Bio Thai Curry Paste 100g", {"form": "powder"}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
         "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
         {"form": "fresh"}, "tiefkuehlkost"
     ) == "suggested_substitution"
