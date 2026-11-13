@@ -218,7 +218,7 @@ def main():
             if row.price is None or not math.isfinite(float(row.price)) or float(row.price) <= 0
         ][:30]
         for row in price_issue_examples:
-                print("PRODUCT WITHOUT PRICE:", {
+            print("PRODUCT WITHOUT PRICE:", {
                     "id": row.id,
                     "name": row.name_original,
                     "ingredient": row.ingredient,
