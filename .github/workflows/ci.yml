@@ -82,6 +82,8 @@ jobs:
         run: python qa_ingredient_costing.py
       - name: Recipe ingredient intelligence and form-aware matching QA
         run: python qa_ingredient_intelligence.py
+      - name: Catalog search recall beyond the former 240-row cutoff
+        run: python qa_catalog_search_recall.py
       - name: 20-recipe ingredient matching benchmark against committed REWE catalog
         env:
           BITEWISE_BENCHMARK_ISOLATED: 'true'
