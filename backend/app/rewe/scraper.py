@@ -152,6 +152,8 @@ def price_details(text: str, package_size=None, package_unit=None):
         match = re.search(pattern, checkout_text, re.I)
         if match:
             pack_price = float(match.group(1).replace(",", "."))
+            if not math.isfinite(pack_price) or pack_price <= 0:
+                continue
             try:
                 size = float(package_size) if package_size is not None else None
             except (TypeError, ValueError):
