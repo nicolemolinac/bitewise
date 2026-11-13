@@ -15,7 +15,13 @@ from app.semantic_catalog import index_rewe_products
 def main():
     db = SessionLocal()
     try:
-        result = index_rewe_products(db)
+        def report_progress(processed, pending, total_products):
+            print(
+                f"Embedding REWE catalog: {processed}/{pending} changed products "
+                f"({total_products} products in the full catalog)"
+            )
+
+        result = index_rewe_products(db, progress_callback=report_progress)
         print("REWE SEMANTIC INDEX")
         for key, value in result.items():
             print(f"{key}: {value}")
