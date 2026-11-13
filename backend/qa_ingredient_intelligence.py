@@ -233,10 +233,19 @@ def run():
         {"form": "unspecified", "name_de": "Hamburger Brötchen"}, "brot-cerealien-aufstriche"
     ) == "exact"
     assert "hamburger broetchen" in ingredient_search_terms("burger buns")
-    assert ingredient_product_match_type(
+    generic_bun_match = ingredient_product_match_type(
         "burger buns", "REWE Beste Wahl Hamburger Brötchen 4 Stück",
         None, "brot-cerealien-aufstriche"
-    ) == "exact", "Generic English burger buns must match German REWE titles without AI metadata"
+    )
+    if generic_bun_match != "exact":
+        from app.ingredient_intelligence import _category_compatible, _form_compatible
+        print("DEBUG generic burger bun:", {
+            "result": generic_bun_match,
+            "terms": ingredient_search_terms("burger buns"),
+            "form_ok": _form_compatible("", "rewe beste wahl hamburger brotchen 4 stuck", "burger buns"),
+            "category_ok": _category_compatible("burger buns", "brot-cerealien-aufstriche", "rewe beste wahl hamburger brotchen 4 stuck", ""),
+        })
+    assert generic_bun_match == "exact", "Generic English burger buns must match German REWE titles without AI metadata"
     assert "reis" in ingredient_search_terms("rice")
     assert ingredient_product_match_type(
         "rice", "Davert Echter Bio Basmati-Reis 250g",
