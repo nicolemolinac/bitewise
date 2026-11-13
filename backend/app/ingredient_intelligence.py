@@ -65,6 +65,13 @@ _BASE_TERMS = {
     "onion": ("onion", "onions", "zwiebel", "zwiebeln", "speisezwiebeln"),
 }
 
+# These can be useful in a recipe, but are not equivalent enough to
+# auto-select. They are retrieved only as explicit user-review suggestions.
+_REVIEW_ONLY_SUBSTITUTION_TERMS = {
+    "curry powder": ("curry paste", "currypaste", "garam masala", "madras curry paste"),
+}
+
+
 _SUBSTITUTION_TERMS = {
     "vegetable oil": ("sunflower oil", "rapeseed oil", "sonnenblumenol", "rapsol", "ripsol"),
     "sunflower oil": ("vegetable oil", "rapeseed oil", "pflanzenol", "rapsol"),
@@ -76,8 +83,6 @@ _SUBSTITUTION_TERMS = {
     "red cabbage": ("white cabbage", "weisskohl", "spitzkohl"),
     # A plain bread roll can stand in for a burger bun when the catalog has no labelled bun.
     "burger buns": ("bread rolls", "brötchen", "weizenbrötchen", "kaiserbrötchen", "sesambrötchen"),
-    # These are flavor alternatives, not exact equivalents; they remain review-only.
-    "curry powder": ("curry paste", "currypaste", "garam masala", "madras curry paste"),
 }
 
 _RETAIL_QUERY_VARIANTS = {
@@ -393,6 +398,12 @@ def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bo
             and any(token in title for token in ("curry paste", "currypaste"))
             and not any(token in title for token in ("ketchup", "sauce", "suppe", "fertiggericht"))
         )
+    if normalized_ingredient == "burger buns":
+        # A bread/flour mix can produce buns, but it requires baking and extra
+        # ingredients; keep it review-only instead of treating it as a bun.
+        return any(token in title for token in (
+            "proteinmehl", "brotbackmischung", "brotchen backmischung", "brot teig",
+        ))
     if normalized_ingredient != "frozen french fries":
         return False
     if normalize_text(term) not in {"fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"}:
@@ -527,6 +538,12 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
             # Other proposed options remain visible for user review.
             if safe_option and (form_compatible or transformation_ready):
                 return "substitute"
+            return "suggested_substitution"
+    for term in _REVIEW_ONLY_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()):
+        normalized = normalize_text(term)
+        if not normalized or not _contains_phrase(title, normalized) or not category_compatible:
+            continue
+        if form_compatible or _curated_cross_form_substitute(ingredient, normalized, title):
             return "suggested_substitution"
     for term in proposed if isinstance(proposed, list) else []:
         normalized = normalize_text(term)
