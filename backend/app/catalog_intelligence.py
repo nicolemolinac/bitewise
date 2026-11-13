@@ -94,7 +94,7 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         return "catalog_product"
     if (
         "pizza" in name
-        and any(marker in category for marker in ("tiefkuehlkost", "fertiggerichte", "ready meals"))
+        and any(marker in category for marker in ("tiefkuhlkost", "tiefkuehlkost", "fertiggerichte", "ready meals"))
         and not any(marker in name for marker in ("pizzateig", "pizza dough", "baguette", "pizza stange"))
     ):
         return "ready_meal"
