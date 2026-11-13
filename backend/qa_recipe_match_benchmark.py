@@ -318,7 +318,10 @@ def main():
                                 f"    {candidate.name_original} "
                                 f"(category={candidate.category}, price={candidate.price}, "
                                 f"pack={candidate.package_size} {candidate.package_unit}, "
-                                f"match_type={candidate_match}, aliases={matched_terms[:3]})"
+                                f"match_type={candidate_match}, "
+                                f"form_ok={_form_compatible(str(profile.get('form') or ''), candidate_title, ingredient)}, "
+                                f"category_ok={_category_compatible(ingredient, candidate.category or '', candidate_title, str(profile.get('form') or ''))}, "
+                                f"aliases={matched_terms[:3]}, terms={ingredient_search_terms(ingredient, profile)[:8]})"
                             )
                     else:
                         print(f"  NO CATALOG TITLE CANDIDATES FOR {ingredient}; terms={search_terms[:10]}")
