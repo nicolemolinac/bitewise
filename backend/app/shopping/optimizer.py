@@ -346,11 +346,14 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                         or ingredient_suggested_substitution_name(ingredient, product_title, intelligence)
                         or product.get("ingredient_substitute")
                     )
-                    if semantic_type in {"substitute", "suggested_substitution"} and replacement_name:
+                    if semantic_type in {"substitute", "suggested_substitution"}:
+                        fallback_replacement = product.get("ingredient")
+                        if not fallback_replacement or normalize_text(fallback_replacement) == normalize_text(ingredient):
+                            fallback_replacement = product.get("name_normalized") or product_title
                         product = {
                             **product,
                             "ingredient_match_type": "substitute",
-                            "ingredient_substitute": replacement_name,
+                            "ingredient_substitute": replacement_name or fallback_replacement,
                         }
                     else:
                         product = {**product, "ingredient_match_type": "user_confirmed_semantic"}
