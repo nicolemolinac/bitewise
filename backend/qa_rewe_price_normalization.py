@@ -45,6 +45,11 @@ def main():
     pack_price, per_gram = price_details("Cheese 200g (100 g = 1,99 €)", 200, "g")
     assert pack_price == 3.98
     assert abs(per_gram - 0.0199) < 1e-9
+    sale_price, sale_per_gram = price_details(
+        "Cheese 200g €1,79 (100 g = 0,99 €)", 200, "g"
+    )
+    assert sale_price == 1.79
+    assert abs(sale_per_gram - 0.00895) < 1e-9
     pack_price, per_ml = price_details("Drink 250ml (100 ml = 0,49 €)", 250, "ml")
     assert pack_price == 1.23
     assert abs(per_ml - 0.0049) < 1e-9
