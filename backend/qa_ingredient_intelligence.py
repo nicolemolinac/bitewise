@@ -13,9 +13,6 @@ os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_DB_DIR.name) / "qa.sqlite")
 from app.ingredient_intelligence import (
     ingredient_candidate_search_terms,
     ingredient_product_match_type,
-    _category_compatible,
-    _form_compatible,
-    ingredient_search_terms as _ingredient_search_terms_fn,
     ingredient_substitution_name,
     ingredient_suggested_substitution_name,
     normalize_recipe_intelligence,
@@ -283,8 +280,9 @@ def run():
 
     fresh_herb = {"fresh cilantro": {"canonical": "fresh cilantro", "name_de": "Frischer Koriander", "form": "fresh", "aliases": ["Koriander"]}}
     assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Gewürze") is None
-    fresh_cilantro_result = ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Frische Kräuter")
-    assert fresh_cilantro_result == "exact"
+    assert ingredient_product_match_type(
+        "fresh cilantro", "Koriander", fresh_herb, "Frische Kräuter"
+    ) == "exact"
     garlic_profile = {"garlic": {"canonical": "garlic", "name_de": "Knoblauch", "form": "whole", "aliases": ["Knoblauch"]}}
     assert ingredient_product_match_type("garlic", "REWE Bio Hähnchen Brustfilet Joghurt Knoblauch 320g", garlic_profile, "Fleisch") is None
     assert ingredient_product_match_type("garlic", "Knoblauch 1 Stück", garlic_profile, "obst-gemuese") == "exact"
