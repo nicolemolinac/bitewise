@@ -101,6 +101,11 @@ def run():
             db, "rolled oats", {"canonical": "rolled oats", "form": "unspecified"},
             limit=5, minimum_score=0.5,
         )
+        print("DEBUG OAT SUGGESTIONS:", [
+            (row["id"], row["name_original"], row["semantic_similarity"],
+             row["semantic_match_type"], row["category"])
+            for row in oat_suggestions
+        ])
         oats_suggestion = next(row for row in oat_suggestions if row["id"] == oats.id)
         assert oats_suggestion["ingredient_match_type"] == "semantic_candidate"
         assert oats_suggestion["semantic_match_type"] == "semantic_only"
