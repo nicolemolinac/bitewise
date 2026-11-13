@@ -265,6 +265,9 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
 def _category_compatible(ingredient: str, category: str, title: str, form: str = "") -> bool:
     """Reject keyword hits from unrelated REWE departments and prepared foods."""
     category_key = normalize_text(category)
+    # Normalize both German umlaut transliteration styles used in imported
+    # product categories (Tiefkühlkost -> tiefkuhlkost vs. tiefkuehlkost).
+    category_key = category_key.replace("tiefkuhl", "tiefkuehl")
     if not category_key:
         return True
     name = normalize_text(ingredient)
