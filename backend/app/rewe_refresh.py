@@ -76,7 +76,10 @@ def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: d
             setattr(existing, key, incoming_price)
             continue
         if key == "price_per_unit":
-            if valid_price and valid_unit_price:
+            # A unit price is meaningful only together with the package size
+            # it was calculated from. Never pair a fallback 1 x unknown size
+            # with a previously known package quantity.
+            if valid_price and valid_unit_price and valid_package:
                 existing.price_per_unit = incoming_unit_price
             continue
         if key in {"package_size", "package_unit"}:
