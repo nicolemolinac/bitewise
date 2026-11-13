@@ -76,6 +76,10 @@ def test_high_risk_false_positive_guards():
         "grated cheddar cheese", "REWE Cheddar am Stück 200g",
         {"form": "grated"}, "Käse & Eier & Molkerei",
     ) == "substitute"
+    assert ingredient_product_match_type(
+        "grated cheddar cheese", "Butcher's Burger Cheddar Burger Cheese 100g",
+        {"form": "grated"}, "Käse & Eier & Molkerei",
+    ) is None
 
 
 def test_common_english_ingredients_have_german_catalog_terms():
