@@ -95,6 +95,8 @@ def run():
     assert "olivenöl" in ingredient_candidate_search_terms("olive oil", {"form": "liquid"})
     assert "rapsöl" in ingredient_candidate_search_terms("vegetable oil", {"form": "liquid"})
     assert "hähnchenbrustfilet" in ingredient_candidate_search_terms("chicken breast", {"form": "fresh"})
+    assert "croûtons" in ingredient_candidate_search_terms("croutons", {})
+    assert "paprika edelsüß" in ingredient_candidate_search_terms("paprika powder", {})
     assert ingredient_product_match_type(
         "olive oil", "REWE Bio Olivenöl Nativ Extra 500ml", {"form": "liquid"}, "oele-sossen-gewuerze"
     ) == "exact"
