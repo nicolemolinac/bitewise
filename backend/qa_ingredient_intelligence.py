@@ -81,6 +81,14 @@ def test_high_risk_false_positive_guards():
         {}, "Fertiggerichte & Konserven",
     ) is None
     assert ingredient_product_match_type(
+        "white fish fillet", "REWE Beste Wahl Atlantisches Kabeljaufilet 3-6 Filets 475g",
+        {"form": "fresh"}, "Tiefkühlkost",
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "white fish fillet", "REWE Alaska Seelachsfilet paniert 800g",
+        {"form": "fresh"}, "Tiefkühlkost",
+    ) is None
+    assert ingredient_product_match_type(
         "white fish fillet", "Nadler Alaska Seelachs Mus 125g",
         product_category="Fleisch, Wurst & Fisch",
     ) is None
