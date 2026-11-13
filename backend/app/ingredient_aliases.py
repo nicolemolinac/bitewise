@@ -98,7 +98,7 @@ _ALIAS_GROUPS = [
     ("sausage", "sausages", "wurst", "würstchen", "wuerstchen"),
     ("turkey", "pute", "putenfleisch"),
     ("wrap", "wraps", "tortilla", "tortillas", "weizentortilla"),
-    ("frozen french fries", "french fries", "fries", "pommes", "pommes frites", "tiefkühl pommes", "tiefkuehl pommes", "tiefkühlpommes", "tiefkuehlpommes", "backofen pommes", "kartoffelstäbchen", "kartoffelstaebchen"),
+    ("frozen french fries", "french fries", "fries", "pommes", "pommes frites", "tiefkühl pommes", "tiefkuehl pommes", "tiefkühlpommes", "tiefkuehlpommes", "backofen pommes", "backofen frites", "frites", "kartoffelstäbchen", "kartoffelstaebchen"),
 ]
 
 
