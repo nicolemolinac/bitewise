@@ -50,7 +50,7 @@ _BASE_TERMS = {
     "hot dog buns": ("hot dog buns", "hotdog buns", "hot dog brotchen", "hotdog brotchen", "brioche hot dog buns"),
     "hot dog sausages": ("hot dog sausages", "hotdog wurstchen", "hot dog wurstchen", "wiener wurstchen", "frankfurter wurstchen"),
     "mayonnaise": ("mayonnaise", "mayonnaise", "salatmayonnaise", "delikatess mayonnaise"),
-    "paprika powder": ("paprika powder", "paprikapulver", "edelsuß paprika", "edelsuess paprika"),
+    "paprika powder": ("paprika powder", "paprikapulver", "edelsuß paprika", "edelsuess paprika", "paprika edelsuss"),
     "parmesan cheese": ("parmesan cheese", "parmesan", "parmigiano reggiano", "parmigiano", "parmesan gerieben"),
     "pre-cooked shredded chicken": ("pre cooked shredded chicken", "gegarte hahnchenbrust", "gegartes hahnchen", "hahnchenbrust gegart", "hahnchenstreifen gegart"),
     "shredded lettuce": ("shredded lettuce", "salatstreifen", "geschnittener eisbergsalat", "eisbergsalat geschnitten", "salatherzen geschnitten", "eisbergsalat"),
@@ -85,6 +85,7 @@ _RETAIL_QUERY_VARIANTS = {
     "stuckige tomaten": ("stückige tomaten",),
     "brotchen": ("brötchen",),
     "romersalat": ("römersalat",),
+    "croutons": ("croûtons",),
     "zwiebel rot": ("zwiebel rot", "zwiebeln rot"),
     "paprika edelsuss": ("paprika edelsüß",),
 }
