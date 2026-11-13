@@ -297,9 +297,9 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
         "cucumber", "bell pepper", "cherry tomato", "mushroom", "lemon",
         "red onion", "red cabbage", "romaine lettuce", "frozen peas",
-        "carrot", "broccoli", "fresh cilantro",
-        "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
-        "red cabbage", "strawberries", "blueberries", "banana", "parsley",
+        "carrot", "broccoli", "fresh cilantro", "mushrooms", "lime",
+        "zucchini", "avocado", "spring onion", "strawberries", "blueberries",
+        "banana", "parsley",
     }
     proteins = {
         "chicken breast", "pre cooked shredded chicken", "ground beef",
@@ -308,7 +308,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     dairy = {
         "feta cheese", "sour cream", "cheese slices", "butter", "mozzarella",
         "greek yogurt", "plain yogurt", "heavy cream", "cooking cream", "eggs",
-        "grated cheddar cheese", "parmesan cheese", "firm tofu",
+        "grated cheddar cheese", "parmesan cheese",
     }
     grains = {
         "rice", "risotto rice", "spaghetti", "pasta", "wheat flour",
@@ -323,7 +323,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     oils = {"vegetable oil", "olive oil", "sesame oil", "sunflower oil"}
     canned = {
         "black beans", "canned tuna", "canned corn", "canned chopped tomatoes",
-        "black olives", "pickles",
+        "chickpeas", "lentils", "kidney beans", "black olives", "pickles",
     }
     sauces = {
         "tomato passata", "tomato paste", "fresh basil pesto", "mayonnaise", "soy sauce", "salsa",
@@ -345,6 +345,8 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             "ofenbrot", "bolognese", "penne", "lasagne", "suppe",
             "sandwich", "pizza", "salat", "snack", "chips", "baby",
             "brei", "fertiggericht", "brotaufstrich", "fischburger",
+            "fischstaebchen", "fish sticks", "fischmus", "seelachs mus",
+            "fish mousse", "surimi", "aufstrich",
         )
         if any(term in title_key for term in prepared_terms):
             return False
@@ -361,7 +363,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name in spices:
         return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
     if name in grains:
-        allowed = {"kochen-backen", "brot-cerealien-aufstriche"}
+        allowed = {"kochen-backen", "brot-cerealien-aufstriche", "brot-backwaren", "backwaren"}
         if name == "cornstarch":
             allowed.update({"backzutaten", "mehl-zucker"})
         return category_key in allowed
