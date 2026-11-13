@@ -242,6 +242,9 @@ def run():
         "red cabbage", "Hengstenberg Genießer Rotkohl 400g", {"form": "fresh"}, "fertiggerichte-konserven"
     )
     assert cooked_cabbage_match == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "red cabbage", "Kühne Bowl Rotkraut 330g", {"form": "fresh"}, "fertiggerichte-konserven"
+    ) is None, "Mixed red-cabbage salad bowls are not a plain cooked-cabbage substitute"
     assert ingredient_substitution_name(
         "red cabbage", "Hengstenberg Genießer Rotkohl 400g"
     ) == "cooked red cabbage"
