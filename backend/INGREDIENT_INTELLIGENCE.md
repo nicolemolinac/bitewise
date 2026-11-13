@@ -6,14 +6,16 @@ Recipe generation still makes one Gemini request. That same response now include
 `ingredient_intelligence` object for each ingredient alongside the normal recipe fields.
 The user-facing recipe remains unchanged. The metadata is saved with recipe history and includes
 canonical identity, EN/DE/ES names, retail aliases, product form, culinary role, unit dimension
-and explicitly allowed substitutions.
+and AI-proposed substitutions.
 
 Shopping-time work is local and deterministic:
 
 1. Validate ingredient units and preserve requested product forms.
 2. Retrieve REWE candidates using multilingual recipe metadata and catalog title/category fields.
 3. Prefer confirmed exact matches, then curated/AI-approved substitutions.
-4. If lexical retrieval has no confident match, use local multilingual embeddings to suggest
+4. AI-proposed substitutions are treated as hints, not trusted instructions. Only curated,
+   high-confidence equivalences can be applied automatically.
+5. If lexical retrieval has no confident match, use local multilingual embeddings to suggest
    possible products. Semantic suggestions are review-only: they are not costed or added to REWE
    until the user explicitly chooses one.
 5. A confirmed choice is persisted through the existing product override mechanism.
