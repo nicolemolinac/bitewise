@@ -83,6 +83,8 @@ def main():
     assert price_details(deposit_with_pack_price, 330, "ml")[0] == 2.99
     assert price_details("Water 1L zzgl. 0,25 € Pfand", 1000, "ml")[0] is None
     assert price_details("Water 1L Pfand 0,25 €", 1000, "ml")[0] is None
+    assert price_details("Rice 500g 0,00 €", 500, "g")[0] is None
+    assert price_details("Rice 500g 0,00 € (1 kg = 4,00 €)", 500, "g")[0] == 2.00
 
     # A reference price must never be mistaken for a checkout price when the
     # package size could not be parsed or its unit does not match.
