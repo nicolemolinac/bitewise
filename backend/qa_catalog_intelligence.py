@@ -52,6 +52,8 @@ def run():
             product("chili-2", "Mexikanischer Chili Eintopf mit Rind", "Fertiggerichte", price=2.99),
             product("chili-3", "Kidney Bohnen rot", "Konserven", ingredient="kidney beans"),
             product("chili-4", "Maggi Fix Chili Con Carne 33g", "Gewürze", ingredient="seasoning mix"),
+            product("chili-noise-1", "Maggi Magic Asia Saucy Noodles Sweet Chili 75g", "Nudeln", ingredient="noodles"),
+            product("chili-noise-2", "REWE Marinierte Oliven mit Chili 150g", "Antipasti", ingredient="olives"),
             product("fries-1", "REWE Beste Wahl Pommes Frites 750g", "Tiefkühlkost", ingredient="frozen fries"),
             product("fries-noise-1", "Haribo Fruchtgummi Pommes Sauer", "Süßwaren", ingredient="candy"),
             product("fries-noise-2", "REWE Pommes Gewürzsalz 70g", "Gewürze", ingredient="seasoning"),
@@ -67,7 +69,7 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1012
+        assert pizza["catalog_count"] == 1014
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
@@ -83,6 +85,7 @@ def run():
         assert any("Pizza Baguette" in row["name_original"] for row in natural_language_pizza["products"])
         assert any(name == "Chili con Carne 400g" for name in chili_names), chili_names
         assert any("Chili Eintopf" in name for name in chili_names), chili_names
+        assert not any("Sweet Chili" in name or "Oliven" in name for name in chili_names), chili_names
         fix_kit = next(row for row in chili["products"] if row["name_original"] == "Maggi Fix Chili Con Carne 33g")
         assert fix_kit["convenience_type"] == "prepared_component", fix_kit
         assert next(row for row in chili["products"] if row["name_original"] == "Chili con Carne 400g")["convenience_type"] == "ready_meal"
