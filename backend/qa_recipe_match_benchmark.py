@@ -26,6 +26,7 @@ if os.getenv("BITEWISE_BENCHMARK_ISOLATED", "").strip().lower() in {"1", "true",
 from app import server  # installs the multilingual CatalogAdapter.search override
 from app.database import Product, ProductSemanticEmbedding, SessionLocal
 from app.ingredient_intelligence import (
+    _category_compatible, _form_compatible,
     ingredient_candidate_search_terms, ingredient_product_match_type,
     normalize_recipe_intelligence,
     normalize_text,
