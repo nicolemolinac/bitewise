@@ -155,6 +155,18 @@ def run():
         {"form": "fresh"}, "obst-gemuese"
     ) == "suggested_substitution"
     assert ingredient_product_match_type(
+        "burger buns", "REWE Weizenbrötchen 6 Stück",
+        {"form": "bread"}, "brot-cerealien-aufstriche"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "curry powder", "Bamboo Garden Thai Curry Paste 100g",
+        {"form": "powder"}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "white fish fillet", "REWE Alaska Seelachsfilet paniert 800g",
+        {"form": "fresh"}, "tiefkuehlkost"
+    ) is None
+    assert ingredient_product_match_type(
         "red cabbage", "Rotkohl ca. 1,8kg 1 Stück ca. 1800 g",
         {"form": "fresh"}, "fertiggerichte-konserven"
     ) == "exact"
