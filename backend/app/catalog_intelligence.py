@@ -119,23 +119,32 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
     # "kit" could pull in an unrelated taco kit for a pizza query.
     token_set = {token for token in _normalise(query).split() if len(token) > 2 and token not in _QUERY_STOPWORDS}
 
-    # Pull a broad but bounded lexical candidate pool from every searchable catalog field.
-    clauses = []
+    # Retrieve each retail-format alias independently. A single broad OR with
+    # one global limit can fill its first 500 rows with generic "pizza" matches
+    # and silently drop useful formats such as Bistro Baguette or Flammkuchen.
+    candidate_rows = {}
     for term in variants[:8]:
         pattern = f"%{term}%"
-        clauses.extend((
-            Product.name_original.ilike(pattern),
-            Product.name_normalized.ilike(pattern),
-            Product.translated_name.ilike(pattern),
-            Product.category.ilike(pattern),
-            Product.ingredient.ilike(pattern),
-        ))
+        term_rows = db.query(Product).filter(
+            Product.supermarket == "REWE",
+            or_(
+                Product.name_original.ilike(pattern),
+                Product.name_normalized.ilike(pattern),
+                Product.translated_name.ilike(pattern),
+                Product.category.ilike(pattern),
+                Product.ingredient.ilike(pattern),
+            ),
+        ).limit(150).all()
+        candidate_rows.update({row.id: row for row in term_rows})
     for token in sorted(token_set)[:8]:
         pattern = f"%{token}%"
-        clauses.extend((Product.name_original.ilike(pattern), Product.category.ilike(pattern)))
-    query_rows = db.query(Product).filter(Product.supermarket == "REWE").filter(or_(*clauses))
+        token_rows = db.query(Product).filter(
+            Product.supermarket == "REWE",
+            or_(Product.name_original.ilike(pattern), Product.category.ilike(pattern)),
+        ).limit(150).all()
+        candidate_rows.update({row.id: row for row in token_rows})
     catalog_count = db.query(Product).filter(Product.supermarket == "REWE").count()
-    rows = query_rows.limit(500).all()
+    rows = list(candidate_rows.values())[:1800]
 
     # Add broad local-embedding candidates when the optional index exists. The
     # semantic layer is discovery-only; exact lexical evidence still dominates.
