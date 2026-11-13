@@ -208,7 +208,18 @@ def run():
     assert ingredient_product_match_type("frozen french fries", "REWE Speisekartoffeln 2kg", intelligence, "Obst & Gemüse") == "suggested_substitution"
     assert "rapsol" not in ingredient_search_terms("vegetable oil", intelligence)
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
-    assert ingredient_product_match_type("vegetable oil", "REWE Rapsöl 1L", intelligence) == "substitute"
+    rapeseed_match = ingredient_product_match_type("vegetable oil", "REWE Rapsöl 1L", intelligence)
+    if rapeseed_match != "substitute":
+        from app.ingredient_intelligence import _SUBSTITUTION_TERMS, _category_compatible, _form_compatible
+        print("DEBUG rapeseed substitute:", {
+            "result": rapeseed_match,
+            "terms": ingredient_search_terms("vegetable oil", intelligence),
+            "candidate_terms": ingredient_candidate_search_terms("vegetable oil", intelligence),
+            "substitutions": _SUBSTITUTION_TERMS.get("vegetable oil"),
+            "form_ok": _form_compatible("liquid", "rewe rapsol 1l", "vegetable oil"),
+            "category_ok": _category_compatible("vegetable oil", "", "rewe rapsol 1l", "liquid"),
+        })
+    assert rapeseed_match == "substitute"
     assert ingredient_product_match_type("vegetable oil", "REWE Olivenöl 1L", intelligence) is None
     assert ingredient_substitution_name(
         "vegetable oil", "REWE Rapsöl 1L", intelligence
