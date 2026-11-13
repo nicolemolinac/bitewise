@@ -863,7 +863,12 @@ def _repair_rewe_package_metadata_once() -> None:
                 and final_unit not in {"", "unknown"}
             ):
                 normalized_unit_price = current_price / final_size
-                if product.price_per_unit is None or not math.isfinite(float(product.price_per_unit)) or abs(float(product.price_per_unit) - normalized_unit_price) > max(0.000001, normalized_unit_price * 0.01):
+                stored_unit_price = _snapshot_float(product.price_per_unit)
+                if (
+                    stored_unit_price is None
+                    or abs(stored_unit_price - normalized_unit_price)
+                    > max(0.000001, normalized_unit_price * 0.01)
+                ):
                     product.price_per_unit = normalized_unit_price
                     unit_price_updates += 1
             elif final_unit in {"", "unknown"}:
