@@ -90,8 +90,11 @@ def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: d
     if valid_price and not valid_unit_price:
         try:
             known_size = float(existing.package_size)
-            if math.isfinite(known_size) and known_size > 0:
+            known_unit = str(existing.package_unit or "").strip().lower()
+            if known_unit not in {"", "unknown"} and math.isfinite(known_size) and known_size > 0:
                 existing.price_per_unit = incoming_price / known_size
+            elif known_unit in {"", "unknown"}:
+                existing.price_per_unit = None
         except (TypeError, ValueError):
             pass
     existing.postcode_context = current_postcode
