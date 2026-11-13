@@ -13,6 +13,7 @@ os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_DB_DIR.name) / "qa.sqlite")
 from app.ingredient_intelligence import (
     ingredient_candidate_search_terms,
     ingredient_product_match_type,
+    ingredient_search_terms,
     ingredient_substitution_name,
     ingredient_suggested_substitution_name,
     normalize_recipe_intelligence,
@@ -95,7 +96,7 @@ def test_common_english_ingredients_have_german_catalog_terms():
         "mayonnaise": "salatmayonnaise", "paprika powder": "paprikapulver",
     }
     for ingredient, german_term in expected.items():
-        assert german_term in _ingredient_search_terms_fn(ingredient), (
+        assert german_term in ingredient_search_terms(ingredient), (
             f"Missing German catalog term {german_term!r} for {ingredient!r}"
         )
 
@@ -157,7 +158,7 @@ def run():
     assert shredded_fallback["shredded lettuce"]["form"] == "unspecified"
     assert ingredient_product_match_type("shredded lettuce", "REWE Eisbergsalat 1 Stück") == "exact"
     assert normalize_text("weiß") == "weiss"
-    assert "dosenmais" in _ingredient_search_terms_fn("canned corn", intelligence)
+    assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
     assert ingredient_product_match_type("frozen sweet corn", "REWE Zuckermais tiefgekühlt 450g", {"form": "frozen", "aliases": ["Zuckermais tiefgekühlt"]}, "Tiefkühlkost") == "exact"
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
     assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
@@ -207,7 +208,7 @@ def run():
         "frozen french fries", "REWE Speisekartoffeln 2kg", intelligence
     ) == "suggested_substitution"
     assert ingredient_product_match_type("frozen french fries", "REWE Speisekartoffeln 2kg", intelligence, "Obst & Gemüse") == "suggested_substitution"
-    assert "rapsol" not in _ingredient_search_terms_fn("vegetable oil", intelligence)
+    assert "rapsol" not in ingredient_search_terms("vegetable oil", intelligence)
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
     rapeseed_match = ingredient_product_match_type("vegetable oil", "REWE Rapsöl 1L", intelligence)
     assert rapeseed_match == "substitute"
