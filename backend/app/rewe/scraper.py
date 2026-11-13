@@ -54,7 +54,7 @@ def normalize(value: str) -> str:
 
 
 def _reference_price_pattern():
-    return r"\\b(\\d+(?:[.,]\\d+)?)\\s*(kg|g|l|ml)\\s*=\\s*(?:€\\s*)?(\\d+[,.]\\d{2})\\s*(?:€|EUR|Euro)?"
+    return r"\b(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?"
 
 
 def package(text: str):
@@ -63,7 +63,7 @@ def package(text: str):
     package_text = re.sub(_reference_price_pattern(), " ", text or "", flags=re.I)
     # Preserve multipack quantity: 2x200ml is 400ml, not 200ml.
     match = re.search(
-        r"(?:(\\d+)\\s*[x×]\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l|stk|st\\.|stück)",
+        r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)",
         package_text,
         re.I,
     )
