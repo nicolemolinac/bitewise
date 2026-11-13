@@ -2,7 +2,7 @@ import math
 from collections import defaultdict
 
 from ..ingredient_aliases import ingredient_aliases
-from ..ingredient_intelligence import ingredient_substitution_name, validate_ingredient_unit
+from ..ingredient_intelligence import ingredient_substitution_name, ingredient_suggested_substitution_name, validate_ingredient_unit
 
 
 STRATEGIES = {
@@ -266,14 +266,17 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             if product.get("ingredient_match_type") in {"semantic_candidate", "suggested_substitution"}:
                 if override_id is not None and str(product.get("id")) == str(override_id):
                     semantic_type = product.get("semantic_match_type") or product.get("ingredient_match_type")
-                    if semantic_type in {"substitute", "suggested_substitution"} or product.get("ingredient_substitute"):
+                    product_title = product.get("name_original") or product.get("name_normalized") or ""
+                    replacement_name = (
+                        ingredient_substitution_name(ingredient, product_title, intelligence)
+                        or ingredient_suggested_substitution_name(ingredient, product_title, intelligence)
+                        or product.get("ingredient_substitute")
+                    )
+                    if semantic_type in {"substitute", "suggested_substitution"} and replacement_name:
                         product = {
                             **product,
                             "ingredient_match_type": "substitute",
-                            "ingredient_substitute": ingredient_substitution_name(
-                                ingredient, product.get("name_original") or product.get("name_normalized") or "",
-                                intelligence,
-                            ),
+                            "ingredient_substitute": replacement_name,
                         }
                     else:
                         product = {**product, "ingredient_match_type": "user_confirmed_semantic"}
