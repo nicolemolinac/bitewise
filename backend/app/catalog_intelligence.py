@@ -40,12 +40,13 @@ _READY_MARKERS = (
     "mikrowellen", "pfannengericht", "menuschale",
 )
 _KIT_MARKERS = (
-    "kit", "set", "basis", "backmischung", "pizzateig", "wrap kit",
-    "kochbox",
+    "pizza kit", "pizzakit", "taco kit", "wrap kit", "meal kit",
+    "kochbox", "backmischung",
 )
 _PREPARED_MARKERS = (
-    "baguette", "flammkuchen", "pizza", "pommes", "gnocchi", "ravioli",
-    "tortellini", "spatzle", "schnitzel", "falafel", "burger patty",
+    "baguette", "flammkuchen", "pizzateig", "pizza dough", "pommes",
+    "gnocchi", "ravioli", "tortellini", "spatzle", "schnitzel",
+    "falafel", "burger patty",
 )
 _EXCLUDE_MARKERS = (
     "hundefutter", "katzenfutter", "proteinpulver", "duft", "reiniger",
@@ -80,6 +81,15 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
     category = _normalise(getattr(product, "category", ""))
     if any(marker in category for marker in ("babynahrung", "kindernahrung", "baby food")):
         return "catalog_product"
+    # Dry "Fix" seasoning sachets often share the canned/ready-meal aisle;
+    # classify them as components before using broad aisle metadata.
+    if " fix " in f" {text} " or "gewurzmischung" in text or "wurzmittel" in category:
+        return "prepared_component"
+    # Explicit kits take precedence over broad ready-meal aisle labels.
+    if any(marker in text for marker in _KIT_MARKERS):
+        return "meal_kit"
+    if "gewurze" in category:
+        return "prepared_component"
     if any(marker in text for marker in _READY_MARKERS) or any(
         marker in category for marker in ("fertiggerichte", "fertigmahlzeiten", "ready meals")
     ):
@@ -92,10 +102,6 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
             for term in expand_catalog_query(query)
         )
         return "ready_meal" if requested_dish_match else "prepared_component"
-    if any(marker in text for marker in _KIT_MARKERS):
-        return "meal_kit"
-    if "gewurze" in category or "gewurzmischung" in text or "wurzmittel" in category:
-        return "prepared_component"
     try:
         package_size = float(getattr(product, "package_size", 0) or 0)
         package_unit = _normalise(getattr(product, "package_unit", ""))
