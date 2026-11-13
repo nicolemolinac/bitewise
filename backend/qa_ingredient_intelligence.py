@@ -177,6 +177,14 @@ def run():
         {"form": "bread"}, "brot-cerealien-aufstriche"
     ) == "substitute"
     assert ingredient_product_match_type(
+        "burger buns", "Coppenrath & Wiese 9 Weizen-Brötchen 450g",
+        {"form": "bread"}, "tiefkuehlkost"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "burger buns", "Mälzer & Fu Waffeleis Franzbrötchen 4x120ml",
+        {"form": "bread"}, "tiefkuehlkost"
+    ) is None
+    assert ingredient_product_match_type(
         "burger buns", "Mühlenkraft Proteinmehl Brot & Brötchen 800g",
         {"form": "bread"}, "kochen-backen"
     ) is None
