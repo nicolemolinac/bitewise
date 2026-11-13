@@ -151,6 +151,10 @@ def run():
         {"form": "fresh"}, "tiefkuehlkost"
     ) == "suggested_substitution"
     assert ingredient_product_match_type(
+        "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
+        {"form": "fresh"}, "Tiefkühlkost"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
         "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g",
         {"form": "soft tortillas"}, "fertiggerichte-konserven"
     ) == "exact"
