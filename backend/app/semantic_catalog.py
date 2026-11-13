@@ -18,7 +18,10 @@ import numpy as np
 from sqlalchemy import func
 
 from .database import Product, ProductSemanticEmbedding
-from .ingredient_intelligence import _form_compatible, ingredient_product_match_type, normalize_text
+from .ingredient_intelligence import (
+    _category_compatible, _form_compatible, _ingredient_specific_exclusions,
+    ingredient_product_match_type, normalize_text,
+)
 
 logger = logging.getLogger(__name__)
 MODEL_NAME = os.getenv("BITEWISE_EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
@@ -229,12 +232,23 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
             title = " ".join(str(value or "") for value in (
                 product.name_original, product.name_normalized, product.translated_name, product.category
             ))
+            normalized_product_text = normalize_text(title)
             form_compatible = _form_compatible(
                 form, normalize_text(title + " " + str(product.category or "")), ingredient
+            )
+            category_compatible = _category_compatible(
+                ingredient, product.category or "", title, form
             )
             curated_match = ingredient_product_match_type(
                 ingredient, title, intelligence, product.category or ""
             )
+            if _ingredient_specific_exclusions(ingredient, normalized_product_text):
+                continue
+            # Exact/curated substitutions retain their existing safety rules.
+            # A high-scoring semantic-only result is allowed into the review
+            # list only when both product form and catalog category are safe.
+            if not category_compatible:
+                continue
             if not form_compatible and curated_match not in {"substitute", "suggested_substitution"}:
                 continue
             if product.price is None or str(product.availability or "").lower() in {
@@ -262,7 +276,7 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
                 "postcode_context": product.postcode_context,
                 "last_checked_at": product.last_checked_at,
                 "ingredient_match_type": "semantic_candidate",
-                "semantic_match_type": curated_match,
+                "semantic_match_type": curated_match or "semantic_only",
                 "semantic_similarity": round(score, 4),
             })
             if len(ranked) >= max(1, limit):
