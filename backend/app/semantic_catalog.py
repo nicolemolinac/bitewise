@@ -244,12 +244,14 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
             )
             if _ingredient_specific_exclusions(ingredient, normalized_product_text):
                 continue
-            # Exact/curated substitutions retain their existing safety rules.
-            # A high-scoring semantic-only result is allowed into the review
-            # list only when both product form and catalog category are safe.
-            if not category_compatible:
+            # Exact/curated substitutions retain their explicit cross-form
+            # permission (e.g. fresh potatoes for frozen fries, frozen plain
+            # fish fillets for fresh fish). A semantic-only result is reviewable
+            # only when both product form and catalog category are compatible.
+            curated_cross_form = curated_match in {"substitute", "suggested_substitution"}
+            if not category_compatible and not curated_cross_form:
                 continue
-            if not form_compatible and curated_match not in {"substitute", "suggested_substitution"}:
+            if not form_compatible and not curated_cross_form:
                 continue
             if product.price is None or str(product.availability or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
