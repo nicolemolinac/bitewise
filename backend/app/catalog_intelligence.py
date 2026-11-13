@@ -125,6 +125,8 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         return "ready_meal"
     if "gewurze" in category:
         return "prepared_component"
+    if "pizza" in text and any(marker in text for marker in (" mehl ", " flour ")):
+        return "prepared_component"
     # Product formats that still require cooking/heating outrank broad aisle
     # metadata such as "Fertiggerichte-Konserven".
     if any(marker in text for marker in _PREPARED_MARKERS):
