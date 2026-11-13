@@ -137,6 +137,13 @@ def main():
         assert aioli is not None and aioli.package_size == 235 and aioli.package_unit == "ml"
         assert aioli.price is None, "Do not infer a volume-pack price from a €/kg reference"
 
+        light_aioli = db.query(Product).filter(
+            Product.name_original.like("%Develey Myo Die Leichte 250g 235ml%")
+        ).first()
+        assert light_aioli is not None
+        assert light_aioli.package_size == 250 and light_aioli.package_unit == "g"
+        assert light_aioli.price is not None and abs(light_aioli.price - 2.29) < 0.02
+
         wipes = db.query(Product).filter(
             Product.name_original.like("%Babywell Aqua Tücher 2x80 Stück%")
         ).first()
