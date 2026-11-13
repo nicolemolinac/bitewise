@@ -135,28 +135,6 @@ def main():
         inconsistent_unit_prices = []
         package_name_mismatches = []
         for row in products:
-            try:
-                pack_price = float(row.price) if row.price is not None else None
-                pack_size = float(row.package_size) if row.package_size is not None else None
-                observed_unit_price = float(row.price_per_unit) if row.price_per_unit is not None else None
-            except (TypeError, ValueError):
-                continue
-            if (
-                pack_price is None or pack_size is None or observed_unit_price is None
-                or not all(math.isfinite(value) for value in (pack_price, pack_size, observed_unit_price))
-                or pack_price <= 0 or pack_size <= 0 or observed_unit_price <= 0
-            ):
-                continue
-            expected_unit_price = pack_price / pack_size
-            relative_error = abs(observed_unit_price - expected_unit_price) / expected_unit_price
-            if relative_error > 0.15:
-                inconsistent_unit_prices.append({
-                    "id": row.id, "name": row.name_original, "package_size": row.package_size,
-                    "package_unit": row.package_unit, "price": row.price,
-                    "stored_price_per_unit": row.price_per_unit,
-                    "expected_price_per_unit": round(expected_unit_price, 8),
-                    "relative_error": round(relative_error, 3),
-                })
             parsed_size, parsed_unit = package(row.name_original or "")
             if parsed_size is not None and parsed_unit:
                 stored_unit = str(row.package_unit or "").strip().lower()
@@ -179,6 +157,29 @@ def main():
                         "stored_size": row.package_size, "stored_unit": row.package_unit,
                         "title_size": parsed_size, "title_unit": parsed_unit,
                     })
+
+            try:
+                pack_price = float(row.price) if row.price is not None else None
+                pack_size = float(row.package_size) if row.package_size is not None else None
+                observed_unit_price = float(row.price_per_unit) if row.price_per_unit is not None else None
+            except (TypeError, ValueError):
+                continue
+            if (
+                pack_price is None or pack_size is None or observed_unit_price is None
+                or not all(math.isfinite(value) for value in (pack_price, pack_size, observed_unit_price))
+                or pack_price <= 0 or pack_size <= 0 or observed_unit_price <= 0
+            ):
+                continue
+            expected_unit_price = pack_price / pack_size
+            relative_error = abs(observed_unit_price - expected_unit_price) / expected_unit_price
+            if relative_error > 0.15:
+                inconsistent_unit_prices.append({
+                    "id": row.id, "name": row.name_original, "package_size": row.package_size,
+                    "package_unit": row.package_unit, "price": row.price,
+                    "stored_price_per_unit": row.price_per_unit,
+                    "expected_price_per_unit": round(expected_unit_price, 8),
+                    "relative_error": round(relative_error, 3),
+                })
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         stale = sum(row.last_checked_at is None or row.last_checked_at < cutoff for row in products)
 
