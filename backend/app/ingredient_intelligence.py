@@ -222,7 +222,7 @@ def _infer_ingredient_form(ingredient: str) -> str:
         (("oil", "ol"), "liquid"),
     )
     for tokens, form in rules:
-        if any(token in name.split() for token in tokens):
+        if any(_contains_phrase(name, token) for token in tokens):
             return form
     return "unspecified"
 
