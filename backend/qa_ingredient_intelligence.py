@@ -58,7 +58,7 @@ def run():
                 "unit_dimension": "mass", "suggested_substitutions": ["fresh potatoes"],
                 "substitution_options": [{
                     "name": "fresh potatoes", "reason": "Closest whole-food equivalent.",
-                    "role_preserving": True, "safe_to_auto_apply": True,
+                    "role_preserved": True, "safe_to_auto_apply": True,
                     "quantity_ratio": 1,
                     "preparation_adjustment": "Fresh potatoes need longer than frozen fries; cut evenly and cook until tender.",
                 }],
@@ -449,10 +449,7 @@ def run():
         "ingredient_intelligence": intelligence,
         "steps": [{"text": "Add frozen french fries to the basket."}],
     }
-    print("QA DEBUG SUBSTITUTION PROFILE:", intelligence.get("frozen french fries"))
-    print("QA DEBUG POTATO BASKET:", potato_confirmed[0])
     _adapt_recipe_to_catalog(adapted_recipe, potato_confirmed)
-    print("QA DEBUG ADAPTED RECIPE:", adapted_recipe)
     assert adapted_recipe["ingredients"][0][0] == "fresh potatoes"
     assert any("Fresh potatoes need longer than frozen fries" in step["text"] for step in adapted_recipe["steps"])
 
