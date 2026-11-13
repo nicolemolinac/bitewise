@@ -101,7 +101,7 @@ def ingredient_search_terms(ingredient: str, intelligence: Any = None) -> list[s
 
 
 def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None) -> list[str]:
-    """Recall terms include curated/AI-approved substitutes; matching still labels them separately."""
+    """Recall terms include AI-proposed alternatives; only curated equivalences can auto-match."""
     terms = set(ingredient_search_terms(ingredient, intelligence))
     profile = _profile_lookup(intelligence, ingredient)
     substitutes = profile.get("suggested_substitutions", profile.get("allowed_substitutions", []))
