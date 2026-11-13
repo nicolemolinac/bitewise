@@ -733,7 +733,7 @@ def _repair_rewe_package_metadata_once() -> None:
     db = None
     try:
         db = SessionLocal()
-        if db.get(AppSetting, "rewe_package_metadata_repair_v1"):
+        if db.get(AppSetting, "rewe_package_metadata_repair_v2"):
             return
 
         expected_columns = [
@@ -852,6 +852,34 @@ def _repair_rewe_package_metadata_once() -> None:
                     current_price = float(pack_price)
                     current_price_valid = True
                     price_repairs += 1
+                elif not pack_price_valid and source_price is not None and current_price_valid and abs(current_price - source_price) <= 0.011:
+                    # Older extractors sometimes stored the numeric €/kg or
+                    # Pfand amount as if it were the pack checkout price.
+                    # Clear it only when it exactly matches one of those
+                    # displayed non-checkout amounts and no safe conversion
+                    # or explicit pack price could be recovered.
+                    reference_match = re.search(
+                        r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*(\d+[,.]\d{2})\s*€",
+                        snapshot_name, re.I,
+                    )
+                    reference_amount = _snapshot_float(reference_match.group(1)) if reference_match else None
+                    deposit_match = re.search(
+                        r"(?:zzgl\.?\s*)?(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?\s*Pfand|"
+                        r"Pfand\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
+                        snapshot_name, re.I,
+                    )
+                    deposit_amount = (
+                        _snapshot_float(deposit_match.group(1) or deposit_match.group(2))
+                        if deposit_match else None
+                    )
+                    if (
+                        (reference_amount is not None and abs(source_price - reference_amount) <= 0.011)
+                        or (deposit_amount is not None and abs(source_price - deposit_amount) <= 0.011)
+                    ):
+                        product.price = None
+                        product.price_per_unit = None
+                        current_price_valid = False
+                        price_repairs += 1
             else:
                 try:
                     current_price = float(product.price) if product.price is not None else None
@@ -885,7 +913,7 @@ def _repair_rewe_package_metadata_once() -> None:
 
         if matched >= max(100, int(len(rows) * 0.90)):
             db.add(AppSetting(
-                key="rewe_package_metadata_repair_v1",
+                key="rewe_package_metadata_repair_v2",
                 value=(
                     f"matched={matched}; package_updates={package_updates}; "
                     f"unit_price_updates={unit_price_updates}; price_repairs={price_repairs}; "
