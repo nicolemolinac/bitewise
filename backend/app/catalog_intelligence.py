@@ -36,7 +36,7 @@ _QUERY_EXPANSIONS = {
 
 _READY_MARKERS = (
     "fertiggericht", "fertigmen", "ready meal", "ready to eat", "verzehrfertig",
-    "konserve", "dose", "eintopf", "suppe", "tk gericht", "tiefkuhlgericht",
+    "eintopf", "suppe", "tk gericht", "tiefkuhlgericht",
     "mikrowellen", "pfannengericht", "menuschale",
 )
 _KIT_MARKERS = (
@@ -72,9 +72,23 @@ def _product_text(product: Any) -> str:
     )))
 
 
-def _convenience_type(text: str) -> str:
-    if any(marker in text for marker in _READY_MARKERS):
+def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
+    name = _normalise(" ".join(str(getattr(product, key, "") or "") for key in (
+        "name_original", "name_normalized", "translated_name"
+    )))
+    category = _normalise(getattr(product, "category", ""))
+    if any(marker in text for marker in _READY_MARKERS) or any(
+        marker in category for marker in ("fertiggerichte", "fertigmahlzeiten", "ready meals")
+    ):
         return "ready_meal"
+    # A canned product is a complete meal only when the requested dish itself
+    # matches its product title. Canned beans/tomatoes stay components.
+    if any(marker in category for marker in ("konserven", "canned food")):
+        requested_dish_match = any(
+            len(_normalise(term).split()) >= 2 and _normalise(term) in name
+            for term in expand_catalog_query(query)
+        )
+        return "ready_meal" if requested_dish_match else "prepared_component"
     if any(marker in text for marker in _KIT_MARKERS):
         return "meal_kit"
     if any(marker in text for marker in _PREPARED_MARKERS):
@@ -140,7 +154,7 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
         semantic_score = semantic_scores.get(int(product.id), 0.0)
         if not phrase_hits and not token_hits and semantic_score < 0.52:
             continue
-        kind = _convenience_type(text)
+        kind = _convenience_type(text, query, product)
         # Exact dish matches dominate; embeddings recover useful German/English
         # supermarket formats when wording differs from the user's query.
         score = phrase_hits * 8 + token_hits * 1.5 + max(0.0, semantic_score - 0.45) * 16
