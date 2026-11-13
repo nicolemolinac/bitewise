@@ -23,7 +23,7 @@ REWE_CATEGORY_URLS = [
     "https://www.rewe.de/shop/c/fleisch-wurst-fisch/",
     "https://www.rewe.de/shop/c/kaese-eier-molkerei/",
     "https://www.rewe.de/shop/c/tiefkuehlkost/",
-    "https://www.rewe.de/shop/c/brot-cerealien-aufstriche/",
+    "https://www.rewe.de/shop/c/backwaren-cerealien-aufstriche/",
     "https://www.rewe.de/shop/c/kochen-backen/",
     "https://www.rewe.de/shop/c/oele-sossen-gewuerze/",
     "https://www.rewe.de/shop/c/fertiggerichte-konserven/",
@@ -37,9 +37,18 @@ REWE_CATEGORY_URLS = [
     "https://www.rewe.de/shop/c/haus-freizeit/",
 ]
 
+def category_slug_from_url(url: str) -> str:
+    slug = str(url or "").rstrip("/").split("/")[-1] or "bonus"
+    # REWE renamed this parent department; keep one stable internal category key
+    # so existing matching rules and older snapshots remain compatible.
+    return {
+        "backwaren-cerealien-aufstriche": "brot-cerealien-aufstriche",
+    }.get(slug, slug)
+
+
 SHOP_DELIVERY_URL = "https://www.rewe.de/shop/?serviceTypes=delivery"
 STATE_FILE = Path(__file__).resolve().parents[2] / "data" / "rewe_storage_state.json"
-MAX_CATEGORY_PAGES = 50
+MAX_CATEGORY_PAGES = 200
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
@@ -1137,7 +1146,7 @@ class ReweCatalogScraper:
 
                 for category_url in urls:
                     report["categories_processed"] += 1
-                    category = category_url.rstrip("/").split("/")[-1] or "bonus"
+                    category = category_slug_from_url(category_url)
                     try:
                         by_id = {}
                         for page_url, html in self._browser_category_pages(page, category_url):
@@ -1189,7 +1198,7 @@ class ReweCatalogScraper:
         report = self._base_report(postcode, "http")
         for start in urls:
             report["categories_processed"] += 1
-            category = start.rstrip("/").split("/")[-1] or "bonus"
+            category = category_slug_from_url(start)
             try:
                 by_id = {}
                 for url, html in self.pages(start):
