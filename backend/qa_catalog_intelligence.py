@@ -88,6 +88,8 @@ def run():
         pizza_dough = next(row for row in pizza["products"] if row["name_original"] == "Frischer Pizzateig mit Tomatensauce")
         assert pizza_kit["convenience_type"] == "meal_kit", pizza_kit
         assert pizza_dough["convenience_type"] == "ready_to_cook", pizza_dough
+        steinofen = next(row for row in pizza["products"] if "Steinofen Pizza" in row["name_original"])
+        assert steinofen["convenience_type"] == "ready_to_cook", steinofen
         assert not any("Hundefutter" in name or "Taco Kit" in name for name in pizza_names), pizza_names
         assert all(row["convenience_type"] in {"ready_meal", "meal_kit", "ready_to_cook", "prepared_component", "catalog_product"} for row in pizza["products"])
         pizza_types = {row["convenience_type"] for row in pizza["products"]}
