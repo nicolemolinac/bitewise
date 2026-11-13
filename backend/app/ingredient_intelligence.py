@@ -215,10 +215,14 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     if ingredient_name in {
         "rice", "white rice", "brown rice", "basmati rice", "jasmine rice",
         "long grain rice", "short grain rice", "wild rice", "risotto rice",
+    } and "tilda" in title and "250g" in title:
+        # REWE's Tilda 250g pouches are microwave-ready rice meals/sides.
+        return False
     } and any(
         token in title for token in (
             "express", "mikrowelle", "microwave", "gekocht", "vorgekocht",
-            "ready to eat", "vorgedampft", "gedampft", "steamed", "2 minuten",
+            "ready to eat", "vorgegart", "vorgedampft", "gedampft", "steamed", "2 minuten",
+            "vegetable rice", "golden vegetable",
             "kuko", "kurzkoch", "reis fit basmati", "tilda sticky rice",
             "fried rice", "egg fried", "risotto steinpilz", "djuvec",
             "griechischer reis", "tomatenreis",
