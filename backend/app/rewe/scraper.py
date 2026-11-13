@@ -110,7 +110,7 @@ def package(text: str):
 
 
 def _displayed_unit_price(text: str):
-    """Read REWE reference prices (€/kg, €/100g, €/l, €/100ml) per base unit."""
+    """Read REWE reference prices per normalized g, ml or piece."""
     match = re.search(_reference_price_pattern(), text or "", re.I)
     if not match:
         return None, None
@@ -133,8 +133,8 @@ def _displayed_unit_price(text: str):
 def price_details(text: str, package_size=None, package_unit=None):
     """Return (checkout price per package, price per normalized g/ml/unit).
 
-    Prefer an explicit checkout price. Use €/kg, €/100g, €/l or €/100ml
-    only when the card does not expose a package checkout price.
+    Prefer an explicit checkout price. Use a matching €/kg, €/100g, €/l,
+    €/100ml or €/piece reference only when the card lacks a pack price.
     """
     reference_price, reference_unit = _displayed_unit_price(text or "")
     checkout_text = re.sub(_reference_price_pattern(), " ", text or "", flags=re.I)
