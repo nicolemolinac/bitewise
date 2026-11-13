@@ -90,6 +90,10 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         return "meal_kit"
     if "gewurze" in category:
         return "prepared_component"
+    # Product formats that still require cooking/heating outrank broad aisle
+    # metadata such as "Fertiggerichte-Konserven".
+    if any(marker in text for marker in _PREPARED_MARKERS):
+        return "ready_to_cook"
     if any(marker in text for marker in _READY_MARKERS) or any(
         marker in category for marker in ("fertiggerichte", "fertigmahlzeiten", "ready meals")
     ):
@@ -109,8 +113,6 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
             return "catalog_product"
     except (TypeError, ValueError):
         pass
-    if any(marker in text for marker in _PREPARED_MARKERS):
-        return "ready_to_cook"
     return "catalog_product"
 
 
