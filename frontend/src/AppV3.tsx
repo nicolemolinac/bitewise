@@ -324,9 +324,13 @@ export default function AppV3(){
 
       const byMealId=new Map<string,{meal:Meal;row:any|null}>();
       history.forEach((row:any)=>{
-        if(row.meal?.id&&needsLocalRecipePhoto(row.meal)&&!inherited.some((x:any)=>x.record_key===row.record_key)){
-          byMealId.set(row.meal.id,{meal:row.meal,row});
+        if(!row.meal?.id||!needsLocalRecipePhoto(row.meal)||inherited.some((x:any)=>x.record_key===row.record_key))return;
+        if(row.record_type==='recipe'){
+          const sourceId=String(row.meal?.source_concept_id||String(row.record_key||'').replace(/^recipe:/,''));
+          const concept=history.find((candidate:any)=>candidate.record_type==='concept'&&String(candidate.record_key)===sourceId);
+          if(concept&&needsLocalRecipePhoto(concept.meal))return;
         }
+        byMealId.set(row.meal.id,{meal:row.meal,row});
       });
       discoverPool.forEach(meal=>{
         if(!meal?.id)return;
