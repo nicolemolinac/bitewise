@@ -112,6 +112,25 @@ def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
     }
 
 
+def _catalog_embedding_matrix(db):
+    """Load the catalog matrix once per index revision, not once per ingredient."""
+    global _INDEX_CACHE
+    count, latest = db.query(func.count(ProductSemanticEmbedding.id), func.max(ProductSemanticEmbedding.updated_at)).filter_by(model_name=MODEL_NAME).one()
+    key = (int(count or 0), latest.isoformat() if latest else None)
+    if key[0] == 0:
+        return None, []
+    if _INDEX_CACHE is not None and _INDEX_CACHE[0] == key:
+        return _INDEX_CACHE[1], _INDEX_CACHE[2]
+    with _INDEX_CACHE_LOCK:
+        if _INDEX_CACHE is not None and _INDEX_CACHE[0] == key:
+            return _INDEX_CACHE[1], _INDEX_CACHE[2]
+        rows = db.query(ProductSemanticEmbedding.product_id, ProductSemanticEmbedding.vector_json).filter_by(model_name=MODEL_NAME).all()
+        product_ids = [row.product_id for row in rows]
+        matrix = np.asarray([json.loads(row.vector_json) for row in rows], dtype=np.float32)
+        _INDEX_CACHE = (key, matrix, product_ids)
+        return matrix, product_ids
+
+
 def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
                                 limit: int = 5, minimum_score: float = 0.78) -> list[dict]:
     """Return review-only semantic candidates; callers must not auto-add these."""
