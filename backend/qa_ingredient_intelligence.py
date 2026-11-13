@@ -241,7 +241,8 @@ def run():
                 "canonical": "frozen fries", "form": "frozen",
                 "culinary_role": "crispy potato side",
                 "substitution_options": [{
-                    "name": "fresh potatoes", "confidence": 0.97,
+                    "name": "fresh potatoes", "name_de": "Speisekartoffeln",
+                    "aliases": ["Kartoffeln frisch"], "confidence": 0.97,
                     "role_preserved": True, "safe_to_auto_apply": True,
                     "quantity_ratio": 1.0,
                     "preparation_adjustment": "Cut fresh potatoes into fries, rinse and dry thoroughly, coat lightly with oil, then cook until crisp.",
@@ -251,6 +252,7 @@ def run():
         },
     }
     fries_profile = normalize_recipe_intelligence(fries_recipe)["frozen fries"]
+    assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen fries", fries_profile)
     assert ingredient_product_match_type(
         "frozen fries", "REWE Speisekartoffeln 2kg", fries_profile, "obst-gemuese"
     ) == "substitute"
