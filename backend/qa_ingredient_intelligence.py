@@ -47,6 +47,10 @@ def test_high_risk_false_positive_guards():
         product_category="Öle, Soßen & Gewürze",
     ) is None
     assert ingredient_product_match_type(
+        "honey", "REWE Bio Blütenhonig 500g",
+        product_category="Brot, Cerealien & Aufstriche",
+    ) == "exact"
+    assert ingredient_product_match_type(
         "salsa", "Alnatura Bio Mais Röllchen Milde Salsa 125g",
         product_category="Süßes & Salziges",
     ) is None
