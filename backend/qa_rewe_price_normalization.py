@@ -58,6 +58,16 @@ def main():
     assert pack_price == 2.49
     assert abs(per_gram - 0.00498) < 0.000001
 
+    # Refundable bottle deposits must never be counted as the food's price.
+    deposit_only = "Protein drink 330ml (1 l = 9,06 €) zzgl. 0,25 € Pfand"
+    deposit_size, deposit_unit = package(deposit_only)
+    assert deposit_size == 330 and deposit_unit == "ml"
+    deposit_price, deposit_per_ml = price_details(deposit_only, deposit_size, deposit_unit)
+    assert deposit_price == 2.99 and abs(deposit_per_ml - (9.06 / 1000)) < 1e-9
+
+    deposit_with_pack_price = "Protein drink 330ml 2,99 € zzgl. 0,25 € Pfand"
+    assert price_details(deposit_with_pack_price, 330, "ml")[0] == 2.99
+
     # A reference price must never be mistaken for a checkout price when the
     # package size could not be parsed or its unit does not match.
     assert price_details("Rice (1 kg = 4,00 €)", None, None) == (None, None)
