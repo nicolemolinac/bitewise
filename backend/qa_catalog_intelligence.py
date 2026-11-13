@@ -57,6 +57,7 @@ def run():
             product("pizza-2", "REWE Beste Wahl Steinofen Pizza Margherita", "Tiefkühlkost"),
             product("pizza-3", "Frischer Pizzateig mit Tomatensauce", "Fertiggerichte-Konserven"),
             product("pizza-4", "Knack & Back Pizza-Kit 600g", "Fertiggerichte-Konserven"),
+            product("pizza-5", "Tante Fanny Frischer Flammkuchenteig 260g", "Fertiggerichte-Konserven"),
             product("chili-1", "Chili con Carne 400g", "Konserven", price=2.49),
             product("chili-2", "Mexikanischer Chili Eintopf mit Rind", "Fertiggerichte", price=2.99),
             product("chili-3", "Kidney Bohnen rot", "Konserven", ingredient="kidney beans"),
@@ -80,7 +81,7 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1017
+        assert pizza["catalog_count"] == 1018
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
@@ -88,6 +89,8 @@ def run():
         pizza_dough = next(row for row in pizza["products"] if row["name_original"] == "Frischer Pizzateig mit Tomatensauce")
         assert pizza_kit["convenience_type"] == "meal_kit", pizza_kit
         assert pizza_dough["convenience_type"] == "ready_to_cook", pizza_dough
+        flammkuchen = next(row for row in pizza["products"] if "Flammkuchen" in row["name_original"])
+        assert flammkuchen["convenience_type"] == "ready_to_cook", flammkuchen
         steinofen = next(row for row in pizza["products"] if "Steinofen Pizza" in row["name_original"])
         assert steinofen["convenience_type"] == "ready_meal", steinofen
         assert not any("Hundefutter" in name or "Taco Kit" in name for name in pizza_names), pizza_names
