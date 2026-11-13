@@ -227,6 +227,9 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
             token in title for token in (
                 "express", "mikrowelle", "microwave", "gekocht", "vorgekocht",
                 "ready to eat", "vorgegart", "vorgedampft", "gedampft", "steamed", "2 minuten",
+                "rice flour", "reismehl", "rice paper", "rice pudding", "reisbrei",
+                "rice cake", "rice cakes", "reiswaffel", "rice cracker", "rice crackers",
+                "reisdrink", "rice milk",
                 "vegetable rice", "golden vegetable", "kuko", "kurzkoch",
                 "reis fit basmati", "tilda sticky rice", "fried rice", "egg fried",
                 "risotto steinpilz", "djuvec", "griechischer reis", "tomatenreis",
