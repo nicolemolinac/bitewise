@@ -23,6 +23,7 @@ from types import SimpleNamespace
 from app import server
 from app.database import Product, SessionLocal
 from app.rewe.scraper import package
+from app.ingredient_intelligence import normalize_text
 
 
 def _usable_catalog_candidate(product):
@@ -265,7 +266,10 @@ def main():
                 suggestions = [
                     product.name_original
                     for product in products
-                    if any(term in str(product.name_original or "").lower() for term in hint_terms)
+                    if any(
+                        normalize_text(term) in normalize_text(product.name_original or "")
+                        for term in hint_terms
+                    )
                 ][:20]
                 print("CATALOG NEAR-MATCH TITLES:", row["ingredient"], suggestions)
     finally:
