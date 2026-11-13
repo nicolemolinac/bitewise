@@ -534,7 +534,7 @@ def _repair_snapshot_unit_prices_once() -> None:
                 name = str(row.get("name_original") or "").strip()
                 if str(row.get("supermarket") or "REWE").strip().upper() != "REWE":
                     continue
-                if re.search(r"1\\s*(?:kg|l)\\s*=", name, re.I):
+                if re.search(r"1\s*(?:kg|l)\s*=", name, re.I):
                     expected_reference_rows += 1
                     rows.append(row)
         if expected_reference_rows < 100:
