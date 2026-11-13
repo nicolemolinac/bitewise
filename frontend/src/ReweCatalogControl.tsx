@@ -3,6 +3,17 @@ import { Database, RefreshCw, X } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+type SemanticIndexStatus = {
+  running?: boolean;
+  processed?: number;
+  pending?: number;
+  total?: number;
+  indexed?: number;
+  complete?: boolean;
+  error?: string | null;
+  model?: string;
+};
+
 type ReweStatus = {
   products?: number;
   status?: string;
@@ -30,6 +41,8 @@ async function api(path: string, options?: RequestInit) {
 export default function ReweCatalogControl() {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<ReweStatus | null>(null);
+  const [semanticStatus, setSemanticStatus] = useState<SemanticIndexStatus | null>(null);
+  const [semanticLoading, setSemanticLoading] = useState(false);
   const [postcode, setPostcode] = useState('13353');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,11 +52,13 @@ export default function ReweCatalogControl() {
   }, []);
 
   async function loadStatus() {
-    const [nextStatus, settings] = await Promise.all([
+    const [nextStatus, settings, nextSemanticStatus] = await Promise.all([
       api('/rewe/status'),
       api('/settings'),
+      api('/catalog/semantic-index/status'),
     ]);
     setStatus(nextStatus);
+    setSemanticStatus(nextSemanticStatus);
     setPostcode(settings.postcode || nextStatus.postcode || '13353');
   }
 
@@ -66,6 +81,29 @@ export default function ReweCatalogControl() {
       setLoading(false);
     }
   }
+
+  async function buildSemanticIndex() {
+    setSemanticLoading(true);
+    setError('');
+    try {
+      const next = await api('/catalog/semantic-index', { method: 'POST' });
+      setSemanticStatus(next);
+    } catch (err: any) {
+      setError(err?.message || 'Could not start the local semantic index.');
+    } finally {
+      setSemanticLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!open || !semanticStatus?.running) return;
+    const timer = window.setInterval(() => {
+      api('/catalog/semantic-index/status')
+        .then(setSemanticStatus)
+        .catch(() => undefined);
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [open, semanticStatus?.running]);
 
   async function refreshCatalog() {
     setLoading(true);
@@ -150,6 +188,32 @@ export default function ReweCatalogControl() {
                 >
                   <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
                   {loading ? 'Refreshing…' : 'Refresh full catalog'}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[22px] bg-white p-5 shadow-sm">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                <div className="min-w-0">
+                  <div className="font-black">Local semantic search</div>
+                  <div className="mt-1 text-xs text-[#18392b]/50">
+                    {semanticStatus?.running
+                      ? `Indexing ${semanticStatus.processed || 0}/${semanticStatus.pending || semanticStatus.total || 0} changed products · ${semanticStatus.total || status?.products || 0} in the full catalog`
+                      : `${semanticStatus?.indexed || 0}/${semanticStatus?.total || status?.products || 0} products indexed`}
+                    {semanticStatus?.model ? ` · ${semanticStatus.model}` : ''}
+                  </div>
+                  <div className="mt-1 text-xs text-[#18392b]/45">
+                    Builds multilingual product vectors locally for all REWE products. No Gemini calls. New or changed products are indexed incrementally.
+                  </div>
+                  {semanticStatus?.error && <div className="mt-2 text-xs font-bold text-red-700">{semanticStatus.error}</div>}
+                </div>
+                <button
+                  onClick={buildSemanticIndex}
+                  disabled={semanticLoading || !!semanticStatus?.running || !status?.products}
+                  className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#18392b] px-5 py-3 text-sm font-black text-white disabled:opacity-40"
+                >
+                  <RefreshCw size={15} className={semanticLoading || semanticStatus?.running ? 'animate-spin' : ''} />
+                  {semanticStatus?.running ? 'Indexing…' : semanticLoading ? 'Starting…' : semanticStatus?.complete ? 'Update index' : 'Build semantic index'}
                 </button>
               </div>
             </div>
