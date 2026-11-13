@@ -62,7 +62,7 @@ _UNIT_FAMILIES = {
     "count": {"piece", "unit"},
 }
 _FAMILY_HINTS = {
-    "oil": ("oil", "ol"),
+    "oil": ("oil", "pflanzenol", "sonnenblumenol", "rapsol", "olivenol"),
     "liquid": ("milk", "cream", "sauce", "vinegar", "stock", "juice", "sahne", "milch", "essig", "brühe"),
     "spice": ("salt", "pepper", "paprika", "cumin", "cinnamon", "spice", "gewürz", "salz", "pfeffer"),
     "produce": ("onion", "garlic", "potato", "tomato", "lettuce", "cilantro", "carrot", "zwiebel", "knoblauch", "kartoffel"),
