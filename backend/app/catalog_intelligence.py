@@ -44,7 +44,7 @@ _KIT_MARKERS = (
     "kochbox", "backmischung",
 )
 _PREPARED_MARKERS = (
-    "baguette", "flammkuchen", "pizzateig", "pizza dough", "pommes",
+    "baguette", "flammkuchen", "pizza", "pizzateig", "pizza dough", "pommes",
     "gnocchi", "ravioli", "tortellini", "spatzle", "schnitzel",
     "falafel", "burger patty",
 )
