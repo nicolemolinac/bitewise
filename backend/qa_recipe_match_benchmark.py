@@ -350,11 +350,11 @@ def main():
                             f"score={audit_score}"
                         )
                     alternative_patterns = {
-                        "grated cheddar cheese": (("gouda", "emmental", "gratinkase", "reibe", "gerieben"), None),
+                        "grated cheddar cheese": (("gouda", "emmental", "gratinkase", "reibe", "gerieben", "streukase"), None),
                         "burger buns": (("burger", "hamburger", "brioche", "brotchen", "sesam"), None),
-                        "curry powder": (("curry", "currypaste", "curry paste"), None),
-                        "rolled oats": (("hafer", "oat", "porridge"), None),
-                        "red cabbage": (("rotkohl", "rotkraut", "red cabbage"), {"obst-gemuese", "tiefkuehlkost", "fertiggerichte-konserven"}),
+                        "curry powder": (("curry", "currypaste", "curry paste", "garam masala", "currypulver", "kurkuma"), None),
+                        "rolled oats": (("hafer", "oat", "porridge", "muesli", "granola", "cereal"), None),
+                        "red cabbage": (("rotkohl", "rotkraut", "red cabbage", "weisskohl", "weisskraut", "white cabbage", "spitzkohl", "coleslaw"), None),
                     }
                     if ingredient in alternative_patterns:
                         patterns, categories = alternative_patterns[ingredient]
