@@ -158,8 +158,8 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     title_key = normalize_text(title)
     category_key = category_key.replace(" ", "-")
     if category_key in {
-        "drogerie-gesundheit", "tierbedarf", "kuche-haushalt",
-        "haus-freizeit", "bonus", "getranke-genussmittel",
+        "drogerie-gesundheit", "tierbedarf", "kueche-haushalt",
+        "haus-freizeit", "bonus", "getraenke-genussmittel",
         "kaffee-tee-kakao", "baby-kind",
     }:
         return False
@@ -202,10 +202,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name in produce:
         normalized_form = normalize_text(form)
         if normalized_form in {"frozen", "tiefkuhl"}:
-            return category_key == "tiefkuhlkost"
+            return category_key == "tiefkuehlkost"
         if normalized_form in {"canned", "konserve"}:
-            return category_key in {"fertiggerichte-konserven", "obst-gemuse"}
-        return category_key == "obst-gemuse" or (name == "fresh cilantro" and category_key == "frische-krauter")
+            return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
+        return category_key == "obst-gemuese" or (name == "fresh cilantro" and category_key == "frische-krauter")
     if name in proteins:
         prepared_terms = (
             "ofenbrot", "bolognese", "penne", "lasagne", "suppe",
@@ -216,22 +216,22 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             return False
         allowed = {"fleisch-wurst-fisch", "fleisch"}
         if normalize_text(form) in {"frozen", "tiefkuhl"}:
-            allowed.add("tiefkuhlkost")
+            allowed.add("tiefkuehlkost")
         return category_key in allowed
     if name in dairy:
-        return category_key == "kase-eier-molkerei"
+        return category_key == "kaese-eier-molkerei"
     if name in oils:
-        return category_key == "ole-sossen-gewurze"
+        return category_key == "oele-sossen-gewuerze"
     if name in spices:
-        return category_key in {"ole-sossen-gewurze", "kochen-backen"}
+        return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
     if name in grains:
         return category_key in {"kochen-backen", "brot-cerealien-aufstriche"}
     if name in canned:
-        return category_key in {"fertiggerichte-konserven", "obst-gemuse"}
+        return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
     if name in sauces:
-        allowed = {"ole-sossen-gewurze", "fertiggerichte-konserven"}
+        allowed = {"oele-sossen-gewuerze", "fertiggerichte-konserven"}
         if name == "salsa":
-            allowed.add("susses-salziges")
+            allowed.add("suesses-salziges")
         if name == "honey":
             allowed.update({"brot-cerealien-aufstriche", "kochen-backen"})
         return category_key in allowed
