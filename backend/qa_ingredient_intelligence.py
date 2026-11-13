@@ -47,6 +47,7 @@ def test_common_english_ingredients_have_german_catalog_terms():
         "kidney beans": "kidneybohnen", "oats": "haferflocken",
         "banana": "bananen", "baking powder": "backpulver",
         "cornstarch": "speisestarke", "coconut milk": "kokosmilch",
+        "rapeseed oil": "rapsol", "sunflower oil": "sonnenblumenol",
     }
     for ingredient, german_term in expected.items():
         assert german_term in ingredient_search_terms(ingredient), (
