@@ -28,6 +28,7 @@ from app.database import Product, ProductSemanticEmbedding, SessionLocal
 from app.ingredient_intelligence import (
     ingredient_candidate_search_terms, ingredient_product_match_type,
     normalize_recipe_intelligence,
+    normalize_text,
 )
 from app.shopping.optimizer import build_basket, consolidate
 
@@ -259,6 +260,12 @@ def main():
             raise SystemExit(f"REWE catalog is incomplete for a representative benchmark: {product_count} products (expected at least 1,000).")
 
         adapter = server.main_module.CatalogAdapter(db)
+        # Keep the complete local snapshot in memory for diagnostics only.
+        # This lets us inspect titles even when SQL alias matching is what
+        # failed (especially German umlaut/transliteration edge cases).
+        catalog_products = db.query(Product).filter(
+            Product.supermarket == "REWE"
+        ).all()
         totals = Counter()
         per_recipe = []
         semantic_review_count = 0
@@ -283,26 +290,35 @@ def main():
                     ingredient = row.get("ingredient") or ""
                     profile = recipe.get("ingredient_intelligence", {}).get(ingredient, {})
                     search_terms = ingredient_candidate_search_terms(ingredient, profile)
-                    candidates = {}
-                    for term in search_terms[:10]:
-                        matches = db.query(Product).filter(
-                            Product.supermarket == "REWE",
-                            Product.name_normalized.ilike(f"%{term}%"),
-                        ).limit(3).all()
-                        for candidate in matches:
-                            candidates[candidate.id] = candidate
-                    if candidates:
+                    ranked_candidates = []
+                    for candidate in catalog_products:
+                        candidate_title = normalize_text(" ".join(str(value or "") for value in (
+                            candidate.name_original, candidate.name_normalized, candidate.translated_name
+                        )))
+                        matched_terms = [term for term in search_terms if term and term in candidate_title]
+                        if matched_terms:
+                            ranked_candidates.append((
+                                max(len(term) for term in matched_terms),
+                                candidate,
+                                matched_terms,
+                            ))
+                    ranked_candidates.sort(key=lambda item: (-item[0], item[1].id or 0))
+                    if ranked_candidates:
                         print(f"  CATALOG CANDIDATES FOR {ingredient}:")
-                        for candidate in list(candidates.values())[:8]:
+                        for _, candidate, matched_terms in ranked_candidates[:8]:
                             candidate_match = ingredient_product_match_type(
-                                ingredient, candidate.name_original or candidate.name_normalized,
-                                profile, candidate.category or "",
+                                ingredient,
+                                " ".join(str(value or "") for value in (
+                                    candidate.name_original, candidate.name_normalized, candidate.translated_name
+                                )),
+                                profile,
+                                candidate.category or "",
                             )
                             print(
                                 f"    {candidate.name_original} "
                                 f"(category={candidate.category}, price={candidate.price}, "
                                 f"pack={candidate.package_size} {candidate.package_unit}, "
-                                f"match_type={candidate_match})"
+                                f"match_type={candidate_match}, aliases={matched_terms[:3]})"
                             )
                     else:
                         print(f"  NO CATALOG TITLE CANDIDATES FOR {ingredient}; terms={search_terms[:10]}")
