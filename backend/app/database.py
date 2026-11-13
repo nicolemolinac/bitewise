@@ -494,11 +494,13 @@ def _auto_import_rewe_csv_snapshot() -> None:
 
 
 def _repair_snapshot_unit_prices_once() -> None:
-    """Repair legacy REWE rows only when they still exactly match this CSV snapshot.
+    """Repair legacy REWE unit-price rows using conservative snapshot identity checks.
 
-    Older scraper runs stored the displayed €/kg or €/l reference price as the
-    package checkout price. We update only same-ID, same-name rows whose current
-    price still equals the CSV source value; changed live prices are left untouched.
+    Older scraper runs stored a displayed €/kg or €/l reference price as the
+    package checkout price. Prefer the old database ID, but fall back to an exact
+    REWE product-name + ingredient match because IDs change between imports.
+    Never overwrite a price that differs from both the raw snapshot and its
+    normalized package price.
     """
     snapshot_path = BACKEND_DIR / "data" / "catalog" / "rewe_products.csv"
     if not snapshot_path.is_file():
@@ -506,7 +508,10 @@ def _repair_snapshot_unit_prices_once() -> None:
     db = None
     try:
         db = SessionLocal()
-        if db.get(AppSetting, "rewe_snapshot_price_repair_v1"):
+        if (
+            db.get(AppSetting, "rewe_snapshot_price_repair_v1")
+            or db.get(AppSetting, "rewe_snapshot_price_repair_attempt_v1")
+        ):
             return
         rows = []
         expected_reference_rows = 0
@@ -527,49 +532,112 @@ def _repair_snapshot_unit_prices_once() -> None:
             )
             for row in reader:
                 name = str(row.get("name_original") or "").strip()
-                if re.search(r"1\s*(?:kg|l)\s*=", name, re.I):
+                if str(row.get("supermarket") or "REWE").strip().upper() != "REWE":
+                    continue
+                if re.search(r"1\\s*(?:kg|l)\\s*=", name, re.I):
                     expected_reference_rows += 1
                     rows.append(row)
         if expected_reference_rows < 100:
             return
 
         repaired = 0
+        already_normalized = 0
+        changed_live_prices = 0
+        unmatched = 0
         for row in rows:
+            name = str(row.get("name_original") or "").strip()
+            ingredient = str(row.get("ingredient") or "").strip()
             try:
                 product_id = int(row.get("id") or 0)
             except (TypeError, ValueError):
+                product_id = 0
+            product = db.get(Product, product_id) if product_id else None
+            if product and (
+                product.supermarket != "REWE"
+                or product.name_original != name
+                or (ingredient and product.ingredient != ingredient)
+            ):
+                product = None
+
+            # Internal product IDs are not stable across catalog imports. Fall back
+            # to an exact title and ingredient match, never a fuzzy title match.
+            if product is None and name:
+                candidates = db.query(Product).filter(
+                    Product.supermarket == "REWE",
+                    Product.name_original == name,
+                )
+                if ingredient:
+                    candidates = candidates.filter(Product.ingredient == ingredient)
+                matches = candidates.limit(2).all()
+                product = matches[0] if len(matches) == 1 else None
+            if product is None:
+                unmatched += 1
                 continue
-            product = db.get(Product, product_id)
-            if not product or product.name_original != str(row.get("name_original") or ""):
-                continue
+
             source_price = _snapshot_float(row.get("price"))
-            if source_price is None or product.price is None or abs(float(product.price) - source_price) > 0.011:
+            if source_price is None or product.price is None:
+                unmatched += 1
                 continue
             package_size = _snapshot_float(row.get("package_size"), product.package_size) or product.package_size
             package_unit = str(row.get("package_unit") or product.package_unit).strip()
-            package_size = _snapshot_package_size(product.name_original, package_size, package_unit)
+            package_size = _snapshot_package_size(name, package_size, package_unit)
             pack_price, unit_price = _snapshot_pack_pricing(
-                product.name_original, package_size, package_unit,
+                name, package_size, package_unit,
                 row.get("price"), row.get("price_per_unit"),
             )
             if pack_price is None or unit_price is None:
+                unmatched += 1
                 continue
-            product.package_size = package_size
-            product.price = pack_price
-            product.price_per_unit = unit_price
-            repaired += 1
 
-        # Require strong evidence that this is the exact source database before
-        # marking the one-time repair complete. Otherwise leave live data untouched.
-        if repaired >= expected_reference_rows * 0.70:
+            current_price = float(product.price)
+            if abs(current_price - source_price) <= 0.011:
+                product.package_size = package_size
+                product.package_unit = package_unit
+                product.price = pack_price
+                product.price_per_unit = unit_price
+                repaired += 1
+            elif (
+                abs(current_price - pack_price) <= 0.011
+                and abs(float(product.package_size or 0) - package_size) <= 0.001
+                and product.price_per_unit is not None
+                and abs(float(product.price_per_unit) - unit_price) <= 0.000011
+            ):
+                already_normalized += 1
+            else:
+                # A changed live price is not evidence of a legacy pricing bug.
+                changed_live_prices += 1
+
+        # Count both repaired and already-correct rows as verified source matches.
+        verified = repaired + already_normalized
+        if verified >= expected_reference_rows * 0.70:
             db.add(AppSetting(key="rewe_snapshot_price_repair_v1", value=str(repaired)))
             db.commit()
-            print(f"Bitewise repaired {repaired} legacy REWE package prices from the matching snapshot.")
+            if repaired:
+                print(
+                    f"Bitewise repaired {repaired} legacy REWE package prices "
+                    f"({already_normalized} were already normalized)."
+                )
+            else:
+                print(
+                    f"Bitewise verified REWE snapshot pricing: "
+                    f"{already_normalized} rows were already normalized."
+                )
         else:
-            db.rollback()
+            # This is a one-time migration check. Persist its result to avoid a
+            # misleading warning on every app/test startup; a future repair can
+            # deliberately bump the versioned key after a new migration is added.
+            db.add(AppSetting(
+                key="rewe_snapshot_price_repair_attempt_v1",
+                value=(
+                    f"skipped; verified={verified}; expected={expected_reference_rows}; "
+                    f"unmatched={unmatched}; changed_live_prices={changed_live_prices}"
+                ),
+            ))
+            db.commit()
             print(
-                "Bitewise skipped REWE snapshot price repair: existing catalog does not "
-                "sufficiently match the committed snapshot."
+                "Bitewise skipped REWE snapshot price repair once: "
+                f"{verified}/{expected_reference_rows} snapshot rows could be verified; "
+                "existing live catalog prices were left untouched."
             )
     except Exception as exc:
         if db:
