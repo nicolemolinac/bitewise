@@ -131,6 +131,10 @@ def main():
                 "count": len(rows),
                 "ids": [row.id for row in rows],
                 "titles": [row.name_original for row in rows],
+                "prices": [row.price for row in rows],
+                "package_sizes": [(row.package_size, row.package_unit) for row in rows],
+                "categories": [row.category for row in rows],
+                "brands": [row.brand for row in rows],
                 "product_urls": [row.product_url for row in rows],
             }
             for name, rows in duplicate_groups.items() if len(rows) > 1
