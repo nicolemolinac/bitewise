@@ -38,14 +38,14 @@ def run():
                 "aliases": ["neutral cooking oil", "Pflanzenöl"],
                 "form": "liquid", "culinary_role": "cooking fat",
                 "unit_dimension": "volume",
-                "allowed_substitutions": ["sunflower oil", "rapeseed oil"],
+                "suggested_substitutions": ["sunflower oil", "rapeseed oil"],
             },
             "frozen french fries": {
                 "canonical": "potato fries", "name_en": "frozen french fries",
                 "name_de": "Tiefkühl-Pommes", "name_es": "patatas fritas congeladas",
                 "aliases": ["Pommes Frites", "Tiefkühlpommes"],
                 "form": "frozen", "culinary_role": "starchy side",
-                "unit_dimension": "mass", "allowed_substitutions": ["fresh potatoes"],
+                "unit_dimension": "mass", "suggested_substitutions": ["fresh potatoes"],
             },
             "canned corn": {
                 "canonical": "sweet corn", "name_en": "canned sweet corn",
