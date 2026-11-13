@@ -64,13 +64,21 @@ def main():
     os.environ["BITEWISE_AI_MEALS_PATH"] = str(AI_DATA)
     os.environ["DATABASE_URL"] = ""
     os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
-    from app.server import _assign_expanded_recipe_identity
+    from app.server import _assign_expanded_recipe_identity, _inherit_concept_photo
 
     first = _assign_expanded_recipe_identity({"id": "gemini-generic-id"}, "concept-a")
     second = _assign_expanded_recipe_identity({"id": "gemini-generic-id"}, "concept-b")
     assert first["id"] != second["id"], "Two different ideas must never collapse into one Pick"
     assert first["source_concept_id"] == "concept-a"
     assert second["source_concept_id"] == "concept-b"
+
+    photo_path = "/api/meal-photos/files/" + ("b" * 24) + ".webp"
+    expanded_with_photo = _inherit_concept_photo(
+        {"id": "expanded-photo-qa"},
+        {"image": photo_path, "image_page": "https://example.com/photo"},
+    )
+    assert expanded_with_photo["image"] == photo_path
+    assert expanded_with_photo["image_page"] == "https://example.com/photo"
 
     DB.parent.mkdir(parents=True, exist_ok=True)
     if DB.exists():
