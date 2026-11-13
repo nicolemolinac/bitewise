@@ -7,7 +7,21 @@ embedding index has already been built.
 """
 from __future__ import annotations
 
+import os
+import tempfile
+from pathlib import Path
 from collections import Counter
+
+# CI can benchmark the committed REWE snapshot in a disposable database.
+# Normal local runs continue to inspect the user's existing local REWE catalog
+# (including its already-built semantic vectors) without changing that database.
+_BENCHMARK_DB = None
+if os.getenv("BITEWISE_BENCHMARK_ISOLATED", "").strip().lower() in {"1", "true", "yes", "on"}:
+    _BENCHMARK_DB = tempfile.TemporaryDirectory(prefix="bitewise-recipe-match-benchmark-")
+    os.environ["DATABASE_URL"] = ""
+    os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_BENCHMARK_DB.name) / "benchmark.sqlite")
+    os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
+    os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app import server  # installs the multilingual CatalogAdapter.search override
 from app.database import ProductSemanticEmbedding, SessionLocal
@@ -223,6 +237,8 @@ def main():
         print(f"Local semantic vectors: {embedding_count}")
         if product_count == 0:
             raise SystemExit("No REWE catalog rows found. Refresh/import the local catalog first.")
+        if product_count < 1000:
+            raise SystemExit(f"REWE catalog is incomplete for a representative benchmark: {product_count} products (expected at least 1,000).")
 
         adapter = server.main_module.CatalogAdapter(db)
         totals = Counter()
