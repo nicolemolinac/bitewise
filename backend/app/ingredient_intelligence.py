@@ -123,7 +123,7 @@ _UNIT_FAMILIES = {
 }
 _FAMILY_HINTS = {
     "oil": ("oil", "pflanzenol", "sonnenblumenol", "rapsol", "olivenol"),
-    "liquid": ("milk", "cream", "sauce", "vinegar", "stock", "juice", "sahne", "milch", "essig", "brühe"),
+    "liquid": ("milk", "cream", "sauce", "vinegar", "stock", "juice", "mayonnaise", "mayo", "salatmayonnaise", "sahne", "milch", "essig", "brühe"),
     "spice": ("salt", "pepper", "paprika", "cumin", "cinnamon", "spice", "seasoning", "gewürz", "gewürzmischung", "salz", "pfeffer"),
     "produce": ("onion", "onions", "garlic", "potato", "potatoes", "tomato", "tomatoes", "lettuce", "cilantro", "carrot", "carrots", "olive", "olives", "zwiebel", "zwiebeln", "knoblauch", "kartoffel", "kartoffeln"),
     "count": ("egg", "eggs", "eier", "tortilla", "tortillas", "shell", "shells", "bun", "buns", "wurstchen", "sausage", "sausages"),
