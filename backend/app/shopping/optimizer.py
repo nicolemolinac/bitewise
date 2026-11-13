@@ -39,7 +39,7 @@ def consolidate(meals, servings_map):
             intelligence = meal.get("ingredient_intelligence") or {}
             if isinstance(intelligence, dict):
                 row["ingredient_intelligence"] = intelligence.get(name.lower().strip()) or intelligence.get(name) or row["ingredient_intelligence"]
-            row["unit_validation"] = validate_ingredient_unit(name, normalized_unit)
+            row["unit_validation"] = validate_ingredient_unit(name, normalized_unit, row["ingredient_intelligence"])
     return [
         {
             "ingredient": ingredient,
@@ -47,7 +47,7 @@ def consolidate(meals, servings_map):
             "unit": unit,
             "source_meals": list(dict.fromkeys(value["source_meals"])),
             "ingredient_intelligence": value.get("ingredient_intelligence"),
-            "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit),
+            "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit, requirement.get("ingredient_intelligence")),
         }
         for (ingredient, unit), value in grouped.items()
     ]
