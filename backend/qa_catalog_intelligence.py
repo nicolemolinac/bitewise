@@ -55,7 +55,7 @@ def run():
         session.add_all([
             product("pizza-1", "ja! Pizza Baguette Salami 250g", "Tiefkühlkost"),
             product("pizza-2", "REWE Beste Wahl Steinofen Pizza Margherita", "Tiefkühlkost"),
-            product("pizza-3", "Frischer Pizzateig mit Tomatensauce", "Kühlregal"),
+            product("pizza-3", "Frischer Pizzateig mit Tomatensauce", "Fertiggerichte-Konserven"),
             product("pizza-4", "Knack & Back Pizza-Kit 600g", "Fertiggerichte-Konserven"),
             product("chili-1", "Chili con Carne 400g", "Konserven", price=2.49),
             product("chili-2", "Mexikanischer Chili Eintopf mit Rind", "Fertiggerichte", price=2.99),
