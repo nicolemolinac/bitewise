@@ -253,6 +253,10 @@ def run():
         {"form": "fresh", "name_de": "Hähnchenbrust"}, "fleisch-wurst-fisch"
     ) is None, "Seasoned cured chicken deli slices are not raw chicken breast"
     assert ingredient_product_match_type(
+        "chicken breast", "Wilhelm Brandenburg Hähnchenbrustfilet 100g",
+        {"form": "fresh", "name_de": "Hähnchenbrust"}, "fleisch-wurst-fisch"
+    ) is None, "Cured 100g chicken deli slices must not match raw chicken breast"
+    assert ingredient_product_match_type(
         "chicken breast", "REWE Bio Hähnchen Brustfilet frisch 320g",
         {"form": "fresh", "name_de": "Hähnchenbrust"}, "fleisch-wurst-fisch"
     ) == "exact"
