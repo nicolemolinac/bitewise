@@ -20,7 +20,7 @@ def product(external_id, name, category, ingredient="meal", price=2.0, package_s
         package_size=package_size,
         package_unit=package_unit,
         price=price,
-        price_per_unit=price / (package_size / 1000 if package_unit == "g" else package_size),
+        price_per_unit=price / package_size if package_size and package_unit in {"g", "ml"} else None,
         availability="unknown",
         postcode_context="13353",
     )
