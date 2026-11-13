@@ -11,10 +11,10 @@ from typing import Any
 
 
 def normalize_text(value: Any) -> str:
-    text = unicodedata.normalize("NFKD", str(value or "").casefold())
+    text = unicodedata.normalize("NFKD", str(value or "").casefold().replace("ß", "ss"))
     text = "".join(char for char in text if not unicodedata.combining(char))
     text = re.sub(r"[^a-z0-9]+", " ", text)
-    return re.sub(r"\\s+", " ", text).strip()
+    return re.sub(r"\s+", " ", text).strip()
 
 
 # Small, high-confidence cross-language vocabulary. This is a seed ontology,
@@ -22,7 +22,7 @@ def normalize_text(value: Any) -> str:
 _BASE_TERMS = {
     "black olives": ("black olives", "schwarze oliven", "oliven schwarz", "olives noires"),
     "canned corn": ("canned corn", "mais aus der dose", "mais dose", "mais konserve", "zuckermais"),
-    "frozen sweet corn": ("frozen sweet corn", "tiefkuhl mais", "tiefkuhlerbsenmais", "tiefkuhlzuckermais", "mais tiefkuhl"),
+    "frozen sweet corn": ("frozen sweet corn", "tiefkuhl mais", "tiefkuhlmais", "tiefkuhlzuckermais", "mais tiefkuhl"),
     "fresh cilantro": ("fresh cilantro", "cilantro", "koriander", "frischer koriander", "koriandergrun"),
     "grated cheddar cheese": ("grated cheddar cheese", "cheddar gerieben", "geriebener cheddar", "cheddar geraspelt"),
     "hard boiled eggs": ("hard boiled eggs", "gekochte eier", "eier hart gekocht", "hartgekochte eier"),
@@ -32,7 +32,7 @@ _BASE_TERMS = {
     "mayonnaise": ("mayonnaise", "mayonnaise", "salatmayonnaise", "delikatess mayonnaise"),
     "paprika powder": ("paprika powder", "paprikapulver", "edelsuß paprika", "edelsuess paprika"),
     "parmesan cheese": ("parmesan cheese", "parmesan", "parmigiano reggiano", "parmigiano", "parmesan gerieben"),
-    "pre-cooked shredded chicken": ("pre cooked shredded chicken", "geg arte hahnchenbrust", "gegartes hahnchen", "hahnchenbrust gegart", "hahnchenstreifen gegart"),
+    "pre-cooked shredded chicken": ("pre cooked shredded chicken", "gegarte hahnchenbrust", "gegartes hahnchen", "hahnchenbrust gegart", "hahnchenstreifen gegart"),
     "shredded lettuce": ("shredded lettuce", "salatstreifen", "geschnittener eisbergsalat", "eisbergsalat geschnitten", "salatherzen geschnitten"),
     "taco seasoning": ("taco seasoning", "taco gewurz", "taco gewurzmix", "gewurz fur tacos", "mexikanische gewurzmischung"),
     "tortillas": ("tortillas", "weizentortillas", "weizentortilla", "wraps", "tortilla wraps"),
