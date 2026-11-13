@@ -131,8 +131,6 @@ def run():
     kaiser_match = ingredient_product_match_type(
         "burger buns", "REWE Kaiserbrötchen 4 Stück", {"form": "unspecified"}, "brot-cerealien-aufstriche"
     )
-    print("DEBUG KAISER BUN:", kaiser_match, normalize_text("REWE Kaiserbrötchen 4 Stück"),
-          ingredient_candidate_search_terms("burger buns", {"form": "unspecified"}))
     assert kaiser_match == "substitute"
     assert ingredient_product_match_type(
         "grated cheddar cheese", "REWE Gouda gerieben 200g", {"form": "grated"}, "kaese-eier-molkerei"
@@ -213,7 +211,6 @@ def run():
         "red cabbage", "Rotkohl ca. 1,8kg 1 Stück ca. 1800 g",
         {"form": "fresh"}, "fertiggerichte-konserven"
     )
-    print("DEBUG PREPARED RED:", prepared_match, prepared_category, prepared_form)
     assert prepared_match is None, "Prepared red cabbage must not match a fresh raw cabbage ingredient"
     assert ingredient_product_match_type(
         "rolled oats", "Kellogs Special Crunchy Oat Granola Mixed Berries 320g",
