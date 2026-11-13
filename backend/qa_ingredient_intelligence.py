@@ -235,10 +235,19 @@ def run():
         "chicken breast", "ja! Delikatess-Hähnchenbrustfilet gepökelt, gebacken 100g",
         chicken_profile, "Fleisch-Wurst-Fisch"
     ) is None
-    assert ingredient_product_match_type(
+    raw_chicken_match = ingredient_product_match_type(
         "chicken breast", "REWE Hähnchenbrustfilet 400g",
         chicken_profile, "Fleisch-Wurst-Fisch"
-    ) == "exact"
+    )
+    if raw_chicken_match != "exact":
+        from app.ingredient_intelligence import ingredient_search_terms
+        print("DEBUG raw chicken:", {
+            "result": raw_chicken_match,
+            "terms": ingredient_search_terms("chicken breast", chicken_profile),
+            "form_ok": _form_compatible("fresh", "rewe hahnchenbrustfilet 400g fleisch wurst fisch", "chicken breast"),
+            "category_ok": _category_compatible("chicken breast", "Fleisch-Wurst-Fisch", "rewe hahnchenbrustfilet 400g", "fresh"),
+        })
+    assert raw_chicken_match == "exact"
 
     fish_profile = {"white fish fillet": {"canonical": "white fish fillet", "form": "fresh", "aliases": ["Alaska Seelachs"]}}
     assert ingredient_product_match_type(
