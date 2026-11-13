@@ -225,6 +225,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "unit_cost": None,
             "unit_conversion_note": None,
             "unit_validation": requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit),
+            "semantic_suggestions": [],
             "match_status": "unmatched",
             "match_reason": None,
             "why": None,
@@ -245,6 +246,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             continue
 
         candidates = []
+        semantic_suggestions = []
         unit_validation = requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit)
         if not unit_validation.get("valid", True):
             base.update({
@@ -261,6 +263,12 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             raw_products = list(adapter.search(ingredient) or [])
         override_id = overrides.get(ingredient)
         for product in raw_products:
+            if product.get("ingredient_match_type") == "semantic_candidate":
+                if override_id is not None and str(product.get("id")) == str(override_id):
+                    product = {**product, "ingredient_match_type": "exact"}
+                else:
+                    semantic_suggestions.append(product)
+                    continue
             price = product.get("price")
             if price is None or str(product.get("availability") or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
