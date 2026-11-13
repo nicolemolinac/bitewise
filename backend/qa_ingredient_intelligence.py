@@ -273,6 +273,14 @@ def run():
     assert ingredient_product_match_type(
         "salsa", "Alnatura Bio Mais Röllchen Milde Salsa 125g", None, "Süßes-Salziges"
     ) is None
+    assert ingredient_product_match_type(
+        "curry powder", "Heinz Curry Gewürz Ketchup Original 400ml", None,
+        "Öle, Soßen & Gewürze"
+    ) is None
+    assert ingredient_product_match_type(
+        "curry powder", "REWE Bio Curry Gewürzmischung 50g", None,
+        "Öle, Soßen & Gewürze"
+    ) == "exact"
 
     fresh_herb = {"fresh cilantro": {"canonical": "fresh cilantro", "name_de": "Frischer Koriander", "form": "fresh", "aliases": ["Koriander"]}}
     assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Gewürze") is None
