@@ -201,7 +201,8 @@ def main():
     finally:
         db.close()
 
-    print(f"REWE CSV snapshot QA PASS: {first_count} products imported once")
+    print(f"REWE CSV bootstrap snapshot QA PASS: {first_count} products imported once")
+    print("NOTE: row count and idempotent import do not prove full REWE category coverage; see qa_catalog_coverage.py.")
 
 
 if __name__ == "__main__":
