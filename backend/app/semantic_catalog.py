@@ -140,18 +140,8 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
     try:
         query = _query_text(ingredient, intelligence)
         query_vector = np.asarray(_cached_query_vector(query), dtype=np.float32)
-        rows = (
-            db.query(Product, ProductSemanticEmbedding)
-            .join(ProductSemanticEmbedding, ProductSemanticEmbedding.product_id == Product.id)
-            .filter(and_(Product.supermarket == "REWE",
-                         ProductSemanticEmbedding.model_name == MODEL_NAME))
-            .all()
-        )
-        if not rows:
-            return []
-        matrix = np.asarray([json.loads(embedding.vector_json) for _, embedding in rows], dtype=np.float32)
         norms = np.linalg.norm(matrix, axis=1) * max(float(np.linalg.norm(query_vector)), 1e-12)
-        scores = np.divide(matrix @ query_vector, norms, out=np.zeros(len(rows), dtype=np.float32), where=norms > 0)
+        scores = np.divide(matrix @ query_vector, norms, out=np.zeros(len(product_ids), dtype=np.float32), where=norms > 0)
         profile = intelligence if isinstance(intelligence, dict) else {}
         form = str(profile.get("form") or "")
         ranked = []
@@ -159,7 +149,9 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
             score = float(scores[index])
             if score < minimum_score:
                 break
-            product, _ = rows[int(index)]
+            product = db.get(Product, product_ids[int(index)])
+            if product is None or product.supermarket != "REWE":
+                continue
             title = " ".join(str(value or "") for value in (
                 product.name_original, product.name_normalized, product.translated_name
             ))
