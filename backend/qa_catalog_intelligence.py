@@ -41,7 +41,7 @@ def run():
         ])
         # Ensure discovery is backed by the whole catalog rather than a tiny curated list.
         session.add_all([
-            product(f"noise-{index}", f"Unrelated household product {index}", "Haushalt", ingredient="household")
+            product(f"bulk-noise-{index}", f"Unrelated household product {index}", "Haushalt", ingredient="household")
             for index in range(1000)
         ])
         session.commit()
