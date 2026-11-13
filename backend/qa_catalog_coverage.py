@@ -22,7 +22,7 @@ from types import SimpleNamespace
 
 from app import server
 from app.database import Product, SessionLocal
-from app.rewe.scraper import package
+from app.rewe.scraper import REWE_CATEGORY_MINIMUM_PRODUCTS, package
 from app.ingredient_intelligence import normalize_text
 
 
@@ -259,14 +259,7 @@ def main():
             "kaese-eier-molkerei": categories.get("kaese-eier-molkerei", 0),
             "tiefkuehlkost": categories.get("tiefkuehlkost", 0),
         }
-        department_minimums = {
-            # Conservative 50%-of-source-count floors, below current REWE category totals.
-            "brot-cerealien-aufstriche": 2700,
-            "fleisch-wurst-fisch": 4700,
-            "obst-gemuese": 1000,
-            "kaese-eier-molkerei": 3400,
-            "tiefkuehlkost": 1350,
-        }
+        department_minimums = REWE_CATEGORY_MINIMUM_PRODUCTS
         incomplete_departments = {
             category: {"count": count, "minimum": department_minimums[category]}
             for category, count in large_departments.items()
