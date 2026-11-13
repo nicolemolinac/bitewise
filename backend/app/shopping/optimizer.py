@@ -321,7 +321,11 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                     semantic_suggestions.append(product)
                     continue
             price = product.get("price")
-            if price is None or str(product.get("availability") or "").lower() in {
+            try:
+                numeric_price = float(price)
+            except (TypeError, ValueError):
+                continue
+            if numeric_price <= 0 or str(product.get("availability") or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
             }:
                 continue
