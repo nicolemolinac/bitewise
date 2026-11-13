@@ -341,6 +341,26 @@ def main():
                         f"  FULL-CATALOG AUDIT {ingredient} | terms={terms[:12]} | "
                         f"candidates={len(audit_candidates)}"
                     )
+                    if normalize_text(ingredient) in {"curry powder", "burger buns", "red cabbage", "rolled oats"}:
+                        probes = {
+                            "curry powder": ("curry", "masala", "currypaste", "curry paste", "gewürzmischung", "madras"),
+                            "burger buns": ("brötchen", "brotchen", "kaiser", "sesambrötchen", "weizenbrötchen", "burger"),
+                            "red cabbage": ("weißkohl", "weisskohl", "spitzkohl", "rotkohl", "rotkraut"),
+                            "rolled oats": ("hafer", "oat", "porridge", "müsli", "musli"),
+                        }[normalize_text(ingredient)]
+                        broad = []
+                        for candidate in all_rewe_products:
+                            title = normalize_text(" ".join(str(value or "") for value in (
+                                candidate.name_original, candidate.name_normalized, candidate.translated_name
+                            )))
+                            if any(normalize_text(probe) in title for probe in probes):
+                                broad.append(candidate)
+                        print(f"  BROAD-ALTERNATIVE AUDIT {ingredient}: {len(broad)}")
+                        for candidate in broad[:30]:
+                            print(
+                                f"    BROAD {candidate.name_original} | category={candidate.category} "
+                                f"| pack={candidate.package_size} {candidate.package_unit} | price={candidate.price}"
+                            )
                     for audit_score, candidate, audit_type, hits in audit_candidates[:12]:
                         print(
                             f"    CANDIDATE {candidate.name_original} | "
