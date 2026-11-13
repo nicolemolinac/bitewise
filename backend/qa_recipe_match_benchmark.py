@@ -268,7 +268,7 @@ def main():
         adapter = server.main_module.CatalogAdapter(db)
         totals = Counter()
         per_recipe = []
-        review_only_suggestion_count = 0
+        semantic_review_count = 0
         invalid_unit_count = 0
         for recipe in RECIPES:
             requirements = consolidate([recipe], {recipe["id"]: 2})
