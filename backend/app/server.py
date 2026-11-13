@@ -82,6 +82,9 @@ def _catalog_search_score(row, aliases, match_type):
     return best
 
 
+CATALOG_SEARCH_CANDIDATE_LIMIT = 1000  # 12k-item REWE catalog: avoid hiding valid matches behind broad aliases
+
+
 def _multilingual_catalog_search(self, ingredient, intelligence=None):
     """Hybrid multilingual retrieval from cached recipe intent; no shopping-time LLM calls."""
     aliases = ingredient_candidate_search_terms(ingredient, intelligence)
