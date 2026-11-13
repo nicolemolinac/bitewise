@@ -62,6 +62,9 @@ def run():
     assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
     assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
+    proposed_only = {"canonical": "custom cooking fat", "suggested_substitutions": ["rapeseed oil"]}
+    assert "rapeseed oil" in ingredient_candidate_search_terms("custom cooking fat", proposed_only)
+    assert ingredient_product_match_type("custom cooking fat", "REWE Rapsöl 1L", proposed_only) is None
     assert ingredient_product_match_type("canned corn", "REWE Mais aus der Dose 300g", intelligence) == "exact"
     assert ingredient_product_match_type(
         "canned corn", "REWE Bio Zuckermais Tiefkühl 450g", intelligence
