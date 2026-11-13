@@ -250,19 +250,10 @@ def rewe_status():
  finally:db.close()
 @app.post('/api/rewe/refresh')
 def rewe_refresh():
- db=SessionLocal();postcode=setting(db,'postcode','13353');run=CatalogRun(status='running');db.add(run);db.commit()
- try:
-  def upsert(data,current_postcode):
-   existing=db.query(Product).filter_by(supermarket='REWE',external_id=data['external_id']).first();now=datetime.utcnow()
-   if existing:
-    if existing.price!=data.get('price'):existing.last_price=existing.price
-    for k,v in data.items():
-     if hasattr(existing,k) and not (k in {'image_url','product_url'} and not v):setattr(existing,k,v)
-    existing.postcode_context=current_postcode;existing.last_seen_at=now;existing.last_checked_at=now;db.flush();return False
-   db.add(Product(supermarket='REWE',postcode_context=current_postcode,**data));db.flush();return True
-  report=ReweCatalogScraper().run(upsert,postcode);run.status=report['status'];run.products_seen=report['products_found'];run.errors=len(report['errors']);run.categories_processed=report['categories_processed'];run.categories_successful=report['categories_successful'];run.categories_failed=report['categories_failed'];run.finished_at=datetime.utcnow();db.commit();return {'ok':report['status']!='failed',**report,'message':'Manual public-category refresh. Prices are a catalog snapshot, not real-time checkout data.'}
- except Exception as exc:run.status='failed';run.errors=max(1,run.errors or 0);run.finished_at=datetime.utcnow();db.commit();raise HTTPException(502,f'REWE refresh failed: {str(exc)[:180]}')
- finally:db.close()
+ # Keep the legacy main-module route, but delegate to the guarded merge handler.
+ # This prevents partial scraper responses from overwriting or deleting good catalog data.
+ from .rewe_refresh import rewe_refresh_safe
+ return rewe_refresh_safe()
 @app.get('/api/shopping/state')
 def get_shopping_state():
  db=SessionLocal()
