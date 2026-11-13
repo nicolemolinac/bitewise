@@ -30,7 +30,7 @@ _BASE_TERMS = {
     "sesame oil": ("sesame oil", "sesamol", "gerostetes sesamol"),
     "soft tortillas": ("soft tortillas", "weizentortillas", "weizentortilla", "weizen tortillas", "weizen tortilla", "tortilla wraps", "wraps"),
     "firm tofu": ("firm tofu", "naturtofu", "tofu natur", "fester tofu"),
-    "curry powder": ("curry powder", "currypulver", "curry gewurz", "curry gewurzmischung"),
+    "curry powder": ("curry powder", "currypulver", "curry pulver", "curry gewurz", "curry gewurzmischung"),
     "cumin": ("cumin", "kreuzkummel", "kreuzkuemmel", "kreuz kummel"),
     "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemuse bruhe", "bruhwurfel gemuse", "bruhwuerfel gemuse", "bruhwurfel"),
     "cooking cream": ("cooking cream", "kochcreme", "kochsahne", "sahne zum kochen"),
@@ -242,7 +242,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     dairy = {
         "feta cheese", "sour cream", "cheese slices", "butter", "mozzarella",
         "greek yogurt", "plain yogurt", "cooking cream", "eggs",
-        "grated cheddar cheese", "parmesan cheese", "firm tofu",
+        "grated cheddar cheese", "parmesan cheese",
     }
     grains = {
         "rice", "risotto rice", "spaghetti", "pasta", "wheat flour",
@@ -296,6 +296,11 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         if normalize_text(form) in {"frozen", "tiefkuhl"}:
             allowed.add("tiefkuehlkost")
         return category_key in allowed
+    if name == "firm tofu":
+        return category_key in {
+            "fleisch-wurst-fisch", "fertiggerichte-konserven",
+            "kaese-eier-molkerei", "obst-gemuese",
+        }
     if name in dairy:
         return category_key == "kaese-eier-molkerei"
     if name in oils:
