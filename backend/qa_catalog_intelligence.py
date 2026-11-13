@@ -39,6 +39,7 @@ def run():
                 print(f"REAL REWE SEARCH [{real_query}] ({real_result.get('retrieval')}): {names}")
                 if real_query == "pizza":
                     assert any("Bistro Baguette" in name for name in names), names
+                    assert not any("Taco Kit" in name for name in names), names
                 if real_query == "chili con carne":
                     assert any("Chili con Carne" in name for name in names), names
                 if real_query == "french fries":
@@ -65,6 +66,7 @@ def run():
             product("fries-noise-2", "REWE Pommes Gewürzsalz 70g", "Gewürze", ingredient="seasoning"),
             product("fries-noise-3", "Bautzner Pommes Sauce 429ml", "Saucen", ingredient="sauce"),
             product("semantic-1", "REWE Kartoffelgratin Fertiggericht 400g", "Fertiggerichte"),
+            product("pizza-noise-1", "Fuego Taco Kit 320g", "Kits", ingredient="taco kit"),
             product("noise-1", "Hundefutter Chili Geschmack", "Tierbedarf", ingredient="pet food"),
         ])
         # Ensure discovery is backed by the whole catalog rather than a tiny curated list.
@@ -76,11 +78,11 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1015
+        assert pizza["catalog_count"] == 1016
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
-        assert not any("Hundefutter" in name for name in pizza_names), pizza_names
+        assert not any("Hundefutter" in name or "Taco Kit" in name for name in pizza_names), pizza_names
         assert all(row["convenience_type"] in {"ready_meal", "meal_kit", "ready_to_cook", "prepared_component", "catalog_product"} for row in pizza["products"])
         pizza_types = {row["convenience_type"] for row in pizza["products"]}
         assert {"meal_kit", "ready_to_cook"}.issubset(pizza_types), pizza_types
