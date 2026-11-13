@@ -229,6 +229,22 @@ def run():
     assert ingredient_product_match_type("bell pepper", "REWE Beste Wahl Lyoner Paprika vegan 100g", fresh_pepper, "fleisch-wurst-fisch") is None
     assert ingredient_product_match_type("red onion", "Kettle Chips Cheddar Cheese & Red Onion 130g", {"form": "fresh", "name_de": "rote Zwiebel"}, "suesses-salziges") is None
     assert ingredient_product_match_type("rice", "Freche Freunde Bio Quetschie Apfel, Birne mit Zimt, Reis & Dinkel 100g", {}, "baby-kind") is None
+    assert ingredient_product_match_type(
+        "curry powder", "Ostmann Curry gemahlen 40g", {"form": "powder"}, "oele-sossen-gewuerze"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "curry powder", "Heinz Curry Gewürz Ketchup Original 400ml", {"form": "powder"}, "oele-sossen-gewuerze"
+    ) is None, "Curry ketchup must never satisfy a curry-powder ingredient"
+    assert ingredient_product_match_type(
+        "red cabbage", "REWE Rotkohl frisch 500g", {"form": "fresh"}, "obst-gemuese"
+    ) == "exact"
+    cooked_cabbage_match = ingredient_product_match_type(
+        "red cabbage", "Hengstenberg Genießer Rotkohl 400g", {"form": "fresh"}, "fertiggerichte-konserven"
+    )
+    assert cooked_cabbage_match == "suggested_substitution"
+    assert ingredient_substitution_name(
+        "red cabbage", "Hengstenberg Genießer Rotkohl 400g"
+    ) == "cooked red cabbage"
     assert ingredient_product_match_type("olive oil", "Oliva Nachtcreme mit Olivenöl 50ml", {"form": "liquid"}, "drogerie-gesundheit") is None
     assert ingredient_product_match_type("lime", "duschdas Duschgel Limette Minze 450ml", {"form": "fresh"}, "drogerie-gesundheit") is None
     assert ingredient_product_match_type("chicken breast", "Original Wagner Rustipani Helles Ofenbrot Hähnchenbrust 180g", {"form": "fresh"}, "tiefkuehlkost") is None
