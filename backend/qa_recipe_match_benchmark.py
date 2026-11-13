@@ -83,7 +83,7 @@ RECIPES = [
         ("olive oil", 15, "ml", "Olivenöl", ["natives Olivenöl"], "liquid"),
     ]),
     R("b05", "Beef tacos", [
-        ("soft tortillas", 4, "piece", "Weizentortillas", ["Tortilla Wraps", "Weizen Wraps"], "soft"),
+        ("soft tortillas", 4, "piece", "Weizentortillas", ["Tortilla Wraps", "Weizen Wraps", "Weizentortillas", "Weizentortilla"], "soft"),
         ("ground beef", 250, "g", "Rinderhackfleisch", ["Hackfleisch vom Rind"], "fresh"),
         ("lettuce", 100, "g", "Eisbergsalat", ["Salatherzen", "Salat"], "fresh"),
         ("tomatoes", 150, "g", "Tomaten", ["Strauchtomaten"], "fresh"),
@@ -156,7 +156,7 @@ RECIPES = [
     R("b14", "Black bean burritos", [
         ("soft tortillas", 2, "piece", "Weizentortillas", ["Tortilla Wraps", "Weizen Wraps"], "soft"),
         ("rice", 100, "g", "Reis", ["Langkornreis"], "unspecified"),
-        ("black beans", 1, "can", "schwarze Bohnen", ["schwarze Bohnen Dose"], "canned"),
+        ("black beans", 150, "g", "schwarze Bohnen", ["schwarze Bohnen Dose"], "canned"),
         ("canned corn", 80, "g", "Mais aus der Dose", ["Dosenmais", "Zuckermais Konserve"], "canned"),
         ("avocado", 1, "piece", "Avocado", ["Hass Avocado"], "fresh"),
         ("salsa", 50, "g", "Salsa Sauce", ["Tomatensalsa"], "liquid"),
