@@ -260,7 +260,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     }
     sauces = {
         "tomato passata", "mayonnaise", "soy sauce", "salsa",
-        "caesar dressing", "vegetable stock", "coconut milk", "honey",
+        "caesar dressing", "vegetable stock", "coconut milk",
     }
 
     if name == "honey" and any(term in title_key for term in ("senf", "mustard", "dressing", "sauce")):
@@ -309,12 +309,13 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         )
     if name in canned:
         return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
+    if name == "honey":
+        # Honey must be a jar of honey, not a honey-flavoured prepared food.
+        return category_key in {"brot-cerealien-aufstriche", "kochen-backen"}
     if name in sauces:
         allowed = {"oele-sossen-gewuerze", "fertiggerichte-konserven"}
         if name == "salsa":
             allowed.add("suesses-salziges")
-        if name == "honey":
-            allowed.update({"brot-cerealien-aufstriche", "kochen-backen"})
         return category_key in allowed
     return True
 
@@ -338,17 +339,17 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
     t = normalize_text(title)
     exclusions = {
         "butter": ("peanut butter", "erdnussbutter", "mandelmus", "nuss nougat", "brotaufstrich", "aufstrich", "butterkeks", "butterwaffel"),
-        "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing"),
-        "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln"),
-        "spaghetti": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "mie nudeln"),
+        "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing", "honey peppers", "honey pepper", "honig pfeffer", "honig paprika", "honey roasted", "honig gerostet"),
+        "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln"),
+        "spaghetti": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln"),
         "bell pepper": ("paprikapulver", "paprika pulver", "paprika chips", "paprika lyoner", "paprika wurst"),
         "red onion": ("red onion chips", "rote zwiebel chips", "zwiebel chips"),
-        "chicken breast": ("hahnchen wurst", "haehnchen wurst", "hahnchen aufschnitt", "haehnchen aufschnitt", "brotaufstrich"),
+        "chicken breast": ("hahnchen wurst", "haehnchen wurst", "hahnchen aufschnitt", "haehnchen aufschnitt", "brotaufstrich", "gepokelt", "gebacken", "gerauchert", "hauchzart", "delikatess"),
         "olive oil": ("olivenol dusche", "olivenol creme", "olivenol shampoo", "olivenol nachtcreme"),
-        "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol"),
+        "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol", "mayonnaise", "mayo", "salatcreme", "dressing", "sauce"),
         "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung"),
         "salsa": ("mais rollchen", "mais roellchen", "snack", "chips"),
-        "lettuce": ("crispy mix", "salat mix", "salatmischung", "salatmix", "bluten salat", "blutensalat", "baby leaf", "babyleaf", "salat bouquet"),
+        "lettuce": ("crispy mix", "salat mix", "salatmischung", "salatmix", "bluten salat", "blutensalat", "baby leaf", "babyleaf", "salat bouquet", "wildkrauter salat", "wildkrautersalat"),
     }
     return any(_contains_phrase(t, normalize_text(term)) for term in exclusions.get(name, ()))
 
