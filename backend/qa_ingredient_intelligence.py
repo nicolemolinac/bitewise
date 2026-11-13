@@ -263,6 +263,9 @@ def run():
     assert validate_ingredient_unit("mayonnaise", "g")["valid"] is True
     assert validate_ingredient_unit("mayonnaise", "ml")["valid"] is True
     assert validate_ingredient_unit("mayonnaise", "cloves")["valid"] is False
+    assert validate_ingredient_unit("caesar dressing", "g")["valid"] is True
+    assert validate_ingredient_unit("caesar dressing", "ml")["valid"] is True
+    assert validate_ingredient_unit("caesar dressing", "cloves")["valid"] is False
     assert validate_ingredient_unit("garlic powder", "ml", {"form": "powder"})["valid"] is True
     assert validate_ingredient_unit("garlic powder", "cloves", {"form": "powder"})["valid"] is False
     assert validate_ingredient_unit("chocolate", "g")["valid"] is True
