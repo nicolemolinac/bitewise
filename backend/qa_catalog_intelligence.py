@@ -73,7 +73,6 @@ def run():
             product("pizza-4", "Knack & Back Pizza-Kit 600g", "Fertiggerichte-Konserven"),
             product("pizza-5", "Tante Fanny Frischer Flammkuchenteig 260g", "Fertiggerichte-Konserven"),
             product("pizza-6", "ja! Pizza Teig XXL 550g", "Fertiggerichte-Konserven"),
-            product("pizza-7", "Bio Spezial Mehl für Pizza Typ 00 1kg", "Kochen & Backen", package_size=1000),
             product("flammkuchen-2", "Original Wagner Flammkuchen Elsässer Art 300g", "Tiefkühlkost"),
             product("pizza-flour-1", "Bio Spezial Mehl für Pizza Typ 00 1kg", "Kochen-Backen", ingredient="wheat flour"),
             product("pizza-snack-1", "FruchtBar Bio-Pizza-Flieger Tomate Käse 30g", "Baby & Kind", package_size=30),
@@ -122,8 +121,6 @@ def run():
         assert pizza_flour["convenience_type"] == "prepared_component", pizza_flour
         steinofen = next(row for row in pizza["products"] if "Steinofen Pizza" in row["name_original"])
         assert steinofen["convenience_type"] == "ready_meal", steinofen
-        pizza_flour = next(row for row in pizza["products"] if "Mehl für Pizza" in row["name_original"])
-        assert pizza_flour["convenience_type"] == "prepared_component", pizza_flour
         assert not any(
             term in name for name in pizza_names
             for term in ("Hundefutter", "Taco Kit", "FruchtBar", "Mogli", "Pizza-Fleischkäse")
