@@ -709,27 +709,36 @@ class ReweCatalogScraper:
         # JSON-LD often contains a generic shop/category URL. Replace it with the exact
         # product-card href whenever the visible product name lets us match the two.
         for product in found:
-            if product.get("product_url"):
-                continue
-            key = normalize(product.get("name_original", ""))
-            exact = pdp_by_name.get(key)
-            if not exact and key:
-                exact = next((link for name, link in pdp_by_name.items() if key in name or name in key), None)
-            product["product_url"] = exact
+            if not product.get("product_url"):
+                key = normalize(product.get("name_original", ""))
+                exact = pdp_by_name.get(key)
+                if not exact and key:
+                    exact = next((link for name, link in pdp_by_name.items() if key in name or name in key), None)
+                product["product_url"] = exact
+            # JSON-LD often uses a SKU while the visible product card uses the
+            # REWE PDP slug. Normalize both to the stable PDP identifier so one
+            # physical product cannot be ingested twice from two page sources.
+            canonical_url = _canonical_product_url(product.get("product_url") or "", url)
+            if canonical_url:
+                product["product_url"] = canonical_url
+                path_id = urlsplit(canonical_url).path.rstrip("/").rsplit("/", 1)[-1]
+                if path_id:
+                    product["external_id"] = path_id
         found.extend(anchor_products)
 
         unique = {}
         for product in found:
-            current = unique.get(product["external_id"])
+            dedupe_key = product.get("product_url") or product["external_id"]
+            current = unique.get(dedupe_key)
             if current is None:
-                unique[product["external_id"]] = product
+                unique[dedupe_key] = product
                 continue
             # Merge complementary data instead of discarding a later image-bearing card.
             merged = dict(current)
             for key, value in product.items():
                 if value is not None and (merged.get(key) is None or merged.get(key) == ""):
                     merged[key] = value
-            unique[product["external_id"]] = merged
+            unique[dedupe_key] = merged
         return list(unique.values())
 
     def _location_scopes(self, page):
