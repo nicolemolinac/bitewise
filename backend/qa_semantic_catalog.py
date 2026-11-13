@@ -19,7 +19,11 @@ import app.semantic_catalog as semantic
 class FakeEmbeddingModel:
     def embed(self, texts, batch_size=32):
         for text in texts:
-            if str(text).startswith("query:") or "pommes" in str(text).casefold():
+            if (
+                str(text).startswith("query:")
+                or "pommes" in str(text).casefold()
+                or "muesli" in str(text).casefold()
+            ):
                 yield np.asarray([1.0, 0.0, 0.0], dtype=np.float32)
             else:
                 yield np.asarray([0.0, 1.0, 0.0], dtype=np.float32)
@@ -53,17 +57,19 @@ def run():
         fries = _product("fries-1", "REWE Pommes Frites 750g", "Tiefkühlkost")
         chips = _product("chips-1", "Pommes Frites Chips", "Snacks")
         potatoes = _product("potatoes-1", "REWE Speisekartoffeln 2kg", "Obst & Gemüse")
-        db.add_all([fries, chips, potatoes])
+        muesli = _product("muesli-1", "Kölln Müsli Früchte 500g", "Brot-Cerealien-Aufstriche")
+        muesli.ingredient = "oat cereal"
+        db.add_all([fries, chips, potatoes, muesli])
         db.commit()
 
         first = semantic.index_rewe_products(db, batch_size=2)
-        assert first["products_seen"] == 3
-        assert first["products_indexed"] == 3
-        assert db.query(ProductSemanticEmbedding).count() == 3
+        assert first["products_seen"] == 4
+        assert first["products_indexed"] == 4
+        assert db.query(ProductSemanticEmbedding).count() == 4
 
         second = semantic.index_rewe_products(db, batch_size=2)
         assert second["products_indexed"] == 0
-        assert second["products_already_indexed"] == 3
+        assert second["products_already_indexed"] == 4
 
         semantic._INDEX_CACHE = None
         candidates = semantic.semantic_product_candidates(
@@ -78,6 +84,16 @@ def run():
         assert candidate_by_id[fries.id]["ingredient_match_type"] == "semantic_candidate"
         assert candidate_by_id[potatoes.id]["semantic_match_type"] == "suggested_substitution"
 
+        # A semantically similar product with no shared ingredient alias can
+        # appear for user review when its form and REWE category are compatible.
+        oat_suggestions = semantic.semantic_product_candidates(
+            db, "rolled oats", {"canonical": "rolled oats", "form": "unspecified"},
+            limit=5, minimum_score=0.5,
+        )
+        muesli_suggestion = next(row for row in oat_suggestions if row["id"] == muesli.id)
+        assert muesli_suggestion["ingredient_match_type"] == "semantic_candidate"
+        assert muesli_suggestion["semantic_match_type"] == "semantic_only"
+
         fries.name_original = "REWE Backofen Pommes Frites 750g"
         fries.name_normalized = fries.name_original.casefold()
         db.commit()
@@ -87,8 +103,8 @@ def run():
         db.delete(chips)
         db.commit()
         cleaned = semantic.index_rewe_products(db, batch_size=2)
-        assert cleaned["total_embeddings"] == 2
-        assert db.query(ProductSemanticEmbedding).count() == 2
+        assert cleaned["total_embeddings"] == 3
+        assert db.query(ProductSemanticEmbedding).count() == 3
 
         # The committed REWE snapshot is ~12k rows. Verify that the actual
         # indexer embeds every imported REWE product, not a capped sample.
