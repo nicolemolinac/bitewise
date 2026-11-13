@@ -347,7 +347,7 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
-    """Convert displayed €/kg or €/l unit prices into actual package checkout prices."""
+    """Convert displayed reference prices into actual package checkout prices."""
     match = re.search(
         r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*(\d+[,.]\d{2})\s*€",
         name or "",
