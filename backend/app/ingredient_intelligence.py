@@ -157,6 +157,13 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
             return "substitute"
+    proposed = profile.get("suggested_substitutions", [])
+    if isinstance(proposed, str):
+        proposed = [proposed]
+    for term in proposed if isinstance(proposed, list) else []:
+        normalized = normalize_text(term)
+        if normalized and _contains_phrase(title, normalized):
+            return "suggested_substitution"
     return None
 
 
