@@ -33,7 +33,7 @@ _BASE_TERMS = {
     "paprika powder": ("paprika powder", "paprikapulver", "edelsuß paprika", "edelsuess paprika"),
     "parmesan cheese": ("parmesan cheese", "parmesan", "parmigiano reggiano", "parmigiano", "parmesan gerieben"),
     "pre-cooked shredded chicken": ("pre cooked shredded chicken", "gegarte hahnchenbrust", "gegartes hahnchen", "hahnchenbrust gegart", "hahnchenstreifen gegart"),
-    "shredded lettuce": ("shredded lettuce", "salatstreifen", "geschnittener eisbergsalat", "eisbergsalat geschnitten", "salatherzen geschnitten"),
+    "shredded lettuce": ("shredded lettuce", "salatstreifen", "geschnittener eisbergsalat", "eisbergsalat geschnitten", "salatherzen geschnitten", "eisbergsalat"),
     "taco seasoning": ("taco seasoning", "taco gewurz", "taco gewurzmix", "gewurz fur tacos", "mexikanische gewurzmischung"),
     "tortillas": ("tortillas", "weizentortillas", "weizentortilla", "wraps", "tortilla wraps"),
     "vegetable oil": ("vegetable oil", "pflanzenol", "neutrales ol"),
@@ -246,7 +246,7 @@ def _infer_ingredient_form(ingredient: str) -> str:
     rules = (
         (("frozen", "tiefkuhl", "deep frozen"), "frozen"),
         (("canned", "tinned", "konserve", "dose"), "canned"),
-        (("grated", "shredded", "gerieben", "geraspelt"), "grated"),
+        (("grated", "gerieben", "geraspelt"), "grated"),
         (("powder", "pulver", "ground"), "powder"),
         (("pre cooked", "precooked", "cooked", "gegart", "gekocht"), "pre_cooked"),
         (("dried", "getrocknet", "dry"), "dried"),
