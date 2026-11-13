@@ -611,6 +611,13 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
         normalized = normalize_text(term)
         if normalized and _proposed_term_visible(title, normalized):
             return str(term)
+    for term in sorted(
+        _REVIEW_ONLY_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()),
+        key=lambda value: -len(normalize_text(value)),
+    ):
+        normalized = normalize_text(term)
+        if normalized and _contains_phrase(title, normalized):
+            return str(term)
     return None
 
 
