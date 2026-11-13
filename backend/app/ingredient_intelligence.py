@@ -399,13 +399,12 @@ def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bo
             and not any(token in title for token in ("ketchup", "sauce", "suppe", "fertiggericht"))
         )
     if normalized_ingredient == "burger buns":
-        # A bread/flour mix can produce buns, but it requires baking and extra
-        # ingredients; keep it review-only instead of treating it as a bun.
-        return any(token in title for token in (
+        # Bread/flour mixes and plain rolls are review-only alternatives; neither
+        # should be silently represented as a true labelled burger bun.
+        bread_mix = any(token in title for token in (
             "proteinmehl", "brotbackmischung", "brotchen backmischung", "brot teig",
         ))
-    if normalized_ingredient == "burger buns":
-        return (
+        bread_roll = (
             normalize_text(term) in {
                 "bread rolls", "brötchen", "weizenbrötchen",
                 "kaiserbrötchen", "sesambrötchen",
@@ -419,6 +418,7 @@ def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bo
                 "hot dog", "hotdog",
             ))
         )
+        return bread_mix or bread_roll
     if normalized_ingredient != "frozen french fries":
         return False
     if normalize_text(term) not in {"fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"}:
