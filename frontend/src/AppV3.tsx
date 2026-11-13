@@ -409,6 +409,7 @@ export default function AppV3(){
   function servingTotals(includeUnplannedPicks=false){const totals:Record<string,number>={};weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(s.meal)totals[s.meal.id]=(totals[s.meal.id]||0)+factor*(dayContexts[idx]?.people||1)}));if(!Object.keys(totals).length&&includeUnplannedPicks)liked.forEach(m=>totals[m.id]=factor);return totals}
   async function removePick(meal:Meal){
     setLiked(current=>current.filter(item=>item.id!==meal.id));
+    setQuickMealReplacements(current=>{const next={...current};delete next[meal.id];return next;});
     const sourceConceptId=(meal as any).source_concept_id;
     if(sourceConceptId){
       try{
