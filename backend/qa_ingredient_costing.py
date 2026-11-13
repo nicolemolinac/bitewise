@@ -2,6 +2,8 @@
 
 Run from backend/: python qa_ingredient_costing.py
 """
+import math
+
 from app.shopping.optimizer import build_basket, consolidate
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
@@ -127,6 +129,40 @@ def run():
         preference_catalog, mode="cheapest",
     )
     assert preferred[0]["product"]["id"] == 21
+
+    suggested_catalog = FakeCatalog({
+        "rice": [
+            {"id": 23, "name_original": "Exact rice pack", "package_size": 500,
+             "package_unit": "g", "price": 2.50, "availability": "available",
+             "ingredient_match_type": "exact"},
+            {"id": 24, "name_original": "Cheap alternative grain", "package_size": 500,
+             "package_unit": "g", "price": 0.50, "availability": "available",
+             "ingredient_match_type": "suggested_substitution",
+             "ingredient_substitute": "alternative grain"},
+        ],
+    })
+    suggested = build_basket(
+        [{"ingredient": "rice", "quantity": 100, "unit": "g", "source_meals": ["Rice bowl"]}],
+        suggested_catalog, mode="cheapest",
+    )
+    assert suggested[0]["product"]["id"] == 23
+    substitute_only = FakeCatalog({"rice": [{
+        "id": 25, "name_original": "Alternative grain", "package_size": 500,
+        "package_unit": "g", "price": 0.50, "availability": "available",
+        "ingredient_match_type": "suggested_substitution",
+        "ingredient_substitute": "alternative grain",
+    }]})
+    substitute_only_result = build_basket(
+        [{"ingredient": "rice", "quantity": 100, "unit": "g", "source_meals": ["Rice bowl"]}],
+        substitute_only, mode="cheapest",
+    )
+    assert substitute_only_result[0]["match_status"] == "substituted"
+
+    invalid_consolidated = consolidate([{
+        "id": "bad", "name": "Bad recipe",
+        "ingredients": [["rice", "not-a-number", "g"], ["salt", float("inf"), "g"]],
+    }], {"bad": 2})
+    assert all(not math.isfinite(row["quantity"]) for row in invalid_consolidated)
     invalid_quantity = build_basket(
         [{"ingredient": "rice", "quantity": float("nan"), "unit": "g", "source_meals": ["Bad recipe"]}],
         catalog,
