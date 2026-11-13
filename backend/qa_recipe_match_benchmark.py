@@ -1,4 +1,4 @@
-"""Real-catalog benchmark: 20 representative recipes against the local REWE database.
+"""Real-catalog benchmark: 22 representative recipes against the local REWE database.
 
 Run from backend/: python qa_recipe_match_benchmark.py
 Read-only: no Gemini calls, no scraping, no DB writes, no pantry assumptions.
@@ -24,7 +24,7 @@ if os.getenv("BITEWISE_BENCHMARK_ISOLATED", "").strip().lower() in {"1", "true",
     os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app import server  # installs the multilingual CatalogAdapter.search override
-from app.database import Product, ProductSemanticEmbedding, SessionLocal
+from app.database import CatalogRun, Product, ProductSemanticEmbedding, SessionLocal
 from app.ingredient_intelligence import (
     _category_compatible, _form_compatible,
     ingredient_candidate_search_terms, ingredient_product_match_type,
@@ -252,7 +252,13 @@ def main():
             server.main_module.Product.supermarket == "REWE"
         ).count()
         embedding_count = db.query(ProductSemanticEmbedding).count()
-        print("BITEWISE 20-RECIPE / REAL REWE CATALOG BENCHMARK")
+        latest_catalog_run = db.query(CatalogRun).order_by(CatalogRun.id.desc()).first()
+        live_catalog_healthy = (
+            _BENCHMARK_DB is None
+            and latest_catalog_run is not None
+            and latest_catalog_run.status == "healthy"
+        )
+        print("BITEWISE 22-RECIPE / REAL REWE CATALOG BENCHMARK")
         print(f"REWE products in local DB: {product_count}")
         print(f"Local semantic vectors: {embedding_count}")
         if product_count == 0:
@@ -454,13 +460,21 @@ def main():
                 "NOTE: CI uses the committed static snapshot; rolled oats and burger buns "
                 "are known source-coverage gaps until a full local REWE refresh."
             )
-        minimum_resolution = 0.98
-        benchmark_source = "committed CSV snapshot" if _BENCHMARK_DB is not None else "live local REWE catalog"
+        minimum_resolution = 1.0 if live_catalog_healthy else 0.98
+        benchmark_source = (
+            "committed CSV snapshot" if _BENCHMARK_DB is not None
+            else ("healthy live local REWE catalog" if live_catalog_healthy else "local REWE snapshot/incomplete refresh")
+        )
         assert total > 0 and resolved / total >= minimum_resolution, (
             f"REWE recipe benchmark resolution for {benchmark_source} fell below "
             f"{minimum_resolution:.0%}: {resolved}/{total}. Review missing catalog assortment, "
             "multilingual aliases and safe substitutions."
         )
+        if live_catalog_healthy:
+            assert totals["unmatched"] == 0, (
+                "A healthy full REWE refresh must resolve every benchmark ingredient; "
+                f"remaining unmatched rows: {totals['unmatched']}"
+            )
         print("\n=== PER-RECIPE SUMMARY ===")
         for name, found, count in per_recipe:
             print(f"{found:>2}/{count:<2}  {found / max(1, count):>6.1%}  {name}")
