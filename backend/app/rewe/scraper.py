@@ -94,16 +94,33 @@ def price_details(text: str, package_size=None, package_unit=None):
     Treating that as the package price inflates checkout totals by 1,000x.
     """
     reference_price, reference_unit = _displayed_unit_price(text)
+    checkout_text = text
     if reference_price is not None:
-        if package_size and package_unit == reference_unit:
-            pack_price = reference_price * float(package_size) / 1000.0
+        try:
+            size = float(package_size) if package_size is not None else None
+        except (TypeError, ValueError):
+            size = None
+        if (
+            size is not None and math.isfinite(size) and size > 0
+            and package_unit == reference_unit
+        ):
+            pack_price = reference_price * size / 1000.0
             return round(pack_price, 2), reference_price / 1000.0
+        # A €/kg or €/l reference is not a package checkout price. Remove it
+        # before looking for a separate explicit pack price; if none exists,
+        # leave the product unpriced rather than inventing a 1,000x cost.
+        checkout_text = re.sub(
+            r"\b1\s*(?:kg|l)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+            " ",
+            text,
+            flags=re.I,
+        )
 
     for pattern in (
         r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})",
         r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
     ):
-        match = re.search(pattern, text, re.I)
+        match = re.search(pattern, checkout_text, re.I)
         if match:
             pack_price = float(match.group(1).replace(",", "."))
             per_unit = (
