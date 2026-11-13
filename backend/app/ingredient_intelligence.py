@@ -73,6 +73,23 @@ _BASE_TERMS = {
     "frozen french fries": ("frozen french fries", "pommes frites", "pommes", "tiefkuhl pommes", "tiefkuhlpommes", "backofen pommes", "kartoffelstabchen", "pommes tiefgekuhlt", "tiefgekuhlte pommes"),
     "fresh potato": ("fresh potato", "potato", "potatoes", "kartoffel", "kartoffeln", "speisekartoffeln"),
     "onion": ("onion", "onions", "zwiebel", "zwiebeln", "speisezwiebeln"),
+    "red onion": ("red onion", "red onions", "rote zwiebel", "rote zwiebeln", "zwiebel rot", "rote speisezwiebel"),
+    "soft tortillas": ("soft tortillas", "soft tortilla", "weizentortillas", "weizentortilla", "tortilla wraps", "wraps"),
+    "curry powder": ("curry powder", "currypulver", "curry pulver", "curry gewurz", "curry gewurzmischung", "curry gemahlen"),
+    "frozen peas": ("frozen peas", "tiefkuhlerbsen", "tiefkuehlerbsen", "tk erbsen", "erbsen tiefgekuhlt", "tiefgekuhlte erbsen"),
+    "firm tofu": ("firm tofu", "naturtofu", "tofu natur", "fester tofu", "tofu fest", "festtofu"),
+    "sesame oil": ("sesame oil", "sesamol", "sesamoel", "geroestetes sesamol", "sesamol geroestet"),
+    "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemusefond", "gemusebruehpulver", "bruehwuerfel"),
+    "cooking cream": ("cooking cream", "kochsahne", "sahne zum kochen", "kochcreme", "creme zum kochen", "cremefine zum kochen"),
+    "burger buns": ("burger buns", "burgerbroetchen", "burger broetchen", "hamburgerbroetchen", "hamburger broetchen", "brioche burger buns"),
+    "romaine lettuce": ("romaine lettuce", "romanasalat", "romana salat", "romersalat", "romaine salat"),
+    "croutons": ("croutons", "brotwuerfel", "brot wuerfel", "salatcroutons", "salat croutons"),
+    "caesar dressing": ("caesar dressing", "caesardressing", "caesar sauce", "caesar salat dressing"),
+    "canned chopped tomatoes": ("canned chopped tomatoes", "gehackte tomaten", "tomaten gehackt", "tomatenstuecke", "tomatenstucke", "stueckige tomaten", "tomaten in stuecken"),
+    "cumin": ("cumin", "kreuzkuemmel", "kreuzkummel", "kreuzkuemmel gemahlen"),
+    "red cabbage": ("red cabbage", "rotkohl", "rotkraut", "blaukraut", "rotkohl frisch"),
+    "risotto rice": ("risotto rice", "risottoreis", "risotto reis", "arborio reis", "carnaroli reis"),
+    "rolled oats": ("rolled oats", "haferflocken", "zarte haferflocken", "kernige haferflocken", "haferflocken zart"),
 }
 
 _SUBSTITUTION_TERMS = {
@@ -221,6 +238,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "garlic", "onion", "red onion", "potato", "potatoes", "tomato",
         "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
         "cucumber", "bell pepper", "cherry tomato", "mushroom", "lemon",
+        "red onion", "red cabbage", "romaine lettuce", "frozen peas",
         "carrot", "broccoli", "fresh cilantro",
         "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
         "red cabbage", "strawberries", "blueberries", "banana", "parsley",
@@ -237,7 +255,8 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     grains = {
         "rice", "risotto rice", "spaghetti", "pasta", "wheat flour",
         "rolled oats", "pizza dough", "burger buns", "soft tortillas",
-        "tortillas", "trofie pasta", "flour", "oats", "cornstarch", "croutons",
+        "tortillas", "soft tortillas", "trofie pasta", "flour", "oats", "rolled oats",
+        "cornstarch", "croutons", "burger buns", "risotto rice",
     }
     spices = {
         "curry powder", "cumin", "paprika powder", "oregano",
@@ -275,10 +294,12 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         if normalize_text(form) in {"frozen", "tiefkuhl"}:
             allowed.add("tiefkuehlkost")
         return category_key in allowed
+    if name == "firm tofu":
+        return category_key in {"kaese-eier-molkerei", "fleischersatz", "vegetarische-produkte", "vegan"}
     if name in dairy:
         return category_key == "kaese-eier-molkerei"
     if name in oils:
-        return category_key in {"oele-sossen-gewuerze", "oele-fette", "oele-und-fette"}
+        return category_key in {"oele-sossen-gewuerze", "oele-fette", "oele-und-fette", "oele-fette-margarine"}
     if name in spices:
         return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
     if name in grains:
@@ -297,7 +318,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             and not any(token in title_key for token in ("senfsauce", "honey mustard", "honig senf", "riegel", "muesli", "snack"))
         )
     if name in sauces:
-        allowed = {"oele-sossen-gewuerze", "fertiggerichte-konserven"}
+        allowed = {"oele-sossen-gewuerze", "fertiggerichte-konserven", "feinkost", "feinkost-antipasti"}
         return category_key in allowed
     return True
 
