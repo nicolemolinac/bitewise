@@ -106,7 +106,7 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
                         row.name_original, row.name_normalized, row.translated_name
                     )),
                     intelligence,
-                ) if match_types.get(row.id) == "substitute" else None,
+                ) if match_types.get(row.id) in {"substitute", "suggested_substitution"} else None,
             }
             for row in rows[:40]
         ]
