@@ -4,6 +4,7 @@ import os
 import re
 import sqlite3
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
@@ -374,7 +375,8 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         and reference_unit == package_unit
     ):
         normalized_unit_price = unit_price / reference_quantity
-        return round(normalized_unit_price * package_size, 2), normalized_unit_price
+        pack_total = Decimal(str(unit_price)) * Decimal(str(package_size)) / Decimal(str(reference_quantity))
+        return float(pack_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)), normalized_unit_price
 
     if match:
         # A reference price in an incompatible dimension (e.g. €/kg for a
