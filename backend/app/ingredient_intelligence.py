@@ -164,6 +164,10 @@ def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None)
     if isinstance(substitutes, str):
         substitutes = [substitutes]
     terms.update(normalize_text(term) for term in substitutes if isinstance(term, str))
+    options = profile.get("substitution_options", [])
+    if isinstance(options, list):
+        terms.update(normalize_text(option.get("name")) for option in options
+                     if isinstance(option, dict) and option.get("name"))
     terms.update(normalize_text(term) for term in _SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     # REWE product titles preserve German umlauts while matcher text is normalized.
     # Keep both spellings for SQL retrieval; strict matching still normalizes titles.
@@ -402,6 +406,23 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     proposed = profile.get("suggested_substitutions", [])
     if isinstance(proposed, str):
         proposed = [proposed]
+    options = profile.get("substitution_options", [])
+    if isinstance(options, list):
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            term = str(option.get("name") or "")
+            normalized = normalize_text(term)
+            if not normalized or not _proposed_term_visible(title, normalized) or not form_compatible or not category_compatible:
+                continue
+            # AI-proposed options are auto-applied only when the recipe explicitly
+            # marks them high-confidence, role-preserving and safe. Other options
+            # remain visible for user review and can never silently alter a recipe.
+            if (option.get("safe_to_auto_apply") is True
+                    and option.get("role_preserved") is True
+                    and float(option.get("confidence") or 0) >= 0.85):
+                return "substitute"
+            return "suggested_substitution"
     for term in proposed if isinstance(proposed, list) else []:
         normalized = normalize_text(term)
         if normalized and _proposed_term_visible(title, normalized) and form_compatible and category_compatible:
@@ -427,6 +448,13 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
     proposed = profile.get("suggested_substitutions", [])
     if isinstance(proposed, str):
         proposed = [proposed]
+    options = profile.get("substitution_options", [])
+    if isinstance(options, list):
+        for option in sorted((value for value in options if isinstance(value, dict)),
+                             key=lambda value: -len(normalize_text(value.get("name")))):
+            term = str(option.get("name") or "")
+            if term and _proposed_term_visible(title, term):
+                return term
     for term in sorted(proposed if isinstance(proposed, list) else [], key=lambda value: -len(normalize_text(value))):
         normalized = normalize_text(term)
         if normalized and _proposed_term_visible(title, normalized):
@@ -520,6 +548,40 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
             substitutions = [substitutions]
         if not isinstance(substitutions, list):
             substitutions = []
+        # Structured options carry the reasoning needed to adapt a recipe, not
+        # merely a synonym to match against a product title.
+        raw_options = row.get("substitution_options", [])
+        if isinstance(raw_options, dict):
+            raw_options = [raw_options]
+        if not isinstance(raw_options, list):
+            raw_options = []
+        substitution_options = []
+        for option in raw_options[:8]:
+            if not isinstance(option, dict):
+                continue
+            option_name = str(option.get("name") or option.get("ingredient") or "").strip()[:100]
+            if not option_name:
+                continue
+            try:
+                ratio = float(option.get("quantity_ratio", 1) or 1)
+            except (TypeError, ValueError):
+                ratio = 1
+            if not 0.1 <= ratio <= 5:
+                continue
+            try:
+                confidence = float(option.get("confidence", 0) or 0)
+            except (TypeError, ValueError):
+                confidence = 0
+            substitution_options.append({
+                "name": option_name,
+                "quantity_ratio": ratio,
+                "confidence": max(0, min(1, confidence)),
+                "role_preserved": option.get("role_preserved") is True,
+                "safe_to_auto_apply": option.get("safe_to_auto_apply") is True,
+                "preparation_adjustment": str(option.get("preparation_adjustment") or "")[:700],
+                "reason": str(option.get("reason") or "")[:240],
+            })
+            substitutions.append(option_name)
         unit_key = normalize_text(unit)
         if unit_key in {"g", "kg"}:
             inferred_dimension = "mass"
@@ -544,10 +606,11 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
             "form": form[:50],
             "culinary_role": str(row.get("culinary_role") or "").strip()[:80],
             "unit_dimension": str(row.get("unit_dimension") or inferred_dimension).strip()[:20],
-            "suggested_substitutions": [
+            "suggested_substitutions": list(dict.fromkeys(
                 str(value).strip()[:100] for value in substitutions[:8]
                 if isinstance(value, str) and value.strip()
-            ],
+            )),
+            "substitution_options": substitution_options,
             "preparation": str(row.get("preparation") or "").strip()[:100],
         }
     return output
