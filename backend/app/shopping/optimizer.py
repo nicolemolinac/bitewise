@@ -248,7 +248,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
 
     for requirement in requirements:
         ingredient = requirement["ingredient"].lower().strip()
-        requested = float(requirement["quantity"])
+        try:
+            requested = float(requirement["quantity"])
+        except (TypeError, ValueError):
+            requested = float("nan")
         unit = _normal_unit(requirement["unit"])
         pantry_row = pantry.get(ingredient)
         pantry_used = 0.0
@@ -282,6 +285,14 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "badge": "Availability unknown",
             "selected_by_user": False,
         }
+
+        if not math.isfinite(requested) or requested < 0:
+            base.update({
+                "match_reason": "Recipe quantity is invalid (must be a finite, non-negative number).",
+                "why": "Correct the ingredient quantity before shopping.",
+            })
+            output.append(base)
+            continue
 
         if ingredient in owned or needed <= 0:
             base.update({
@@ -391,6 +402,20 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             })
             output.append(base)
             continue
+
+        # A curated substitute must never beat a purchasable exact match merely
+        # because its pack is cheaper or its scoring mode favors it. Explicit user
+        # selection remains authoritative, including a confirmed substitute.
+        user_selected = [row for row in candidates if row["selected_by_user"]]
+        if user_selected:
+            candidates = user_selected
+        else:
+            exact_candidates = [
+                row for row in candidates
+                if row["product"].get("ingredient_match_type") != "substitute"
+            ]
+            if exact_candidates:
+                candidates = exact_candidates
 
         cheapest_total = min(row["checkout_cost"] for row in candidates)
         chosen = min(candidates, key=lambda row: row["score"])
