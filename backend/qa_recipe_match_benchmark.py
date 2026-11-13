@@ -271,6 +271,7 @@ def main():
         for discovery_query in ("pizza", "chili con carne", "french fries"):
             discovery = search_catalog_opportunities(db, discovery_query, limit=10)
             assert discovery["catalog_count"] == product_count
+            assert discovery["products"], f"No real-catalog shortcuts found for {discovery_query!r}"
             print(
                 f"REAL REWE DISCOVERY {discovery_query!r}: "
                 f"{len(discovery['products'])} results / {discovery['catalog_count']} catalog rows "
