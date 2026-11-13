@@ -398,6 +398,10 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         normalize_text(ingredient) == "white fish fillet"
         and normalize_text(product_category) == "tiefkuehlkost"
         and any(term in title for term in ("seelachsfilet", "kabeljaufilet", "pollack fillet"))
+        and not any(term in title for term in (
+            "paella", "pfanne", "fertiggericht", "fish burger", "fischburger",
+            "brotaufstrich", "salat", "suppe", "sauce",
+        ))
     ):
         return "suggested_substitution"
     if normalize_text(ingredient) in {"lettuce", "romaine lettuce", "shredded lettuce"}:
