@@ -1,7 +1,7 @@
 """Deterministic pagination regression QA across every configured REWE category."""
 from urllib.parse import parse_qs, urlsplit
 
-from app.rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper, category_slug_from_url
+from app.rewe.scraper import MAX_CATEGORY_PAGES, REWE_CATEGORY_URLS, ReweCatalogScraper, category_slug_from_url
 
 
 def product_page(category_path: str, page_number: int) -> str:
@@ -60,6 +60,29 @@ class LongPaginationSession:
         parsed = urlsplit(url)
         page = int(parse_qs(parsed.query).get("page", ["1"])[0])
         return FakeResponse(compact_page(parsed.path, page))
+
+
+def meat_category_page(category_path: str, page_number: int) -> str:
+    category = category_path.rsplit("/", 1)[-1]
+    card_count = 7 if page_number == 240 else 40
+    products = "".join(
+        f'<article><a href="/shop/p/{category}-meat-{page_number}-{i}">'
+        f'Meat product {page_number}-{i}</a></article>'
+        for i in range(card_count)
+    )
+    links = "".join(f'<a href="?page={n}">{n}</a>' for n in (1, 2, 3, 240))
+    return f'<html><body><p>9.567 Produkte</p>{products}<nav>{links}</nav></body></html>'
+
+
+class MeatPaginationSession:
+    def __init__(self):
+        self.calls = []
+
+    def get(self, url, **kwargs):
+        self.calls.append(url)
+        parsed = urlsplit(url)
+        page = int(parse_qs(parsed.query).get("page", ["1"])[0])
+        return FakeResponse(meat_category_page(parsed.path, page))
 
 
 def main():
@@ -139,6 +162,41 @@ def main():
     )
     assert len(long_external_ids) == 5527, (
         f"Expected 5,527 unique REWE product IDs, got {len(long_external_ids)}"
+    )
+
+    # REWE's meat/fish department advertises 9,567 products and 240 pages.
+    # A 200-page safety cap silently prevented a complete refresh of this department.
+    assert MAX_CATEGORY_PAGES >= 240, (
+        f"Safety cap {MAX_CATEGORY_PAGES} is below REWE's 240-page department"
+    )
+    meat_url = "https://www.rewe.de/shop/c/fleisch-wurst-fisch/"
+    meat_scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
+    meat_session = MeatPaginationSession()
+    meat_scraper.session = meat_session
+    meat_pages = list(meat_scraper.pages(meat_url))
+    assert len(meat_pages) == 240, f"Expected all 240 meat pages, got {len(meat_pages)}"
+    assert len(meat_session.calls) == 240
+    assert meat_scraper._page_number(meat_session.calls[3]) == 4
+    assert meat_scraper._page_number(meat_session.calls[-1]) == 240
+    meat_products = [
+        product
+        for page_url, html in meat_pages
+        for product in meat_scraper.extract(
+            html, page_url, category_slug_from_url(meat_url)
+        )
+    ]
+    assert len(meat_products) == 9567, (
+        f"Expected 9,567 product cards extracted across 240 pages, got {len(meat_products)}"
+    )
+    assert len({product["external_id"] for product in meat_products}) == 9567
+
+    browser_meat = ReweCatalogScraper(delay=0, browser_enabled=False)
+    browser_meat._browser_category_html = lambda page, url: meat_category_page(
+        urlsplit(url).path, int(parse_qs(urlsplit(url).query).get("page", ["1"])[0])
+    )
+    browser_meat_pages = list(browser_meat._browser_category_pages(object(), meat_url))
+    assert len(browser_meat_pages) == 240, (
+        f"Expected browser pagination to cover all 240 meat pages, got {len(browser_meat_pages)}"
     )
 
     # If REWE advertises a total count but its pager links disappear from the
