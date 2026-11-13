@@ -22,6 +22,7 @@ def normalize_text(value: Any) -> str:
 _BASE_TERMS = {
     "bell pepper": ("bell pepper", "paprika", "rote paprika", "gelbe paprika", "grune paprika", "spitzpaprika"),
     "red onion": ("red onion", "rote zwiebel", "rote speisezwiebel", "rote zwiebeln", "zwiebel rot", "zwiebeln rot"),
+    "red cabbage": ("red cabbage", "rotkohl", "rotkraut", "blaukraut"),
     "romaine lettuce": ("romaine lettuce", "romanasalat", "romersalat", "romana salat", "romer salat"),
     "white fish fillet": ("white fish fillet", "seelachsfilet", "alaska seelachsfilet", "kabeljaufilet", "pollack fillet"),
     "frozen peas": ("frozen peas", "erbsen", "tiefkuhlerbsen", "tiefkuhl erbsen", "erbsen tiefgekuhlt", "tk erbsen"),
@@ -319,6 +320,17 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name == "croutons" and any(
         term in title_key for term in ("crouton", "cro ton", "brotwurfel gerostet")
     ) and category_key in {"oele-sossen-gewuerze", "fertiggerichte-konserven"}:
+        return True
+    # REWE occasionally labels whole, fresh red cabbage under the canned-food
+    # aisle. A single whole cabbage with no cooked/fruit/ready-meal markers is
+    # still fresh produce despite that aisle metadata.
+    if (
+        name == "red cabbage"
+        and category_key == "fertiggerichte-konserven"
+        and any(term in title_key for term in ("rotkohl", "rotkraut", "blaukraut"))
+        and any(term in title_key for term in ("1 stuck", "1 stueck", "ca 1", "ca 1800"))
+        and not any(term in title_key for term in ("apfel", "fix fertig", "fertiggericht", "sauce", "glas"))
+    ):
         return True
     if name == "burger buns" and any(
         term in title_key for term in ("hamburgerbrotchen", "burgerbrotchen", "burger bun")
