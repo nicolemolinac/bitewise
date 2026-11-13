@@ -27,6 +27,8 @@ def main():
     assert abs(per_gram - 0.0149) < 1e-9
     assert package("Invalid product 0g") == (None, None)
 
+    assert package("Rice (1 kg = 4,00 €)") == (None, None)
+    assert package("Rice 500g (1 kg = 4,00 €)") == (500.0, "g")
     size, unit = package("Rice 500g")
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49
