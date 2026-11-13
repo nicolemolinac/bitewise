@@ -155,11 +155,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
 
 def ingredient_substitution_name(ingredient: str, product_text: str, intelligence: Any = None) -> str | None:
     title = normalize_text(product_text)
-    profile = _profile_lookup(intelligence, ingredient)
-    substitutes = profile.get("allowed_substitutions", [])
-    if isinstance(substitutes, str):
-        substitutes = [substitutes]
-    substitutes = list(substitutes) + list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
+    substitutes = list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     for term in sorted(substitutes, key=lambda value: -len(normalize_text(value))):
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
