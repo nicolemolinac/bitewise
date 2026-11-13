@@ -26,6 +26,7 @@ _BASE_TERMS = {
     "tomato": ("tomato", "tomatoes", "tomate", "tomaten", "rispentomaten", "strauchtomaten", "roma tomaten"),
     "cherry tomato": ("cherry tomato", "cherry tomatoes", "cocktailtomaten", "cocktail tomaten", "kirschtomaten", "kirsch tomaten", "mini tomaten", "cherrytomaten"),
     "chicken breast": ("chicken breast", "chicken breasts", "hahnchenbrust", "haehnchenbrust", "hahnchen brust", "haehnchen brust", "hahnchenbrustfilet", "haehnchenbrustfilet", "hahnchen brustfilet", "hahnchenfilets"),
+    "rice": ("rice", "reis", "basmati rice", "basmatireis", "basmati reis", "langkornreis", "langkorn reis", "jasminreis", "jasmin reis", "parboiled rice"),
     "ground beef": ("ground beef", "minced beef", "rinderhack", "rinderhackfleisch", "hackfleisch rind"),
     "salmon": ("salmon", "lachs", "lachsfilet", "frisches lachsfilet"),
     "flour": ("flour", "mehl", "weizenmehl", "type 405", "type 550"),
