@@ -124,19 +124,23 @@ def _offer_availability(offers):
     """Interpret schema.org stock state; an Offer alone does not prove in-stock."""
     values = offers if isinstance(offers, list) else [offers]
     states = []
+    offer_count = 0
     for offer in values:
         if not isinstance(offer, dict):
             continue
+        offer_count += 1
         raw = str(offer.get("availability") or "").strip().lower()
         if not raw:
-            continue
-        if "instock" in raw or "limitedavailability" in raw:
+            states.append("unknown")
+        elif "instock" in raw or "limitedavailability" in raw:
             states.append("available")
         elif any(token in raw for token in ("outofstock", "soldout", "discontinued", "preorder")):
             states.append("unavailable")
+        else:
+            states.append("unknown")
     if "available" in states:
         return "available"
-    if states and all(state == "unavailable" for state in states):
+    if offer_count and len(states) == offer_count and all(state == "unavailable" for state in states):
         return "unavailable"
     return "unknown"
 
@@ -242,7 +246,13 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 offer_rows = offers if isinstance(offers, list) else [offers]
                 offer_prices = []
                 for offer in offer_rows:
-                    raw_price = offer.get("price") if isinstance(offer, dict) else None
+                    if not isinstance(offer, dict):
+                        continue
+                    # Never use an explicitly out-of-stock offer as the displayed
+                    # checkout price when another offer is currently purchasable.
+                    if _offer_availability(offer) == "unavailable":
+                        continue
+                    raw_price = offer.get("price")
                     try:
                         parsed_price = float(str(raw_price).replace(",", ".")) if raw_price is not None else None
                     except (TypeError, ValueError):
