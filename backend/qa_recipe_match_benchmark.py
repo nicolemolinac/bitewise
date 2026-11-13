@@ -285,7 +285,7 @@ def main():
                 )
             if discovery_query == "pizza":
                 pizza_kit = next(
-                    (row for row in discovery["products"] if "pizza-kit" in normalize_text(row["name_original"])),
+                    (row for row in discovery["products"] if "pizza kit" in normalize_text(row["name_original"])),
                     None,
                 )
                 if pizza_kit:
