@@ -245,6 +245,10 @@ def run():
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
     ) is None, "Prepared Greek-style rice must not satisfy raw rice"
     assert ingredient_product_match_type(
+        "rice", "Tilda Golden Vegetable Rice 250g",
+        {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
+    ) is None, "Tilda 250g microwave vegetable rice must not match raw rice"
+    assert ingredient_product_match_type(
         "rice", "Tilda Sticky Rice 250g",
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
     ) is None, "Ready-to-eat sticky rice must not match raw rice"
