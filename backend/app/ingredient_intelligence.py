@@ -305,9 +305,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name == "chicken breast" and any(
         token in title_key
         for token in (
-            "delikatess", "aufschnitt", "gebacken", "gekocht", "gegart",
-            "gepokelt", "pokelt", "paprika", "mariniert", "marinade",
-            "gewuerzt", "bbq", "grill",
+            "delikatess", "aufschnitt", "in scheiben", "geschnitten",
+            "gebacken", "gebraten", "gekocht", "gegart", "gepokelt", "pokelt",
+            "paprika", "mariniert", "marinade", "gewuerzt", "bbq", "grill",
+            "100g", "150g",
         )
     ):
         return False
