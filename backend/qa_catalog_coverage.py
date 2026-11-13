@@ -252,13 +252,22 @@ def main():
         print(f"Distinct ingredient labels: {len(ingredients)}")
         print(f"Distinct categories: {len(categories)}")
         print(f"REWE category distribution: {dict(categories)}")
-        bread_cereal_rows = categories.get("brot-cerealien-aufstriche", 0)
-        if bread_cereal_rows < 1000:
+        large_departments = {
+            "brot-cerealien-aufstriche": categories.get("brot-cerealien-aufstriche", 0),
+            "fleisch-wurst-fisch": categories.get("fleisch-wurst-fisch", 0),
+            "obst-gemuese": categories.get("obst-gemuese", 0),
+            "kaese-eier-molkerei": categories.get("kaese-eier-molkerei", 0),
+            "tiefkuehlkost": categories.get("tiefkuehlkost", 0),
+        }
+        incomplete_departments = {
+            category: count for category, count in large_departments.items()
+            if count < 1000
+        }
+        if incomplete_departments:
             print(
-                "WARNING: committed snapshot has only "
-                f"{bread_cereal_rows} Brot/Cerealien rows. This is not a complete "
-                "capture of the paginated REWE department; run a healthy full refresh "
-                "before treating the catalog as complete."
+                "WARNING: committed snapshot underrepresents large REWE departments: "
+                f"{incomplete_departments}. A high total row count does not prove that "
+                "all category pages were captured; run a healthy full refresh."
             )
         print(f"Missing prices (not necessarily source errors): {missing_price} ({missing_price / total:.1%})")
         print(f"Invalid numeric prices (non-finite or <= 0): {invalid_price} ({invalid_price / total:.1%})")
