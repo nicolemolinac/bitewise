@@ -448,6 +448,24 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
             return None
     profile = _profile_lookup(intelligence, ingredient)
     product_form = str(profile.get("form") or "")
+    # Enforce a final retail-aisle guard for fresh produce. Some imported REWE
+    # rows contain raw-looking names such as "Rotkohl" while actually belonging
+    # to the prepared/canned aisle; title overlap alone must never make them
+    # exact fresh-ingredient matches.
+    fresh_produce_names = {
+        "garlic", "onion", "red onion", "potato", "potatoes", "tomato",
+        "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
+        "cucumber", "bell pepper", "carrot", "broccoli", "fresh cilantro",
+        "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
+        "red cabbage", "strawberries", "blueberries", "banana", "parsley",
+    }
+    category_key = normalize_text(product_category).replace(" ", "-")
+    if (
+        normalize_text(ingredient) in fresh_produce_names
+        and normalize_text(product_form) == "fresh"
+        and category_key not in {"obst-gemuese", "frische-krauter"}
+    ):
+        return None
     form_compatible = _form_compatible(
         product_form,
         title + " " + normalize_text(product_category),
