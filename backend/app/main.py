@@ -354,8 +354,12 @@ def rewe_status():
  finally:db.close()
 @app.post('/api/rewe/refresh')
 def rewe_refresh():
- db=SessionLocal();postcode=setting(db,'postcode','13353');run=CatalogRun(status='running');db.add(run);db.commit()
+ if not _SEMANTIC_INDEX_GUARD.acquire(blocking=False):
+  raise HTTPException(409, 'REWE refresh and semantic indexing cannot run at the same time.')
+ db=None
+ run=None
  try:
+  db=SessionLocal();postcode=setting(db,'postcode','13353');run=CatalogRun(status='running');db.add(run);db.commit()
   def upsert(data,current_postcode):
    existing=db.query(Product).filter_by(supermarket='REWE',external_id=data['external_id']).first();now=datetime.utcnow()
    if existing:
@@ -365,8 +369,17 @@ def rewe_refresh():
     existing.postcode_context=current_postcode;existing.last_seen_at=now;existing.last_checked_at=now;db.flush();return False
    db.add(Product(supermarket='REWE',postcode_context=current_postcode,**data));db.flush();return True
   report=ReweCatalogScraper().run(upsert,postcode);run.status=report['status'];run.products_seen=report['products_found'];run.errors=len(report['errors']);run.categories_processed=report['categories_processed'];run.categories_successful=report['categories_successful'];run.categories_failed=report['categories_failed'];run.finished_at=datetime.utcnow();db.commit();return {'ok':report['status']!='failed',**report,'message':'Manual public-category refresh. Prices are a catalog snapshot, not real-time checkout data.'}
- except Exception as exc:run.status='failed';run.errors=max(1,run.errors or 0);run.finished_at=datetime.utcnow();db.commit();raise HTTPException(502,f'REWE refresh failed: {str(exc)[:180]}')
- finally:db.close()
+ except Exception as exc:
+  if db is not None:
+   try:
+    if run is not None:
+     run.status='failed';run.errors=max(1,run.errors or 0);run.finished_at=datetime.utcnow();db.commit()
+    else:db.rollback()
+   except Exception:db.rollback()
+  raise HTTPException(502,f'REWE refresh failed: {str(exc)[:180]}')
+ finally:
+  if db is not None:db.close()
+  _SEMANTIC_INDEX_GUARD.release()
 @app.get('/api/shopping/state')
 def get_shopping_state():
  db=SessionLocal()
