@@ -436,7 +436,7 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "chicken breast": ("hahnchen wurst", "haehnchen wurst", "hahnchen aufschnitt", "haehnchen aufschnitt", "brotaufstrich", "gepokelt", "gebacken", "gerauchert", "hauchzart", "delikatess", "paprika", "mariniert", "marinade", "gegrillt", "gewurzt", "gewurzmischung", "joghurt", "knoblauch", "curry", "brandenburg", "bernard matthews", "gutfried", "herta", "finesse", "wiltmann", "filetstucke", "filetstuecke", "hahnchenbrust natur", "haehnchenbrust natur", "hahnchenbrust mit curry"),
         "olive oil": ("olivenol dusche", "olivenol creme", "olivenol shampoo", "olivenol nachtcreme"),
         "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol", "mayonnaise", "mayo", "salatcreme", "dressing", "sauce", "spray", "spruhol"),
-        "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung"),
+        "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung", "paniert", "backteig"),
         "salsa": ("mais rollchen", "mais roellchen", "snack", "chips"),
         "lettuce": ("crispy mix", "salat mix", "salatmischung", "salatmix", "bluten salat", "blutensalat", "baby leaf", "babyleaf", "salat bouquet", "wildkrauter salat", "wildkrautersalat", "feiner salat", "der feine salat"),
     }
