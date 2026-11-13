@@ -45,6 +45,9 @@ def run():
     dressing_volume, dressing_note = _convert_ingredient_quantity(40, "g", "ml", "caesar dressing")
     assert dressing_volume == 40
     assert "Estimated density 1 g/ml" in dressing_note
+    salsa_volume, salsa_note = _convert_ingredient_quantity(50, "g", "ml", "salsa")
+    assert salsa_volume == 50
+    assert "Estimated density 1 g/ml" in salsa_note
 
     catalog = FakeCatalog({
         "rice": [{
