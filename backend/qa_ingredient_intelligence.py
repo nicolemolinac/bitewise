@@ -58,6 +58,14 @@ def test_high_risk_false_positive_guards():
         "pasta", "Ayuko Udon Nudeln 200g",
         product_category="Kochen & Backen",
     ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "REWE Putenbrustfilet 400g",
+        {"form": "fresh"}, "Fleisch, Wurst & Fisch",
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "grated cheddar cheese", "REWE Cheddar am Stück 200g",
+        {"form": "grated"}, "Käse & Eier & Molkerei",
+    ) == "substitute"
 
 
 def test_common_english_ingredients_have_german_catalog_terms():
