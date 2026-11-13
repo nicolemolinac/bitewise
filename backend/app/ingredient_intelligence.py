@@ -79,7 +79,7 @@ _UNIT_FAMILIES = {
 _FAMILY_HINTS = {
     "oil": ("oil", "pflanzenol", "sonnenblumenol", "rapsol", "olivenol"),
     "liquid": ("milk", "cream", "sauce", "vinegar", "stock", "juice", "sahne", "milch", "essig", "brühe"),
-    "spice": ("salt", "black pepper", "peppercorn", "paprika powder", "cumin", "cinnamon", "spice", "seasoning", "gewürz", "gewürzmischung", "salz", "pfeffer"),
+    "spice": ("salt", "black pepper", "peppercorn", "paprika", "paprika powder", "cumin", "cinnamon", "spice", "seasoning", "gewürz", "gewürzmischung", "salz", "pfeffer"),
     "produce": ("bell pepper", "red onion", "pepper", "paprika", "onion", "onions", "garlic", "potato", "potatoes", "tomato", "tomatoes", "lettuce", "cilantro", "carrot", "carrots", "olive", "olives", "zwiebel", "zwiebeln", "knoblauch", "kartoffel", "kartoffeln"),
     "count": ("egg", "eggs", "eier", "tortilla", "tortillas", "shell", "shells", "bun", "buns", "wurstchen", "sausage", "sausages"),
 }
@@ -290,8 +290,9 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "chicken breast": ("hahnchen wurst", "haehnchen wurst", "hahnchen aufschnitt", "haehnchen aufschnitt", "brotaufstrich"),
         "olive oil": ("olivenol dusche", "olivenol creme", "olivenol shampoo", "olivenol nachtcreme"),
         "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol"),
-        "white fish fillet": ("fischmus", "fischburger", "fischstabchen", "surimi"),
+        "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung"),
         "salsa": ("mais rollchen", "mais roellchen", "snack", "chips"),
+        "lettuce": ("crispy mix", "salat mix", "salatmischung", "salatmix"),
     }
     return any(_contains_phrase(t, normalize_text(term)) for term in exclusions.get(name, ()))
 
