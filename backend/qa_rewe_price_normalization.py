@@ -1,5 +1,6 @@
 """Regression QA for REWE package prices and multi-pack quantity normalization."""
-from app.rewe.scraper import package, price_details
+from bs4 import BeautifulSoup
+from app.rewe.scraper import _json_ld_products, _offer_availability, package, price_details
 
 
 def main():
@@ -23,6 +24,20 @@ def main():
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49
     assert abs(per_gram - 0.00498) < 0.000001
+
+    assert _offer_availability({"price": "2.99"}) == "unknown"
+    assert _offer_availability({"price": "2.99", "availability": "https://schema.org/InStock"}) == "available"
+    assert _offer_availability({"availability": "https://schema.org/OutOfStock"}) == "unavailable"
+
+    html = """<script type="application/ld+json">
+    {"@type":"ItemList","itemListElement":[{"item":{"@type":"Product",
+    "name":"Rice 500g","description":"1 kg = 4,00 €",
+    "offers":{"@type":"Offer","price":"1.79","priceCurrency":"EUR"}}}]}
+    </script>"""
+    extracted = _json_ld_products(BeautifulSoup(html, "html.parser"), "https://www.rewe.de", "Lebensmittel")
+    assert extracted[0]["price"] == 1.79, extracted[0]
+    assert extracted[0]["price_per_unit"] == 1.79 / 500
+    assert extracted[0]["availability"] == "unknown", extracted[0]
 
     print("REWE price QA PASS: €/kg and €/l converted to pack prices; multipacks normalized")
 
