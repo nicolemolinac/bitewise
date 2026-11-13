@@ -267,7 +267,7 @@ export default function AppV3(){
       resolved.push(...(photos?.photos||[]));
     }
     const enriched=fresh.map((meal,index)=>{const photo=resolved[index]||{};return {...meal,image:photo.image||meal.image||'',image_page:photo.image_page||meal.image_page||'',photographer:photo.photographer||meal.photographer||''};});
-    const updates=historyRows.map((row,index)=>{const meal=enriched[index];return meal?.image?{record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',meal}:null;}).filter(Boolean);
+    const updates=historyRows.map((row,index)=>{const meal=enriched[index];return row&&meal?.image?{record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',meal}:null;}).filter(Boolean);
     if(updates.length)await api('/recipe-history',{method:'POST',body:JSON.stringify({records:updates})});
     setMeals(current=>{const byId=new Map(current.map(meal=>[meal.id,meal]));enriched.forEach(meal=>byId.set(meal.id,meal));return [...byId.values()];});
     setLiked(current=>current.map(meal=>enriched.find(x=>x.id===meal.id)||meal));
@@ -277,11 +277,22 @@ export default function AppV3(){
   }
 
   async function findMissingHistoryPhotos(){
-    const missing=history.filter(row=>needsLocalRecipePhoto(row.meal));
-    if(!missing.length){setPhotoBackfillReport('All saved history entries already have photos.');return;}
+    const byMealId=new Map<string,{meal:Meal;row:any|null}>();
+    history.forEach((row:any)=>{
+      if(row.meal?.id&&needsLocalRecipePhoto(row.meal))byMealId.set(row.meal.id,{meal:row.meal,row});
+    });
+    discoverPool.forEach(meal=>{
+      if(!meal?.id||!needsLocalRecipePhoto(meal))return;
+      const row=history.find((candidate:any)=>candidate.meal?.id===meal.id)||null;
+      byMealId.set(meal.id,{meal,row});
+    });
+    const missing=[...byMealId.values()];
+    if(!missing.length){setPhotoBackfillReport('All Discovery and History entries already have saved photos.');return;}
     setPhotoBackfillRunning(true);setPhotoBackfillReport('');
-    try{const found=await attachFreePhotos(missing.map(row=>row.meal),missing);setPhotoBackfillReport(`Found and saved ${found} of ${missing.length} missing photos. Add backend/data/recipe_images to Git and push to keep them permanently.`);}
-    catch(e:any){setPhotoBackfillReport('Photo recovery failed: '+e.message);}
+    try{
+      const found=await attachFreePhotos(missing.map(item=>item.meal),missing.map(item=>item.row));
+      setPhotoBackfillReport(`Found and saved ${found} of ${missing.length} missing photos. Images are stored locally in backend/data/recipe_images and their paths are saved in history.`);
+    }catch(e:any){setPhotoBackfillReport('Photo recovery failed: '+e.message);}
     finally{setPhotoBackfillRunning(false);}
   }
 
@@ -388,7 +399,7 @@ export default function AppV3(){
       {tab==='discover'&&<>
         <div className="grid gap-3 rounded-[26px] bg-[#18392b] p-5 text-white lg:grid-cols-[1fr_auto] lg:items-center"><div><div className="text-xs font-black uppercase tracking-[.18em] text-white/45">AI food decision engine</div><h1 className="mt-1 text-2xl font-black">What do you feel like eating?</h1><p className="mt-1 text-sm text-white/55">Browse lightweight ideas first. Bitewise creates the full recipe only when you pick one.</p></div><div className="text-right"><div className="text-xs text-white/40">Adaptive portion</div><div className="text-xl font-black">{factor.toFixed(2)}×</div></div></div>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{mealTypes.map(t=><button key={t.id} onClick={()=>setMealType(t.id)} className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-black',mealType===t.id?'bg-[#dff2df] text-[#173b2d]':'bg-white text-[#173b2d]/55')}>{t.emoji} {t.label}</button>)}</div>
-        <div className="mt-3 flex flex-col gap-2 rounded-2xl bg-white p-3 shadow-sm sm:flex-row"><input value={brain} onChange={e=>setBrain(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!loading&&brain.trim()&&generateAI(brain)} disabled={loading} className="min-w-0 flex-1 rounded-xl bg-[#f3f1eb] px-4 py-3 text-sm outline-none" placeholder="Fancy but easy tonight · cheap breakfast · use what I have..."/><button onClick={()=>brain.trim()&&generateAI(brain)} disabled={loading} className="rounded-xl bg-[#18392b] px-5 py-3 text-sm font-black text-white disabled:opacity-50">{loading?'Thinking…':'Generate'}</button></div>
+        <div className="mt-3 flex flex-col gap-2 rounded-2xl bg-white p-3 shadow-sm sm:flex-row"><input value={brain} onChange={e=>setBrain(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!loading&&brain.trim()&&generateAI(brain)} disabled={loading} className="min-w-0 flex-1 rounded-xl bg-[#f3f1eb] px-4 py-3 text-sm outline-none" placeholder="Fancy but easy tonight · cheap breakfast · use what I have..."/><button onClick={()=>brain.trim()&&generateAI(brain)} disabled={loading} className="rounded-xl bg-[#18392b] px-5 py-3 text-sm font-black text-white disabled:opacity-50">{loading?'Thinking…':'Generate'}</button><button onClick={()=>void findMissingHistoryPhotos()} disabled={photoBackfillRunning||!history.some(row=>needsLocalRecipePhoto(row.meal))&&!discoverPool.some(needsLocalRecipePhoto)} className="rounded-xl border border-[#18392b]/15 px-3 py-2 text-xs font-black text-[#18392b] disabled:opacity-40">{photoBackfillRunning?'Recovering…':'Recover photos'}</button></div>{photoBackfillReport&&<p className="mt-2 text-xs text-[#18392b]/55">{photoBackfillReport}</p>}
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{cuisines.map(c=><button key={c} onClick={()=>setFilter(c)} className={cx('shrink-0 rounded-full border px-3 py-1.5 text-xs font-black capitalize',filter===c?'border-[#18392b] bg-[#18392b] text-white':'border-[#18392b]/10 bg-white text-[#18392b]/55')}>{c.replace('-',' ')}</button>)}</div>
         {!visible.length&&!loading?<div className="mt-5 rounded-[28px] bg-white p-10 text-center"><ChefHat className="mx-auto text-[#18392b]/20"/><div className="mt-3 font-black">No exact matches yet</div><button onClick={()=>generateAI(`${filter==='all'?'varied':filter} ${mealType} ideas`)} className="mt-4 rounded-full bg-[#18392b] px-5 py-2.5 text-sm font-black text-white">Generate matching meals</button></div>:!visible.length&&loading?<div className="mt-5 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-[#18392b]/45">Creating your {mealType} ideas…</div>:<div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{visible.map(m=><MealCard key={m.id} meal={m} open={()=>!m.is_concept&&setDetail(m)} like={()=>react(m,'like')} skip={()=>react(m,'skip')} picked={false} busy={loading}/>)}</div>}
       </>}
