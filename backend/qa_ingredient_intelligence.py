@@ -96,6 +96,7 @@ def run():
     assert validate_ingredient_unit("garlic powder", "ml", {"form": "powder"})["valid"] is True
     assert validate_ingredient_unit("garlic powder", "cloves", {"form": "powder"})["valid"] is False
     assert validate_ingredient_unit("chocolate", "g")["valid"] is True
+    assert validate_ingredient_unit("hard boiled eggs", "piece")["family"] == "count"
     assert validate_ingredient_unit("hard boiled eggs", "piece")["valid"] is True
     assert validate_ingredient_unit("hard boiled eggs", "g")["valid"] is False
     assert validate_ingredient_unit("hot dog buns", "unit")["valid"] is True
