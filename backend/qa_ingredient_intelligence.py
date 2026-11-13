@@ -295,6 +295,10 @@ def run():
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
     ) is None, "Ready-to-eat sticky rice must not match raw rice"
     assert ingredient_product_match_type(
+        "rice", "Alnavit frei von Bio Vollkornreis Couscous 300g",
+        {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
+    ) is None, "Rice-based couscous is not plain rice"
+    assert ingredient_product_match_type(
         "rice", "REWE Bio Fusilli aus Vollkornreis glutenfrei 250g",
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
     ) is None, "Rice-based fusilli must not match raw rice"
