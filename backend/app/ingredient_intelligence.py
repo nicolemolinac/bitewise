@@ -262,6 +262,16 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         for token in ("mus", "aufstrich", "pastete", "creme", "spread", "fischmus")
     ):
         return False
+    if name == "chicken breast" and any(
+        token in title_key
+        for token in ("delikatess", "aufschnitt", "gebacken", "gekocht", "gegart", "gepoekelt", "pökelt")
+    ):
+        return False
+    if name in {"vegetable oil", "sunflower oil", "rapeseed oil", "olive oil"} and any(
+        token in title_key
+        for token in ("mayonnaise", "mayo", "salatdressing", "dressing", "pesto", "margarine")
+    ):
+        return False
     if name == "pasta" and any(
         _contains_phrase(title_key, token)
         for token in ("udon", "ramen", "soba", "glasnudeln", "glass noodles", "rice noodles", "reisnudeln")
