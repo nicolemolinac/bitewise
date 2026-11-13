@@ -153,8 +153,8 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
         ranked = []
         for index in np.argsort(scores)[::-1]:
             score = float(scores[index])
-            if score < minimum_score:
-                break
+            if not np.isfinite(score) or score < minimum_score:
+                continue
             product = db.get(Product, product_ids[int(index)])
             if product is None or product.supermarket != "REWE":
                 continue
