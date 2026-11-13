@@ -415,7 +415,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         return (
             category_key in {"brot-cerealien-aufstriche", "kochen-backen"}
             and not any(token in title_key for token in (
-                "senfsauce", "honey mustard", "honig senf", "riegel", "muesli", "snack",
+                "senfsauce", "honey mustard", "honig senf", "riegel", "muesli", "musli", "snack",
                 "bonbon", "husten", "drops", "lutscher", "pastillen", "fruchtgummi",
                 "kaubonbon", "sussigkeit", "suessigkeit", "candy",
             ))
