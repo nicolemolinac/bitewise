@@ -50,7 +50,7 @@ SAMPLE_INGREDIENTS = [
     "potato", "broccoli", "spinach", "mushroom", "bell pepper", "zucchini",
     "cucumber", "avocado", "lemon", "olive oil", "soy sauce", "tomato paste",
     "chickpeas", "lentils", "kidney beans", "tortilla", "bread", "oats",
-    "banana", "strawberry", "honey", "sugar", "baking powder", "cornstarch",
+    "banana", "strawberry", "honey", "mayonnaise", "sugar", "baking powder", "cornstarch",
     "coconut milk", "tofu", "shrimp", "tuna", "bacon", "turkey",
 ]
 
