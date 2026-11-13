@@ -298,7 +298,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     ) and category_key in {"fertiggerichte-konserven", "brot-cerealien-aufstriche", "kochen-backen"}:
         return True
     if name == "croutons" and any(
-        term in title_key for term in ("crouton", "brotwurfel gerostet")
+        term in title_key for term in ("crouton", "cro ton", "brotwurfel gerostet")
     ) and category_key in {"oele-sossen-gewuerze", "fertiggerichte-konserven"}:
         return True
 
