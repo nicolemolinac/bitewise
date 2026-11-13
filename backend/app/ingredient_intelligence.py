@@ -125,8 +125,11 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         return False
     if form == "fresh" and any(token in title for token in ("tiefkuhl", "frozen", "konserve", "dose", "getrocknet", "gemahlen", "gewurze", "gewurz", "spices", "seasonings")):
         return False
-    if form in {"frozen", "tiefkuhl"} and any(token in title for token in ("chips", "snack", "knabberartikel")):
-        return False
+    if form in {"frozen", "tiefkuhl"}:
+        if any(token in title for token in ("chips", "snack", "knabberartikel")):
+            return False
+        if any(token in title for token in ("frisch", "fresh", "konserve", "dose", "canned", "getrocknet", "dried", "obst gemuse", "fresh produce")):
+            return False
     if form in {"canned", "konserve"} and any(token in title for token in ("tiefkuhl", "frozen", "frisch", "fresh")):
         return False
     if form in {"grated", "gerieben"} and not any(token in title for token in ("gerieben", "geraspelt", "grated")):
@@ -137,8 +140,11 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         return False
     if form in {"powder", "pulver"} and not any(token in title for token in ("pulver", "powder", "gemahlen")):
         return False
-    if form in {"pre cooked", "precooked"} and any(token in title for token in ("roh", "raw")):
-        return False
+    if form in {"pre cooked", "precooked"}:
+        if any(token in title for token in ("roh", "raw")):
+            return False
+        if not any(token in title for token in ("gegart", "gekocht", "vorgegart", "cooked", "ready to eat", "verzehrfertig")):
+            return False
     return True
 
 
