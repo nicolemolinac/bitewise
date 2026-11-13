@@ -4,6 +4,7 @@ Run from backend/: python qa_catalog_coverage.py
 This is a diagnostic report: it deliberately reports gaps instead of pretending that
 an ingredient is purchasable when the catalog has no priced, usable product.
 """
+import math
 import os
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -43,7 +44,13 @@ def main():
             f"REWE catalog is incomplete: expected the full ~12k snapshot, got {total} products"
         )
 
-        missing_price = sum(row.price is None or float(row.price) <= 0 for row in products)
+        missing_price = sum(row.price is None for row in products)
+        invalid_price = sum(
+            row.price is not None and (
+                not math.isfinite(float(row.price)) or float(row.price) <= 0
+            )
+            for row in products
+        )
         availability = Counter(str(row.availability or "unknown").lower() for row in products)
         categories = Counter(str(row.category or "uncategorized") for row in products)
         ingredients = Counter(str(row.ingredient or "unclassified") for row in products)
@@ -52,7 +59,10 @@ def main():
         with_product_url = sum(bool(str(row.product_url or "").strip()) for row in products)
         with_image_url = sum(bool(str(row.image_url or "").strip()) for row in products)
         invalid_packages = sum(
-            row.package_size is None or float(row.package_size) <= 0 or not row.package_unit
+            row.package_size is None
+            or not math.isfinite(float(row.package_size))
+            or float(row.package_size) <= 0
+            or not str(row.package_unit or "").strip()
             for row in products
         )
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
@@ -67,7 +77,8 @@ def main():
             usable = [
                 p for p in candidates
                 if p.get("price") is not None
-                and float(p.get("price") or 0) > 0
+                and math.isfinite(float(p.get("price")))
+                and float(p.get("price")) > 0
                 and str(p.get("availability") or "").lower()
                     not in {"unavailable", "out_of_stock", "not_available", "discontinued"}
             ]
@@ -85,15 +96,19 @@ def main():
         print(f"REWE products: {total}")
         print(f"Distinct ingredient labels: {len(ingredients)}")
         print(f"Distinct categories: {len(categories)}")
-        print(f"Missing/zero prices: {missing_price} ({missing_price / total:.1%})")
+        print(f"Missing prices (not necessarily source errors): {missing_price} ({missing_price / total:.1%})")
+        print(f"Invalid numeric prices (non-finite or <= 0): {invalid_price} ({invalid_price / total:.1%})")
         for row in products:
-            if row.price is None or float(row.price) <= 0:
+            if row.price is None or not math.isfinite(float(row.price)) or float(row.price) <= 0:
                 print("PRODUCT WITHOUT PRICE:", {
                     "id": row.id,
                     "name": row.name_original,
                     "ingredient": row.ingredient,
                     "package_size": row.package_size,
                     "package_unit": row.package_unit,
+                    "price": row.price,
+                    "last_price": row.last_price,
+                    "product_url": row.product_url,
                 })
         print(f"Stale or never checked (>30 days): {stale} ({stale / total:.1%})")
         print(f"Duplicate normalized-name rows: {duplicate_name_rows}")
