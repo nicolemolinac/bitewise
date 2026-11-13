@@ -43,6 +43,7 @@ def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: d
         and math.isfinite(incoming_unit_price)
         and incoming_unit_price > 0
     )
+    accepted_unit_price = False
 
     raw_size = data.get("package_size")
     try:
@@ -81,6 +82,7 @@ def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: d
             # with a previously known package quantity.
             if valid_price and valid_unit_price and valid_package:
                 existing.price_per_unit = incoming_unit_price
+                accepted_unit_price = True
             continue
         if key in {"package_size", "package_unit"}:
             # Never replace a known mass/volume pack with the scraper's
@@ -90,7 +92,7 @@ def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: d
             continue
         setattr(existing, key, value)
 
-    if valid_price and not valid_unit_price:
+    if valid_price and not accepted_unit_price:
         try:
             known_size = float(existing.package_size)
             known_unit = str(existing.package_unit or "").strip().lower()
