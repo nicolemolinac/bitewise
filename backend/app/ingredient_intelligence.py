@@ -195,6 +195,12 @@ def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None)
                         for value in _PROPOSED_SUBSTITUTION_SYNONYMS.get(normalized_option_term, ())
                     )
     terms.update(normalize_text(term) for term in _SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
+    # Retrieve review-only alternatives too, but keep them out of the
+    # auto-match path in ingredient_product_match_type().
+    terms.update(
+        normalize_text(term)
+        for term in _REVIEW_ONLY_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ())
+    )
     # REWE product titles preserve German umlauts while matcher text is normalized.
     # Keep both spellings for SQL retrieval; strict matching still normalizes titles.
     retrieval_terms = set(terms)
