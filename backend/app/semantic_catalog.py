@@ -134,8 +134,8 @@ def _catalog_embedding_matrix(db):
 def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
                                 limit: int = 5, minimum_score: float = 0.78) -> list[dict]:
     """Return review-only semantic candidates; callers must not auto-add these."""
-    indexed_count = db.query(ProductSemanticEmbedding).filter_by(model_name=MODEL_NAME).count()
-    if indexed_count == 0:
+    matrix, product_ids = _catalog_embedding_matrix(db)
+    if matrix is None or not product_ids:
         return []
     try:
         query = _query_text(ingredient, intelligence)
