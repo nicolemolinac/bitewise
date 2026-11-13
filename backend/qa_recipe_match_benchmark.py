@@ -277,7 +277,7 @@ def main():
         print(f"Local semantic vectors: {embedding_count}")
         if live_catalog_healthy:
             department_minimums = {
-            # Conservative 50%-of-source-count floors, below current REWE category totals.
+                # Conservative 50%-of-source-count floors, below current REWE category totals.
                 "brot-cerealien-aufstriche": 2700,
                 "fleisch-wurst-fisch": 4700,
                 "obst-gemuese": 1000,
