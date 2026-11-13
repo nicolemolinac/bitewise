@@ -226,6 +226,8 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
                 "express", "mikrowelle", "microwave", "gekocht", "vorgekocht",
                 "ready to eat", "vorgegart", "vorgedampft", "gedampft", "steamed", "2 minuten",
                 "rice flour", "reismehl", "rice paper", "rice noodles", "rice vermicelli",
+                "fusilli", "nudel", "nudeln", "pasta", "spaghetti", "penne",
+                "maccheroni", "pappardelle", "lasagne", "spirelli",
                 "rice pudding", "reisbrei",
                 "rice cake", "rice cakes", "reiswaffel", "rice cracker", "rice crackers",
                 "reisdrink", "rice milk",
