@@ -291,6 +291,18 @@ def main():
                     ingredient = row.get("ingredient") or ""
                     profile = recipe.get("ingredient_intelligence", {}).get(ingredient, {})
                     search_terms = ingredient_candidate_search_terms(ingredient, profile)
+                    adapter_hits = adapter.search(ingredient, intelligence=profile) or []
+                    print(
+                        f"  MATCH DIAGNOSTIC {ingredient}: reason={row.get('match_reason')}, "
+                        f"unit={row.get('unit')} quantity={row.get('needed_quantity')}, "
+                        f"validation={row.get('unit_validation')}, adapter_hits={len(adapter_hits)}"
+                    )
+                    for hit in adapter_hits[:5]:
+                        print(
+                            f"    ADAPTER HIT {hit.get('name_original')} "
+                            f"(type={hit.get('ingredient_match_type')}, price={hit.get('price')}, "
+                            f"pack={hit.get('package_size')} {hit.get('package_unit')})"
+                        )
                     ranked_candidates = []
                     for candidate in catalog_products:
                         candidate_title = normalize_text(" ".join(str(value or "") for value in (
@@ -315,6 +327,10 @@ def main():
                                 profile,
                                 candidate.category or "",
                             )
+                            converted, conversion_note = _convert_ingredient_quantity(
+                                row.get("needed_quantity", row.get("quantity", 0)),
+                                row.get("unit"), candidate.package_unit, ingredient,
+                            )
                             print(
                                 f"    {candidate.name_original} "
                                 f"(category={candidate.category}, price={candidate.price}, "
@@ -322,6 +338,7 @@ def main():
                                 f"match_type={candidate_match}, "
                                 f"form_ok={_form_compatible(str(profile.get('form') or ''), candidate_title, ingredient)}, "
                                 f"category_ok={_category_compatible(ingredient, candidate.category or '', candidate_title, str(profile.get('form') or ''))}, "
+                                f"converted_needed={converted}, conversion_note={conversion_note}, "
                                 f"aliases={matched_terms[:3]}, terms={ingredient_search_terms(ingredient, profile)[:8]})"
                             )
                     else:
