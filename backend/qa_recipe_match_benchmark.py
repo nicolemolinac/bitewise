@@ -359,6 +359,11 @@ def main():
                         f"  FULL-CATALOG AUDIT {ingredient} | terms={terms[:12]} | "
                         f"candidates={len(audit_candidates)}"
                     )
+                    adapter_rows = adapter.search(ingredient, profile)
+                    print(
+                        f"  ADAPTER AUDIT {ingredient} | returned={len(adapter_rows)} | "
+                        f"products={[(row.get('name_original'), row.get('price'), row.get('availability'), row.get('ingredient_match_type')) for row in adapter_rows[:8]]}"
+                    )
                     if normalize_text(ingredient) in {"curry powder", "burger buns", "red cabbage", "rolled oats"}:
                         probes = {
                             "curry powder": ("curry", "masala", "currypaste", "curry paste", "gewürzmischung", "madras"),
@@ -399,6 +404,7 @@ def main():
                             f"category={candidate.category} | ingredient={candidate.ingredient} | "
                             f"pack={candidate.package_size} {candidate.package_unit} | price={candidate.price} | "
                             f"match={audit_type or 'rejected'} | hits={hits[:5]} | "
+                            f"price={candidate.price} | availability={candidate.availability} | "
                             f"score={audit_score}"
                         )
                     alternative_patterns = {
