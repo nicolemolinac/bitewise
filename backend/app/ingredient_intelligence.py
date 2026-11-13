@@ -252,7 +252,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
         return category_key == "obst-gemuese" or (
             name == "fresh cilantro"
-            and ("kraut" in category_key or "herb" in category_key)
+            and any(token in category_key for token in ("kraut", "kraeuter", "herb"))
         )
     if name in proteins:
         prepared_terms = (
