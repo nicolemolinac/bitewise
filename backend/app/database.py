@@ -724,7 +724,10 @@ def _repair_rewe_package_metadata_once() -> None:
     db = None
     try:
         db = SessionLocal()
-        if db.get(AppSetting, "rewe_package_metadata_repair_v1"):
+        if (
+            db.get(AppSetting, "rewe_package_metadata_repair_v1")
+            or db.get(AppSetting, "rewe_package_metadata_repair_attempt_v1")
+        ):
             return
 
         expected_columns = [
@@ -871,7 +874,7 @@ def _repair_rewe_package_metadata_once() -> None:
                 ):
                     product.price_per_unit = normalized_unit_price
                     unit_price_updates += 1
-            elif final_unit in {"", "unknown"}:
+            else:
                 product.price_per_unit = None
 
         if matched >= max(100, int(len(rows) * 0.70)):
