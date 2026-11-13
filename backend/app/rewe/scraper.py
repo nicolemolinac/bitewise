@@ -750,9 +750,57 @@ class ReweCatalogScraper:
                 unique.append(href)
         return unique
 
+    def _expected_last_page(self, html: str, current_url: str, start_url: str):
+        """Infer the last page from REWE's pager or its total-results count."""
+        soup = BeautifulSoup(html, "html.parser")
+        page_numbers = []
+        for anchor in soup.select("a[href]"):
+            href = urljoin(current_url, anchor.get("href", "")).split("#")[0]
+            if not self._same_category(href, start_url):
+                continue
+            number = self._page_number(href)
+            if number is None:
+                label = " ".join(anchor.stripped_strings)
+                match = re.fullmatch(r"\\s*(\\d+)\\s*", label)
+                if match:
+                    number = int(match.group(1))
+            if number is not None:
+                page_numbers.append(number)
+
+        expected = max(page_numbers, default=None)
+        page_product_count = len({
+            _canonical_product_url(anchor.get("href", ""), current_url)
+            for anchor in soup.select('a[href*="/shop/p/"]')
+            if _canonical_product_url(anchor.get("href", ""), current_url)
+        })
+        text = soup.get_text(" ", strip=True)
+        total_match = re.search(r"([\\d.,]+)\\s+Produkte\\b", text, re.I)
+        if total_match and page_product_count:
+            total_text = total_match.group(1)
+            total_products = int(re.sub(r"\\D", "", total_text))
+            if total_products > 0:
+                count_based_last_page = math.ceil(total_products / page_product_count)
+                expected = max(expected or 0, count_based_last_page)
+        return expected
+
+    @staticmethod
+    def _assert_pagination_complete(seen_urls, expected_last_page, category_url):
+        if expected_last_page is None:
+            return
+        seen_numbers = {
+            ReweCatalogScraper._page_number(url) or 1 for url in seen_urls
+        }
+        highest_seen = max(seen_numbers, default=0)
+        if highest_seen < expected_last_page:
+            raise RuntimeError(
+                f"REWE category pagination stopped at page {highest_seen} "
+                f"but the page advertises {expected_last_page} pages: {category_url}"
+            )
+
     def pages(self, start):
         seen_urls, seen_content = set(), set()
         pending = [start]
+        expected_last_page = None
         while pending and len(seen_urls) < MAX_CATEGORY_PAGES:
             url = pending.pop(0).split("#")[0]
             if url in seen_urls:
@@ -760,6 +808,10 @@ class ReweCatalogScraper:
             seen_urls.add(url)
             response = self.session.get(url, headers=HEADERS, timeout=20)
             response.raise_for_status()
+            expected_last_page = max(
+                expected_last_page or 0,
+                self._expected_last_page(response.text, url, start) or 0,
+            ) or None
             fingerprint = self._page_fingerprint(response.text)
             if fingerprint in seen_content:
                 # A duplicate page before pagination is exhausted means this category
@@ -777,6 +829,7 @@ class ReweCatalogScraper:
                 f"REWE category exceeded the {MAX_CATEGORY_PAGES}-page safety limit; "
                 "catalog refresh is incomplete"
             )
+        self._assert_pagination_complete(seen_urls, expected_last_page, start)
 
     def extract(self, html, url, category):
         soup = BeautifulSoup(html, "html.parser")
@@ -985,12 +1038,17 @@ class ReweCatalogScraper:
     def _browser_category_pages(self, page, start):
         seen_urls, seen_content = set(), set()
         pending = [start]
+        expected_last_page = None
         while pending and len(seen_urls) < MAX_CATEGORY_PAGES:
             current = pending.pop(0).split("#")[0]
             if current in seen_urls:
                 continue
             seen_urls.add(current)
             html = self._browser_category_html(page, current)
+            expected_last_page = max(
+                expected_last_page or 0,
+                self._expected_last_page(html, current, start) or 0,
+            ) or None
             fingerprint = self._page_fingerprint(html)
             if fingerprint in seen_content:
                 raise RuntimeError(
@@ -1006,6 +1064,7 @@ class ReweCatalogScraper:
                 f"REWE browser category exceeded the {MAX_CATEGORY_PAGES}-page safety limit; "
                 "catalog refresh is incomplete"
             )
+        self._assert_pagination_complete(seen_urls, expected_last_page, start)
 
     def _base_report(self, postcode, mode):
         return {
@@ -1243,7 +1302,7 @@ class ReweCatalogScraper:
     def run(self, upsert, postcode, urls=REWE_CATEGORY_URLS):
         http_report = self._run_http(upsert, postcode, urls)
         ratio = http_report["products_with_price"] / http_report["products_found"] if http_report["products_found"] else 0
-        if http_report["status"] != "failed" and ratio >= 0.25:
+        if http_report["status"] == "healthy" and ratio >= 0.25:
             return http_report
         if not self.browser_enabled:
             return http_report
