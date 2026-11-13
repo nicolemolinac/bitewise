@@ -452,7 +452,7 @@ def _curated_cross_form_substitute(
             normalized_term in {"rotkohl", "rotkraut", "cooked red cabbage"}
             and category_key == "fertiggerichte-konserven"
             and any(token in title for token in ("rotkohl", "rotkraut"))
-            and not any(token in title for token in ("chips", "snack", "suppe", "baby"))
+            and not any(token in title for token in ("chips", "snack", "suppe", "baby", "bowl", "salat", "mix"))
         )
     if name == "white fish fillet":
         # Frozen, unbreaded cod fillets are a transparent substitute for fresh
