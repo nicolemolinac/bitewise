@@ -250,7 +250,6 @@ def run():
         chicken_profile, "Fleisch-Wurst-Fisch"
     )
     if raw_chicken_match != "exact":
-        from app.ingredient_intelligence import ingredient_search_terms
         print("DEBUG raw chicken:", {
             "result": raw_chicken_match,
             "terms": ingredient_search_terms("chicken breast", chicken_profile),
