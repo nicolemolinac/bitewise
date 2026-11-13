@@ -139,7 +139,7 @@ def _catalog_embedding_matrix(db):
 
 
 def semantic_catalog_candidates(db, query: str, limit: int = 120,
-                                minimum_score: float = 0.52) -> list[dict]:
+                                minimum_score: float = 0.58) -> list[dict]:
     """Return local semantic candidates for dish/convenience discovery.
 
     Unlike ingredient matching, this is intentionally a broad discovery layer:
