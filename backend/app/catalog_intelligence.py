@@ -152,7 +152,7 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
         phrase_hits = sum(1 for variant in variants if _normalise(variant) in text)
         token_hits = sum(1 for token in token_set if token in text.split())
         semantic_score = semantic_scores.get(int(product.id), 0.0)
-        if not phrase_hits and not token_hits and semantic_score < 0.52:
+        if not phrase_hits and not token_hits and semantic_score < 0.58:
             continue
         kind = _convenience_type(text, query, product)
         # Exact dish matches dominate; embeddings recover useful German/English
