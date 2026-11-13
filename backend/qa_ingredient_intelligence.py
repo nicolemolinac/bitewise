@@ -265,6 +265,10 @@ def run():
         "rice", "REWE Beste Wahl Basmati Reis 500g",
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
     ) == "exact"
+    assert "reis" in ingredient_search_terms("rice")
+    assert ingredient_product_match_type(
+        "rice", "Davert Echter Bio Basmati-Reis 250g", None, "kochen-backen"
+    ) == "exact", "Generic English rice must retrieve German basmati rice without recipe metadata"
     assert ingredient_product_match_type(
         "rolled oats", "REWE Bio zarte Haferflocken 500g",
         {"form": "unspecified", "name_de": "Haferflocken"}, "brot-cerealien-aufstriche"
