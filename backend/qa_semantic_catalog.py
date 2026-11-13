@@ -1,4 +1,12 @@
 """Offline QA for the local REWE semantic index (no model download or API calls)."""
+import os
+import tempfile
+from pathlib import Path
+
+_QA_DB_DIR = tempfile.TemporaryDirectory(prefix="bitewise-semantic-catalog-qa-")
+os.environ["DATABASE_URL"] = ""
+os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_DB_DIR.name) / "qa.sqlite")
+
 import numpy as np
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
