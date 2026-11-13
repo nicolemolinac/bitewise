@@ -96,6 +96,21 @@ def main():
     assert mixed_unknown[0]["price"] == 2.49
     assert mixed_unknown[0]["availability"] == "available"
 
+    duplicate_source_html = """<html><head><script type="application/ld+json">
+    {"@type":"ItemList","itemListElement":[{"item":{"@type":"Product",
+    "sku":"SKU-ABC","name":"Rice 500g","url":"/shop/p/rice-500g/12345",
+    "offers":{"@type":"Offer","price":"1.79","availability":"https://schema.org/InStock"}}}]}
+    </script></head><body><article>
+    <a href="/shop/p/rice-500g/12345">Rice 500g</a><span>1,79 €</span>
+    </article></body></html>"""
+    from app.rewe.scraper import ReweCatalogScraper
+    duplicate_source = ReweCatalogScraper(delay=0, browser_enabled=False).extract(
+        duplicate_source_html, "https://www.rewe.de/shop/c/kochen-backen/", "Kochen & Backen"
+    )
+    assert len(duplicate_source) == 1, duplicate_source
+    assert duplicate_source[0]["external_id"] == "12345"
+    assert duplicate_source[0]["price"] == 1.79
+
     print("REWE price QA PASS: €/kg and €/l converted to pack prices; multipacks normalized")
 
 
