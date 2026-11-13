@@ -82,6 +82,8 @@ def run():
         "vegetable oil", "REWE Rapsöl 1L", intelligence
     ) == "rapeseed oil"
     assert validate_ingredient_unit("vegetable oil", "cloves")["valid"] is False
+    assert validate_ingredient_unit("garlic powder", "ml", {"form": "powder"})["valid"] is True
+    assert validate_ingredient_unit("garlic powder", "cloves", {"form": "powder"})["valid"] is False
     assert validate_ingredient_unit("chocolate", "g")["valid"] is True
     soft_form = {"tortillas": {"canonical": "soft wheat tortilla", "name_de": "Weizentortilla", "form": "soft", "aliases": ["weizentortillas"]}}
     hard_form = {"hard taco shells": {"canonical": "hard taco shell", "name_de": "Taco-Schalen", "form": "hard", "aliases": ["taco shells"]}}
