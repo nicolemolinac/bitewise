@@ -122,6 +122,24 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
     return "catalog_product"
 
 
+def _format_diversity_key(product: Any, convenience_type: str) -> str:
+    """Group similar retail formats so one product family cannot fill the first screen."""
+    name = _normalise(" ".join(str(getattr(product, key, "") or "") for key in (
+        "name_original", "name_normalized", "translated_name"
+    )))
+    if convenience_type == "ready_to_cook":
+        for markers, key in (
+            (("flammkuchen", "flamkuchen"), "flatbread"),
+            (("baguette",), "baguette"),
+            (("pizzateig", "pizza dough", "teig"), "dough"),
+            (("pommes", "frites"), "fries"),
+            (("pizza",), "pizza"),
+        ):
+            if any(marker in name for marker in markers):
+                return key
+    return convenience_type
+
+
 def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
     """Find useful supermarket shortcuts for a dish/search phrase from the full catalog."""
     query = str(query or "").strip()[:160]
@@ -244,11 +262,20 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
     selected_ids = set()
     for kind in ("ready_meal", "meal_kit", "ready_to_cook", "prepared_component"):
         added_for_kind = 0
+        max_for_kind = 4 if kind == "ready_to_cook" else 2
+        selected_formats = set()
         for item in ranked:
-            if item[2] == kind and item[1].id not in selected_ids and added_for_kind < 2:
-                diversified.append(item)
-                selected_ids.add(item[1].id)
-                added_for_kind += 1
+            if item[2] != kind or item[1].id in selected_ids:
+                continue
+            format_key = _format_diversity_key(item[1], kind)
+            if format_key in selected_formats:
+                continue
+            diversified.append(item)
+            selected_ids.add(item[1].id)
+            selected_formats.add(format_key)
+            added_for_kind += 1
+            if added_for_kind >= max_for_kind:
+                break
     diversified.extend(item for item in ranked if item[1].id not in selected_ids)
     ranked = diversified
     products = []
