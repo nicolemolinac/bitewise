@@ -282,13 +282,13 @@ def main():
             for row in basket:
                 product = row.get("product") or {}
                 title = product.get("name_original") or product.get("name_normalized") or "—"
+                ingredient = row.get("ingredient") or ""
                 match_type = product.get("ingredient_match_type") or "—"
                 suggestions = row.get("semantic_suggestions") or []
                 semantic_review_count += len(suggestions)
                 if not (row.get("unit_validation") or {}).get("valid", True):
                     invalid_unit_count += 1
                 if row["match_status"] == "unmatched":
-                    ingredient = row.get("ingredient") or ""
                     profile = recipe.get("ingredient_intelligence", {}).get(ingredient, {})
                     search_terms = ingredient_candidate_search_terms(ingredient, profile)
                     adapter_hits = adapter.search(ingredient, intelligence=profile) or []
