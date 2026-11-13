@@ -426,6 +426,7 @@ export default function AppV3(){
       <div className="min-w-0">
         <div className="font-black">{x.ingredient} <span className="font-normal text-[#18392b]/45">· {x.needed_quantity??x.quantity} {x.unit} needed</span></div>
         <div className="mt-1 text-[#18392b]/60">{x.product?x.product.name_original:(x.match_status==="covered"?"Covered by pantry":"No compatible priced REWE product found")}</div>
+        {x.unit_conversion_note&&<div className="mt-1 text-[10px] text-[#9a5b24]">{x.unit_conversion_note}</div>}
         {x.product ? (
           <div className="mt-1 text-[#18392b]/45">
             {x.packs} pack(s) · {x.package_quantity} {x.package_unit} purchased · {x.product.price!==null?money(x.product.price)+" / pack":""}
