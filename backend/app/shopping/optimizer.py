@@ -337,7 +337,20 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             raw_products = list(adapter.search(ingredient) or [])
         override_id = overrides.get(ingredient)
         for product in raw_products:
-            if product.get("ingredient_match_type") in {"semantic_candidate", "suggested_substitution"}:
+            match_type = product.get("ingredient_match_type")
+            # Curated substitutions with an explicit replacement label are
+            # approved catalogue rules. Semantic suggestions remain review-only
+            # until the user explicitly selects them.
+            curated_substitution = (
+                match_type == "suggested_substitution"
+                and bool(product.get("ingredient_substitute"))
+                and not product.get("semantic_match_type")
+            )
+            requires_confirmation = (
+                match_type == "semantic_candidate"
+                or (match_type == "suggested_substitution" and not curated_substitution)
+            )
+            if requires_confirmation:
                 if override_id is not None and str(product.get("id")) == str(override_id):
                     semantic_type = product.get("semantic_match_type") or product.get("ingredient_match_type")
                     product_title = product.get("name_original") or product.get("name_normalized") or ""
