@@ -268,7 +268,7 @@ def main():
         adapter = server.main_module.CatalogAdapter(db)
         totals = Counter()
         per_recipe = []
-        semantic_review_count = 0
+        review_only_suggestion_count = 0
         invalid_unit_count = 0
         for recipe in RECIPES:
             requirements = consolidate([recipe], {recipe["id"]: 2})
@@ -415,7 +415,7 @@ def main():
         print(f"Pantry-covered: {totals['covered']}")
         print(f"Unmatched: {totals['unmatched']}")
         print(f"Ingredients with invalid recipe units: {invalid_unit_count}")
-        print(f"Review-only semantic product suggestions: {semantic_review_count} (NOT counted as resolved)")
+        print(f"Review-only product suggestions: {semantic_review_count} (NOT counted as resolved)")
         print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
         print("\n=== PER-RECIPE SUMMARY ===")
         for name, found, count in per_recipe:
