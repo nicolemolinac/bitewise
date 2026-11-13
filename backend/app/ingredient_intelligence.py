@@ -226,7 +226,17 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     if form in {"canned", "konserve"} and any(token in title for token in ("tiefkuhl", "frozen", "frisch", "fresh")):
         return False
     if form in {"grated", "gerieben"} and not any(token in title for token in ("gerieben", "geraspelt", "grated")):
-        if ingredient_name != "grated cheddar cheese" or "cheddar" not in title or "dip" in title:
+        # A solid cheddar block can be grated at home; pre-sliced burger cheese
+        # and cheddar dips are not interchangeable with grated cheddar.
+        grate_at_home_block = (
+            ingredient_name == "grated cheddar cheese"
+            and any(token in title for token in (
+                "cheddar am stuck", "cheddar block", "cheddar stueck",
+                "cheddar cheese block", "block cheddar",
+            ))
+            and "dip" not in title
+        )
+        if not grate_at_home_block:
             return False
     if form == "soft" and any(token in title for token in ("chips", "nacho", "hard shell", "taco shell", "knusprig", "crunchy", "snack", "knabberartikel", "salzig", "salted", "gesalzen")):
         return False
