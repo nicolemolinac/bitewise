@@ -292,7 +292,7 @@ def main():
         # These gaps are absent from the committed snapshot, although the current
         # REWE source category lists them. A fresh complete live crawl should resolve
         # them; never disguise missing source rows with unsafe substitutes.
-        known_snapshot_gaps = {"rice", "rolled oats", "burger buns"}
+        known_snapshot_gaps = {"rolled oats", "burger buns"}
         unexpected_gaps = [row for row in gaps if row["ingredient"] not in known_snapshot_gaps]
         if gaps:
             print(f"Known committed-snapshot assortment gaps (must disappear after live refresh): {gaps}")
