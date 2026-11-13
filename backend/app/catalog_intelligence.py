@@ -89,7 +89,7 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
             for term in expand_catalog_query(query)
         )
         return "ready_meal" if requested_dish_match else "prepared_component"
-    if any(marker in text for marker in _KIT_MARKERS):
+    if " fix " in f" {text} " or any(marker in text for marker in _KIT_MARKERS):
         return "meal_kit"
     if any(marker in text for marker in _PREPARED_MARKERS):
         return "ready_to_cook"
