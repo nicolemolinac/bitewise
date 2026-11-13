@@ -81,6 +81,30 @@ def main():
             str(row.package_unit or "").strip().lower() == "unknown"
             for row in products
         )
+        inconsistent_unit_prices = []
+        for row in products:
+            try:
+                pack_price = float(row.price) if row.price is not None else None
+                pack_size = float(row.package_size) if row.package_size is not None else None
+                observed_unit_price = float(row.price_per_unit) if row.price_per_unit is not None else None
+            except (TypeError, ValueError):
+                continue
+            if (
+                pack_price is None or pack_size is None or observed_unit_price is None
+                or not all(math.isfinite(value) for value in (pack_price, pack_size, observed_unit_price))
+                or pack_price <= 0 or pack_size <= 0 or observed_unit_price <= 0
+            ):
+                continue
+            expected_unit_price = pack_price / pack_size
+            relative_error = abs(observed_unit_price - expected_unit_price) / expected_unit_price
+            if relative_error > 0.15:
+                inconsistent_unit_prices.append({
+                    "id": row.id, "name": row.name_original, "package_size": row.package_size,
+                    "package_unit": row.package_unit, "price": row.price,
+                    "stored_price_per_unit": row.price_per_unit,
+                    "expected_price_per_unit": round(expected_unit_price, 8),
+                    "relative_error": round(relative_error, 3),
+                })
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         stale = sum(row.last_checked_at is None or row.last_checked_at < cutoff for row in products)
 
@@ -132,6 +156,9 @@ def main():
         print(f"Products with image URL: {with_image_url} ({with_image_url / total:.1%})")
         print(f"Invalid package sizes/units: {invalid_packages}")
         print(f"Package size not parsed by source extractor: {unknown_package_units} (not automatically a REWE data error)")
+        print(f"Price/unit inconsistencies (>15%): {len(inconsistent_unit_prices)}")
+        for row in inconsistent_unit_prices[:30]:
+            print("PRICE/UNIT MISMATCH:", row)
         print(f"Availability distribution: {dict(availability)}")
         print(f"Sample coverage ({len(coverage)} common ingredients): {dict(counts)}")
         for row in coverage:
