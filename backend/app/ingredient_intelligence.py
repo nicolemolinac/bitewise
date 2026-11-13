@@ -337,7 +337,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     ) and category_key in {"oele-sossen-gewuerze", "fertiggerichte-konserven"}:
         return True
     if name == "burger buns" and any(
-        term in title_key for term in ("hamburgerbrotchen", "burgerbrotchen", "burger bun")
+        term in title_key for term in (
+            "hamburgerbrotchen", "burgerbrotchen", "burger bun",
+            "kaiserbrotchen", "weizenbrotchen", "sesambrotchen",
+        )
     ) and category_key in {"brot-cerealien-aufstriche", "kochen-backen", "fertiggerichte-konserven"}:
         return True
 
