@@ -59,6 +59,7 @@ _BASE_TERMS = {
     "hot dog buns": ("hot dog buns", "hotdog buns", "hot dog brotchen", "hotdog brotchen", "brioche hot dog buns"),
     "hot dog sausages": ("hot dog sausages", "hotdog wurstchen", "hot dog wurstchen", "wiener wurstchen", "frankfurter wurstchen"),
     "mayonnaise": ("mayonnaise", "salatmayonnaise", "delikatess mayonnaise", "delikatessmayonnaise"),
+    "honey": ("honey", "honig", "blutenhonig", "bluetenhonig", "waldhonig", "akazienhonig", "rapshonig", "cremiger honig"),
     "paprika powder": ("paprika powder", "paprikapulver", "paprika pulver", "paprika gemahlen", "edelsuess paprika", "paprika edelsuess", "paprika rosenscharf"),
     "parmesan cheese": ("parmesan cheese", "parmesan", "parmigiano reggiano", "parmigiano", "parmesan gerieben"),
     "pre-cooked shredded chicken": ("pre cooked shredded chicken", "gegarte hahnchenbrust", "gegartes hahnchen", "hahnchenbrust gegart", "hahnchenstreifen gegart"),
