@@ -116,6 +116,54 @@ def main():
     assert len(browser_long_pages) == 139, (
         f"Expected browser pagination to cover all 139 pages, got {len(browser_long_pages)}"
     )
+    assert long_scraper._expected_last_page(
+        compact_page(urlsplit(long_url).path, 1), long_url, long_url
+    ) == 139
+
+    # If REWE advertises a total count but its pager links disappear from the
+    # HTTP response, one page must not be silently reported as a complete category.
+    incomplete_html = (
+        '<html><body><p>2 Produkte</p><article>'
+        '<a href="/shop/p/incomplete-1">Product 1</a>'
+        '</article></body></html>'
+    )
+    incomplete_scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
+    incomplete_scraper.session = type("IncompleteSession", (), {
+        "get": lambda self, url, **kwargs: FakeResponse(incomplete_html)
+    })()
+    try:
+        list(incomplete_scraper.pages(long_url))
+        raise AssertionError("Missing pager links must not hide an advertised second page")
+    except RuntimeError as exc:
+        assert "advertises 2 pages" in str(exc)
+
+    incomplete_browser = ReweCatalogScraper(delay=0, browser_enabled=False)
+    incomplete_browser._browser_category_html = lambda page, url: incomplete_html
+    try:
+        list(incomplete_browser._browser_category_pages(object(), long_url))
+        raise AssertionError("Browser pagination must also fail closed on missing pages")
+    except RuntimeError as exc:
+        assert "advertises 2 pages" in str(exc)
+
+    class PartialRefreshScraper(ReweCatalogScraper):
+        def __init__(self):
+            super().__init__(delay=0, browser_enabled=True)
+            self.browser_called = False
+
+        def _run_http(self, upsert, postcode, urls):
+            return {
+                "status": "partial", "products_found": 100,
+                "products_with_price": 80, "errors": [{"category": "bread", "error": "pager missing"}],
+            }
+
+        def _run_browser(self, upsert, postcode, urls):
+            self.browser_called = True
+            return {"status": "healthy", "products_found": 100, "products_with_price": 80}
+
+    partial_refresh = PartialRefreshScraper()
+    partial_result = partial_refresh.run(lambda product, postcode: True, "10115", urls=[])
+    assert partial_refresh.browser_called, "Partial HTTP refreshes must trigger browser fallback"
+    assert partial_result["status"] == "healthy"
 
     # Repeated content and the hard page cap must fail closed, not masquerade as
     # a complete category (which could trigger destructive stale-product cleanup).
