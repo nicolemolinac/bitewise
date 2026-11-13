@@ -11,7 +11,6 @@ os.environ["DATABASE_URL"] = ""
 os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_DB_DIR.name) / "qa.sqlite")
 
 from app.ingredient_intelligence import (
-    _ingredient_specific_exclusions,
     ingredient_candidate_search_terms,
     ingredient_product_match_type,
     ingredient_search_terms,
