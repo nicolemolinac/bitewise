@@ -213,8 +213,11 @@ def main():
         print(f"Distinct categories: {len(categories)}")
         print(f"Missing prices (not necessarily source errors): {missing_price} ({missing_price / total:.1%})")
         print(f"Invalid numeric prices (non-finite or <= 0): {invalid_price} ({invalid_price / total:.1%})")
-        for row in products:
-            if row.price is None or not math.isfinite(float(row.price)) or float(row.price) <= 0:
+        price_issue_examples = [
+            row for row in products
+            if row.price is None or not math.isfinite(float(row.price)) or float(row.price) <= 0
+        ][:30]
+        for row in price_issue_examples:
                 print("PRODUCT WITHOUT PRICE:", {
                     "id": row.id,
                     "name": row.name_original,
@@ -225,6 +228,8 @@ def main():
                     "last_price": row.last_price,
                     "product_url": row.product_url,
                 })
+        if len(price_issue_examples) < missing_price + invalid_price:
+            print(f"Additional price issues omitted from log: {missing_price + invalid_price - len(price_issue_examples)}")
         print(f"Stale or never checked (>30 days): {stale} ({stale / total:.1%})")
         print(f"Duplicate normalized-name rows: {duplicate_name_rows}")
         print(f"Products with REWE product URL: {with_product_url} ({with_product_url / total:.1%})")
