@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import math
 from pathlib import Path
 import hmac
 import json
@@ -28,6 +29,40 @@ from .rewe_refresh import router as rewe_refresh_router
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
 # Swap in the token-efficient implementation without duplicating the route.
 main_module.GeminiService = EfficientGeminiService
+
+
+def _catalog_search_score(row, aliases, match_type):
+    """Rank purchasable products ahead of incomplete/invalid price rows."""
+    fields = [
+        str(row.ingredient or "").lower(),
+        str(row.translated_name or "").lower(),
+        str(row.name_normalized or "").lower(),
+        str(row.name_original or "").lower(),
+    ]
+    best = 0
+    for alias in aliases:
+        for field in fields:
+            if field == alias:
+                best = max(best, 100)
+            elif field.startswith(alias + " ") or field.endswith(" " + alias):
+                best = max(best, 80)
+            elif alias in field:
+                best = max(best, 60 if len(alias) >= 4 else 40)
+    if match_type == "exact":
+        best += 1000
+    elif match_type == "substitute":
+        best -= 100
+    try:
+        price = float(row.price) if row.price is not None else None
+    except (TypeError, ValueError):
+        price = None
+    if price is not None and math.isfinite(price) and price > 0:
+        best += 10
+    else:
+        best -= 100
+    if str(row.availability or "").lower() in {"available", "in_stock"}:
+        best += 5
+    return best
 
 
 def _multilingual_catalog_search(self, ingredient, intelligence=None):
@@ -72,33 +107,10 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
     if rows:
         alias_set = {x.lower() for x in aliases}
 
-        def score(row):
-            fields = [
-                str(row.ingredient or "").lower(),
-                str(row.translated_name or "").lower(),
-                str(row.name_normalized or "").lower(),
-                str(row.name_original or "").lower(),
-            ]
-            best = 0
-            for alias in alias_set:
-                for field in fields:
-                    if field == alias:
-                        best = max(best, 100)
-                    elif field.startswith(alias + " ") or field.endswith(" " + alias):
-                        best = max(best, 80)
-                    elif alias in field:
-                        best = max(best, 60 if len(alias) >= 4 else 40)
-            if match_types.get(row.id) == "exact":
-                best += 1000
-            elif match_types.get(row.id) == "substitute":
-                best -= 100
-            if row.price is not None:
-                best += 10
-            if str(row.availability or "").lower() == "available":
-                best += 5
-            return best
-
-        rows.sort(key=score, reverse=True)
+        rows.sort(
+            key=lambda row: _catalog_search_score(row, alias_set, match_types.get(row.id)),
+            reverse=True,
+        )
         lexical_results = [
             {
                 **main_module.product_dict(row),
