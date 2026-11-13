@@ -7,6 +7,7 @@ from app.ingredient_intelligence import (
     ingredient_search_terms,
     ingredient_substitution_name,
     normalize_recipe_intelligence,
+    normalize_text,
     validate_ingredient_unit,
 )
 from app.shopping.optimizer import build_basket, consolidate
@@ -56,6 +57,7 @@ def run():
     }
     intelligence = normalize_recipe_intelligence(raw)
     assert len(intelligence) == 3
+    assert normalize_text("weiß") == "weiss"
     assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
     assert ingredient_product_match_type(
         "canned corn", "REWE Bio Zuckermais Tiefkühl 450g", intelligence
@@ -71,6 +73,11 @@ def run():
     ) == "rapeseed oil"
     assert validate_ingredient_unit("vegetable oil", "cloves")["valid"] is False
     assert validate_ingredient_unit("chocolate", "g")["valid"] is True
+    soft_form = {"tortillas": {"canonical": "soft wheat tortilla", "name_de": "Weizentortilla", "form": "soft", "aliases": ["weizentortillas"]}}
+    hard_form = {"hard taco shells": {"canonical": "hard taco shell", "name_de": "Taco-Schalen", "form": "hard", "aliases": ["taco shells"]}}
+    assert ingredient_product_match_type("tortillas", "Chio Tortillas Original Salted", soft_form) is None
+    assert ingredient_product_match_type("tortillas", "Old El Paso Weizentortillas 320g", soft_form) == "exact"
+    assert ingredient_product_match_type("hard taco shells", "Chio Tortillas Original Salted", hard_form) is None
 
     recipe = {
         "id": "oil-test", "name": "Oil test", "base_servings": 2,
