@@ -33,6 +33,17 @@ def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: d
         incoming_price = None
     valid_price = incoming_price is not None and math.isfinite(incoming_price) and incoming_price > 0
 
+    raw_unit_price = data.get("price_per_unit")
+    try:
+        incoming_unit_price = float(raw_unit_price) if raw_unit_price is not None else None
+    except (TypeError, ValueError):
+        incoming_unit_price = None
+    valid_unit_price = (
+        incoming_unit_price is not None
+        and math.isfinite(incoming_unit_price)
+        and incoming_unit_price > 0
+    )
+
     raw_size = data.get("package_size")
     try:
         incoming_size = float(raw_size) if raw_size is not None else None
@@ -65,13 +76,8 @@ def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: d
             setattr(existing, key, incoming_price)
             continue
         if key == "price_per_unit":
-            if valid_price and value is not None:
-                try:
-                    unit_price = float(value)
-                except (TypeError, ValueError):
-                    unit_price = None
-                if unit_price is not None and math.isfinite(unit_price) and unit_price > 0:
-                    existing.price_per_unit = unit_price
+            if valid_price and valid_unit_price:
+                existing.price_per_unit = incoming_unit_price
             continue
         if key in {"package_size", "package_unit"}:
             # Never replace a known mass/volume pack with the scraper's
@@ -81,18 +87,13 @@ def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: d
             continue
         setattr(existing, key, value)
 
-    if valid_price:
+    if valid_price and not valid_unit_price:
         try:
-            current_unit_price = float(existing.price_per_unit) if existing.price_per_unit is not None else None
+            known_size = float(existing.package_size)
+            if math.isfinite(known_size) and known_size > 0:
+                existing.price_per_unit = incoming_price / known_size
         except (TypeError, ValueError):
-            current_unit_price = None
-        if current_unit_price is None or not math.isfinite(current_unit_price) or current_unit_price <= 0:
-            try:
-                known_size = float(existing.package_size)
-                if math.isfinite(known_size) and known_size > 0:
-                    existing.price_per_unit = incoming_price / known_size
-            except (TypeError, ValueError):
-                pass
+            pass
     existing.postcode_context = current_postcode
     existing.last_seen_at = now
     existing.last_checked_at = now
