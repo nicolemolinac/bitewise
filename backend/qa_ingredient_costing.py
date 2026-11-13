@@ -42,6 +42,9 @@ def run():
     mayo_volume, mayo_note = _convert_ingredient_quantity(30, "g", "ml", "mayonnaise")
     assert abs(mayo_volume - (30 / 0.95)) < 0.001
     assert "Estimated density 0.95 g/ml" in mayo_note
+    dressing_volume, dressing_note = _convert_ingredient_quantity(40, "g", "ml", "caesar dressing")
+    assert dressing_volume == 40
+    assert "Estimated density 1 g/ml" in dressing_note
 
     catalog = FakeCatalog({
         "rice": [{
