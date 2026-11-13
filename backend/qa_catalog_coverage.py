@@ -232,6 +232,7 @@ def main():
         print(f"REWE products: {total}")
         print(f"Distinct ingredient labels: {len(ingredients)}")
         print(f"Distinct categories: {len(categories)}")
+        print(f"REWE category distribution: {dict(categories)}")
         print(f"Missing prices (not necessarily source errors): {missing_price} ({missing_price / total:.1%})")
         print(f"Invalid numeric prices (non-finite or <= 0): {invalid_price} ({invalid_price / total:.1%})")
         price_issue_examples = [
@@ -284,6 +285,15 @@ def main():
                     )
                 ][:20]
                 print("CATALOG NEAR-MATCH TITLES:", row["ingredient"], suggestions)
+                detailed_suggestions = [
+                    (product.name_original, product.category)
+                    for product in products
+                    if any(
+                        normalize_text(term) in normalize_text(product.name_original or "")
+                        for term in hint_terms
+                    )
+                ][:30]
+                print("CATALOG NEAR-MATCH CATEGORIES:", row["ingredient"], detailed_suggestions)
     finally:
         db.close()
 
