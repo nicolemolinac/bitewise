@@ -34,7 +34,8 @@ def run():
         if real_count:
             print(f"REAL REWE SNAPSHOT: {real_count} products")
             bistro = real_session.query(Product).filter(Product.name_original.ilike("%Bistro Baguette%")).first()
-            print("REAL BISTRO META:", (bistro.category, bistro.package_size, bistro.package_unit, bistro.brand) if bistro else None)
+            print("REAL BISTRO META:", (bistro.name_original, bistro.name_normalized, bistro.translated_name, bistro.category, bistro.package_size, bistro.package_unit, bistro.brand) if bistro else None)
+            print("BISTRO DIRECT COUNT:", real_session.query(Product).filter(Product.name_original.ilike("%bistro baguette%")).count())
             print("PIZZA VARIANTS:", expand_catalog_query("pizza"))
             for real_query in ("pizza", "pizza baguette", "chili con carne", "french fries"):
                 real_result = search_catalog_opportunities(real_session, real_query, limit=12)
