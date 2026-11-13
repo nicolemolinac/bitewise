@@ -114,7 +114,7 @@ def run():
         "lettuce", "REWE Feine Welt Erlesener Blüten Salat 100g", {"form": "fresh"}, "obst-gemuese"
     ) is None
     assert ingredient_product_match_type(
-        "frozen peas", "REWE Erbsen fein 450g", {"form": "frozen"}, "tiefkuehlkost"
+        "frozen peas", "REWE Erbsen fein 450g", {"form": "frozen"}, "obst-gemuese"
     ) is None, "A frozen ingredient must not match an unmarked fresh product title/category"
     assert ingredient_product_match_type(
         "frozen peas", "REWE Erbsen fein tiefgefroren 450g", {"form": "frozen"}, "tiefkuehlkost"
