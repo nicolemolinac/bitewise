@@ -86,6 +86,10 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         "baby", "kinder", "snack", "knabber", "suess", "suss", "salzig",
     )):
         return "catalog_product"
+    # Dry "Fix" seasoning sachets often share the canned/ready-meal aisle;
+    # classify them as components before using broad aisle metadata.
+    if " fix " in f" {text} " or "gewurzmischung" in text or "wurzmittel" in category:
+        return "prepared_component"
     # Tiny packs are usually snacks, toppings or seasoning sachets rather than
     # complete meals, even when their titles contain a dish word like "pizza".
     try:
@@ -95,10 +99,6 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
             return "catalog_product"
     except (TypeError, ValueError):
         pass
-    # Dry "Fix" seasoning sachets often share the canned/ready-meal aisle;
-    # classify them as components before using broad aisle metadata.
-    if " fix " in f" {text} " or "gewurzmischung" in text or "wurzmittel" in category:
-        return "prepared_component"
     # Explicit kits take precedence over broad ready-meal aisle labels.
     if any(marker in text for marker in _KIT_MARKERS):
         return "meal_kit"
