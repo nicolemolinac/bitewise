@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from decimal import Decimal, ROUND_HALF_UP
 import math
 import os
 import re
@@ -57,6 +58,11 @@ def _round_money(value) -> float:
 
 def normalize(value: str) -> str:
     return re.sub(r"[^a-z0-9äöüß]+", " ", (value or "").lower()).strip()
+
+
+def _round_checkout_price(value):
+    """Round positive euro prices like retail checkout (half cents round up)."""
+    return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def _reference_price_pattern():
@@ -187,7 +193,7 @@ def price_details(text: str, package_size=None, package_unit=None):
                 if size is not None and math.isfinite(size) and size > 0
                 else None
             )
-            return round(pack_price, 2), per_unit
+            return _round_checkout_price(pack_price), per_unit
 
     # No checkout price was exposed: derive it only when the package unit
     # matches the normalized unit used by the reference price.
