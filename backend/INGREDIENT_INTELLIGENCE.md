@@ -18,7 +18,7 @@ Shopping-time work is local and deterministic:
 5. If lexical retrieval has no confident match, use local multilingual embeddings to suggest
    possible products. Semantic suggestions are review-only: they are not costed or added to REWE
    until the user explicitly chooses one.
-5. A confirmed choice is persisted through the existing product override mechanism.
+6. A confirmed choice is persisted through the existing product override mechanism.
 
 ## Local semantic index
 
@@ -54,6 +54,4 @@ python qa_ingredient_intelligence.py
 python qa_ingredient_costing.py
 ```
 
-The focused QA covers multilingual names, form conflicts (for example canned vs frozen corn and
-soft tortillas vs tortilla chips), safe substitutions, unit validation, and the rule that semantic
-suggestions require explicit user confirmation before they affect the basket total.
+The focused QA covers multilingual names, missing AI metadata fallbacks, form conflicts (for example canned vs frozen corn, fresh vs frozen potatoes, and soft tortillas vs tortilla chips), safe substitutions, unit validation, and the rule that semantic suggestions require explicit user confirmation before they affect the basket total. `qa_semantic_catalog.py` tests indexing, incremental updates, retrieval, form filtering, and stale-vector cleanup with a fake local embedding model; it does not download a model or call a paid API.
