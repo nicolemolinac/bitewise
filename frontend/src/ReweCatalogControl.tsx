@@ -183,7 +183,7 @@ export default function ReweCatalogControl() {
                 </div>
                 <button
                   onClick={refreshCatalog}
-                  disabled={loading}
+                  disabled={loading || !!semanticStatus?.running}
                   className="flex items-center justify-center gap-2 rounded-xl bg-[#18392b] px-5 py-3 text-sm font-black text-white disabled:opacity-40"
                 >
                   <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
@@ -209,7 +209,7 @@ export default function ReweCatalogControl() {
                 </div>
                 <button
                   onClick={buildSemanticIndex}
-                  disabled={semanticLoading || !!semanticStatus?.running || !status?.products}
+                  disabled={semanticLoading || loading || !!semanticStatus?.running || !status?.products}
                   className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#18392b] px-5 py-3 text-sm font-black text-white disabled:opacity-40"
                 >
                   <RefreshCw size={15} className={semanticLoading || semanticStatus?.running ? 'animate-spin' : ''} />
