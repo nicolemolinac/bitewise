@@ -134,6 +134,26 @@ def run():
         "pasta", "Birkel Buchstaben-Nudeln 250g", {"form": "dry"}, "kochen-backen"
     ) is None
     assert ingredient_product_match_type(
+        "chicken breast", "ja! Hähnchenbrustfilet Paprika 150g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "Wilhelm Brandenburg Hähnchenbrustfilet 100g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Beste Wahl Air Fryer Spray Sonnenblumen- & Rapsöl 200ml",
+        {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) is None
+    assert ingredient_product_match_type(
+        "lettuce", "Florette Essentials Der Feine Salat 150g",
+        {"form": "fresh"}, "obst-gemuese"
+    ) is None
+    assert ingredient_product_match_type(
+        "honey", "Kölln Müsli Knusper Honig-Nuss 500g",
+        {"form": "liquid"}, "brot-cerealien-aufstriche"
+    ) is None
+    assert ingredient_product_match_type(
         "frozen peas", "REWE Erbsen fein 450g", {"form": "frozen"}, "obst-gemuese"
     ) is None, "A frozen ingredient must not match an unmarked fresh product title/category"
     assert ingredient_product_match_type(
