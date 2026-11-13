@@ -2,6 +2,7 @@
 
 Run from backend/: python qa_ingredient_intelligence.py
 """
+import ast
 import os
 import tempfile
 from pathlib import Path
@@ -156,7 +157,28 @@ def test_common_english_ingredients_have_german_catalog_terms():
         )
 
 
+def assert_no_duplicate_ingredient_ontology_keys():
+    import app.ingredient_intelligence as ontology_module
+
+    source = Path(ontology_module.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    ontology_names = {"_BASE_TERMS", "_SUBSTITUTION_TERMS"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            targets = [target.id for target in node.targets if isinstance(target, ast.Name)]
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            targets = [node.target.id]
+        else:
+            continue
+        if not ontology_names.intersection(targets) or not isinstance(node.value, ast.Dict):
+            continue
+        keys = [key.value for key in node.value.keys if isinstance(key, ast.Constant)]
+        duplicates = sorted({key for key in keys if keys.count(key) > 1})
+        assert not duplicates, f"Duplicate ingredient ontology keys silently override aliases: {duplicates}"
+
+
 def run():
+    assert_no_duplicate_ingredient_ontology_keys()
     test_common_english_ingredients_have_german_catalog_terms()
     test_high_risk_false_positive_guards()
     raw = {
