@@ -55,7 +55,7 @@ RECIPES = [
         ("bell pepper", 1, "piece", "Paprika", ["rote Paprika"], "fresh"),
         ("red onion", 1, "piece", "rote Zwiebel", ["rote Speisezwiebel"], "fresh"),
         ("rice", 150, "g", "Reis", ["Langkornreis"], "unspecified"),
-        ("black beans", 1, "can", "schwarze Bohnen", ["schwarze Bohnen Dose"], "canned"),
+        ("black beans", 150, "g", "schwarze Bohnen", ["schwarze Bohnen Dose"], "canned"),
         ("lime", 1, "piece", "Limette", ["Limetten"], "fresh"),
         ("vegetable oil", 15, "ml", "Pflanzenöl", ["Rapsöl", "Sonnenblumenöl"], "liquid"),
     ]),
@@ -108,7 +108,7 @@ RECIPES = [
     ]),
     R("b08", "Tuna sweetcorn pasta", [
         ("pasta", 180, "g", "Nudeln", ["Penne", "Fusilli"], "unspecified"),
-        ("canned tuna", 1, "can", "Thunfisch in eigenem Saft", ["Thunfisch Dose"], "canned"),
+        ("canned tuna", 120, "g", "Thunfisch in eigenem Saft", ["Thunfisch Dose"], "canned"),
         ("canned corn", 100, "g", "Mais aus der Dose", ["Dosenmais", "Zuckermais Konserve"], "canned"),
         ("mayonnaise", 30, "g", "Mayonnaise", ["Salatmayonnaise"], "unspecified"),
         ("frozen peas", 100, "g", "Erbsen tiefgekühlt", ["TK Erbsen"], "frozen"),
@@ -162,7 +162,7 @@ RECIPES = [
         ("salsa", 50, "g", "Salsa Sauce", ["Tomatensalsa"], "liquid"),
     ]),
     R("b15", "Sausage and vegetable tray", [
-        ("bratwurst", 2, "piece", "Bratwurst", ["Rostbratwurst"], "fresh"),
+        ("bratwurst", 250, "g", "Bratwurst", ["Rostbratwurst"], "fresh"),
         ("potatoes", 300, "g", "Speisekartoffeln", ["Kartoffeln"], "fresh"),
         ("carrot", 2, "piece", "Möhre", ["Karotten"], "fresh"),
         ("zucchini", 1, "piece", "Zucchini", ["Zucchini"], "fresh"),
@@ -201,7 +201,7 @@ RECIPES = [
         ("banana", 1, "piece", "Banane", ["Bananen"], "fresh"),
     ]),
     R("b20", "Vegetable pizza", [
-        ("pizza dough", 1, "piece", "Pizzateig", ["Frischer Pizzateig", "Pizzaboden"], "fresh"),
+        ("pizza dough", 250, "g", "Pizzateig", ["Frischer Pizzateig", "Pizzaboden"], "fresh"),
         ("mozzarella", 125, "g", "Mozzarella", ["Mozzarella Käse"], "unspecified"),
         ("tomato passata", 100, "g", "passierte Tomaten", ["Passata", "Tomaten passiert"], "liquid"),
         ("mushrooms", 100, "g", "Champignons", ["Weiße Champignons"], "fresh"),
