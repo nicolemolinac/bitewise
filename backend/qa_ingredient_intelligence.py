@@ -91,6 +91,9 @@ def run():
     fresh_herb = {"fresh cilantro": {"canonical": "fresh cilantro", "name_de": "Frischer Koriander", "form": "fresh", "aliases": ["Koriander"]}}
     assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Gewürze") is None
     assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Frische Kräuter") == "exact"
+    garlic_profile = {"garlic": {"canonical": "garlic", "name_de": "Knoblauch", "form": "whole", "aliases": ["Knoblauch"]}}
+    assert ingredient_product_match_type("garlic", "REWE Bio Hähnchen Brustfilet Joghurt Knoblauch 320g", garlic_profile, "Fleisch") is None
+    assert ingredient_product_match_type("garlic", "Knoblauch 1 Stück", garlic_profile, "Obst & Gemüse") == "exact"
 
     recipe = {
         "id": "oil-test", "name": "Oil test", "base_servings": 2,
