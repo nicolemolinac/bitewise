@@ -350,17 +350,17 @@ def main():
                             f"score={audit_score}"
                         )
                     alternative_patterns = {
-                        "grated cheddar cheese": (("gouda", "emmental", "gratinkase", "reibe", "gerieben"), {"kaese-eier-molkerei"}),
-                        "burger buns": (("burger", "hamburger", "brioche", "brotchen", "sesam"), {"brot-cerealien-aufstriche", "kochen-backen"}),
-                        "curry powder": (("curry", "currypaste", "curry paste"), {"oele-sossen-gewuerze", "kochen-backen"}),
-                        "rolled oats": (("hafer", "oat", "porridge"), {"brot-cerealien-aufstriche", "kochen-backen"}),
+                        "grated cheddar cheese": (("gouda", "emmental", "gratinkase", "reibe", "gerieben"), None),
+                        "burger buns": (("burger", "hamburger", "brioche", "brotchen", "sesam"), None),
+                        "curry powder": (("curry", "currypaste", "curry paste"), None),
+                        "rolled oats": (("hafer", "oat", "porridge"), None),
                         "red cabbage": (("rotkohl", "rotkraut", "red cabbage"), {"obst-gemuese", "tiefkuehlkost", "fertiggerichte-konserven"}),
                     }
                     if ingredient in alternative_patterns:
                         patterns, categories = alternative_patterns[ingredient]
                         alternatives = [
                             candidate for candidate in all_rewe_products
-                            if normalize_text(candidate.category or "") in categories
+                            if (categories is None or normalize_text(candidate.category or "") in categories)
                             and any(pattern in normalize_text(candidate.name_original) for pattern in patterns)
                         ]
                         print(f"  ALTERNATIVE FAMILY AUDIT {ingredient}: {len(alternatives)}")
