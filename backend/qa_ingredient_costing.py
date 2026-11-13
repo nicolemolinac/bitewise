@@ -159,6 +159,20 @@ def run():
     )
     assert substitute_only_result[0]["match_status"] == "substituted"
 
+    confirmed_semantic_substitute = FakeCatalog({"rice": [{
+        "id": 26, "name_original": "Alternative grain 500g",
+        "name_normalized": "alternative grain 500g", "ingredient": "rice",
+        "package_size": 500, "package_unit": "g", "price": 0.99,
+        "availability": "available", "ingredient_match_type": "semantic_candidate",
+        "semantic_match_type": "suggested_substitution",
+    }]})
+    confirmed = build_basket(
+        [{"ingredient": "rice", "quantity": 100, "unit": "g", "source_meals": ["Rice bowl"]}],
+        confirmed_semantic_substitute, overrides={"rice": 26},
+    )
+    assert confirmed[0]["match_status"] == "substituted"
+    assert confirmed[0]["product"]["ingredient_substitute"] == "alternative grain 500g"
+
     invalid_consolidated = consolidate([{
         "id": "bad", "name": "Bad recipe",
         "ingredients": [["rice", "not-a-number", "g"], ["salt", float("inf"), "g"]],
