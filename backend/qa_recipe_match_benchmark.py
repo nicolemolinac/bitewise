@@ -399,10 +399,17 @@ def main():
                         "rice", "white rice", "brown rice", "basmati rice",
                         "jasmine rice", "long grain rice", "short grain rice",
                         "wild rice", "risotto rice",
+                    } and "tilda" in title_key and "250g" in title_key:
+                        raise AssertionError(f"Raw rice matched to Tilda ready-to-eat pouch: {title}")
+                    if ingredient_key in {
+                        "rice", "white rice", "brown rice", "basmati rice",
+                        "jasmine rice", "long grain rice", "short grain rice",
+                        "wild rice", "risotto rice",
                     }:
                         assert not any(token in title_key for token in (
                             "express", "gekocht", "vorgekocht", "vorgedampft", "gedampft",
                             "kuko", "kurzkoch", "tilda sticky rice",
+                            "vegetable rice", "golden vegetable",
                             "fried rice", "egg fried", "risotto steinpilz",
                             "steamed", "griechischer reis", "djuvec", "curry", "tomaten",
                             "gemuese", "mediterran", "oriental", "mexikanisch", "bowl",
