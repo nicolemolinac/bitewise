@@ -395,7 +395,11 @@ def main():
                             "delikatess", "aufschnitt", "paprika", "100g", "150g",
                             "gepokelt", "gebraten", "gebacken", "in scheiben", "geschnitten",
                         )), f"Raw chicken breast matched to processed deli product: {title}"
-                    if ingredient_key in {"rice", "risotto rice"}:
+                    if ingredient_key in {
+                        "rice", "white rice", "brown rice", "basmati rice",
+                        "jasmine rice", "long grain rice", "short grain rice",
+                        "wild rice", "risotto rice",
+                    }:
                         assert not any(token in title_key for token in (
                             "express", "gekocht", "vorgekocht", "vorgedampft", "gedampft",
                             "steamed", "griechischer reis", "djuvec", "curry", "tomaten",
