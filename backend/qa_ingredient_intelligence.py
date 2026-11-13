@@ -82,6 +82,9 @@ def run():
     assert ingredient_product_match_type("tortillas", "Chio Tortillas Original Salted Snacks", soft_form) is None
     assert ingredient_product_match_type("tortillas", "Old El Paso Weizentortillas 320g", soft_form) == "exact"
     assert ingredient_product_match_type("hard taco shells", "Chio Tortillas Original Salted Snacks", hard_form) is None
+    fresh_herb = {"fresh cilantro": {"canonical": "fresh cilantro", "name_de": "Frischer Koriander", "form": "fresh", "aliases": ["Koriander"]}}
+    assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Gewürze") is None
+    assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Frische Kräuter") == "exact"
 
     recipe = {
         "id": "oil-test", "name": "Oil test", "base_servings": 2,
