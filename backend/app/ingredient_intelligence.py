@@ -426,17 +426,34 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     return True
 
 
-def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bool:
-    # Frozen fries -> raw potatoes is an intentional, recipe-adapted transition.
-    # Do not let this exception turn potato chips/snacks into a substitute.
-    if normalize_text(ingredient) != "frozen french fries":
-        return False
-    if normalize_text(term) not in {"fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"}:
-        return False
-    return (
-        any(token in title for token in ("kartoffel", "potato"))
-        and not any(token in title for token in ("chips", "snack", "knabberartikel", "wedges", "croquette"))
-    )
+def _curated_cross_form_substitute(
+    ingredient: str, term: str, title: str, product_category: str = ""
+) -> bool:
+    name = normalize_text(ingredient)
+    normalized_term = normalize_text(term)
+    if name == "frozen french fries":
+        # Frozen fries -> raw potatoes is an intentional, recipe-adapted transition.
+        # Do not let this exception turn potato chips/snacks into a substitute.
+        if normalized_term not in {"fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"}:
+            return False
+        return (
+            any(token in title for token in ("kartoffel", "potato"))
+            and not any(token in title for token in ("chips", "snack", "knabberartikel", "wedges", "croquette"))
+        )
+    if name == "white fish fillet":
+        # Frozen, unbreaded cod fillets are a transparent substitute for fresh
+        # white fish; do not silently treat them as an exact fresh match.
+        category_key = normalize_text(str(product_category or "").casefold().replace("ü", "ue").replace("ö", "oe").replace("ä", "ae").replace("ß", "ss")).replace(" ", "-")
+        if normalized_term not in {"cod fillet", "kabeljaufilet"} or category_key != "tiefkuehlkost":
+            return False
+        return (
+            "kabeljaufilet" in title
+            and not any(token in title for token in (
+                "paniert", "panade", "backfisch", "fish fingers", "fischstaebchen",
+                "paella", "suppe", "mus", "aufstrich",
+            ))
+        )
+    return False
 
 
 def ingredient_product_match_type(ingredient: str, product_text: str, intelligence: Any = None, product_category: str = "") -> str | None:
@@ -459,7 +476,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     for term in substitutes:
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
-            if _curated_cross_form_substitute(ingredient, normalized, title):
+            if _curated_cross_form_substitute(ingredient, normalized, title, product_category):
                 return "suggested_substitution"
             if form_compatible and category_compatible:
                 return "substitute"
@@ -481,7 +498,11 @@ def ingredient_substitution_name(ingredient: str, product_text: str, intelligenc
     for term in sorted(substitutes, key=lambda value: -len(normalize_text(value))):
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
-            labels = {"rapsol": "rapeseed oil", "sonnenblumenol": "sunflower oil", "kartoffeln": "fresh potatoes", "speisekartoffeln": "fresh potatoes"}
+            labels = {
+                "rapsol": "rapeseed oil", "sonnenblumenol": "sunflower oil",
+                "kartoffeln": "fresh potatoes", "speisekartoffeln": "fresh potatoes",
+                "kabeljaufilet": "frozen cod fillet", "cod fillet": "frozen cod fillet",
+            }
             return labels.get(normalized, str(term))
     return None
 
