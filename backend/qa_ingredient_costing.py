@@ -111,6 +111,29 @@ def run():
         assert invalid_row["match_status"] == "unmatched", "Non-finite prices and invalid package sizes must never enter the basket"
         assert invalid_row["checkout_cost"] == 0
 
+    # Exact catalog products remain preferred even if a substitute is much cheaper.
+    preference_catalog = FakeCatalog({
+        "rice": [
+            {"id": 21, "name_original": "Exact rice pack", "package_size": 500,
+             "package_unit": "g", "price": 2500.0, "availability": "available",
+             "ingredient_match_type": "exact"},
+            {"id": 22, "name_original": "Cheap rice substitute", "package_size": 500,
+             "package_unit": "g", "price": 0.99, "availability": "available",
+             "ingredient_match_type": "substitute", "ingredient_substitute": "alternative grain"},
+        ],
+    })
+    preferred = build_basket(
+        [{"ingredient": "rice", "quantity": 100, "unit": "g", "source_meals": ["Rice bowl"]}],
+        preference_catalog, mode="cheapest",
+    )
+    assert preferred[0]["product"]["id"] == 21
+    invalid_quantity = build_basket(
+        [{"ingredient": "rice", "quantity": float("nan"), "unit": "g", "source_meals": ["Bad recipe"]}],
+        catalog,
+    )
+    assert invalid_quantity[0]["match_status"] == "unmatched"
+    assert "quantity is invalid" in invalid_quantity[0]["match_reason"].lower()
+
     substitute_basket = build_basket(
         [{"ingredient": "pine nuts", "quantity": 30, "unit": "g", "source_meals": ["Pesto pasta"]}],
         catalog,
