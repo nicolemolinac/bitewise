@@ -724,10 +724,7 @@ def _repair_rewe_package_metadata_once() -> None:
     db = None
     try:
         db = SessionLocal()
-        if (
-            db.get(AppSetting, "rewe_package_metadata_repair_v1")
-            or db.get(AppSetting, "rewe_package_metadata_repair_attempt_v1")
-        ):
+        if db.get(AppSetting, "rewe_package_metadata_repair_v1"):
             return
 
         expected_columns = [
@@ -877,7 +874,7 @@ def _repair_rewe_package_metadata_once() -> None:
             else:
                 product.price_per_unit = None
 
-        if matched >= max(100, int(len(rows) * 0.70)):
+        if matched >= max(100, int(len(rows) * 0.90)):
             db.add(AppSetting(
                 key="rewe_package_metadata_repair_v1",
                 value=(
@@ -893,14 +890,11 @@ def _repair_rewe_package_metadata_once() -> None:
                 f"{price_repairs} legacy pack prices; matched {matched}/{len(rows)} products."
             )
         else:
-            db.add(AppSetting(
-                key="rewe_package_metadata_repair_attempt_v1",
-                value=f"skipped; matched={matched}; expected={len(rows)}; unmatched={unmatched}",
-            ))
-            db.commit()
+            db.rollback()
             print(
                 "Bitewise skipped REWE package metadata repair: "
-                f"matched only {matched}/{len(rows)} products; no broad changes were applied."
+                f"matched only {matched}/{len(rows)} products (90% required); "
+                "no changes were committed. Retry after restoring the complete catalog."
             )
     except Exception as exc:
         if db:
