@@ -42,7 +42,7 @@ def run():
                     (row.name_original, row.category, row.price) for row in rows[:12]
                 ])
             for real_query in ("pizza", "pizza baguette", "chili con carne", "french fries"):
-                real_result = search_catalog_opportunities(real_session, real_query, limit=12)
+                real_result = search_catalog_opportunities(real_session, real_query, limit=10)
                 assert real_result["catalog_count"] == real_count, (
                     real_query, real_result["catalog_count"], real_count
                 )
