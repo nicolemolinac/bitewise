@@ -102,9 +102,27 @@ def _contains_phrase(title: str, phrase: str) -> bool:
     return bool(phrase and (" " + phrase + " ") in (" " + title + " "))
 
 
+def _form_compatible(form: str, title: str) -> bool:
+    form = normalize_text(form)
+    if form == "fresh" and any(token in title for token in ("tiefkuhl", "frozen", "konserve", "dose", "getrocknet", "gemahlen")):
+        return False
+    if form in {"canned", "konserve"} and any(token in title for token in ("tiefkuhl", "frozen")):
+        return False
+    if form in {"grated", "gerieben"} and not any(token in title for token in ("gerieben", "geraspelt", "grated")):
+        return False
+    if form in {"powder", "pulver"} and not any(token in title for token in ("pulver", "powder", "gemahlen")):
+        return False
+    if form in {"pre cooked", "precooked"} and any(token in title for token in ("roh", "raw")):
+        return False
+    return True
+
+
 def ingredient_product_match_type(ingredient: str, product_text: str, intelligence: Any = None) -> str | None:
     title = normalize_text(product_text)
     if not title:
+        return None
+    profile = _profile_lookup(intelligence, ingredient)
+    if not _form_compatible(str(profile.get("form") or ""), title):
         return None
     terms = ingredient_search_terms(ingredient, intelligence)
     if any(_contains_phrase(title, term) for term in terms):
