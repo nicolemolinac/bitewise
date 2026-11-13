@@ -229,6 +229,14 @@ def run():
         {"form": "unspecified", "name_de": "Hamburger Brötchen"}, "brot-cerealien-aufstriche"
     ) == "exact"
     assert ingredient_product_match_type(
+        "rice", "REWE Beste Wahl Express Basmati Reis 250g",
+        {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
+    ) is None, "Cooked microwave rice must not satisfy a raw rice ingredient"
+    assert ingredient_product_match_type(
+        "rice", "REWE Beste Wahl Basmati Reis 500g",
+        {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
+    ) == "exact"
+    assert ingredient_product_match_type(
         "rolled oats", "REWE Bio zarte Haferflocken 500g",
         {"form": "unspecified", "name_de": "Haferflocken"}, "brot-cerealien-aufstriche"
     ) == "exact"
