@@ -395,7 +395,8 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         )
         if explicit:
             amount = _snapshot_float(explicit.group(1) or explicit.group(2))
-            return amount, amount / package_size if amount and package_size > 0 else None
+            if amount is not None and amount > 0 and package_size > 0:
+                return amount, amount / package_size
         return None, None
 
     fallback = _snapshot_float(raw_price)
