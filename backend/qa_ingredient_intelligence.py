@@ -444,7 +444,11 @@ def run():
     assert ai_confirmed[0]["match_status"] == "substituted"
     assert ai_confirmed[0]["product"]["ingredient_substitute"] == "rapeseed oil"
 
-    adapted_recipe = {"ingredients": [["frozen french fries", 300, "g"]], "steps": [{"text": "Add frozen french fries to the basket."}]}
+    adapted_recipe = {
+        "ingredients": [["frozen french fries", 300, "g"]],
+        "ingredient_intelligence": intelligence,
+        "steps": [{"text": "Add frozen french fries to the basket."}],
+    }
     _adapt_recipe_to_catalog(adapted_recipe, potato_confirmed)
     assert adapted_recipe["ingredients"][0][0] == "fresh potatoes"
     assert any("Fresh potatoes need longer than frozen fries" in step["text"] for step in adapted_recipe["steps"])
