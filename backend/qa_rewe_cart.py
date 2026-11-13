@@ -24,8 +24,9 @@ from app.rewe.scraper import _canonical_product_url, _cart_add_status
 
 
 def test_url_and_status_contract():
-    assert _canonical_product_url("https://www.rewe.de/shop/p/test-product/123456") == "https://www.rewe.de/shop/p/test-product/123456"
-    assert _canonical_product_url("https://rewe.de/shop/p/test-product/123456?foo=bar") == "https://rewe.de/shop/p/test-product/123456?foo=bar"
+    # Canonical product URLs always use the www host, a trailing slash and no tracking query.
+    assert _canonical_product_url("https://www.rewe.de/shop/p/test-product/123456") == "https://www.rewe.de/shop/p/test-product/123456/"
+    assert _canonical_product_url("https://rewe.de/shop/p/test-product/123456?foo=bar") == "https://rewe.de/shop/p/test-product/123456/"
     for unsafe in (
         "https://evil.example/shop/p/test/1",
         "https://www.rewe.de/shop/c/tiefkuehlkost/",
