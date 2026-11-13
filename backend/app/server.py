@@ -109,15 +109,21 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
             }
             for row in rows[:40]
         ]
-        from .semantic_catalog import semantic_product_candidates
-        semantic = semantic_product_candidates(self.db, ingredient, intelligence, limit=5)
+        try:
+            from .semantic_catalog import semantic_product_candidates
+            semantic = semantic_product_candidates(self.db, ingredient, intelligence, limit=5)
+        except Exception:
+            semantic = []
         seen_ids = {row.get("id") for row in lexical_results}
         lexical_results.extend(row for row in semantic if row.get("id") not in seen_ids)
         return lexical_results
 
     # Semantic fallback is local and review-only. It never auto-adds a product.
-    from .semantic_catalog import semantic_product_candidates
-    return semantic_product_candidates(self.db, ingredient, intelligence, limit=5)
+    try:
+        from .semantic_catalog import semantic_product_candidates
+        return semantic_product_candidates(self.db, ingredient, intelligence, limit=5)
+    except Exception:
+        return []
 
 
 main_module.CatalogAdapter.search = _multilingual_catalog_search
