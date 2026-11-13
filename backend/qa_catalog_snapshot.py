@@ -19,6 +19,27 @@ from app.database import (
 )
 
 
+    # Snapshot unit prices are recalculated from whole-pack checkout prices.
+    snapshot_price, snapshot_unit = _snapshot_pack_pricing(
+        "Hipp bars 10x10g 100g", 100, "g", 2.99, 0.299
+    )
+    assert snapshot_price == 2.99 and abs(snapshot_unit - 0.0299) < 1e-9
+
+    # Reference price is converted only when its unit matches the pack.
+    snapshot_price, snapshot_unit = _snapshot_pack_pricing(
+        "Fruit pouch 4x90ml 4x90g (1 kg = 7,47 €)", 360, "g", 7.47, 0.083
+    )
+    assert snapshot_price == 2.69 and abs(snapshot_unit - 0.00747) < 1e-9
+
+    # Pfand-only values are not checkout prices; use matching €/l to derive it.
+    snapshot_price, snapshot_unit = _snapshot_pack_pricing(
+        "Beer 20x0,5l (1 l = 2,00 €) zzgl. 4,50 € Pfand",
+        10000, "ml", 4.50, 0.009
+    )
+    assert snapshot_price == 20.0 and snapshot_unit == 0.002
+
+
+
 def main():
     assert _snapshot_float("NaN") is None
     assert _snapshot_float("inf") is None
