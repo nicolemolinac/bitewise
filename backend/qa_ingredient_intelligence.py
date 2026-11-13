@@ -59,6 +59,15 @@ def run():
     }
     intelligence = normalize_recipe_intelligence(raw)
     assert len(intelligence) == 3
+    fallback = normalize_recipe_intelligence({
+        "ingredients": [["frozen french fries", 300, "g"], ["pre-cooked shredded chicken", 200, "g"], ["vegetable oil", 15, "ml"]],
+        "ingredient_intelligence": {},
+    })
+    assert set(fallback) == {"frozen french fries", "pre cooked shredded chicken", "vegetable oil"}
+    assert fallback["frozen french fries"]["form"] == "frozen"
+    assert "pommes frites" in fallback["frozen french fries"]["aliases"]
+    assert fallback["pre cooked shredded chicken"]["form"] == "pre_cooked"
+    assert fallback["vegetable oil"]["unit_dimension"] == "volume"
     assert normalize_text("weiß") == "weiss"
     assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
@@ -77,6 +86,7 @@ def run():
     assert ingredient_product_match_type(
         "frozen french fries", "REWE Speisekartoffeln 2kg", intelligence
     ) == "substitute"
+    assert ingredient_product_match_type("frozen french fries", "REWE Speisekartoffeln 2kg", intelligence, "Obst & Gemüse") is None
     assert ingredient_product_match_type("vegetable oil", "REWE Rapsöl 1L", intelligence) == "substitute"
     assert ingredient_product_match_type("vegetable oil", "REWE Olivenöl 1L", intelligence) is None
     assert ingredient_substitution_name(
@@ -97,6 +107,9 @@ def run():
     garlic_profile = {"garlic": {"canonical": "garlic", "name_de": "Knoblauch", "form": "whole", "aliases": ["Knoblauch"]}}
     assert ingredient_product_match_type("garlic", "REWE Bio Hähnchen Brustfilet Joghurt Knoblauch 320g", garlic_profile, "Fleisch") is None
     assert ingredient_product_match_type("garlic", "Knoblauch 1 Stück", garlic_profile, "Obst & Gemüse") == "exact"
+    cooked_chicken = {"pre-cooked shredded chicken": {"canonical": "cooked chicken", "form": "pre_cooked", "aliases": ["Hähnchenbrust"]}}
+    assert ingredient_product_match_type("pre-cooked shredded chicken", "REWE Hähnchenbrust 400g", cooked_chicken, "Fleisch") is None
+    assert ingredient_product_match_type("pre-cooked shredded chicken", "REWE Hähnchenbrust gegart 300g", cooked_chicken, "Fleisch") == "exact"
 
     recipe = {
         "id": "oil-test", "name": "Oil test", "base_servings": 2,
