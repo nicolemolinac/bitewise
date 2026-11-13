@@ -215,7 +215,9 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     if ingredient_name in {"rice", "risotto rice"} and any(
         token in title for token in (
             "express", "mikrowelle", "microwave", "gekocht", "vorgekocht",
-            "ready to eat", "djuvec", "mediterran", "oriental",
+            "ready to eat", "djuvec", "griechischer reis", "tomatenreis",
+            "gemuesereis", "gemuese reis", "curryreis", "mediterran",
+            "oriental", "mexikanisch", "bowl",
         )
     ):
         return False
