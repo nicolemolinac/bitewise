@@ -64,7 +64,7 @@ def run():
         candidate_by_id = {row["id"]: row for row in candidates}
         assert set(candidate_by_id) == {fries.id, potatoes.id}
         assert candidate_by_id[fries.id]["ingredient_match_type"] == "semantic_candidate"
-        assert candidate_by_id[potatoes.id]["semantic_match_type"] == "substitute"
+        assert candidate_by_id[potatoes.id]["semantic_match_type"] == "suggested_substitution"
 
         fries.name_original = "REWE Backofen Pommes Frites 750g"
         fries.name_normalized = fries.name_original.casefold()
