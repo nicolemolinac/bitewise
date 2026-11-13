@@ -198,6 +198,13 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
         aliases = row.get("aliases", [])
         if isinstance(aliases, str):
             aliases = [aliases]
+        if not isinstance(aliases, list):
+            aliases = []
+        substitutions = row.get("allowed_substitutions", [])
+        if isinstance(substitutions, str):
+            substitutions = [substitutions]
+        if not isinstance(substitutions, list):
+            substitutions = []
         output[key] = {
             "canonical": str(row.get("canonical") or ingredient).strip()[:100],
             "name_en": str(row.get("name_en") or ingredient).strip()[:100],
@@ -209,9 +216,9 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
             "culinary_role": str(row.get("culinary_role") or "").strip()[:80],
             "unit_dimension": str(row.get("unit_dimension") or "").strip()[:20],
             "allowed_substitutions": [
-                str(value).strip()[:100] for value in (row.get("allowed_substitutions") or [])[:8]
+                str(value).strip()[:100] for value in substitutions[:8]
                 if isinstance(value, str) and value.strip()
-            ] if isinstance(row.get("allowed_substitutions", []), list) else [],
+            ],
             "preparation": str(row.get("preparation") or "").strip()[:100],
         }
     return output
