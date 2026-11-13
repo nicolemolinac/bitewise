@@ -32,8 +32,8 @@ def run():
         real_count = real_session.query(Product).filter(Product.supermarket == "REWE").count()
         if real_count:
             print(f"REAL REWE SNAPSHOT: {real_count} products")
-            for real_query in ("pizza", "chili con carne"):
-                real_result = search_catalog_opportunities(real_session, real_query, limit=8)
+            for real_query in ("pizza", "pizza baguette", "chili con carne", "french fries"):
+                real_result = search_catalog_opportunities(real_session, real_query, limit=12)
                 names = [row["name_original"] for row in real_result["products"]]
                 print(f"REAL REWE SEARCH [{real_query}] ({real_result.get('retrieval')}): {names}")
     finally:
@@ -50,6 +50,7 @@ def run():
             product("chili-1", "Chili con Carne 400g", "Konserven", price=2.49),
             product("chili-2", "Mexikanischer Chili Eintopf mit Rind", "Fertiggerichte", price=2.99),
             product("chili-3", "Kidney Bohnen rot", "Konserven", ingredient="kidney beans"),
+            product("chili-4", "Maggi Fix Chili Con Carne 33g", "Gewürze", ingredient="seasoning mix"),
             product("noise-1", "Hundefutter Chili Geschmack", "Tierbedarf", ingredient="pet food"),
         ])
         # Ensure discovery is backed by the whole catalog rather than a tiny curated list.
@@ -61,7 +62,7 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1007
+        assert pizza["catalog_count"] == 1008
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
@@ -77,6 +78,8 @@ def run():
         assert any("Pizza Baguette" in row["name_original"] for row in natural_language_pizza["products"])
         assert any(name == "Chili con Carne 400g" for name in chili_names), chili_names
         assert any("Chili Eintopf" in name for name in chili_names), chili_names
+        fix_kit = next(row for row in chili["products"] if row["name_original"] == "Maggi Fix Chili Con Carne 33g")
+        assert fix_kit["convenience_type"] == "meal_kit", fix_kit
         assert next(row for row in chili["products"] if row["name_original"] == "Chili con Carne 400g")["convenience_type"] == "ready_meal"
         canned_beans = search_catalog_opportunities(session, "bohnen", limit=10)
         bean_row = next(row for row in canned_beans["products"] if row["name_original"] == "Kidney Bohnen rot")
