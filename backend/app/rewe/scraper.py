@@ -49,6 +49,7 @@ def category_slug_from_url(url: str) -> str:
 SHOP_DELIVERY_URL = "https://www.rewe.de/shop/?serviceTypes=delivery"
 STATE_FILE = Path(__file__).resolve().parents[2] / "data" / "rewe_storage_state.json"
 MAX_CATEGORY_PAGES = 500
+MINIMUM_REWE_PRICE_COVERAGE = 0.25
 REWE_CATEGORY_MINIMUM_PRODUCTS = {
     # Conservative 50%-of-source-count floors. These are safety checks for
     # destructive reconciliation, not targets for ranking or assortment.
@@ -1282,6 +1283,7 @@ class ReweCatalogScraper:
                 except Exception:
                     pass
 
+        full_catalog_run = set(urls) == set(REWE_CATEGORY_URLS)
         report["category_undercoverage"] = {
             category: {
                 "count": int(report["category_product_counts"].get(category, 0)),
@@ -1289,11 +1291,25 @@ class ReweCatalogScraper:
             }
             for category, minimum in REWE_CATEGORY_MINIMUM_PRODUCTS.items()
             if int(report["category_product_counts"].get(category, 0)) < minimum
-        } if set(urls) == set(REWE_CATEGORY_URLS) else {}
+        } if full_catalog_run else {}
+        price_coverage = (
+            report["products_with_price"] / report["products_found"]
+            if report["products_found"] else 0.0
+        )
+        report["price_coverage_ratio"] = round(price_coverage, 4)
+        low_price_coverage = full_catalog_run and price_coverage < MINIMUM_REWE_PRICE_COVERAGE
+        report["price_coverage_warning"] = (
+            f"Only {price_coverage:.1%} of product cards exposed a valid checkout price"
+            if low_price_coverage else None
+        )
         has_coverage_gap = bool(report["category_undercoverage"])
         report["status"] = (
             "failed" if not report["categories_successful"]
-            else ("partial" if report["categories_failed"] or has_coverage_gap else "healthy")
+            else (
+                "partial"
+                if report["categories_failed"] or has_coverage_gap or low_price_coverage
+                else "healthy"
+            )
         )
         return report
 
@@ -1323,6 +1339,7 @@ class ReweCatalogScraper:
             except Exception as exc:
                 report["categories_failed"] += 1
                 report["errors"].append({"category": category, "error": str(exc)[:300]})
+        full_catalog_run = set(urls) == set(REWE_CATEGORY_URLS)
         report["category_undercoverage"] = {
             category: {
                 "count": int(report["category_product_counts"].get(category, 0)),
@@ -1330,18 +1347,32 @@ class ReweCatalogScraper:
             }
             for category, minimum in REWE_CATEGORY_MINIMUM_PRODUCTS.items()
             if int(report["category_product_counts"].get(category, 0)) < minimum
-        } if set(urls) == set(REWE_CATEGORY_URLS) else {}
+        } if full_catalog_run else {}
+        price_coverage = (
+            report["products_with_price"] / report["products_found"]
+            if report["products_found"] else 0.0
+        )
+        report["price_coverage_ratio"] = round(price_coverage, 4)
+        low_price_coverage = full_catalog_run and price_coverage < MINIMUM_REWE_PRICE_COVERAGE
+        report["price_coverage_warning"] = (
+            f"Only {price_coverage:.1%} of product cards exposed a valid checkout price"
+            if low_price_coverage else None
+        )
         has_coverage_gap = bool(report["category_undercoverage"])
         report["status"] = (
             "failed" if not report["categories_successful"]
-            else ("partial" if report["categories_failed"] or has_coverage_gap else "healthy")
+            else (
+                "partial"
+                if report["categories_failed"] or has_coverage_gap or low_price_coverage
+                else "healthy"
+            )
         )
         return report
 
     def run(self, upsert, postcode, urls=REWE_CATEGORY_URLS):
         http_report = self._run_http(upsert, postcode, urls)
         ratio = http_report["products_with_price"] / http_report["products_found"] if http_report["products_found"] else 0
-        if http_report["status"] == "healthy" and ratio >= 0.25:
+        if http_report["status"] == "healthy" and ratio >= MINIMUM_REWE_PRICE_COVERAGE:
             return http_report
         if not self.browser_enabled:
             return http_report
