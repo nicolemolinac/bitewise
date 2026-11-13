@@ -25,6 +25,17 @@ def main():
     pack_price, per_gram = price_details("Spice 200g (100 g = 1,49 €)", size, unit)
     assert pack_price == 2.98
     assert abs(per_gram - 0.0149) < 1e-9
+
+    size, unit = package("Sparkling water 2 Stück (1 Stück = 0,50 €)")
+    assert size == 2 and unit == "unit"
+    pack_price, per_piece = price_details("Sparkling water 2 Stück (1 Stück = 0,50 €)", size, unit)
+    assert pack_price == 1.00 and per_piece == 0.50
+
+    size, unit = package("Drink 250ml (100 ml = 0,39 €)")
+    assert size == 250 and unit == "ml"
+    pack_price, per_ml = price_details("Drink 250ml (100 ml = 0,39 €)", size, unit)
+    assert pack_price == 0.98 and abs(per_ml - 0.0039) < 1e-9
+
     assert package("Invalid product 0g") == (None, None)
 
     assert package("Rice (1 kg = 4,00 €)") == (None, None)
