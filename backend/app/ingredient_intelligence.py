@@ -65,7 +65,7 @@ _BASE_TERMS = {
     "shredded lettuce": ("shredded lettuce", "salatstreifen", "geschnittener eisbergsalat", "eisbergsalat geschnitten", "salatherzen geschnitten", "eisbergsalat"),
     "taco seasoning": ("taco seasoning", "taco gewurz", "taco gewurzmix", "gewurz fur tacos", "mexikanische gewurzmischung"),
     "tortillas": ("tortillas", "weizentortillas", "weizentortilla", "wraps", "tortilla wraps"),
-    "vegetable oil": ("vegetable oil", "pflanzenöl", "pflanzenol", "neutrales öl", "neutrales ol", "rapsol", "sonnenblumenol"),
+    "vegetable oil": ("vegetable oil", "pflanzenöl", "pflanzenol", "neutrales öl", "neutrales ol"),
     "garlic": ("garlic", "knoblauch", "knoblauchzehe", "knoblauchzehen"),
     "salt": ("salt", "salz", "speisesalz", "meersalz", "jodsalz"),
     "frozen french fries": ("frozen french fries", "pommes frites", "pommes", "tiefkuhl pommes", "tiefkuhlpommes", "backofen pommes", "kartoffelstabchen", "pommes tiefgekuhlt", "tiefgekuhlte pommes"),
