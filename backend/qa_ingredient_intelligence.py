@@ -213,16 +213,6 @@ def run():
     assert "rapsol" not in _ingredient_search_terms_fn("vegetable oil", intelligence)
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
     rapeseed_match = ingredient_product_match_type("vegetable oil", "REWE Rapsöl 1L", intelligence)
-    if rapeseed_match != "substitute":
-        from app.ingredient_intelligence import _SUBSTITUTION_TERMS, _category_compatible, _form_compatible
-        print("DEBUG rapeseed substitute:", {
-            "result": rapeseed_match,
-            "terms": _ingredient_search_terms_fn("vegetable oil", intelligence),
-            "candidate_terms": ingredient_candidate_search_terms("vegetable oil", intelligence),
-            "substitutions": _SUBSTITUTION_TERMS.get("vegetable oil"),
-            "form_ok": _form_compatible("liquid", "rewe rapsol 1l", "vegetable oil"),
-            "category_ok": _category_compatible("vegetable oil", "", "rewe rapsol 1l", "liquid"),
-        })
     assert rapeseed_match == "substitute"
     assert ingredient_product_match_type("vegetable oil", "REWE Olivenöl 1L", intelligence) is None
     assert ingredient_substitution_name(
@@ -264,13 +254,6 @@ def run():
         "chicken breast", "REWE Hähnchenbrustfilet 400g",
         chicken_profile, "Fleisch-Wurst-Fisch"
     )
-    if raw_chicken_match != "exact":
-        print("DEBUG raw chicken:", {
-            "result": raw_chicken_match,
-            "terms": _ingredient_search_terms_fn("chicken breast", chicken_profile),
-            "form_ok": _form_compatible("fresh", "rewe hahnchenbrustfilet 400g fleisch wurst fisch", "chicken breast"),
-            "category_ok": _category_compatible("chicken breast", "Fleisch-Wurst-Fisch", "rewe hahnchenbrustfilet 400g", "fresh"),
-        })
     assert raw_chicken_match == "exact"
 
     fish_profile = {"white fish fillet": {"canonical": "white fish fillet", "form": "fresh", "aliases": ["Alaska Seelachs"]}}
@@ -301,13 +284,6 @@ def run():
     fresh_herb = {"fresh cilantro": {"canonical": "fresh cilantro", "name_de": "Frischer Koriander", "form": "fresh", "aliases": ["Koriander"]}}
     assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Gewürze") is None
     fresh_cilantro_result = ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Frische Kräuter")
-    if fresh_cilantro_result != "exact":
-        print("DEBUG fresh cilantro:", {
-            "result": fresh_cilantro_result,
-            "terms": _ingredient_search_terms_fn("fresh cilantro", fresh_herb),
-            "form_ok": _form_compatible("fresh", "koriander frische krauter", "fresh cilantro"),
-            "category_ok": _category_compatible("fresh cilantro", "Frische Kräuter", "koriander", "fresh"),
-        })
     assert fresh_cilantro_result == "exact"
     garlic_profile = {"garlic": {"canonical": "garlic", "name_de": "Knoblauch", "form": "whole", "aliases": ["Knoblauch"]}}
     assert ingredient_product_match_type("garlic", "REWE Bio Hähnchen Brustfilet Joghurt Knoblauch 320g", garlic_profile, "Fleisch") is None
