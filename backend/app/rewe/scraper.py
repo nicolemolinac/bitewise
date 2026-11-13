@@ -756,11 +756,23 @@ class ReweCatalogScraper:
                 if merged.get(key) is None or merged.get(key) == "":
                     merged[key] = value
                     continue
-                if key in {"package_size", "package_unit"} and (
-                    str(merged.get("package_unit") or "").strip().lower() in {"", "unknown"}
-                    and str(product.get("package_unit") or "").strip().lower() not in {"", "unknown"}
-                ):
-                    merged[key] = value
+                if key == "package_size":
+                    try:
+                        old_size = float(merged.get("package_size"))
+                        new_size = float(value)
+                    except (TypeError, ValueError):
+                        old_size, new_size = float("nan"), float("nan")
+                    if (
+                        (not math.isfinite(old_size) or old_size <= 0)
+                        and math.isfinite(new_size) and new_size > 0
+                    ):
+                        merged[key] = value
+                    continue
+                if key == "package_unit":
+                    old_unit = str(merged.get("package_unit") or "").strip().lower()
+                    new_unit = str(value or "").strip().lower()
+                    if old_unit in {"", "unknown"} and new_unit not in {"", "unknown"}:
+                        merged[key] = value
                     continue
                 if key == "price":
                     try:
