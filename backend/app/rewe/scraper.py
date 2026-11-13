@@ -54,6 +54,13 @@ def normalize(value: str) -> str:
 
 
 def package(text: str):
+    # A unit-price reference (e.g. 100g = 1,49 €) is not the product's pack size.
+    text = re.sub(
+        r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stk\.?|stück|st\.)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+        " ",
+        text or "",
+        flags=re.I,
+    )
     # Preserve multipack quantity: 2x200ml is 400ml, not 200ml.
     match = re.search(
         r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)",
