@@ -108,6 +108,14 @@ def price_details(text: str, package_size=None, package_unit=None):
     """
     reference_price, reference_unit = _displayed_unit_price(text or "")
     checkout_text = re.sub(_reference_price_pattern(), " ", text or "", flags=re.I)
+    # Pfand is a refundable deposit, never part of the food's unit/pack price.
+    checkout_text = re.sub(
+        r"(?:zzgl\\.?\\s*)?(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?\\s*(?:Pfand|deposit)|"
+        r"(?:Pfand|deposit)\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?",
+        " ",
+        checkout_text,
+        flags=re.I,
+    )
 
     # The displayed package price is authoritative (including promotional
     # prices); a reference price can be rounded or refer to a different tier.
