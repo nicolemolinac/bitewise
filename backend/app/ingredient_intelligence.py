@@ -73,6 +73,10 @@ _SUBSTITUTION_TERMS = {
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
     # Slaw can use fresh white cabbage when red cabbage is not stocked.
     "red cabbage": ("white cabbage", "weisskohl", "spitzkohl"),
+    # A plain bread roll can stand in for a burger bun when the catalog has no labelled bun.
+    "burger buns": ("bread rolls", "brötchen", "weizenbrötchen", "kaiserbrötchen", "sesambrötchen"),
+    # These are flavor alternatives, not exact equivalents; they remain review-only.
+    "curry powder": ("curry paste", "currypaste", "garam masala", "madras curry paste"),
 }
 
 _RETAIL_QUERY_VARIANTS = {
