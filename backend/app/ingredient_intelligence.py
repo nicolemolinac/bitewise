@@ -20,6 +20,33 @@ def normalize_text(value: Any) -> str:
 # Small, high-confidence cross-language vocabulary. This is a seed ontology,
 # not the full catalog: recipe-side AI metadata expands it per ingredient.
 _BASE_TERMS = {
+    "trofie pasta": ("trofie pasta", "trofie", "trofie nudeln", "pasta trofie"),
+    "fresh basil pesto": ("fresh basil pesto", "basil pesto", "basilikumpesto", "basilikum pesto", "pesto genovese", "pesto verde"),
+    "pine nuts": ("pine nuts", "pinienkerne", "pinienkerne geschaelt", "pignoli"),
+    "tomato": ("tomato", "tomatoes", "tomate", "tomaten", "rispentomaten", "strauchtomaten", "roma tomaten"),
+    "cherry tomato": ("cherry tomato", "cherry tomatoes", "cocktailtomaten", "kirschtomaten", "mini tomaten", "cherrytomaten"),
+    "chicken breast": ("chicken breast", "chicken breasts", "hahnchenbrust", "haehnchenbrust", "hahnchenbrustfilet", "haehnchenbrustfilet", "hahnchenfilets"),
+    "ground beef": ("ground beef", "minced beef", "rinderhack", "rinderhackfleisch", "hackfleisch rind"),
+    "salmon": ("salmon", "lachs", "lachsfilet", "frisches lachsfilet"),
+    "flour": ("flour", "mehl", "weizenmehl", "type 405", "type 550"),
+    "heavy cream": ("heavy cream", "whipping cream", "schlagsahne", "sahne", "suesse sahne", "koch sahne", "kochsahne"),
+    "greek yogurt": ("greek yogurt", "greek yoghurt", "griechischer joghurt", "joghurt griechischer art", "griechischer sahnejoghurt"),
+    "potato": ("potato", "potatoes", "kartoffel", "kartoffeln", "speisekartoffeln"),
+    "mushroom": ("mushroom", "mushrooms", "champignon", "champignons", "braune champignons", "kulturpilze"),
+    "bell pepper": ("bell pepper", "bell peppers", "paprika", "rote paprika", "gelbe paprika", "grune paprika", "spitzpaprika"),
+    "cucumber": ("cucumber", "cucumbers", "gurke", "gurken", "salatgurke", "schlangengurke"),
+    "lemon": ("lemon", "lemons", "zitrone", "zitronen", "bio zitronen"),
+    "olive oil": ("olive oil", "olivenol", "natives olivenol", "extra natives olivenol", "olivenol extra vergine"),
+    "soy sauce": ("soy sauce", "sojasauce", "sojasosse", "sojasosse", "tamari"),
+    "tomato paste": ("tomato paste", "tomatenmark", "tomatenpaste", "tomatenmark doppelt konzentriert"),
+    "chickpeas": ("chickpeas", "chickpea", "kichererbsen", "kichererbse", "kichererbsen aus der dose"),
+    "lentils": ("lentils", "lentil", "linsen", "rote linsen", "berg linsen", "berglinsen", "belugalinsen"),
+    "kidney beans": ("kidney beans", "kidney bean", "kidneybohnen", "kidney bohnen", "rote kidneybohnen"),
+    "oats": ("oats", "oat flakes", "hafer", "haferflocken", "kernige haferflocken", "zarte haferflocken"),
+    "banana": ("banana", "bananas", "banane", "bananen"),
+    "baking powder": ("baking powder", "backpulver", "backtriebmittel"),
+    "cornstarch": ("cornstarch", "corn starch", "speisestarke", "maisstarke", "maizena"),
+    "coconut milk": ("coconut milk", "kokosmilch", "kokosnussmilch", "kokosmilch cremig"),
     "black olives": ("black olives", "schwarze oliven", "oliven schwarz", "olives noires"),
     "canned corn": ("canned corn", "mais aus der dose", "mais dose", "mais konserve", "zuckermais", "dosenmais", "mais konserviert"),
     "frozen sweet corn": ("frozen sweet corn", "tiefkuhl mais", "tiefkuhlmais", "tiefkuhlzuckermais", "mais tiefkuhl", "zuckermais tiefgekuhlt", "tiefgekuhlter zuckermais", "mais tiefgekuhlt", "tiefgekuhlter mais"),
@@ -174,23 +201,24 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     produce = {
         "garlic", "onion", "red onion", "potato", "potatoes", "tomato",
         "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
-        "cucumber", "bell pepper", "carrot", "broccoli", "fresh cilantro",
+        "cucumber", "bell pepper", "cherry tomato", "mushroom", "lemon",
+        "carrot", "broccoli", "fresh cilantro",
         "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
         "red cabbage", "strawberries", "blueberries", "banana", "parsley",
     }
     proteins = {
         "chicken breast", "pre cooked shredded chicken", "ground beef",
-        "salmon fillet", "bratwurst", "white fish fillet", "bacon",
+        "salmon", "salmon fillet", "bratwurst", "white fish fillet", "bacon",
     }
     dairy = {
         "feta cheese", "sour cream", "cheese slices", "butter", "mozzarella",
-        "greek yogurt", "plain yogurt", "cooking cream", "eggs",
+        "greek yogurt", "plain yogurt", "heavy cream", "cooking cream", "eggs",
         "grated cheddar cheese", "parmesan cheese", "firm tofu",
     }
     grains = {
         "rice", "risotto rice", "spaghetti", "pasta", "wheat flour",
         "rolled oats", "pizza dough", "burger buns", "soft tortillas",
-        "tortillas", "croutons",
+        "tortillas", "trofie pasta", "flour", "oats", "cornstarch", "croutons",
     }
     spices = {
         "curry powder", "cumin", "paprika powder", "oregano",
@@ -202,7 +230,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "black olives", "pickles",
     }
     sauces = {
-        "tomato passata", "mayonnaise", "soy sauce", "salsa",
+        "tomato passata", "tomato paste", "fresh basil pesto", "mayonnaise", "soy sauce", "salsa",
         "caesar dressing", "vegetable stock", "coconut milk", "honey",
     }
 
