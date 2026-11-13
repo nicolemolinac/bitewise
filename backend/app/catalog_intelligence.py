@@ -78,6 +78,8 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         "name_original", "name_normalized", "translated_name"
     )))
     category = _normalise(getattr(product, "category", ""))
+    if any(marker in category for marker in ("babynahrung", "kindernahrung", "baby food", "snacks")):
+        return "catalog_product"
     if any(marker in text for marker in _READY_MARKERS) or any(
         marker in category for marker in ("fertiggerichte", "fertigmahlzeiten", "ready meals")
     ):
