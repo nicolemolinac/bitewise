@@ -27,7 +27,7 @@ class FakeEmbeddingModel:
                     vector = [0.0, 0.0, 1.0]
                 else:
                     vector = [1.0, 0.0, 0.0]
-            elif "muesli" in value:
+            elif "muesli" in value or "müsli" in value:
                 vector = [0.0, 1.0, 0.0]
             elif "seelachsfilet" in value:
                 vector = [0.0, 0.0, 1.0]
