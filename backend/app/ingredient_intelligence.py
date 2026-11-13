@@ -413,14 +413,21 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
                 continue
             term = str(option.get("name") or "")
             normalized = normalize_text(term)
-            if not normalized or not _proposed_term_visible(title, normalized) or not form_compatible or not category_compatible:
+            if not normalized or not _proposed_term_visible(title, normalized) or not category_compatible:
                 continue
-            # AI-proposed options are auto-applied only when the recipe explicitly
-            # marks them high-confidence, role-preserving and safe. Other options
-            # remain visible for user review and can never silently alter a recipe.
-            if (option.get("safe_to_auto_apply") is True
-                    and option.get("role_preserved") is True
-                    and float(option.get("confidence") or 0) >= 0.85):
+            safe_option = (
+                option.get("safe_to_auto_apply") is True
+                and option.get("role_preserved") is True
+                and float(option.get("confidence") or 0) >= 0.85
+            )
+            # A declared transformation may cross the requested retail form
+            # (e.g. frozen fries -> fresh potatoes) only when it includes an
+            # executable preparation adjustment. Without it, retain form strictness.
+            transformation_ready = bool(str(option.get("preparation_adjustment") or "").strip())
+            if not form_compatible and not (safe_option and transformation_ready):
+                continue
+            # Other proposed options remain visible for user review.
+            if safe_option and (form_compatible or transformation_ready):
                 return "substitute"
             return "suggested_substitution"
     for term in proposed if isinstance(proposed, list) else []:
