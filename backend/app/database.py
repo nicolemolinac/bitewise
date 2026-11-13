@@ -369,7 +369,7 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
     else:
         reference_unit = ""
     if (
-        unit_price is not None and reference_quantity is not None
+        unit_price is not None and unit_price > 0 and reference_quantity is not None
         and reference_quantity > 0 and package_size > 0
         and reference_unit == package_unit
     ):
