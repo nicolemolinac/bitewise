@@ -207,10 +207,30 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
     }
 
 
+def _infer_ingredient_form(ingredient: str) -> str:
+    name = normalize_text(ingredient)
+    rules = (
+        (("frozen", "tiefkuhl", "deep frozen"), "frozen"),
+        (("canned", "tinned", "konserve", "dose"), "canned"),
+        (("grated", "shredded", "gerieben", "geraspelt"), "grated"),
+        (("powder", "pulver", "ground"), "powder"),
+        (("pre cooked", "precooked", "cooked", "gegart", "gekocht"), "pre_cooked"),
+        (("dried", "getrocknet", "dry"), "dried"),
+        (("fresh", "frisch"), "fresh"),
+        (("soft", "weich"), "soft"),
+        (("hard", "knusprig", "crunchy"), "hard"),
+        (("oil", "ol"), "liquid"),
+    )
+    for tokens, form in rules:
+        if any(token in name.split() for token in tokens):
+            return form
+    return "unspecified"
+
+
 def normalize_recipe_intelligence(recipe: dict) -> dict:
-    """Validate and normalize optional AI metadata without making another model call."""
+    """Normalize AI metadata and create deterministic fallback profiles for omissions."""
     raw = recipe.get("ingredient_intelligence")
-    output = {}
+    rows_by_key = {}
     if isinstance(raw, list):
         rows = raw
     elif isinstance(raw, dict):
@@ -218,35 +238,59 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
                 for key, value in raw.items()]
     else:
         rows = []
-    valid_names = {normalize_text(row[0]) for row in recipe.get("ingredients", [])
-                   if isinstance(row, (list, tuple)) and row}
+    valid_ingredients = [
+        (str(row[0]).strip(), str(row[2] if len(row) > 2 else "").strip())
+        for row in recipe.get("ingredients", [])
+        if isinstance(row, (list, tuple)) and row and str(row[0]).strip()
+    ]
+    valid_names = {normalize_text(name) for name, _ in valid_ingredients}
     for row in rows:
         if not isinstance(row, dict):
             continue
         ingredient = str(row.get("ingredient") or "").strip()
         key = normalize_text(ingredient)
-        if not key or key not in valid_names:
-            continue
+        if key and key in valid_names:
+            rows_by_key[key] = row
+
+    output = {}
+    for ingredient, unit in valid_ingredients:
+        key = normalize_text(ingredient)
+        row = rows_by_key.get(key, {})
         aliases = row.get("aliases", [])
         if isinstance(aliases, str):
             aliases = [aliases]
         if not isinstance(aliases, list):
             aliases = []
+        aliases = list(aliases) + list(_BASE_TERMS.get(key, ()))
         substitutions = row.get("suggested_substitutions", row.get("allowed_substitutions", []))
         if isinstance(substitutions, str):
             substitutions = [substitutions]
         if not isinstance(substitutions, list):
             substitutions = []
+        unit_key = normalize_text(unit)
+        if unit_key in {"g", "kg"}:
+            inferred_dimension = "mass"
+        elif unit_key in {"ml", "l", "tsp", "tbsp"}:
+            inferred_dimension = "volume"
+        elif unit_key in {"unit", "piece", "cloves"}:
+            inferred_dimension = "count"
+        else:
+            inferred_dimension = ""
+        form = str(row.get("form") or "").strip()
+        if not form or normalize_text(form) in {"unspecified", "unknown"}:
+            form = _infer_ingredient_form(ingredient)
         output[key] = {
             "canonical": str(row.get("canonical") or ingredient).strip()[:100],
             "name_en": str(row.get("name_en") or ingredient).strip()[:100],
             "name_de": str(row.get("name_de") or "").strip()[:100],
             "name_es": str(row.get("name_es") or "").strip()[:100],
-            "aliases": [str(value).strip()[:100] for value in aliases[:20]
-                        if isinstance(value, str) and value.strip()],
-            "form": str(row.get("form") or "unspecified").strip()[:50],
+            "aliases": list(dict.fromkeys(
+                str(value).strip()[:100] for value in aliases[:30]
+                if isinstance(value, str) and value.strip()
+            )),
+            "form": form[:50],
             "culinary_role": str(row.get("culinary_role") or "").strip()[:80],
-            "unit_dimension": str(row.get("unit_dimension") or "").strip()[:20],
+            "unit_dimension": str(row.get("unit_dimension") or inferred_dimension).strip()[:20],
             "suggested_substitutions": [
                 str(value).strip()[:100] for value in substitutions[:8]
                 if isinstance(value, str) and value.strip()
