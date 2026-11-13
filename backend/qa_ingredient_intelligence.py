@@ -263,6 +263,14 @@ def run():
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
     ) is None, "Ready-to-eat sticky rice must not match raw rice"
     assert ingredient_product_match_type(
+        "rice", "REWE Bio Reismehl 500g",
+        {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
+    ) is None, "Rice flour must not match raw rice"
+    assert ingredient_product_match_type(
+        "rice", "REWE Bio Reiswaffeln 100g",
+        {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
+    ) is None, "Rice cakes must not match raw rice"
+    assert ingredient_product_match_type(
         "rice", "Wurzener KuKo-Reis 4x62,5g",
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
     ) is None, "Pre-cooked KuKo rice must not match raw rice"
