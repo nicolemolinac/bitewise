@@ -165,6 +165,26 @@ def main():
     assert partial_refresh.browser_called, "Partial HTTP refreshes must trigger browser fallback"
     assert partial_result["status"] == "healthy"
 
+    # An explicit but incorrect rel=next jump must not skip the middle pages.
+    class JumpingSession:
+        def get(self, url, **kwargs):
+            page_number = ReweCatalogScraper._page_number(url) or 1
+            product_id = f"jump-{page_number}"
+            html = (
+                f'<html><body><p>139 Produkte</p><article>'
+                f'<a href="/shop/p/{product_id}">Product {product_id}</a>'
+                f'</article><a rel="next" href="?page=139">Weiter</a></body></html>'
+            )
+            return FakeResponse(html)
+
+    jumping_scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
+    jumping_scraper.session = JumpingSession()
+    try:
+        list(jumping_scraper.pages(long_url))
+        raise AssertionError("A rel=next jump must not skip unvisited REWE pages")
+    except RuntimeError as exc:
+        assert "missing pages" in str(exc)
+
     # Repeated content and the hard page cap must fail closed, not masquerade as
     # a complete category (which could trigger destructive stale-product cleanup).
     duplicate_scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
