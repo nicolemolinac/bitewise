@@ -22,7 +22,7 @@ from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
-from .ingredient_intelligence import ingredient_candidate_search_terms, ingredient_product_match_type, ingredient_substitution_name
+from .ingredient_intelligence import ingredient_candidate_search_terms, ingredient_product_match_type, ingredient_substitution_name, ingredient_suggested_substitution_name
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -100,12 +100,20 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
             {
                 **main_module.product_dict(row),
                 "ingredient_match_type": match_types.get(row.id),
-                "ingredient_substitute": ingredient_substitution_name(
-                    ingredient,
-                    " ".join(str(value or "") for value in (
-                        row.name_original, row.name_normalized, row.translated_name
-                    )),
-                    intelligence,
+                "ingredient_substitute": (
+                    ingredient_substitution_name(
+                        ingredient,
+                        " ".join(str(value or "") for value in (
+                            row.name_original, row.name_normalized, row.translated_name
+                        )),
+                        intelligence,
+                    ) or ingredient_suggested_substitution_name(
+                        ingredient,
+                        " ".join(str(value or "") for value in (
+                            row.name_original, row.name_normalized, row.translated_name
+                        )),
+                        intelligence,
+                    )
                 ) if match_types.get(row.id) in {"substitute", "suggested_substitution"} else None,
             }
             for row in rows[:40]
