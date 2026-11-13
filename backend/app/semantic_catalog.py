@@ -52,7 +52,7 @@ def _query_text(ingredient: str, intelligence: Any = None) -> str:
         profile.get("culinary_role"),
         profile.get("preparation"),
     ]
-    for key in ("aliases", "search_terms", "translations", "allowed_substitutions"):
+    for key in ("aliases", "search_terms", "translations", "suggested_substitutions", "allowed_substitutions"):
         values = profile.get(key, [])
         if isinstance(values, str):
             values = [values]
