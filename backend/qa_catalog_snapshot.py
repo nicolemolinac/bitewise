@@ -14,11 +14,15 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app.database import (
     AppSetting, CatalogRun, Product, SessionLocal, _auto_import_rewe_csv_snapshot,
-    _snapshot_pack_pricing, _snapshot_package_size,
+    _snapshot_pack_pricing, _snapshot_package_size, _snapshot_float,
 )
 
 
 def main():
+    assert _snapshot_float("NaN") is None
+    assert _snapshot_float("inf") is None
+    assert _snapshot_float("-inf") is None
+
     pack_price, price_per_gram = _snapshot_pack_pricing(
         "Alete Kinderkeks 180g (1 kg = 11,06 €)", 180, "g", 11.06, 0.0614
     )
