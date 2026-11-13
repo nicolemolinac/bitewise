@@ -57,6 +57,10 @@ def test_high_risk_false_positive_guards():
         product_category="Süßes & Salziges",
     ) is None
     assert ingredient_product_match_type(
+        "salsa", "Thomy Salsa Sauce 200ml",
+        product_category="Öle, Soßen & Gewürze",
+    ) == "exact"
+    assert ingredient_product_match_type(
         "salsa", "Appel Zarte Filets vom Hering Salsa-Picante 200g",
         product_category="Fertiggerichte & Konserven",
     ) is None
