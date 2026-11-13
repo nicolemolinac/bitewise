@@ -54,7 +54,7 @@ _SUBSTITUTION_TERMS = {
 
 # Ingredient-family unit expectations. Unknown families remain permissive.
 _UNIT_FAMILIES = {
-    "oil": {"ml", "l", "g", "kg", "tbsp", "tsp"},
+    "oil": {"ml", "l", "tbsp", "tsp"},
     "liquid": {"ml", "l", "g", "kg", "tbsp", "tsp", "cup"},
     "spice": {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"},
     "produce": {"g", "kg", "piece", "unit", "cloves"},
