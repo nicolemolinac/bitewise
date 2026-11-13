@@ -199,6 +199,11 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
                 step_text = re.sub(r"(?<![\w])" + re.escape(original) + r"(?![\w])", step_replacement, step_text, flags=re.IGNORECASE)
             step["text"] = step_text
 
+    preparation_steps = [row.get("preparation_adjustment") for row in adaptations if row.get("preparation_adjustment")]
+    if preparation_steps:
+        steps = recipe.setdefault("steps", [])
+        if isinstance(steps, list) and not any("Fresh potatoes need longer than frozen fries" in str(step.get("text") or "") for step in steps if isinstance(step, dict)):
+            steps.insert(0, {"text": preparation_steps[0], "minutes": 8})
     recipe["adaptations"] = adaptations
     return adaptations
 
