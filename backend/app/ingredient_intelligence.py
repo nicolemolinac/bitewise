@@ -47,6 +47,7 @@ _BASE_TERMS = {
     "kidney beans": ("kidney beans", "kidney bean", "kidneybohnen", "kidney bohnen", "rote kidneybohnen"),
     "oats": ("oats", "oat flakes", "hafer", "haferflocken", "kernige haferflocken", "zarte haferflocken"),
     "rice": ("rice", "reis", "langkornreis", "basmatireis", "jasminreis", "vollkornreis", "naturreis"),
+    "burger buns": ("burger buns", "hamburger buns", "hamburger broetchen", "hamburger brotchen", "burger broetchen", "burger brotchen", "burgerbroetchen", "hamburgerbroetchen"),
     "banana": ("banana", "bananas", "banane", "bananen"),
     "baking powder": ("baking powder", "backpulver", "backtriebmittel"),
     "cornstarch": ("cornstarch", "corn starch", "speisestarke", "speise starke", "maisstarke", "mais starke", "maizena"),
