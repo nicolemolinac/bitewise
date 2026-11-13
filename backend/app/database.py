@@ -349,18 +349,32 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
     """Convert displayed €/kg or €/l unit prices into actual package checkout prices."""
     match = re.search(
-        r"1\s*(kg|l|stück|stk\.?)\s*=\s*(\d+[,.]\d{2})\s*€",
+        r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*(\d+[,.]\d{2})\s*€",
         name or "",
         re.I,
     )
-    unit_price = _snapshot_float(match.group(2)) if match else None
-    standard_unit = match.group(1).lower() if match else ""
-    if unit_price is not None and standard_unit == "kg" and package_unit == "g":
-        return round(unit_price * package_size / 1000, 2), unit_price / 1000
-    if unit_price is not None and standard_unit == "l" and package_unit == "ml":
-        return round(unit_price * package_size / 1000, 2), unit_price / 1000
-    if unit_price is not None and standard_unit.startswith(("stk", "stück")) and package_unit == "unit":
-        return round(unit_price * package_size, 2), unit_price
+    unit_price = _snapshot_float(match.group(3)) if match else None
+    reference_quantity = _snapshot_float(match.group(1)) if match else None
+    raw_unit = match.group(2).lower() if match else ""
+    if raw_unit == "kg":
+        reference_quantity = reference_quantity * 1000 if reference_quantity is not None else None
+        reference_unit = "g"
+    elif raw_unit == "l":
+        reference_quantity = reference_quantity * 1000 if reference_quantity is not None else None
+        reference_unit = "ml"
+    elif raw_unit in {"g", "ml"}:
+        reference_unit = raw_unit
+    elif raw_unit:
+        reference_unit = "unit"
+    else:
+        reference_unit = ""
+    if (
+        unit_price is not None and reference_quantity is not None
+        and reference_quantity > 0 and package_size > 0
+        and reference_unit == package_unit
+    ):
+        normalized_unit_price = unit_price / reference_quantity
+        return round(normalized_unit_price * package_size, 2), normalized_unit_price
     fallback = _snapshot_float(raw_price)
     per_unit = _snapshot_float(raw_price_per_unit)
     if per_unit is None and fallback is not None and package_size > 0:
