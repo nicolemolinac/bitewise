@@ -26,6 +26,8 @@ jobs:
       - name: Install Chromium for REWE browser fallback
         run: python -m playwright install --with-deps chromium
       - run: python -m compileall app
+      - name: Compile local REWE semantic indexer
+        run: python -m py_compile index_rewe_semantics.py
       - name: REWE committed catalog snapshot import QA
         run: python qa_catalog_snapshot.py
       - name: REWE catalog coverage and missing-price diagnostics
