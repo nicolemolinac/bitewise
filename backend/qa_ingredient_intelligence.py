@@ -89,7 +89,7 @@ def run():
     assert ingredient_product_match_type("frozen french fries", "Pommes Frites Chips", intelligence) is None
     assert ingredient_product_match_type(
         "frozen french fries", "REWE Speisekartoffeln 2kg", intelligence
-    ) == "substitute"
+    ) == "suggested_substitution"
     assert ingredient_product_match_type("frozen french fries", "REWE Speisekartoffeln 2kg", intelligence, "Obst & Gemüse") == "suggested_substitution"
     assert ingredient_product_match_type("vegetable oil", "REWE Rapsöl 1L", intelligence) == "substitute"
     assert ingredient_product_match_type("vegetable oil", "REWE Olivenöl 1L", intelligence) is None
