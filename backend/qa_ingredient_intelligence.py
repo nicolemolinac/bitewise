@@ -75,9 +75,9 @@ def run():
     assert validate_ingredient_unit("chocolate", "g")["valid"] is True
     soft_form = {"tortillas": {"canonical": "soft wheat tortilla", "name_de": "Weizentortilla", "form": "soft", "aliases": ["weizentortillas"]}}
     hard_form = {"hard taco shells": {"canonical": "hard taco shell", "name_de": "Taco-Schalen", "form": "hard", "aliases": ["taco shells"]}}
-    assert ingredient_product_match_type("tortillas", "Chio Tortillas Original Salted", soft_form) is None
+    assert ingredient_product_match_type("tortillas", "Chio Tortillas Original Salted Snacks", soft_form) is None
     assert ingredient_product_match_type("tortillas", "Old El Paso Weizentortillas 320g", soft_form) == "exact"
-    assert ingredient_product_match_type("hard taco shells", "Chio Tortillas Original Salted", hard_form) is None
+    assert ingredient_product_match_type("hard taco shells", "Chio Tortillas Original Salted Snacks", hard_form) is None
 
     recipe = {
         "id": "oil-test", "name": "Oil test", "base_servings": 2,
