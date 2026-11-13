@@ -688,7 +688,199 @@ def _repair_snapshot_unit_prices_once() -> None:
             db.close()
 
 
+def _repair_rewe_package_metadata_once() -> None:
+    """Repair legacy pack sizes and derived unit prices without overwriting live prices."""
+    repair_override = os.getenv("BITEWISE_REPAIR_CATALOG_SNAPSHOT", "").strip().lower()
+    if _configured_local_db and repair_override not in {"1", "true", "yes", "on"}:
+        return
+
+    snapshot_path = BACKEND_DIR / "data" / "catalog" / "rewe_products.csv"
+    if not snapshot_path.is_file():
+        return
+    db = None
+    try:
+        db = SessionLocal()
+        if db.get(AppSetting, "rewe_package_metadata_repair_v1"):
+            return
+
+        expected_columns = [
+            "id", "supermarket", "external_id", "ingredient", "name_original",
+            "name_normalized", "translated_name", "brand", "category", "package_size",
+            "package_unit", "price", "price_per_unit", "currency", "product_url",
+            "image_url", "availability", "postcode_context", "first_seen_at",
+            "last_seen_at", "last_checked_at", "last_price",
+        ]
+        legacy_columns = [
+            "id", "supermarket", "ingredient", "name_original", "name_normalized",
+            "translated_name", "brand", "category", "package_size", "package_unit",
+            "price", "price_per_unit", "currency", "availability", "last_seen_at",
+            "last_checked_at",
+        ]
+        required = {"id", "supermarket", "ingredient", "name_original", "name_normalized"}
+        with snapshot_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            first_row = next(csv.reader(handle), [])
+            handle.seek(0)
+            if required.issubset(set(first_row)):
+                reader = csv.DictReader(handle)
+            else:
+                fieldnames = expected_columns if len(first_row) == len(expected_columns) else legacy_columns
+                reader = csv.DictReader(handle, fieldnames=fieldnames)
+
+            rows = [row for row in reader if str(row.get("supermarket") or "REWE").strip().upper() == "REWE"]
+
+        matched = 0
+        package_updates = 0
+        unit_price_updates = 0
+        price_repairs = 0
+        unmatched = 0
+        for row in rows:
+            name = str(row.get("name_original") or "").strip()
+            ingredient = str(row.get("ingredient") or "").strip()
+            external_id = str(row.get("external_id") or "").strip()
+            try:
+                product_id = int(row.get("id") or 0)
+            except (TypeError, ValueError):
+                product_id = 0
+
+            product = db.get(Product, product_id) if product_id else None
+            if product and (
+                product.supermarket != "REWE"
+                or (ingredient and product.ingredient != ingredient)
+                or (name and product.name_original != name)
+            ):
+                product = None
+            if product is None and external_id:
+                product = db.query(Product).filter(
+                    Product.supermarket == "REWE",
+                    Product.external_id == external_id,
+                ).first()
+            if product is None and name:
+                candidates = db.query(Product).filter(
+                    Product.supermarket == "REWE",
+                    Product.name_original == name,
+                )
+                if ingredient:
+                    candidates = candidates.filter(Product.ingredient == ingredient)
+                matches = candidates.limit(2).all()
+                product = matches[0] if len(matches) == 1 else None
+            if product is None:
+                unmatched += 1
+                continue
+
+            matched += 1
+            current_size = _snapshot_float(product.package_size)
+            current_unit = str(product.package_unit or "").strip().lower()
+            parsed_size, parsed_unit = _snapshot_package_details(
+                product.name_original or name, current_size or 1.0, current_unit or "unknown"
+            )
+            if (
+                parsed_size is not None and math.isfinite(float(parsed_size)) and float(parsed_size) > 0
+                and parsed_unit not in {"", "unknown"}
+                and (
+                    current_size is None or not math.isfinite(current_size) or current_size <= 0
+                    or current_unit != parsed_unit
+                    or abs(current_size - float(parsed_size)) / float(parsed_size) > 0.01
+                )
+            ):
+                product.package_size = float(parsed_size)
+                product.package_unit = parsed_unit
+                package_updates += 1
+
+            # Correct an old package price only when it still equals the raw
+            # snapshot value (or is invalid). A changed live REWE price wins.
+            snapshot_name = str(row.get("name_original") or "").strip()
+            same_snapshot_name = bool(snapshot_name and product.name_original == snapshot_name)
+            source_price = _snapshot_float(row.get("price"))
+            if same_snapshot_name:
+                pack_price, _ = _snapshot_pack_pricing(
+                    snapshot_name, float(product.package_size or 1),
+                    str(product.package_unit or "unknown"),
+                    row.get("price"), row.get("price_per_unit"),
+                )
+                try:
+                    current_price = float(product.price) if product.price is not None else None
+                except (TypeError, ValueError):
+                    current_price = None
+                current_price_valid = (
+                    current_price is not None and math.isfinite(current_price) and current_price > 0
+                )
+                pack_price_valid = (
+                    pack_price is not None and math.isfinite(float(pack_price)) and float(pack_price) > 0
+                )
+                if pack_price_valid and (
+                    not current_price_valid
+                    or (
+                        source_price is not None
+                        and abs(current_price - source_price) <= 0.011
+                        and abs(current_price - float(pack_price)) > 0.011
+                    )
+                ):
+                    product.price = float(pack_price)
+                    current_price = float(pack_price)
+                    current_price_valid = True
+                    price_repairs += 1
+            else:
+                try:
+                    current_price = float(product.price) if product.price is not None else None
+                except (TypeError, ValueError):
+                    current_price = None
+                current_price_valid = (
+                    current_price is not None and math.isfinite(current_price) and current_price > 0
+                )
+
+            try:
+                final_size = float(product.package_size)
+            except (TypeError, ValueError):
+                final_size = None
+            final_unit = str(product.package_unit or "").strip().lower()
+            if (
+                current_price_valid and final_size is not None
+                and math.isfinite(final_size) and final_size > 0
+                and final_unit not in {"", "unknown"}
+            ):
+                normalized_unit_price = current_price / final_size
+                if product.price_per_unit is None or not math.isfinite(float(product.price_per_unit)) or abs(float(product.price_per_unit) - normalized_unit_price) > max(0.000001, normalized_unit_price * 0.01):
+                    product.price_per_unit = normalized_unit_price
+                    unit_price_updates += 1
+            elif final_unit in {"", "unknown"}:
+                product.price_per_unit = None
+
+        if matched >= max(100, int(len(rows) * 0.70)):
+            db.add(AppSetting(
+                key="rewe_package_metadata_repair_v1",
+                value=(
+                    f"matched={matched}; package_updates={package_updates}; "
+                    f"unit_price_updates={unit_price_updates}; price_repairs={price_repairs}; "
+                    f"unmatched={unmatched}"
+                ),
+            ))
+            db.commit()
+            print(
+                "Bitewise repaired REWE catalog metadata: "
+                f"{package_updates} package sizes, {unit_price_updates} unit prices, "
+                f"{price_repairs} legacy pack prices; matched {matched}/{len(rows)} products."
+            )
+        else:
+            db.add(AppSetting(
+                key="rewe_package_metadata_repair_attempt_v1",
+                value=f"skipped; matched={matched}; expected={len(rows)}; unmatched={unmatched}",
+            ))
+            db.commit()
+            print(
+                "Bitewise skipped REWE package metadata repair: "
+                f"matched only {matched}/{len(rows)} products; no broad changes were applied."
+            )
+    except Exception as exc:
+        if db:
+            db.rollback()
+        print(f"Bitewise could not repair REWE package metadata: {exc}")
+    finally:
+        if db:
+            db.close()
+
+
 _migrate_sqlite()
 _auto_restore_local_rewe_snapshot()
 _auto_import_rewe_csv_snapshot()
 _repair_snapshot_unit_prices_once()
+_repair_rewe_package_metadata_once()
