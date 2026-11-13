@@ -46,6 +46,19 @@ Open the Vite URL shown by Vite (the project commonly uses `http://localhost:517
 ## REWE notes
 REWE's public shop exposes products, but concrete prices can depend on the selected market/location. Prices and availability are postcode-dependent. Refresh the catalog from the REWE Catalog control before expecting real product matches. The server never substitutes demo seed products for a real catalog match: unmatched ingredients are clearly reported instead of receiving invented prices. Local development uses SQLite by default; configure `DATABASE_URL` to use persistent PostgreSQL in a hosted environment.
 
+## Full-catalog supermarket intelligence
+
+Ingredient matching and supermarket-shortcut discovery query the complete local REWE catalog, not a hand-picked subset. The current committed QA snapshot contains 11,969 REWE products. Keyword retrieval works immediately; richer cross-language retrieval is enabled after building the optional local semantic index.
+
+Build or incrementally refresh that index from the same local database used by the app:
+
+```bash
+cd backend
+python index_rewe_semantics.py
+```
+
+The indexer embeds every REWE product currently in the database (including product name, translated name, category, brand and ingredient) with the compact multilingual `intfloat/multilingual-e5-small` model. Vectors are stored locally in SQLite and updated only when product content changes. The first run downloads the model; it uses local inference and does not call Gemini or another paid LLM API. Subsequent runs only process new or changed products. Until the index exists, catalog discovery continues to work using keyword retrieval and reports `lexical_fallback` in its response.
+
 ## Architecture
 ```text
 frontend/
