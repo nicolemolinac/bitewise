@@ -31,7 +31,7 @@ from app.ingredient_intelligence import (
     ingredient_search_terms, normalize_recipe_intelligence,
     normalize_text,
 )
-from app.shopping.optimizer import _convert_ingredient_quantity, build_basket, consolidate, _convert_ingredient_quantity
+from app.shopping.optimizer import _convert_ingredient_quantity, build_basket, consolidate
 
 
 # Each ingredient carries the same kind of cached multilingual retail metadata that
