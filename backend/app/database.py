@@ -356,7 +356,7 @@ def _snapshot_round_checkout_price(value):
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
     """Convert displayed reference prices into actual package checkout prices."""
     match = re.search(
-        r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*(\d+[,.]\d{2})\s*€",
+        r"(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
         name or "",
         re.I,
     )
@@ -607,7 +607,7 @@ def _repair_snapshot_unit_prices_once() -> None:
                 name = str(row.get("name_original") or "").strip()
                 if str(row.get("supermarket") or "REWE").strip().upper() != "REWE":
                     continue
-                if re.search(r"1\s*(?:kg|l)\s*=", name, re.I):
+                if re.search(r"\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.)\s*=", name, re.I):
                     expected_reference_rows += 1
                     rows.append(row)
         if expected_reference_rows < 100:
@@ -859,7 +859,7 @@ def _repair_rewe_package_metadata_once() -> None:
                     # displayed non-checkout amounts and no safe conversion
                     # or explicit pack price could be recovered.
                     reference_match = re.search(
-                        r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*(\d+[,.]\d{2})\s*€",
+                        r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
                         snapshot_name, re.I,
                     )
                     reference_amount = _snapshot_float(reference_match.group(1)) if reference_match else None
