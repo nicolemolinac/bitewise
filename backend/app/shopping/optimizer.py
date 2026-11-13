@@ -176,7 +176,9 @@ def _number(product, *keys, default=0.0):
         value = product.get(key)
         if value is not None:
             try:
-                return float(value)
+                number = float(value)
+                if math.isfinite(number):
+                    return number
             except (TypeError, ValueError):
                 pass
     return default
@@ -185,7 +187,9 @@ def _number(product, *keys, default=0.0):
 def _package(product):
     qty = _number(product, "pack_qty", "package_size", default=1.0)
     unit = product.get("unit") or product.get("package_unit") or "piece"
-    return max(qty, 0.0001), _normal_unit(unit)
+    if not math.isfinite(qty) or qty <= 0:
+        return 0.0, _normal_unit(unit)
+    return qty, _normal_unit(unit)
 
 
 def _premium_signal(product):
@@ -325,11 +329,13 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 numeric_price = float(price)
             except (TypeError, ValueError):
                 continue
-            if numeric_price <= 0 or str(product.get("availability") or "").lower() in {
+            if not math.isfinite(numeric_price) or numeric_price <= 0 or str(product.get("availability") or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
             }:
                 continue
             pack_qty, product_unit = _package(product)
+            if not math.isfinite(pack_qty) or pack_qty <= 0:
+                continue
             needed_in_pack_unit, unit_conversion_note = _convert_ingredient_quantity(needed, unit, product_unit, ingredient)
             if needed_in_pack_unit is None:
                 continue
@@ -339,7 +345,9 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             checkout_cost = packs * float(price)
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
             waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1.0)
-            unit_price = _number(product, "unit_price", "price_per_unit", default=float(price) / pack_qty)
+            unit_price = _number(product, "unit_price", "price_per_unit", default=numeric_price / pack_qty)
+            if not math.isfinite(unit_price) or unit_price <= 0:
+                unit_price = numeric_price / pack_qty
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             # Exact matches win over substitutions; a substitute is used only when
             # no exact priced/available option is present.
