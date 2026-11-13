@@ -113,6 +113,9 @@ def run():
         "white fish fillet", "REWE Alaska Seelachsfilet 300g", {"form": "fresh"}, "fleisch-wurst-fisch"
     ) == "exact"
     assert ingredient_product_match_type(
+        "bratwurst", "ja! Schweine-Bratwurst grob 4x100g", {}, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
         "lettuce", "REWE Feine Welt Erlesener Blüten Salat 100g", {"form": "fresh"}, "obst-gemuese"
     ) is None
     assert ingredient_product_match_type(
