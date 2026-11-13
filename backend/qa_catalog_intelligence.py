@@ -41,6 +41,8 @@ def run():
                     assert any("Bistro Baguette" in name for name in names), names
                 if real_query == "chili con carne":
                     assert any("Chili con Carne" in name for name in names), names
+                if real_query == "french fries":
+                    assert not any("Sauce" in name or "Haribo" in name for name in names), names
     finally:
         real_session.close()
 
