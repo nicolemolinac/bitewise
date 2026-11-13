@@ -151,13 +151,10 @@ def run():
         "grated cheddar cheese", "REWE Gouda gerieben 200g",
         {"form": "grated cheese"}, "kaese-eier-molkerei"
     ) == "substitute"
-    red_cabbage_match = ingredient_product_match_type(
+    assert ingredient_product_match_type(
         "red cabbage", "REWE Weißkohl frisch 1 Stück",
         {"form": "fresh"}, "obst-gemuese"
-    )
-    print("DEBUG RED CABBAGE:", red_cabbage_match,
-          ingredient_candidate_search_terms("red cabbage", {"form": "fresh"}))
-    assert red_cabbage_match == "substitute"
+    ) == "substitute"
     assert ingredient_product_match_type(
         "burger buns", "REWE Weizenbrötchen 6 Stück",
         {"form": "bread"}, "brot-cerealien-aufstriche"
