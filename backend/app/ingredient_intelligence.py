@@ -357,6 +357,8 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         return category_key in allowed
     if name == "firm tofu":
         return category_key in {"kaese-eier-molkerei", "fleischersatz", "vegetarische-produkte", "vegan"}
+    if name == "butter" and "margarine" in title_key:
+        return category_key in {"kaese-eier-molkerei", "oele-sossen-gewuerze", "oele-fette", "oele-fette-margarine"}
     if name in dairy:
         return category_key == "kaese-eier-molkerei"
     if name in oils:
