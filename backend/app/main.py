@@ -2,11 +2,12 @@ import asyncio
 import json
 import os
 import re
+import threading
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -14,7 +15,7 @@ from sqlalchemy import or_
 
 from .ai.gemini import GeminiService
 from .ai.image_resolver import resolve_meal_images
-from .database import AppSetting, CatalogRun, PantryItem, Plan, PlannedMeal, Product, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
+from .database import AppSetting, CatalogRun, PantryItem, Plan, PlannedMeal, Product, ProductOverride, ProductSemanticEmbedding, RecipeHistory, SessionLocal, ShoppingState, UserEvent
 from .recommendations.engine import score_meal
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
@@ -199,6 +200,98 @@ def catalog_opportunities(q: str = Query(default='', max_length=160), limit: int
   return search_catalog_opportunities(db, q, limit)
  finally:
   db.close()
+
+# Optional local multilingual vectors improve discovery beyond product-name overlap.
+# The index is built only when the user requests it; ordinary lexical search
+# remains available and never waits for model downloads.
+_SEMANTIC_INDEX_GUARD = threading.Lock()
+_SEMANTIC_INDEX_STATE = {
+    "running": False, "processed": 0, "pending": 0, "total": 0,
+    "error": None, "started": False,
+}
+
+
+def _semantic_index_status(db):
+    from .semantic_catalog import MODEL_NAME
+    total = db.query(Product).filter(Product.supermarket == "REWE").count()
+    indexed = db.query(ProductSemanticEmbedding).filter(
+        ProductSemanticEmbedding.model_name == MODEL_NAME
+    ).count()
+    return {
+        **_SEMANTIC_INDEX_STATE,
+        "indexed": indexed,
+        "total": total,
+        "model": MODEL_NAME,
+        "complete": total > 0 and indexed >= total,
+    }
+
+
+def _build_semantic_index():
+    db = SessionLocal()
+    try:
+        from .semantic_catalog import index_rewe_products
+        total = db.query(Product).filter(Product.supermarket == "REWE").count()
+        _SEMANTIC_INDEX_STATE.update({
+            "running": True, "processed": 0, "pending": total,
+            "total": total, "error": None, "started": True,
+        })
+
+        def report_progress(processed, pending, total_products):
+            _SEMANTIC_INDEX_STATE.update({
+                "processed": int(processed),
+                "pending": int(pending),
+                "total": int(total_products),
+            })
+
+        result = index_rewe_products(db, progress_callback=report_progress)
+        _SEMANTIC_INDEX_STATE.update({
+            "running": False,
+            "processed": int(result.get("products_indexed", 0)),
+            "pending": 0,
+            "total": int(result.get("products_seen", total)),
+            "error": None,
+            "started": True,
+        })
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        _SEMANTIC_INDEX_STATE.update({
+            "running": False, "error": str(exc), "started": True,
+        })
+    finally:
+        db.close()
+        _SEMANTIC_INDEX_GUARD.release()
+
+
+@app.get('/api/catalog/semantic-index/status')
+def semantic_catalog_index_status():
+    db = SessionLocal()
+    try:
+        return _semantic_index_status(db)
+    finally:
+        db.close()
+
+
+@app.post('/api/catalog/semantic-index')
+def start_semantic_catalog_index(background_tasks: BackgroundTasks):
+    if not _SEMANTIC_INDEX_GUARD.acquire(blocking=False):
+        db = SessionLocal()
+        try:
+            return {"started": False, **_semantic_index_status(db)}
+        finally:
+            db.close()
+    _SEMANTIC_INDEX_STATE.update({
+        "running": True, "processed": 0, "pending": 0,
+        "total": 0, "error": None, "started": True,
+    })
+    background_tasks.add_task(_build_semantic_index)
+    db = SessionLocal()
+    try:
+        return {"started": True, **_semantic_index_status(db)}
+    finally:
+        db.close()
 
 @app.get('/api/products')
 def products(q:str='',ingredient:str|None=None):
