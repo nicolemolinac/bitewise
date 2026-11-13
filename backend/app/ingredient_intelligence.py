@@ -204,6 +204,20 @@ def ingredient_substitution_name(ingredient: str, product_text: str, intelligenc
     return None
 
 
+def ingredient_suggested_substitution_name(ingredient: str, product_text: str, intelligence: Any = None) -> str | None:
+    """Return an AI-proposed alternative only when its name is visible in the chosen product."""
+    title = normalize_text(product_text)
+    profile = _profile_lookup(intelligence, ingredient)
+    proposed = profile.get("suggested_substitutions", [])
+    if isinstance(proposed, str):
+        proposed = [proposed]
+    for term in sorted(proposed if isinstance(proposed, list) else [], key=lambda value: -len(normalize_text(value))):
+        normalized = normalize_text(term)
+        if normalized and _contains_phrase(title, normalized):
+            return str(term)
+    return None
+
+
 def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = None) -> dict:
     name = normalize_text(ingredient)
     normalized_unit = normalize_text(unit)
