@@ -147,6 +147,10 @@ def run():
         "curry powder", "REWE Bio Thai Curry Paste 100g", {"form": "powder"}, "oele-sossen-gewuerze"
     ) == "suggested_substitution"
     assert ingredient_product_match_type(
+        "rolled oats", "Kellogs Special Crunchy Oat Granola Mixed Berries 320g",
+        {"form": "unspecified"}, "brot-cerealien-aufstriche"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
         "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
         {"form": "fresh"}, "tiefkuehlkost"
     ) == "suggested_substitution"
