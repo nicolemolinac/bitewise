@@ -284,7 +284,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             "ofenbrot", "bolognese", "penne", "lasagne", "suppe",
             "sandwich", "pizza", "salat", "snack", "chips", "baby",
             "brei", "fertiggericht", "brotaufstrich", "fischburger",
-            "aufschnitt", "wurst", "wuerstchen", "burger patty",
+            "aufschnitt", "burger patty",
         )
         if any(term in title_key for term in prepared_terms):
             return False
