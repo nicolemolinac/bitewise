@@ -4,7 +4,7 @@ Run from backend/: python diagnose_catalog_matches.py
 This does not change the database, scrape REWE, or call Gemini.
 """
 import json
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from sqlalchemy import or_
 
