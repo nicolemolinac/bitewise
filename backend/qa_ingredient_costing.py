@@ -3,7 +3,7 @@
 Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import build_basket, consolidate
-from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name
+from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
 class FakeCatalog:
@@ -20,6 +20,10 @@ def run():
     assert ingredient_name_matches("trofie pasta", "REWE Fusilli") is False
     assert ingredient_name_matches("trofie pasta", "REWE Udon Nudeln") is False
     assert ingredient_name_matches("rice", "REWE Beste Wahl Langkornreis 500g") is True
+    assert ingredient_product_match_type("onions", "REWE Speisezwiebeln 1kg") == "exact"
+    assert ingredient_product_match_type("frozen french fries", "REWE Beste Wahl Pommes Frites 750g") == "exact"
+    assert ingredient_product_match_type("frozen french fries", "ja! Tiefkühlpommes 1kg") == "exact"
+    assert "pommes frites" in ingredient_search_terms("frozen french fries")
     assert ingredient_name_matches("parmesan", "Parmigiano Reggiano") is True
     assert ingredient_name_matches("parmesan", "Käse-Wiener") is False
     assert ingredient_name_matches("fresh basil pesto", "Basilikum Pesto") is True
@@ -124,6 +128,38 @@ def run():
     )
     assert substitute_basket[0]["match_status"] == "substituted"
     assert substitute_basket[0]["checkout_cost"] == 1.5
+
+
+    # Whole onions are sold by weight in REWE; use an explicit average-weight estimate.
+    onion_catalog = FakeCatalog({
+        "onions": [{
+            "id": 6, "name_original": "REWE Speisezwiebeln 1kg",
+            "package_size": 1000, "package_unit": "g", "price": 1.49,
+            "availability": "available", "ingredient_match_type": "exact",
+        }],
+    })
+    onion_basket = build_basket(
+        [{"ingredient": "onions", "quantity": 2, "unit": "piece", "source_meals": ["Chorrillana"]}],
+        onion_catalog, mode="cheapest",
+    )
+    assert onion_basket[0]["match_status"] == "matched"
+    assert onion_basket[0]["unit_conversion_note"] == "Estimated 150 g per onions."
+    assert onion_basket[0]["needed_quantity"] == 2
+    assert onion_basket[0]["checkout_cost"] == 1.49
+
+    fries_catalog = FakeCatalog({
+        "frozen french fries": [{
+            "id": 7, "name_original": "REWE Beste Wahl Pommes Frites 750g",
+            "package_size": 750, "package_unit": "g", "price": 1.99,
+            "availability": "available", "ingredient_match_type": "exact",
+        }],
+    })
+    fries_basket = build_basket(
+        [{"ingredient": "frozen french fries", "quantity": 300, "unit": "g", "source_meals": ["Chorrillana"]}],
+        fries_catalog, mode="cheapest",
+    )
+    assert fries_basket[0]["match_status"] == "matched"
+    assert fries_basket[0]["checkout_cost"] == 1.99
 
     # Recipe ingredient quantities are generated for 2 servings and scaled exactly once.
     one_serving = consolidate([
