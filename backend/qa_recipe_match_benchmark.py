@@ -283,6 +283,24 @@ def main():
                     f"type={product['convenience_type']} | price={product['price']} | "
                     f"pack={product['package_size']} {product['package_unit']}"
                 )
+            if discovery_query == "pizza":
+                pizza_kit = next(
+                    (row for row in discovery["products"] if "pizza-kit" in normalize_text(row["name_original"])),
+                    None,
+                )
+                if pizza_kit:
+                    assert pizza_kit["convenience_type"] == "meal_kit", pizza_kit
+                for dough in (
+                    row for row in discovery["products"] if "pizzateig" in normalize_text(row["name_original"])
+                ):
+                    assert dough["convenience_type"] == "ready_to_cook", dough
+            if discovery_query == "chili con carne":
+                fix_sachet = next(
+                    (row for row in discovery["products"] if "maggi fix" in normalize_text(row["name_original"])),
+                    None,
+                )
+                if fix_sachet:
+                    assert fix_sachet["convenience_type"] == "prepared_component", fix_sachet
         adapter = server.main_module.CatalogAdapter(db)
         totals = Counter()
         per_recipe = []
