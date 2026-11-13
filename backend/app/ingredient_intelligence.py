@@ -404,6 +404,21 @@ def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bo
         return any(token in title for token in (
             "proteinmehl", "brotbackmischung", "brotchen backmischung", "brot teig",
         ))
+    if normalized_ingredient == "burger buns":
+        return (
+            normalize_text(term) in {
+                "bread rolls", "brötchen", "weizenbrötchen",
+                "kaiserbrötchen", "sesambrötchen",
+            }
+            and any(token in title for token in (
+                "brötchen", "broetchen", "bread roll", "bread rolls",
+                "kaisersemmel", "semmel",
+            ))
+            and not any(token in title for token in (
+                "süß", "suess", "rosinen", "schoko", "croissant",
+                "hot dog", "hotdog",
+            ))
+        )
     if normalized_ingredient != "frozen french fries":
         return False
     if normalize_text(term) not in {"fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"}:
