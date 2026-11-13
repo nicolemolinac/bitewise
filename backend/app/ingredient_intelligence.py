@@ -56,7 +56,7 @@ _SUBSTITUTION_TERMS = {
 _UNIT_FAMILIES = {
     "oil": {"ml", "l", "g", "kg", "tbsp", "tsp"},
     "liquid": {"ml", "l", "g", "kg", "tbsp", "tsp", "cup"},
-    "spice": {"g", "kg", "tsp", "tbsp", "pinch"},
+    "spice": {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"},
     "produce": {"g", "kg", "piece", "unit", "cloves"},
     "count": {"piece", "unit"},
 }
