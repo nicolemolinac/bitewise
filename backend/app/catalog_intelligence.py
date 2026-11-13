@@ -109,7 +109,18 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
     if (
         "pizza" in name
         and any(marker in category for marker in ("tiefkuhlkost", "tiefkuehlkost", "fertiggerichte", "ready meals"))
-        and not any(marker in name for marker in ("pizzateig", "pizza dough", "baguette", "pizza stange"))
+        and not any(marker in name for marker in (
+            "pizzateig", "pizza teig", "pizza dough", "baguette", "pizza stange",
+        ))
+    ):
+        return "ready_meal"
+    # A finished Flammkuchen is a complete meal; its dough/base is a
+    # cook-at-home component. Use product format and aisle together so a
+    # chilled dough is not mistaken for a finished dish.
+    if (
+        "flammkuchen" in name
+        and any(marker in category for marker in ("tiefkuhlkost", "tiefkuehlkost", "fertiggerichte", "ready meals"))
+        and not any(marker in name for marker in ("teig", "boden", "backmischung"))
     ):
         return "ready_meal"
     if "gewurze" in category:
