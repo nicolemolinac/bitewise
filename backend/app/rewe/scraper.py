@@ -104,8 +104,8 @@ def _displayed_unit_price(text: str):
 def price_details(text: str, package_size=None, package_unit=None):
     """Return (pack checkout price, price per normalized g/ml/unit).
 
-    REWE cards often show only a reference price such as '1 kg = 11,06 €'.
-    Treating that as the package price inflates checkout totals by 1,000x.
+    REWE cards show reference prices per kg, 100g, litre, 100ml or piece.
+    Convert the reference price using the parsed package size before costing.
     """
     reference_price, reference_unit = _displayed_unit_price(text)
     checkout_text = text
@@ -118,8 +118,8 @@ def price_details(text: str, package_size=None, package_unit=None):
             size is not None and math.isfinite(size) and size > 0
             and package_unit == reference_unit
         ):
-            pack_price = reference_price * size / 1000.0
-            return round(pack_price, 2), reference_price / 1000.0
+            pack_price = reference_price * size
+            return round(pack_price, 2), reference_price
         # A €/kg or €/l reference is not a package checkout price. Remove it
         # before looking for a separate explicit pack price; if none exists,
         # leave the product unpriced rather than inventing a 1,000x cost.
