@@ -27,7 +27,7 @@ class FakeEmbeddingModel:
                     vector = [0.0, 0.0, 1.0]
                 else:
                     vector = [1.0, 0.0, 0.0]
-            elif "muesli" in value or "müsli" in value:
+            elif "haferflocken" in value or "rolled oats" in value:
                 vector = [0.0, 1.0, 0.0]
             elif "seelachsfilet" in value:
                 vector = [0.0, 0.0, 1.0]
@@ -66,11 +66,11 @@ def run():
         fries = _product("fries-1", "REWE Pommes Frites 750g", "Tiefkühlkost")
         chips = _product("chips-1", "Pommes Frites Chips", "Snacks")
         potatoes = _product("potatoes-1", "REWE Speisekartoffeln 2kg", "Obst & Gemüse")
-        muesli = _product("muesli-1", "Kölln Müsli Früchte 500g", "Brot-Cerealien-Aufstriche")
-        muesli.ingredient = "oat cereal"
+        oats = _product("oats-1", "REWE Bio Haferflocken zart 500g", "Brot-Cerealien-Aufstriche")
+        oats.ingredient = "rolled oats"
         fish = _product("fish-1", "REWE Beste Wahl Alaska Seelachsfilet 400g", "Tiefkühlkost")
         fish.ingredient = "white fish fillet"
-        db.add_all([fries, chips, potatoes, muesli, fish])
+        db.add_all([fries, chips, potatoes, oats, fish])
         db.commit()
 
         first = semantic.index_rewe_products(db, batch_size=2)
@@ -101,9 +101,9 @@ def run():
             db, "rolled oats", {"canonical": "rolled oats", "form": "unspecified"},
             limit=5, minimum_score=0.5,
         )
-        muesli_suggestion = next(row for row in oat_suggestions if row["id"] == muesli.id)
-        assert muesli_suggestion["ingredient_match_type"] == "semantic_candidate"
-        assert muesli_suggestion["semantic_match_type"] == "semantic_only"
+        oats_suggestion = next(row for row in oat_suggestions if row["id"] == oats.id)
+        assert oats_suggestion["ingredient_match_type"] == "semantic_candidate"
+        assert oats_suggestion["semantic_match_type"] == "semantic_only"
 
         fish_suggestions = semantic.semantic_product_candidates(
             db, "white fish fillet", {"canonical": "white fish fillet", "form": "fresh"},
