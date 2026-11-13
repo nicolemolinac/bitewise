@@ -67,6 +67,18 @@ def main():
     assert existing.package_size == 500 and existing.package_unit == "g"
     assert abs(existing.price_per_unit - 0.00598) < 1e-9
 
+    # The scraper can parse a checkout price but only a fallback 1 x unknown
+    # pack size. Ignore its apparently valid unit price and recompute against
+    # the previously verified package size.
+    partial_size_update = product()
+    _merge_rewe_product_data(partial_size_update, {
+        "price": 2.99, "price_per_unit": 2.99,
+        "package_size": 1, "package_unit": "unknown",
+    }, "13353", now)
+    assert partial_size_update.price == 2.99
+    assert partial_size_update.package_size == 500 and partial_size_update.package_unit == "g"
+    assert abs(partial_size_update.price_per_unit - 0.00598) < 1e-9
+
     # A valid, complete package update is accepted together with its new price.
     _merge_rewe_product_data(existing, {
         "price": 3.49, "price_per_unit": 0.00698,
