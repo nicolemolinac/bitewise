@@ -329,21 +329,21 @@ def _snapshot_float(value, default=None):
         return default
 
 
+def _snapshot_package_details(name: str, current_size: float, current_unit: str):
+    """Prefer the final explicit product-title pack size, including count multipacks."""
+    try:
+        from .rewe.scraper import package as parse_rewe_package
+        parsed_size, parsed_unit = parse_rewe_package(name or "")
+    except Exception:
+        parsed_size, parsed_unit = None, None
+    if parsed_size is not None and parsed_unit:
+        return parsed_size, parsed_unit
+    return current_size, current_unit
+
+
 def _snapshot_package_size(name: str, current_size: float, current_unit: str) -> float:
-    """Correct multi-packs such as 2x200ml and 4x50g in older scraper exports."""
-    match = re.search(r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b", name or "", re.I)
-    if not match:
-        return current_size
-    count = int(match.group(1))
-    amount = float(match.group(2).replace(",", "."))
-    source_unit = match.group(3).lower()
-    if source_unit == "kg":
-        amount *= 1000
-        source_unit = "g"
-    elif source_unit == "l":
-        amount *= 1000
-        source_unit = "ml"
-    return count * amount if source_unit == current_unit else current_size
+    """Backwards-compatible size-only wrapper around package title normalization."""
+    return _snapshot_package_details(name, current_size, current_unit)[0]
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
@@ -453,10 +453,18 @@ def _auto_import_rewe_csv_snapshot() -> None:
                 package_size = _snapshot_float(row.get("package_size"), 1.0)
                 package_size = package_size if package_size and package_size > 0 else 1.0
                 package_unit = str(row.get("package_unit") or "unit").strip()[:20]
-                package_size = _snapshot_package_size(name, package_size, package_unit)
+                package_size, package_unit = _snapshot_package_details(name, package_size, package_unit)
                 pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
                     name, package_size, package_unit, row.get("price"), row.get("price_per_unit")
                 )
+                if (
+                    pack_price is not None and math.isfinite(pack_price) and pack_price > 0
+                    and package_size is not None and math.isfinite(float(package_size)) and float(package_size) > 0
+                    and str(package_unit or "").strip().lower() not in {"", "unknown"}
+                ):
+                    normalized_price_per_unit = pack_price / float(package_size)
+                else:
+                    normalized_price_per_unit = None
                 products.append(Product(
                     supermarket="REWE",
                     external_id=(str(row.get("external_id") or "").strip() or f"csv-snapshot-{source_id}"),
@@ -612,7 +620,7 @@ def _repair_snapshot_unit_prices_once() -> None:
                 continue
             package_size = _snapshot_float(row.get("package_size"), product.package_size) or product.package_size
             package_unit = str(row.get("package_unit") or product.package_unit).strip()
-            package_size = _snapshot_package_size(name, package_size, package_unit)
+            package_size, package_unit = _snapshot_package_details(name, package_size, package_unit)
             pack_price, unit_price = _snapshot_pack_pricing(
                 name, package_size, package_unit,
                 row.get("price"), row.get("price_per_unit"),
