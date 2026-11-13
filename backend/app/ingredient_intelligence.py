@@ -459,11 +459,18 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
             return None
     profile = _profile_lookup(intelligence, ingredient)
     product_form = str(profile.get("form") or "")
-    form_compatible = _form_compatible(
-        product_form,
-        title + " " + normalize_text(product_category),
-        ingredient,
+    category_key = normalize_text(product_category)
+    whole_fresh_red_cabbage = (
+        normalize_text(ingredient) == "red cabbage"
+        and category_key == "fertiggerichte-konserven"
+        and any(term in title for term in ("rotkohl", "rotkraut", "blaukraut"))
+        and any(term in title for term in ("1 stuck", "1 stueck", "ca 1", "ca 1800"))
+        and not any(term in title for term in ("apfel", "fix fertig", "fertiggericht", "sauce", "glas"))
     )
+    # For this clear whole-produce exception, do not let the mislabeled aisle
+    # override the form evidence in the actual product title.
+    form_evidence = title if whole_fresh_red_cabbage else title + " " + category_key
+    form_compatible = _form_compatible(product_form, form_evidence, ingredient)
     category_compatible = _category_compatible(
         ingredient, product_category, title, product_form
     )
