@@ -77,7 +77,7 @@ _BASE_TERMS = {
     "red onion": ("red onion", "red onions", "rote zwiebel", "rote zwiebeln", "zwiebel rot", "rote speisezwiebel"),
     "soft tortillas": ("soft tortillas", "soft tortilla", "weizentortillas", "weizentortilla", "tortilla wraps", "wraps"),
     "curry powder": ("curry powder", "currypulver", "curry pulver", "curry gewurz", "curry gewurzmischung", "curry gemahlen"),
-    "frozen peas": ("frozen peas", "tiefkuhlerbsen", "tiefkuehlerbsen", "tk erbsen", "erbsen tiefgekuhlt", "tiefgekuhlte erbsen"),
+    "frozen peas": ("frozen peas", "tiefkuhlerbsen", "tiefkuehlerbsen", "tk erbsen", "erbsen tiefgekuhlt", "tiefgekuhlte erbsen", "gartenerbsen"),
     "firm tofu": ("firm tofu", "naturtofu", "tofu natur", "fester tofu", "tofu fest", "festtofu"),
     "sesame oil": ("sesame oil", "sesamol", "sesamoel", "geroestetes sesamol", "sesamol geroestet"),
     "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemusefond", "gemusebruehpulver", "bruehwuerfel"),
