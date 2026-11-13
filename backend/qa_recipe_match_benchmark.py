@@ -306,6 +306,10 @@ def main():
         print(f"Pantry-covered: {totals['covered']}")
         print(f"Unmatched: {totals['unmatched']}")
         print(f"Ingredients with invalid recipe units: {invalid_unit_count}")
+        assert invalid_unit_count == 0, (
+            f"Recipe benchmark found {invalid_unit_count} invalid ingredient units; "
+            "check ingredient-family inference before selecting REWE products."
+        )
         print(f"Review-only semantic product suggestions: {semantic_review_count} (NOT counted as resolved)")
         print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
         print("\n=== PER-RECIPE SUMMARY ===")
