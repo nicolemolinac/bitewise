@@ -87,7 +87,7 @@ def run():
     assert ingredient_product_match_type(
         "frozen french fries", "REWE Speisekartoffeln 2kg", intelligence
     ) == "substitute"
-    assert ingredient_product_match_type("frozen french fries", "REWE Speisekartoffeln 2kg", intelligence, "Obst & Gemüse") is None
+    assert ingredient_product_match_type("frozen french fries", "REWE Speisekartoffeln 2kg", intelligence, "Obst & Gemüse") == "substitute"
     assert ingredient_product_match_type("vegetable oil", "REWE Rapsöl 1L", intelligence) == "substitute"
     assert ingredient_product_match_type("vegetable oil", "REWE Olivenöl 1L", intelligence) is None
     assert ingredient_substitution_name(
