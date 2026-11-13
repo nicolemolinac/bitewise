@@ -99,6 +99,8 @@ def main():
         assert run is not None and run.status == "snapshot"
         source = db.get(AppSetting, "rewe_snapshot_source")
         assert source is not None and source.value == "committed-csv-snapshot"
+        metadata_repair = db.get(AppSetting, "rewe_package_metadata_repair_v2")
+        assert metadata_repair is not None, "Expected the v2 package/price repair migration to run"
 
         alete = db.query(Product).filter(
             Product.name_original.like("Alete bewusst Kinderkeks Schoko%")
@@ -122,6 +124,18 @@ def main():
             f"Expected Granini 0.75l, got {granini.package_size} {granini.package_unit}"
         )
         assert granini.price is not None and abs(granini.price - 1.59) < 0.02, granini.price
+
+        soup = db.query(Product).filter(
+            Product.name_original.like("%REWE Bio pflanzlich Gulaschsuppe 400g 380ml%")
+        ).first()
+        assert soup is not None and soup.package_size == 400 and soup.package_unit == "g"
+        assert soup.price is not None and abs(soup.price - 1.99) < 0.02, soup.price
+
+        aioli = db.query(Product).filter(
+            Product.name_original.like("%Develey Myo Aioli 235ml%")
+        ).first()
+        assert aioli is not None and aioli.package_size == 235 and aioli.package_unit == "ml"
+        assert aioli.price is None, "Do not infer a volume-pack price from a €/kg reference"
 
         wipes = db.query(Product).filter(
             Product.name_original.like("%Babywell Aqua Tücher 2x80 Stück%")
