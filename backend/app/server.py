@@ -46,11 +46,12 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
                 Product.name_normalized.ilike(pattern),
                 Product.name_original.ilike(pattern),
                 Product.translated_name.ilike(pattern),
-                Product.category.ilike(pattern),
             ]
         )
 
-    rows = self.db.query(Product).filter(or_(*clauses)).limit(240).all()
+    # Category/aisle labels are metadata, not ingredient evidence. Searching them
+    # creates noisy result sets and can push valid products beyond the candidate cap.
+    rows = self.db.query(Product).filter(or_(*clauses)).limit(600).all()
     if rows:
         # Search columns improve recall, but the actual product title must independently
         # confirm compatibility. Catalog ingredient labels can be broad or misclassified.
