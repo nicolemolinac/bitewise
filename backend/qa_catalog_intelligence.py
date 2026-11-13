@@ -7,7 +7,7 @@ from app.catalog_intelligence import search_catalog_opportunities
 from app import semantic_catalog
 
 
-def product(external_id, name, category, ingredient="meal", price=2.0):
+def product(external_id, name, category, ingredient="meal", price=2.0, package_size=400, package_unit="g"):
     return Product(
         supermarket="REWE",
         external_id=external_id,
@@ -17,10 +17,10 @@ def product(external_id, name, category, ingredient="meal", price=2.0):
         translated_name=None,
         brand=None,
         category=category,
-        package_size=400,
-        package_unit="g",
+        package_size=package_size,
+        package_unit=package_unit,
         price=price,
-        price_per_unit=price / 0.4,
+        price_per_unit=price / (package_size / 1000 if package_unit == "g" else package_size),
         availability="unknown",
         postcode_context="13353",
     )
@@ -51,7 +51,7 @@ def run():
                 if real_query == "pizza":
                     assert any("Bistro Baguette" in name for name in names), names
                     assert any("Flammkuchen" in name for name in names), names
-                    assert not any("Taco Kit" in name or "FruchtBar" in name or "Hipp" in name for name in names), names
+                    assert not any("Taco Kit" in name or "FruchtBar" in name or "Hipp" in name or "Mogli" in name for name in names), names
                 if real_query == "chili con carne":
                     assert any("Chili con Carne" in name for name in names), names
                 if real_query == "french fries":
@@ -69,6 +69,8 @@ def run():
             product("pizza-3", "Frischer Pizzateig mit Tomatensauce", "Fertiggerichte-Konserven"),
             product("pizza-4", "Knack & Back Pizza-Kit 600g", "Fertiggerichte-Konserven"),
             product("pizza-5", "Tante Fanny Frischer Flammkuchenteig 260g", "Fertiggerichte-Konserven"),
+            product("pizza-snack-1", "FruchtBar Bio-Pizza-Flieger Tomate Käse 30g", "Baby & Kind", package_size=30),
+            product("pizza-snack-2", "Mogli Bio Demeter Pizza Stangen 75g", "Süßes-Salziges", package_size=75),
             product("chili-1", "Chili con Carne 400g", "Konserven", price=2.49),
             product("chili-2", "Mexikanischer Chili Eintopf mit Rind", "Fertiggerichte", price=2.99),
             product("chili-3", "Kidney Bohnen rot", "Konserven", ingredient="kidney beans"),
@@ -92,7 +94,7 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1018
+        assert pizza["catalog_count"] == 1020
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
@@ -104,7 +106,7 @@ def run():
         assert flammkuchen["convenience_type"] == "ready_to_cook", flammkuchen
         steinofen = next(row for row in pizza["products"] if "Steinofen Pizza" in row["name_original"])
         assert steinofen["convenience_type"] == "ready_meal", steinofen
-        assert not any("Hundefutter" in name or "Taco Kit" in name for name in pizza_names), pizza_names
+        assert not any("Hundefutter" in name or "Taco Kit" in name or "FruchtBar" in name or "Mogli" in name for name in pizza_names), pizza_names
         assert all(row["convenience_type"] in {"ready_meal", "meal_kit", "ready_to_cook", "prepared_component", "catalog_product"} for row in pizza["products"])
         pizza_types = {row["convenience_type"] for row in pizza["products"]}
         assert {"meal_kit", "ready_to_cook"}.issubset(pizza_types), pizza_types
