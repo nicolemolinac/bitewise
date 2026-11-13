@@ -47,6 +47,7 @@ jobs:
               '/api/shopping',
               '/api/shopping/purchase',
               '/api/products/replace',
+              '/api/catalog/opportunities',
               '/api/rewe/refresh',
               '/api/rewe/cart/add',
               '/api/plans',
@@ -79,6 +80,8 @@ jobs:
         run: python qa_cooking_preferences.py
       - name: REWE ingredient matching and cost QA
         run: python qa_ingredient_costing.py
+      - name: Supermarket convenience discovery QA
+        run: python qa_catalog_intelligence.py
       - name: Recipe ingredient intelligence and form-aware matching QA
         run: python qa_ingredient_intelligence.py
       - name: 22-recipe ingredient matching benchmark against committed REWE catalog
