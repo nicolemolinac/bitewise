@@ -47,7 +47,7 @@ def consolidate(meals, servings_map):
             "unit": unit,
             "source_meals": list(dict.fromkeys(value["source_meals"])),
             "ingredient_intelligence": value.get("ingredient_intelligence"),
-            "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit, requirement.get("ingredient_intelligence")),
+            "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit, value.get("ingredient_intelligence")),
         }
         for (ingredient, unit), value in grouped.items()
     ]
@@ -224,7 +224,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "package_unit": None,
             "unit_cost": None,
             "unit_conversion_note": None,
-            "unit_validation": requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit),
+            "unit_validation": requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit, requirement.get("ingredient_intelligence")),
             "semantic_suggestions": [],
             "match_status": "unmatched",
             "match_reason": None,
