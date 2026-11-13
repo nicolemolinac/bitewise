@@ -49,6 +49,15 @@ def category_slug_from_url(url: str) -> str:
 SHOP_DELIVERY_URL = "https://www.rewe.de/shop/?serviceTypes=delivery"
 STATE_FILE = Path(__file__).resolve().parents[2] / "data" / "rewe_storage_state.json"
 MAX_CATEGORY_PAGES = 500
+REWE_CATEGORY_MINIMUM_PRODUCTS = {
+    # Conservative 50%-of-source-count floors. These are safety checks for
+    # destructive reconciliation, not targets for ranking or assortment.
+    "brot-cerealien-aufstriche": 2700,
+    "fleisch-wurst-fisch": 4700,
+    "obst-gemuese": 1000,
+    "kaese-eier-molkerei": 3400,
+    "tiefkuehlkost": 1350,
+}
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
@@ -1081,6 +1090,8 @@ class ReweCatalogScraper:
             "products_with_price": 0,
             "products_created": 0,
             "products_updated": 0,
+            "category_product_counts": {},
+            "category_undercoverage": {},
             "errors": [],
             "fetch_mode": mode,
             "service_type": "delivery",
@@ -1243,6 +1254,7 @@ class ReweCatalogScraper:
                                             current[key] = value
 
                         products = list(by_id.values())
+                        report["category_product_counts"][category] = len(products)
                         if not products:
                             raise RuntimeError(
                                 "No products found after localized REWE delivery page load"
@@ -1270,9 +1282,18 @@ class ReweCatalogScraper:
                 except Exception:
                     pass
 
+        report["category_undercoverage"] = {
+            category: {
+                "count": int(report["category_product_counts"].get(category, 0)),
+                "minimum": minimum,
+            }
+            for category, minimum in REWE_CATEGORY_MINIMUM_PRODUCTS.items()
+            if int(report["category_product_counts"].get(category, 0)) < minimum
+        } if set(urls) == set(REWE_CATEGORY_URLS) else {}
+        has_coverage_gap = bool(report["category_undercoverage"])
         report["status"] = (
             "failed" if not report["categories_successful"]
-            else ("partial" if report["categories_failed"] else "healthy")
+            else ("partial" if report["categories_failed"] or has_coverage_gap else "healthy")
         )
         return report
 
@@ -1294,6 +1315,7 @@ class ReweCatalogScraper:
                                 if value is not None and (current.get(key) is None or current.get(key) == ""):
                                     current[key] = value
                 products = list(by_id.values())
+                report["category_product_counts"][category] = len(products)
                 if not products:
                     raise RuntimeError("No products found")
                 self._ingest_products(report, products, upsert, postcode)
@@ -1301,7 +1323,19 @@ class ReweCatalogScraper:
             except Exception as exc:
                 report["categories_failed"] += 1
                 report["errors"].append({"category": category, "error": str(exc)[:300]})
-        report["status"] = "failed" if not report["categories_successful"] else ("partial" if report["categories_failed"] else "healthy")
+        report["category_undercoverage"] = {
+            category: {
+                "count": int(report["category_product_counts"].get(category, 0)),
+                "minimum": minimum,
+            }
+            for category, minimum in REWE_CATEGORY_MINIMUM_PRODUCTS.items()
+            if int(report["category_product_counts"].get(category, 0)) < minimum
+        } if set(urls) == set(REWE_CATEGORY_URLS) else {}
+        has_coverage_gap = bool(report["category_undercoverage"])
+        report["status"] = (
+            "failed" if not report["categories_successful"]
+            else ("partial" if report["categories_failed"] or has_coverage_gap else "healthy")
+        )
         return report
 
     def run(self, upsert, postcode, urls=REWE_CATEGORY_URLS):
