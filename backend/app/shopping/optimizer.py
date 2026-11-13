@@ -157,7 +157,10 @@ _SPOON_GRAMS_PER_TSP = {
 }
 
 # Approximate density for the common condiment whose recipe and pack units differ.
-_DENSITY_G_PER_ML = {"mayonnaise": 0.95}
+_DENSITY_G_PER_ML = {
+    "mayonnaise": 0.95,
+    "caesar dressing": 1.0,
+}
 
 
 def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
