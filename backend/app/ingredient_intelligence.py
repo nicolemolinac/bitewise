@@ -451,7 +451,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     # to fresh fillets; do not silently change the recipe's thawing/preparation.
     if (
         normalize_text(ingredient) == "white fish fillet"
-        and normalize_text(product_category) == "tiefkuehlkost"
+        and normalize_text(product_category) in {"tiefkuhlkost", "tiefkuehlkost"}
         and any(term in title for term in ("seelachsfilet", "kabeljaufilet", "pollack fillet"))
         and not any(term in title for term in (
             "paella", "pfanne", "fertiggericht", "fish burger", "fischburger",
