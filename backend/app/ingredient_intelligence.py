@@ -110,6 +110,10 @@ def _form_compatible(form: str, title: str) -> bool:
         return False
     if form in {"grated", "gerieben"} and not any(token in title for token in ("gerieben", "geraspelt", "grated")):
         return False
+    if form == "soft" and any(token in title for token in ("chips", "nacho", "hard shell", "taco shell", "knusprig", "crunchy")):
+        return False
+    if form == "hard" and not any(token in title for token in ("shell", "schale", "knusprig", "crunchy", "hard taco")):
+        return False
     if form in {"powder", "pulver"} and not any(token in title for token in ("pulver", "powder", "gemahlen")):
         return False
     if form in {"pre cooked", "precooked"} and any(token in title for token in ("roh", "raw")):
