@@ -44,6 +44,13 @@ def main():
     assert "rewe_refresh_safe" in inspect.getsource(refresh_routes[0].endpoint), (
         "The active API route must delegate to the guarded partial-refresh merge"
     )
+    from app import rewe_refresh
+    original_safe_handler = rewe_refresh.rewe_refresh_safe
+    rewe_refresh.rewe_refresh_safe = lambda: {"guarded_refresh": True}
+    try:
+        assert refresh_routes[0].endpoint() == {"guarded_refresh": True}
+    finally:
+        rewe_refresh.rewe_refresh_safe = original_safe_handler
 
     now = datetime(2026, 11, 13, 12, 0, 0)
     existing = product()
