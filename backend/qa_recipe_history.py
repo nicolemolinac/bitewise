@@ -115,8 +115,15 @@ def main():
             "source_concept_id": concept_two["id"],
             "name": "Persistent QA Curry",
             "meal_type": "dinner",
-            "ingredients": [["rice", 100, "g"]],
-            "steps": [{"text": "Cook curry.", "minutes": 15}],
+            "base_servings": 2,
+            "ingredients": [["frozen french fries", 300, "g"]],
+            "ingredient_intelligence": {"frozen french fries": {
+                "canonical": "potato fries", "name_en": "frozen french fries",
+                "name_de": "Tiefkühl-Pommes", "aliases": ["Pommes Frites", "Tiefkühlpommes"],
+                "form": "frozen", "unit_dimension": "mass",
+                "suggested_substitutions": ["fresh potatoes"],
+            }},
+            "steps": [{"text": "Add frozen french fries to the basket.", "minutes": 5}],
         }
         saved = call("POST", "/api/recipe-history", {"records": [
             {"record_key": concept["id"], "record_type": "concept", "status": "expanded", "meal": concept},
@@ -158,6 +165,19 @@ def main():
             "INSERT INTO product_overrides (ingredient, product_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
             ("rice", cursor.lastrowid),
         )
+        potato_cursor = conn.execute("""INSERT INTO products (
+            supermarket, external_id, ingredient, name_original, name_normalized,
+            brand, category, package_size, package_unit, price, price_per_unit,
+            currency, product_url, availability, postcode_context, first_seen_at,
+            last_seen_at, last_checked_at, last_price
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)""",
+        ("REWE", "qa-potatoes-2kg", "potatoes", "REWE Speisekartoffeln 2kg", "speisekartoffeln",
+         "REWE", "Obst & Gemüse", 2, "kg", 3.49, 1.745, "EUR",
+         "https://www.rewe.de/shop/p/speisekartoffeln/654321", "available", "13353", 3.49))
+        conn.execute(
+            "INSERT INTO product_overrides (ingredient, product_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            ("frozen french fries", potato_cursor.lastrowid),
+        )
         conn.commit()
 
     # A fresh server process must see the same durable history and REWE product row.
@@ -169,6 +189,20 @@ def main():
         assert saved_recipe_ids == {first["id"], second["id"]}, saved_recipe_ids
         persisted_recipe = next(row["meal"] for row in history["records"] if row["record_type"] == "recipe" and row["meal"].get("id") == first["id"])
         assert persisted_recipe["ingredient_intelligence"]["rice"]["name_de"] == "Reis"
+
+        reconciled = call("POST", "/api/recipe-history/reconcile", {})
+        assert reconciled["updated"] == 2
+        refreshed = call("GET", "/api/recipe-history")
+        adapted_recipe = next(row["meal"] for row in refreshed["records"] if row["record_key"] == "recipe:" + concept_two["id"])
+        assert adapted_recipe["ingredients"][0][0] == "fresh potatoes"
+        assert adapted_recipe["costing"]["substituted_ingredients"] == 1
+        assert any("Fresh potatoes need longer than frozen fries" in step["text"] for step in adapted_recipe["steps"])
+        # Reconciliation must restore the original ingredients first, then adapt once.
+        call("POST", "/api/recipe-history/reconcile", {})
+        refreshed_again = call("GET", "/api/recipe-history")
+        adapted_again = next(row["meal"] for row in refreshed_again["records"] if row["record_key"] == "recipe:" + concept_two["id"])
+        assert sum("Fresh potatoes need longer than frozen fries" in step["text"] for step in adapted_again["steps"]) == 1
+
         basket = call("POST", "/api/shopping", {
             "meal_ids": [first["id"]],
             "servings": {first["id"]: 2},
