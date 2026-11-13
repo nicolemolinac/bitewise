@@ -149,8 +149,6 @@ def run():
     fish_test_match = ingredient_product_match_type(
         "white fish fillet", fish_test_title, {"form": "fresh"}, "tiefkuehlkost"
     )
-    print("DEBUG FROZEN FISH:", fish_test_match, normalize_text("tiefkuehlkost"),
-          normalize_text(fish_test_title), _ingredient_specific_exclusions("white fish fillet", normalize_text(fish_test_title)))
     assert fish_test_match == "suggested_substitution"
     assert ingredient_product_match_type(
         "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
