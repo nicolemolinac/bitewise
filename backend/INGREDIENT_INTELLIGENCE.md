@@ -13,8 +13,10 @@ Shopping-time work is local and deterministic:
 1. Validate ingredient units and preserve requested product forms.
 2. Retrieve REWE candidates using multilingual recipe metadata and catalog title/category fields.
 3. Prefer confirmed exact matches, then curated/AI-approved substitutions.
-4. AI-proposed substitutions are treated as hints, not trusted instructions. Only curated,
-   high-confidence equivalences can be applied automatically.
+4. AI-proposed substitutions are review-only. Same-form, curated high-confidence equivalences
+   (such as neutral vegetable oil to rapeseed oil) can be costed automatically when no exact
+   product exists. Cross-form alternatives (such as frozen fries to fresh potatoes) always need
+   explicit user confirmation and recipe-step adaptation.
 5. If lexical retrieval has no confident match, use local multilingual embeddings to suggest
    possible products. Semantic suggestions are review-only: they are not costed or added to REWE
    until the user explicitly chooses one.
