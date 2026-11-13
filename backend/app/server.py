@@ -250,7 +250,7 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
                 pantry_used = float(row.get("pantry_used") or 0)
                 step_replacement = original + " and " + replacement if pantry_used > 0 else replacement
                 step_text = re.sub(
-                    r"(?<![\\w])" + re.escape(original) + r"(?![\\w])",
+                    r"(?<![\w])" + re.escape(original) + r"(?![\w])",
                     step_replacement, step_text, flags=re.IGNORECASE,
                 )
             step["text"] = step_text
