@@ -143,7 +143,7 @@ def run():
     assert ingredient_product_match_type("tomatoes", "Alnatura Bio Passierte Tomaten 500g", {"form": "fresh"}, "fertiggerichte-konserven") is None
     assert ingredient_product_match_type("feta cheese", "Maggi Querbeet Ofen-Gemüse mit Feta 27g", {}, "fertiggerichte-konserven") is None
     assert ingredient_product_match_type(
-        "frozen french fries", "REWE Pommes Frites 750g", intelligence
+        "frozen french fries", "REWE Pommes Frites 750g", intelligence, "tiefkuehlkost"
     ) == "exact"
     assert ingredient_product_match_type("frozen french fries", "Pommes Frites Chips", intelligence) is None
     assert ingredient_product_match_type(
