@@ -2,11 +2,12 @@ import asyncio
 import json
 import os
 import re
+import threading
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -14,12 +15,13 @@ from sqlalchemy import or_
 
 from .ai.gemini import GeminiService
 from .ai.image_resolver import resolve_meal_images
-from .database import AppSetting, CatalogRun, PantryItem, Plan, PlannedMeal, Product, ProductOverride, RecipeHistory, SessionLocal, ShoppingState, UserEvent
+from .database import AppSetting, CatalogRun, PantryItem, Plan, PlannedMeal, Product, ProductOverride, ProductSemanticEmbedding, RecipeHistory, SessionLocal, ShoppingState, UserEvent
 from .recommendations.engine import score_meal
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
 from .shopping.optimizer import STRATEGIES, build_basket, consolidate
+from .catalog_intelligence import search_catalog_opportunities
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 app = FastAPI(title='Bitewise API', version='2.0')
@@ -191,6 +193,108 @@ def update_settings(payload:SettingsIn):
    else:db.add(AppSetting(key=k,value=v))
   db.commit();return {'ok':True,**values}
  finally:db.close()
+@app.get('/api/catalog/opportunities')
+def catalog_opportunities(q: str = Query(default='', max_length=160), limit: int = Query(default=12, ge=1, le=30)):
+ db=SessionLocal()
+ try:
+  return search_catalog_opportunities(db, q, limit)
+ finally:
+  db.close()
+
+# Optional local multilingual vectors improve discovery beyond product-name overlap.
+# The index is built only when the user requests it; ordinary lexical search
+# remains available and never waits for model downloads.
+_SEMANTIC_INDEX_GUARD = threading.Lock()
+_SEMANTIC_INDEX_STATE = {
+    "running": False, "processed": 0, "pending": 0, "total": 0,
+    "error": None, "started": False,
+}
+
+
+def _semantic_index_status(db):
+    from .semantic_catalog import MODEL_NAME
+    total = db.query(Product).filter(Product.supermarket == "REWE").count()
+    indexed = db.query(ProductSemanticEmbedding).filter(
+        ProductSemanticEmbedding.model_name == MODEL_NAME
+    ).count()
+    return {
+        **_SEMANTIC_INDEX_STATE,
+        "indexed": indexed,
+        "total": total,
+        "model": MODEL_NAME,
+        "complete": total > 0 and indexed >= total,
+    }
+
+
+def _build_semantic_index():
+    db = None
+    try:
+        db = SessionLocal()
+        from .semantic_catalog import index_rewe_products
+        total = db.query(Product).filter(Product.supermarket == "REWE").count()
+        _SEMANTIC_INDEX_STATE.update({
+            "running": True, "processed": 0, "pending": total,
+            "total": total, "error": None, "started": True,
+        })
+
+        def report_progress(processed, pending, total_products):
+            _SEMANTIC_INDEX_STATE.update({
+                "processed": int(processed),
+                "pending": int(pending),
+                "total": int(total_products),
+            })
+
+        result = index_rewe_products(db, progress_callback=report_progress)
+        _SEMANTIC_INDEX_STATE.update({
+            "running": False,
+            "processed": int(result.get("products_indexed", 0)),
+            "pending": 0,
+            "total": int(result.get("products_seen", total)),
+            "error": None,
+            "started": True,
+        })
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        _SEMANTIC_INDEX_STATE.update({
+            "running": False, "error": str(exc), "started": True,
+        })
+    finally:
+        if db is not None:
+            db.close()
+        _SEMANTIC_INDEX_GUARD.release()
+
+
+@app.get('/api/catalog/semantic-index/status')
+def semantic_catalog_index_status():
+    db = SessionLocal()
+    try:
+        return _semantic_index_status(db)
+    finally:
+        db.close()
+
+
+@app.post('/api/catalog/semantic-index')
+def start_semantic_catalog_index(background_tasks: BackgroundTasks):
+    if not _SEMANTIC_INDEX_GUARD.acquire(blocking=False):
+        db = SessionLocal()
+        try:
+            return {"started": False, **_semantic_index_status(db)}
+        finally:
+            db.close()
+    _SEMANTIC_INDEX_STATE.update({
+        "running": True, "processed": 0, "pending": 0,
+        "total": 0, "error": None, "started": True,
+    })
+    background_tasks.add_task(_build_semantic_index)
+    db = SessionLocal()
+    try:
+        return {"started": True, **_semantic_index_status(db)}
+    finally:
+        db.close()
+
 @app.get('/api/products')
 def products(q:str='',ingredient:str|None=None):
  db=SessionLocal()
@@ -250,8 +354,12 @@ def rewe_status():
  finally:db.close()
 @app.post('/api/rewe/refresh')
 def rewe_refresh():
- db=SessionLocal();postcode=setting(db,'postcode','13353');run=CatalogRun(status='running');db.add(run);db.commit()
+ if not _SEMANTIC_INDEX_GUARD.acquire(blocking=False):
+  raise HTTPException(409, 'REWE refresh and semantic indexing cannot run at the same time.')
+ db=None
+ run=None
  try:
+  db=SessionLocal();postcode=setting(db,'postcode','13353');run=CatalogRun(status='running');db.add(run);db.commit()
   def upsert(data,current_postcode):
    existing=db.query(Product).filter_by(supermarket='REWE',external_id=data['external_id']).first();now=datetime.utcnow()
    if existing:
@@ -261,8 +369,17 @@ def rewe_refresh():
     existing.postcode_context=current_postcode;existing.last_seen_at=now;existing.last_checked_at=now;db.flush();return False
    db.add(Product(supermarket='REWE',postcode_context=current_postcode,**data));db.flush();return True
   report=ReweCatalogScraper().run(upsert,postcode);run.status=report['status'];run.products_seen=report['products_found'];run.errors=len(report['errors']);run.categories_processed=report['categories_processed'];run.categories_successful=report['categories_successful'];run.categories_failed=report['categories_failed'];run.finished_at=datetime.utcnow();db.commit();return {'ok':report['status']!='failed',**report,'message':'Manual public-category refresh. Prices are a catalog snapshot, not real-time checkout data.'}
- except Exception as exc:run.status='failed';run.errors=max(1,run.errors or 0);run.finished_at=datetime.utcnow();db.commit();raise HTTPException(502,f'REWE refresh failed: {str(exc)[:180]}')
- finally:db.close()
+ except Exception as exc:
+  if db is not None:
+   try:
+    if run is not None:
+     run.status='failed';run.errors=max(1,run.errors or 0);run.finished_at=datetime.utcnow();db.commit()
+    else:db.rollback()
+   except Exception:db.rollback()
+  raise HTTPException(502,f'REWE refresh failed: {str(exc)[:180]}')
+ finally:
+  if db is not None:db.close()
+  _SEMANTIC_INDEX_GUARD.release()
 @app.get('/api/shopping/state')
 def get_shopping_state():
  db=SessionLocal()

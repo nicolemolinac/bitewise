@@ -103,6 +103,7 @@ _COUNT_TO_GRAMS = {
     "tomato": 120,
     "carrot": 70,
     "bell pepper": 150,
+    "romaine lettuce": 100,
     "lemon": 100,
     "lime": 70,
     "apple": 180,
@@ -124,6 +125,14 @@ def _ingredient_count_weight(ingredient):
         if terms.intersection(ingredient_aliases(canonical)):
             return grams
     return None
+
+
+# Approximate densities are explicit and restricted to these common
+# emulsified dressings; do not apply a generic mass/volume conversion to foods.
+_MASS_VOLUME_DENSITY_G_PER_ML = {
+    "mayonnaise": 0.95,
+    "caesar dressing": 1.0,
+}
 
 
 _SPOON_GRAMS_PER_TSP = {
@@ -148,6 +157,21 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
     ingredient_key = normalize_text(ingredient)
     # consolidate() converts tsp/tbsp to ml. Use a disclosed average density only
     # for common dry seasonings that REWE sells by mass.
+    density = _MASS_VOLUME_DENSITY_G_PER_ML.get(ingredient_key)
+    if density and density > 0:
+        if source in {"g", "kg"} and target in {"ml", "l"}:
+            grams = float(quantity) * (1000 if source == "kg" else 1)
+            ml = grams / density
+            return (ml / 1000 if target == "l" else ml), (
+                f"Estimated density {density:g} g/ml for {ingredient}."
+            )
+        if source in {"ml", "l"} and target in {"g", "kg"}:
+            ml = float(quantity) * (1000 if source == "l" else 1)
+            grams = ml * density
+            return (grams / 1000 if target == "kg" else grams), (
+                f"Estimated density {density:g} g/ml for {ingredient}."
+            )
+
     grams_per_tsp = _SPOON_GRAMS_PER_TSP.get(ingredient_key)
     if source == "ml" and target in {"g", "kg"} and grams_per_tsp is not None:
         grams = float(quantity) * grams_per_tsp / 5.0

@@ -8,11 +8,12 @@ on:
       - chatgpt/complete-bitewise-mvp
       - chatgpt/qa-bitewise
       - feat/catalog-strict-matching-costing-20261106
+      - fix/ingredient-intelligence-strict-matching-20261113
   pull_request:
 
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -46,6 +47,9 @@ jobs:
               '/api/shopping',
               '/api/shopping/purchase',
               '/api/products/replace',
+              '/api/catalog/opportunities',
+              '/api/catalog/semantic-index/status',
+              '/api/catalog/semantic-index',
               '/api/rewe/refresh',
               '/api/rewe/cart/add',
               '/api/plans',
@@ -78,9 +82,11 @@ jobs:
         run: python qa_cooking_preferences.py
       - name: REWE ingredient matching and cost QA
         run: python qa_ingredient_costing.py
+      - name: Supermarket convenience discovery QA
+        run: python qa_catalog_intelligence.py
       - name: Recipe ingredient intelligence and form-aware matching QA
         run: python qa_ingredient_intelligence.py
-      - name: 20-recipe ingredient matching benchmark against committed REWE catalog
+      - name: 22-recipe ingredient matching benchmark against committed REWE catalog
         env:
           BITEWISE_BENCHMARK_ISOLATED: 'true'
         run: python qa_recipe_match_benchmark.py

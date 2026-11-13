@@ -22,7 +22,7 @@ from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
-from .ingredient_intelligence import ingredient_candidate_search_terms, ingredient_product_match_type, ingredient_substitution_name, ingredient_suggested_substitution_name
+from .ingredient_intelligence import ingredient_candidate_search_terms, ingredient_product_match_type, ingredient_substitution_name, ingredient_suggested_substitution_name, normalize_text
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -46,11 +46,18 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
                 Product.name_normalized.ilike(pattern),
                 Product.name_original.ilike(pattern),
                 Product.translated_name.ilike(pattern),
-                Product.category.ilike(pattern),
             ]
         )
 
-    rows = self.db.query(Product).filter(or_(*clauses)).limit(240).all()
+    # Category/aisle labels are metadata, not ingredient evidence. Searching them
+    # creates noisy result sets and can push valid products beyond the candidate cap.
+    # Search the complete REWE catalog. A global LIMIT can silently hide
+    # valid products behind broad aliases (e.g. "wraps" or "cheese"); strict
+    # title/form validation below is the quality gate, not a truncated pool.
+    rows = self.db.query(Product).filter(
+        Product.supermarket == "REWE",
+        or_(*clauses),
+    ).all()
     if rows:
         # Search columns improve recall, but the actual product title must independently
         # confirm compatibility. Catalog ingredient labels can be broad or misclassified.
@@ -156,74 +163,117 @@ def _inherit_concept_photo(recipe: dict, concept: dict) -> dict:
 
 
 def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
-    """Apply explicit catalog substitutions to ingredients and cooking steps."""
+    """Apply validated, recipe-specific substitutions and their preparation changes."""
     import re
 
+    intelligence = recipe.get("ingredient_intelligence") or {}
     adaptations = []
-    replacements = []
+    replacement_by_name = {}
     for row in basket:
         if row.get("match_status") != "substituted":
             continue
         product = row.get("product") or {}
         original = str(row.get("ingredient") or "").strip()
-        replacement = str(product.get("ingredient_substitute") or product.get("ingredient") or product.get("name_normalized") or "").strip()
+        replacement = str(
+            product.get("ingredient_substitute")
+            or product.get("ingredient")
+            or product.get("name_normalized")
+            or ""
+        ).strip()
         if not original or not replacement:
             continue
-        replacements.append((original, replacement))
-        adaptations.append({
+        profile = intelligence.get(normalize_text(original), {}) if isinstance(intelligence, dict) else {}
+        if not isinstance(profile, dict):
+            profile = {}
+        options = profile.get("substitution_options") or []
+        selected_option = next(
+            (option for option in options
+             if isinstance(option, dict)
+             and normalize_text(option.get("name")) == normalize_text(replacement)),
+            None,
+        )
+        if selected_option is None:
+            # Deterministic, curated substitutions can still be applied without
+            # recipe-side metadata. Unknown semantic suggestions are not auto-applied.
+            selected_option = {}
+        ratio = selected_option.get("quantity_ratio", 1)
+        try:
+            ratio = float(ratio)
+        except (TypeError, ValueError):
+            ratio = 1.0
+        if not 0.1 <= ratio <= 5:
+            ratio = 1.0
+        preparation = str(selected_option.get("preparation_adjustment") or "").strip()
+        adaptation = {
             "ingredient": original,
             "replacement": replacement,
             "product_name": product.get("name_original"),
-            "reason": row.get("match_reason"),
-        })
-
-    for adaptation in adaptations:
-        original = str(adaptation.get("ingredient") or "").strip().lower()
-        replacement = str(adaptation.get("replacement") or "").strip().lower()
-        if original in {"frozen french fries", "french fries"} and any(token in replacement for token in ("fresh potato", "potato", "kartoffel")):
-            adaptation["preparation_adjustment"] = "Cut fresh potatoes into evenly sized fries, rinse briefly, dry very thoroughly and coat lightly with oil. Cook using the recipe’s selected appliance until golden and tender; fresh potatoes need longer than frozen fries. If using an air fryer, use about 190°C for 20–25 minutes, shaking halfway. Adjust for thickness and appliance."
-    if replacements:
-        adapted_ingredients = []
-        substitution_rows = {
-            str(row.get("ingredient") or "").strip().lower(): row
-            for row in basket if row.get("match_status") == "substituted"
+            "reason": selected_option.get("reason") or row.get("match_reason"),
+            "quantity_ratio": ratio,
         }
+        if preparation:
+            adaptation["preparation_adjustment"] = preparation
+        adaptations.append(adaptation)
+        replacement_by_name[normalize_text(original)] = (replacement, ratio, preparation, row)
+
+    if replacement_by_name:
+        adapted_ingredients = []
         for item in recipe.get("ingredients") or []:
-            if isinstance(item, (list, tuple)) and len(item) >= 3:
-                name, quantity, unit = item[0], item[1], item[2]
-                row = substitution_rows.get(str(name).strip().lower())
-                if row:
-                    replacement = str((row.get("product") or {}).get("ingredient_substitute") or "")
-                    pantry_used = float(row.get("pantry_used") or 0)
-                    needed = float(row.get("needed_quantity") or 0)
-                    if pantry_used > 0:
-                        adapted_ingredients.append([name, pantry_used, unit])
-                        if needed > 0:
-                            adapted_ingredients.append([replacement, needed, unit])
-                    else:
-                        adapted_ingredients.append([replacement, quantity, unit])
-                else:
-                    adapted_ingredients.append([name, quantity, unit])
-            else:
+            if not isinstance(item, (list, tuple)) or len(item) < 3:
                 adapted_ingredients.append(item)
+                continue
+            name, quantity, unit = item[0], item[1], item[2]
+            selected = replacement_by_name.get(normalize_text(name))
+            if not selected:
+                adapted_ingredients.append(list(item))
+                continue
+            replacement, ratio, _, row = selected
+            try:
+                original_quantity = float(quantity)
+                pantry_used = max(0.0, float(row.get("pantry_used") or 0))
+                needed = max(0.0, float(row.get("needed_quantity") or 0))
+                base_servings = max(0.1, float(recipe.get("base_servings") or 2))
+                basket_servings = max(0.1, float(row.get("servings") or base_servings))
+                # The basket quantity may be scaled to planned servings. Preserve
+                # the recipe's own baseline quantity when adapting the stored recipe.
+                replacement_quantity = original_quantity * ratio
+                if pantry_used > 0 and needed > 0 and original_quantity > 0:
+                    pantry_fraction = min(1.0, pantry_used / max(pantry_used + needed, 0.0001))
+                    adapted_ingredients.append([name, round(original_quantity * pantry_fraction, 2), unit])
+                    adapted_ingredients.append([replacement, round(replacement_quantity * (1 - pantry_fraction), 2), unit])
+                else:
+                    adapted_ingredients.append([replacement, round(replacement_quantity, 2), unit])
+            except (TypeError, ValueError):
+                adapted_ingredients.append([replacement, quantity, unit])
         recipe["ingredients"] = adapted_ingredients
 
         for step in recipe.get("steps") or []:
             if not isinstance(step, dict):
                 continue
             step_text = str(step.get("text") or "")
-            for original, replacement in replacements:
-                row = substitution_rows.get(original.lower(), {})
+            for original_key, (replacement, _, _, row) in replacement_by_name.items():
+                original = str(row.get("ingredient") or original_key)
                 pantry_used = float(row.get("pantry_used") or 0)
                 step_replacement = original + " and " + replacement if pantry_used > 0 else replacement
-                step_text = re.sub(r"(?<![\w])" + re.escape(original) + r"(?![\w])", step_replacement, step_text, flags=re.IGNORECASE)
+                step_text = re.sub(
+                    r"(?<![\w])" + re.escape(original) + r"(?![\w])",
+                    step_replacement, step_text, flags=re.IGNORECASE,
+                )
             step["text"] = step_text
 
-    preparation_steps = [row.get("preparation_adjustment") for row in adaptations if row.get("preparation_adjustment")]
-    if preparation_steps:
-        steps = recipe.setdefault("steps", [])
-        if isinstance(steps, list) and not any("Fresh potatoes need longer than frozen fries" in str(step.get("text") or "") for step in steps if isinstance(step, dict)):
-            steps.insert(0, {"text": preparation_steps[0], "minutes": 8})
+    preparation_steps = [
+        adaptation.get("preparation_adjustment")
+        for adaptation in adaptations
+        if adaptation.get("preparation_adjustment")
+    ]
+    steps = recipe.setdefault("steps", [])
+    if preparation_steps and isinstance(steps, list):
+        existing = " ".join(
+            str(step.get("text") or "") for step in steps if isinstance(step, dict)
+        ).casefold()
+        for instruction in preparation_steps:
+            if instruction.casefold() not in existing:
+                steps.insert(0, {"text": instruction, "minutes": 5})
     recipe["adaptations"] = adaptations
     return adaptations
 
@@ -371,19 +421,33 @@ async def save_recipe_history(request: Request):
 
 
 @app.post("/api/recipe-history/reconcile")
-def reconcile_saved_recipe_catalog_matches(request: Request):
-    """Rebuild saved recipe matches after a user confirms a catalog suggestion."""
+async def reconcile_saved_recipe_catalog_matches(request: Request):
+    """Re-run catalog matching for selected saved recipes, or all saved recipes when no selection is supplied."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    requested_keys = payload.get("record_keys") if isinstance(payload, dict) else None
+    if requested_keys is not None and (
+        not isinstance(requested_keys, list)
+        or not all(isinstance(key, str) and key.strip() for key in requested_keys)
+    ):
+        raise HTTPException(422, "record_keys must be a list of non-empty recipe history keys")
+    requested_keys = list(dict.fromkeys(requested_keys or []))[:100] if requested_keys is not None else None
+
     db = SessionLocal()
     try:
         owner = _history_owner(request)
-        rows = (
+        query = (
             db.query(RecipeHistory)
             .filter_by(user_id=owner, record_type="recipe")
             .filter(RecipeHistory.status.in_(["saved", "cooked"]))
-            .order_by(RecipeHistory.updated_at.desc())
-            .limit(100)
-            .all()
         )
+        if requested_keys is not None:
+            if not requested_keys:
+                return {"ok": True, "updated": 0, "records": []}
+            query = query.filter(RecipeHistory.record_key.in_(requested_keys))
+        rows = query.order_by(RecipeHistory.updated_at.desc()).limit(100).all()
         overrides = {
             row.ingredient: row.product_id
             for row in db.query(main_module.ProductOverride).all()

@@ -18,7 +18,10 @@ import numpy as np
 from sqlalchemy import func
 
 from .database import Product, ProductSemanticEmbedding
-from .ingredient_intelligence import _form_compatible, ingredient_product_match_type, normalize_text
+from .ingredient_intelligence import (
+    _category_compatible, _form_compatible, _ingredient_specific_exclusions,
+    ingredient_product_match_type, normalize_text,
+)
 
 logger = logging.getLogger(__name__)
 MODEL_NAME = os.getenv("BITEWISE_EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
@@ -77,8 +80,10 @@ def _cached_query_vector(query_text: str) -> tuple[float, ...]:
     return tuple(float(value) for value in vector)
 
 
-def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
+def index_rewe_products(db, batch_size: int = 128, force: bool = False,
+                        progress_callback=None) -> dict:
     """Incrementally embed new/changed REWE products and persist their vectors."""
+    global _INDEX_CACHE
     products = db.query(Product).filter(Product.supermarket == "REWE").all()
     existing = {row.product_id: row for row in db.query(ProductSemanticEmbedding).all()}
     pending = []
@@ -90,7 +95,8 @@ def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
             pending.append((product, document, digest))
 
     indexed = 0
-    for start in range(0, len(pending), max(1, batch_size)):
+    batch_count = (len(pending) + max(1, batch_size) - 1) // max(1, batch_size)
+    for batch_number, start in enumerate(range(0, len(pending), max(1, batch_size)), start=1):
         batch = pending[start:start + max(1, batch_size)]
         vectors = list(_model().embed([document for _, document, _ in batch], batch_size=batch_size))
         for (product, _, digest), vector in zip(batch, vectors):
@@ -104,11 +110,15 @@ def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
             row.vector_json = json.dumps([float(value) for value in vector], separators=(",", ":"))
             indexed += 1
         db.commit()
+        if progress_callback is not None:
+            progress_callback(min(start + len(batch), len(pending)), len(pending), len(products))
     current_ids = {product.id for product in products}
     for product_id, row in existing.items():
         if product_id not in current_ids:
             db.delete(row)
     db.commit()
+    # The in-process matrix must reflect changed/deleted vectors immediately.
+    _INDEX_CACHE = None
     return {
         "model": MODEL_NAME,
         "products_seen": len(products),
@@ -137,6 +147,58 @@ def _catalog_embedding_matrix(db):
         return matrix, product_ids
 
 
+
+def semantic_catalog_candidates(db, query: str, limit: int = 120,
+                                minimum_score: float = 0.58) -> list[dict]:
+    """Return local semantic candidates for dish/convenience discovery.
+
+    Unlike ingredient matching, this is intentionally a broad discovery layer:
+    semantic similarity only ranks candidates and never authorizes substitutions.
+    """
+    try:
+        matrix, product_ids = _catalog_embedding_matrix(db)
+        if matrix is None or not product_ids:
+            return []
+        query_vector = np.asarray(_cached_query_vector(_query_text(query)), dtype=np.float32)
+        norms = np.linalg.norm(matrix, axis=1) * max(float(np.linalg.norm(query_vector)), 1e-12)
+        scores = np.divide(
+            matrix @ query_vector, norms,
+            out=np.zeros(len(product_ids), dtype=np.float32), where=norms > 0,
+        )
+        ranked = []
+        # Fetch a bounded candidate set in one query instead of N ORM lookups.
+        candidate_indices = np.argsort(scores)[::-1][:max(1, min(int(limit) * 4, 400))]
+        candidate_ids = [int(product_ids[int(index)]) for index in candidate_indices]
+        products = {
+            product.id: product for product in db.query(Product).filter(
+                Product.id.in_(candidate_ids), Product.supermarket == "REWE"
+            ).all()
+        } if candidate_ids else {}
+        for index in candidate_indices:
+            score = float(scores[index])
+            if score < minimum_score:
+                break
+            product_id = int(product_ids[int(index)])
+            product = products.get(product_id)
+            if product is None:
+                continue
+            ranked.append({
+                "id": product.id,
+                "semantic_similarity": round(score, 4),
+            })
+            if len(ranked) >= max(1, int(limit)):
+                break
+        return ranked
+    except Exception as exc:
+        # A missing/temporarily unavailable vector table must not poison the
+        # caller's SQLAlchemy session or break the lexical fallback.
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.warning("Local semantic meal discovery unavailable; using lexical matching only: %s", exc)
+        return []
+
 def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
                                 limit: int = 5, minimum_score: float = 0.78) -> list[dict]:
     """Return review-only semantic candidates; callers must not auto-add these."""
@@ -151,23 +213,48 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
         profile = intelligence if isinstance(intelligence, dict) else {}
         form = str(profile.get("form") or "")
         ranked = []
-        for index in np.argsort(scores)[::-1]:
+        # Score the complete indexed REWE matrix, then fetch a bounded top
+        # candidate pool in one SQL query. This avoids thousands of per-product
+        # ORM round trips while retaining broad coverage across the full catalog.
+        candidate_indices = np.argsort(scores)[::-1][
+            :max(400, min(max(1, int(limit)) * 200, 2000))
+        ]
+        candidate_ids = [int(product_ids[int(index)]) for index in candidate_indices]
+        candidate_products = {
+            product.id: product for product in db.query(Product).filter(
+                Product.id.in_(candidate_ids), Product.supermarket == "REWE"
+            ).all()
+        } if candidate_ids else {}
+        for index in candidate_indices:
             score = float(scores[index])
             if score < minimum_score:
                 break
-            product = db.get(Product, product_ids[int(index)])
-            if product is None or product.supermarket != "REWE":
+            product = candidate_products.get(int(product_ids[int(index)]))
+            if product is None:
                 continue
             title = " ".join(str(value or "") for value in (
                 product.name_original, product.name_normalized, product.translated_name, product.category
             ))
+            normalized_product_text = normalize_text(title)
             form_compatible = _form_compatible(
                 form, normalize_text(title + " " + str(product.category or "")), ingredient
+            )
+            category_compatible = _category_compatible(
+                ingredient, product.category or "", title, form
             )
             curated_match = ingredient_product_match_type(
                 ingredient, title, intelligence, product.category or ""
             )
-            if not form_compatible and curated_match not in {"substitute", "suggested_substitution"}:
+            if _ingredient_specific_exclusions(ingredient, normalized_product_text):
+                continue
+            # Exact/curated substitutions retain their explicit cross-form
+            # permission (e.g. fresh potatoes for frozen fries, frozen plain
+            # fish fillets for fresh fish). A semantic-only result is reviewable
+            # only when both product form and catalog category are compatible.
+            curated_cross_form = curated_match in {"substitute", "suggested_substitution"}
+            if not category_compatible and not curated_cross_form:
+                continue
+            if not form_compatible and not curated_cross_form:
                 continue
             if product.price is None or str(product.availability or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
@@ -194,7 +281,7 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
                 "postcode_context": product.postcode_context,
                 "last_checked_at": product.last_checked_at,
                 "ingredient_match_type": "semantic_candidate",
-                "semantic_match_type": curated_match,
+                "semantic_match_type": curated_match or "semantic_only",
                 "semantic_similarity": round(score, 4),
             })
             if len(ranked) >= max(1, limit):

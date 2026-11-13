@@ -56,6 +56,12 @@ def run():
                 "aliases": ["Pommes Frites", "Tiefkühlpommes"],
                 "form": "frozen", "culinary_role": "starchy side",
                 "unit_dimension": "mass", "suggested_substitutions": ["fresh potatoes"],
+                "substitution_options": [{
+                    "name": "fresh potatoes", "reason": "Closest whole-food equivalent.",
+                    "role_preserved": True, "safe_to_auto_apply": True,
+                    "quantity_ratio": 1,
+                    "preparation_adjustment": "Fresh potatoes need longer than frozen fries; cut evenly and cook until tender.",
+                }],
             },
             "canned corn": {
                 "canonical": "sweet corn", "name_en": "canned sweet corn",
@@ -92,12 +98,284 @@ def run():
     assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
     assert ingredient_product_match_type("frozen sweet corn", "REWE Zuckermais tiefgekühlt 450g", {"form": "frozen", "aliases": ["Zuckermais tiefgekühlt"]}, "Tiefkühlkost") == "exact"
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
+    assert "olivenöl" in ingredient_candidate_search_terms("olive oil", {"form": "liquid"})
+    assert "rapsöl" in ingredient_candidate_search_terms("vegetable oil", {"form": "liquid"})
+    assert "hähnchenbrustfilet" in ingredient_candidate_search_terms("chicken breast", {"form": "fresh"})
+    assert "croûtons" in ingredient_candidate_search_terms("croutons", {})
+    assert "paprika edelsüß" in ingredient_candidate_search_terms("paprika powder", {})
+    assert ingredient_product_match_type(
+        "olive oil", "REWE Bio Olivenöl Nativ Extra 500ml", {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Rapsöl 1L", {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "red onion", "Zwiebel rot 500g im Netz", {"form": "fresh"}, "obst-gemuese"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "chicken breast", "REWE Bio Hähnchenbrustfilet 400g", {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "white fish fillet", "REWE Alaska Seelachsfilet 300g", {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g", {"form": "soft"}, "fertiggerichte-konserven"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "croutons", "Leimer Croûtons Kräuter 100g", {"form": "unspecified"}, "oele-sossen-gewuerze"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "burger buns", "REWE Hamburgerbrötchen mit Sesam 300g", {"form": "unspecified"}, "brot-cerealien-aufstriche"
+    ) == "exact"
+    kaiser_match = ingredient_product_match_type(
+        "burger buns", "REWE Kaiserbrötchen 4 Stück", {"form": "unspecified"}, "brot-cerealien-aufstriche"
+    )
+    assert kaiser_match == "substitute"
+    assert ingredient_product_match_type(
+        "grated cheddar cheese", "REWE Gouda gerieben 200g", {"form": "grated"}, "kaese-eier-molkerei"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "romaine lettuce", "REWE Beste Wahl Romana Salatherzen 3 Stück", {"form": "fresh"}, "obst-gemuese"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "red cabbage", "REWE Weißkohl frisch 1 Stück", {"form": "fresh"}, "obst-gemuese"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "curry powder", "REWE Bio Thai Curry Paste 100g", {"form": "powder"}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution"
+    fish_test_title = "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g"
+    fish_test_match = ingredient_product_match_type(
+        "white fish fillet", fish_test_title, {"form": "fresh"}, "tiefkuehlkost"
+    )
+    assert fish_test_match == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
+        {"form": "fresh"}, "Tiefkühlkost"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g",
+        {"form": "soft tortillas"}, "fertiggerichte-konserven"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "croutons", "Leimer Croûtons Kräuter 100g",
+        {"form": "prepared bread cubes"}, "oele-sossen-gewuerze"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "burger buns", "REWE Hamburgerbrötchen mit Sesam 300g",
+        {"form": "bread"}, "brot-cerealien-aufstriche"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "grated cheddar cheese", "REWE Gouda gerieben 200g",
+        {"form": "grated cheese"}, "kaese-eier-molkerei"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "red cabbage", "REWE Weißkohl frisch 1 Stück",
+        {"form": "fresh"}, "obst-gemuese"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "burger buns", "REWE Weizenbrötchen 6 Stück",
+        {"form": "bread"}, "brot-cerealien-aufstriche"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "burger buns", "Coppenrath & Wiese 9 Weizen-Brötchen 450g",
+        {"form": "bread"}, "tiefkuehlkost"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "burger buns", "Mälzer & Fu Waffeleis Franzbrötchen 4x120ml",
+        {"form": "bread"}, "tiefkuehlkost"
+    ) is None
+    assert ingredient_product_match_type(
+        "burger buns", "Mühlenkraft Proteinmehl Brot & Brötchen 800g",
+        {"form": "bread"}, "kochen-backen"
+    ) is None
+    assert ingredient_product_match_type(
+        "curry powder", "Bamboo Garden Thai Curry Paste 100g",
+        {"form": "powder"}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution"
+    assert "curry paste" in ingredient_candidate_search_terms("curry powder", {"form": "powder"})
+    assert ingredient_suggested_substitution_name(
+        "curry powder", "Bamboo Garden Thai Curry Paste 100g", {"form": "powder"}
+    ) == "curry paste"
+    assert ingredient_product_match_type(
+        "curry powder", "REWE Bio Garam Masala gemahlen 30g",
+        {"form": "powder"}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "white fish fillet", "REWE Alaska Seelachsfilet paniert 800g",
+        {"form": "fresh"}, "tiefkuehlkost"
+    ) is None
+    prepared_match = ingredient_product_match_type(
+        "red cabbage", "Rotkohl ca. 1,8kg 1 Stück ca. 1800 g",
+        {"form": "fresh"}, "fertiggerichte-konserven"
+    )
+    assert prepared_match is None, "Prepared red cabbage must not match a fresh raw cabbage ingredient"
+    assert ingredient_product_match_type(
+        "rolled oats", "Kellogs Special Crunchy Oat Granola Mixed Berries 320g",
+        {"form": "unspecified"}, "brot-cerealien-aufstriche"
+    ) is None, "Sweetened granola is not a safe ingredient substitute for plain rolled oats"
+    assert ingredient_product_match_type(
+        "bratwurst", "ja! Schweine-Bratwurst grob 4x100g", {}, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "firm tofu", "REWE Bio Tofu Natur 200g", {"form": "firm"}, "fertiggerichte-konserven"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "lettuce", "REWE Feine Welt Erlesener Blüten Salat 100g", {"form": "fresh"}, "obst-gemuese"
+    ) is None
+    assert ingredient_product_match_type(
+        "lettuce", "Wildkräuter Salat 125g", {"form": "fresh"}, "obst-gemuese"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "ja! Delikatess-Hähnchenbrustfilet gepökelt, gebacken 100g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "vegetable oil", "Thomy Delikatess-Mayonnaise mit reinem Sonnenblumenöl 100ml",
+        {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) is None
+    assert ingredient_product_match_type(
+        "honey", "REWE Beste Wahl Honey Peppers mit Frischkäsecreme 150g",
+        {"form": "liquid"}, "fertiggerichte-konserven"
+    ) is None
+    assert ingredient_product_match_type(
+        "pasta", "Birkel Buchstaben-Nudeln 250g", {"form": "dry"}, "kochen-backen"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "ja! Hähnchenbrustfilet Paprika 150g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "Wilhelm Brandenburg Hähnchenbrustfilet 100g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "Bernard Matthews Hähnchenbrust-Filetstücke Klassik 150g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "Gutfried Hähnchenbrust Natur 100g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "Herta Finesse Hähnchenbrust mit Curry 100g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "REWE Bio Hähnchen Brustfilet Joghurt Knoblauch 320g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "Wiltmann Bio Hähnchenbrustfilet 50g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Beste Wahl Air Fryer Spray Sonnenblumen- & Rapsöl 200ml",
+        {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) is None
+    assert ingredient_product_match_type(
+        "lettuce", "Florette Essentials Der Feine Salat 150g",
+        {"form": "fresh"}, "obst-gemuese"
+    ) is None
+    assert ingredient_product_match_type(
+        "honey", "Kölln Müsli Knusper Honig-Nuss 500g",
+        {"form": "liquid"}, "brot-cerealien-aufstriche"
+    ) is None
+    assert ingredient_product_match_type(
+        "frozen peas", "REWE Erbsen fein 450g", {"form": "frozen"}, "obst-gemuese"
+    ) is None, "A frozen ingredient must not match an unmarked fresh product title/category"
+    assert ingredient_product_match_type(
+        "frozen peas", "REWE Erbsen fein tiefgefroren 450g", {"form": "frozen"}, "tiefkuehlkost"
+    ) == "exact"
     assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
     proposed_only = {"canonical": "custom cooking fat", "suggested_substitutions": ["rapeseed oil"]}
     assert "rapeseed oil" in ingredient_candidate_search_terms("custom cooking fat", proposed_only)
     assert ingredient_product_match_type("custom cooking fat", "REWE Rapsöl 1L", proposed_only) == "suggested_substitution"
     assert ingredient_suggested_substitution_name("custom cooking fat", "REWE Rapeseed Oil 1L", proposed_only) == "rapeseed oil"
-    assert ingredient_suggested_substitution_name("custom cooking fat", "REWE Rapsöl 1L", proposed_only) is None
+    assert ingredient_suggested_substitution_name("custom cooking fat", "REWE Rapsöl 1L", proposed_only) == "rapeseed oil"
+
+    # General recipe-aware substitutions are data-driven, not hard-coded by
+    # ingredient name. Only high-confidence, role-preserving options auto-apply.
+    generic_recipe = {
+        "id": "generic-oil-test", "name": "Roasted vegetables", "base_servings": 2,
+        "ingredients": [["neutral cooking fat", 20, "ml"]],
+        "steps": [{"text": "Coat the vegetables with neutral cooking fat and roast."}],
+        "ingredient_intelligence": {
+            "neutral cooking fat": {
+                "canonical": "neutral cooking fat", "name_en": "neutral cooking fat",
+                "name_de": "neutrales Speiseöl", "form": "liquid",
+                "culinary_role": "high-heat cooking fat",
+                "substitution_options": [{
+                    "name": "rapeseed oil", "confidence": 0.96,
+                    "role_preserved": True, "safe_to_auto_apply": True,
+                    "quantity_ratio": 1.0, "reason": "Same neutral high-heat cooking function.",
+                    "preparation_adjustment": "",
+                }],
+            }
+        },
+    }
+    generic_intelligence = normalize_recipe_intelligence(generic_recipe)
+    generic_profile = generic_intelligence["neutral cooking fat"]
+    assert generic_profile["substitution_options"][0]["safe_to_auto_apply"] is True
+    assert ingredient_product_match_type(
+        "neutral cooking fat", "REWE Rapsöl 1L", generic_profile, "oele-sossen-gewuerze"
+    ) == "substitute"
+    assert ingredient_suggested_substitution_name(
+        "neutral cooking fat", "REWE Rapsöl 1L", generic_profile
+    ) == "rapeseed oil"
+    generic_recipe["ingredient_intelligence"] = generic_intelligence
+    generic_adaptations = _adapt_recipe_to_catalog(generic_recipe, [{
+        "ingredient": "neutral cooking fat", "match_status": "substituted",
+        "needed_quantity": 20, "pantry_used": 0,
+        "product": {"ingredient_substitute": "rapeseed oil", "name_original": "REWE Rapsöl 1L"},
+    }])
+    assert generic_recipe["ingredients"] == [["rapeseed oil", 20.0, "ml"]]
+    assert generic_recipe["adaptations"][0]["replacement"] == "rapeseed oil"
+
+    # A structured cross-form transformation may replace a frozen component
+    # with a raw ingredient only when it supplies the missing preparation step.
+    fries_recipe = {
+        "id": "generic-fries-transform", "name": "Fries", "base_servings": 2,
+        "ingredients": [["frozen fries", 500, "g"]],
+        "steps": [{"text": "Cook the frozen fries until crisp."}],
+        "ingredient_intelligence": {
+            "frozen fries": {
+                "canonical": "frozen fries", "form": "frozen",
+                "culinary_role": "crispy potato side",
+                "substitution_options": [{
+                    "name": "fresh potatoes", "name_de": "Speisekartoffeln",
+                    "aliases": ["Kartoffeln frisch"], "confidence": 0.97,
+                    "role_preserved": True, "safe_to_auto_apply": True,
+                    "quantity_ratio": 1.0,
+                    "preparation_adjustment": "Cut fresh potatoes into fries, rinse and dry thoroughly, coat lightly with oil, then cook until crisp.",
+                    "reason": "Fresh potatoes can be transformed into fries.",
+                }],
+            }
+        },
+    }
+    fries_profile = normalize_recipe_intelligence(fries_recipe)["frozen fries"]
+    assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen fries", fries_profile)
+    assert ingredient_product_match_type(
+        "frozen fries", "REWE Speisekartoffeln 2kg", fries_profile, "obst-gemuese"
+    ) == "substitute"
+    fries_recipe["ingredient_intelligence"] = {"frozen fries": fries_profile}
+    _adapt_recipe_to_catalog(fries_recipe, [{
+        "ingredient": "frozen fries", "match_status": "substituted",
+        "needed_quantity": 500, "pantry_used": 0,
+        "product": {"ingredient_substitute": "fresh potatoes", "name_original": "REWE Speisekartoffeln 2kg"},
+    }])
+    assert fries_recipe["ingredients"] == [["fresh potatoes", 500.0, "g"]]
+    assert "Cut fresh potatoes into fries" in fries_recipe["steps"][0]["text"]
+
+    unsafe_profile = {
+        "form": "liquid",
+        "substitution_options": [{
+            "name": "peanut butter", "confidence": 0.99,
+            "role_preserved": False, "safe_to_auto_apply": False,
+        }],
+    }
+    assert ingredient_product_match_type(
+        "neutral cooking fat", "Peanut butter creamy", unsafe_profile
+    ) == "suggested_substitution"
     assert ingredient_product_match_type("canned corn", "REWE Mais aus der Dose 300g", intelligence) == "exact"
     assert ingredient_product_match_type(
         "canned corn", "REWE Bio Zuckermais Tiefkühl 450g", intelligence
@@ -107,13 +385,14 @@ def run():
     assert ingredient_product_match_type("bell pepper", "REWE Beste Wahl Lyoner Paprika vegan 100g", fresh_pepper, "fleisch-wurst-fisch") is None
     assert ingredient_product_match_type("red onion", "Kettle Chips Cheddar Cheese & Red Onion 130g", {"form": "fresh", "name_de": "rote Zwiebel"}, "suesses-salziges") is None
     assert ingredient_product_match_type("rice", "Freche Freunde Bio Quetschie Apfel, Birne mit Zimt, Reis & Dinkel 100g", {}, "baby-kind") is None
+    assert ingredient_product_match_type("rice", "REWE Beste Wahl Langkornreis 500g", {"name_de": "Reis", "aliases": ["Langkornreis"], "form": "dry"}, "Rice") == "exact"
     assert ingredient_product_match_type("olive oil", "Oliva Nachtcreme mit Olivenöl 50ml", {"form": "liquid"}, "drogerie-gesundheit") is None
     assert ingredient_product_match_type("lime", "duschdas Duschgel Limette Minze 450ml", {"form": "fresh"}, "drogerie-gesundheit") is None
     assert ingredient_product_match_type("chicken breast", "Original Wagner Rustipani Helles Ofenbrot Hähnchenbrust 180g", {"form": "fresh"}, "tiefkuehlkost") is None
     assert ingredient_product_match_type("tomatoes", "Alnatura Bio Passierte Tomaten 500g", {"form": "fresh"}, "fertiggerichte-konserven") is None
     assert ingredient_product_match_type("feta cheese", "Maggi Querbeet Ofen-Gemüse mit Feta 27g", {}, "fertiggerichte-konserven") is None
     assert ingredient_product_match_type(
-        "frozen french fries", "REWE Pommes Frites 750g", intelligence
+        "frozen french fries", "REWE Pommes Frites 750g", intelligence, "tiefkuehlkost"
     ) == "exact"
     assert ingredient_product_match_type("frozen french fries", "Pommes Frites Chips", intelligence) is None
     assert ingredient_product_match_type(
@@ -152,6 +431,33 @@ def run():
     assert ingredient_product_match_type("pre-cooked shredded chicken", "REWE Hähnchenbrust 400g", cooked_chicken, "Fleisch") is None
     assert ingredient_product_match_type("pre-cooked shredded chicken", "REWE Hähnchenbrust gegart 300g", cooked_chicken, "Fleisch") == "exact"
 
+    # Regression guards for known false positives from the real REWE benchmark.
+    assert ingredient_product_match_type(
+        "butter", "BE-KIND Protein Crunchy Peanut Butter 50g", {}, "kaese-eier-molkerei"
+    ) is None
+    assert ingredient_product_match_type(
+        "honey", "REWE Honig-Senfsauce 60g", {}, "oele-sossen-gewuerze"
+    ) is None
+    assert ingredient_product_match_type(
+        "pasta", "REWE Beste Wahl Udon-Nudeln vorgekocht 200g", {}, "kochen-backen"
+    ) is None
+    assert ingredient_product_match_type(
+        "white fish fillet", "Nadler Alaska Seelachs Mus 125g", {}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "bell pepper", "REWE Paprika rot 1 Stück", {"form": "fresh", "name_de": "Paprika"}, "obst-gemuese"
+    ) == "exact"
+    assert validate_ingredient_unit("bell pepper", "piece")["valid"] is True
+    assert validate_ingredient_unit("bell pepper", "piece")["family"] == "produce"
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Rapsöl 1L",
+        {"name_de": "Pflanzenöl", "aliases": ["Rapsöl", "Sonnenblumenöl"], "form": "liquid"},
+        "oele-sossen-gewuerze",
+    ) == "substitute", "Curated oil equivalents must never be silently upgraded to exact matches"
+
+    assert ingredient_product_match_type(
+        "lettuce", "REWE Bio Salat Crispy Mix 100g", {}, "obst-gemuese"
+    ) is None
     recipe = {
         "id": "oil-test", "name": "Oil test", "base_servings": 2,
         "ingredients": [["vegetable oil", 2, "cloves"]],
@@ -233,10 +539,14 @@ def run():
     assert ai_confirmed[0]["match_status"] == "substituted"
     assert ai_confirmed[0]["product"]["ingredient_substitute"] == "rapeseed oil"
 
-    adapted_recipe = {"ingredients": [["frozen french fries", 300, "g"]], "steps": [{"text": "Add frozen french fries to the basket."}]}
+    adapted_recipe = {
+        "ingredients": [["frozen french fries", 300, "g"]],
+        "ingredient_intelligence": intelligence,
+        "steps": [{"text": "Add frozen french fries to the basket."}],
+    }
     _adapt_recipe_to_catalog(adapted_recipe, potato_confirmed)
     assert adapted_recipe["ingredients"][0][0] == "fresh potatoes"
-    assert "selected appliance" in adapted_recipe["steps"][0]["text"]
+    assert any("Fresh potatoes need longer than frozen fries" in step["text"] for step in adapted_recipe["steps"])
 
     print("INGREDIENT INTELLIGENCE QA PASS: cached multilingual intent, form-aware matching, safe substitutions, and unit validation")
 

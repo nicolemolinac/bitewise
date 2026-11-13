@@ -1,4 +1,4 @@
-"""Real-catalog benchmark: 20 representative recipes against the local REWE database.
+"""Real-catalog benchmark: 22 representative recipes against the local REWE database.
 
 Run from backend/: python qa_recipe_match_benchmark.py
 Read-only: no Gemini calls, no scraping, no DB writes, no pantry assumptions.
@@ -24,8 +24,12 @@ if os.getenv("BITEWISE_BENCHMARK_ISOLATED", "").strip().lower() in {"1", "true",
     os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app import server  # installs the multilingual CatalogAdapter.search override
+from app.catalog_intelligence import search_catalog_opportunities
 from app.database import ProductSemanticEmbedding, SessionLocal
-from app.ingredient_intelligence import normalize_recipe_intelligence
+from app.ingredient_intelligence import (
+    ingredient_candidate_search_terms, ingredient_product_match_type,
+    normalize_recipe_intelligence, normalize_text,
+)
 from app.shopping.optimizer import build_basket, consolidate
 
 
@@ -247,7 +251,7 @@ def main():
             server.main_module.Product.supermarket == "REWE"
         ).count()
         embedding_count = db.query(ProductSemanticEmbedding).count()
-        print("BITEWISE 20-RECIPE / REAL REWE CATALOG BENCHMARK")
+        print("BITEWISE 22-RECIPE / REAL REWE CATALOG BENCHMARK")
         print(f"REWE products in local DB: {product_count}")
         print(f"Local semantic vectors: {embedding_count}")
         if product_count == 0:
@@ -255,6 +259,48 @@ def main():
         if product_count < 1000:
             raise SystemExit(f"REWE catalog is incomplete for a representative benchmark: {product_count} products (expected at least 1,000).")
 
+        # Audit unresolved ingredients against every imported REWE row, not
+        # only the adapter's bounded SQL candidate pool. This separates a
+        # missing catalog product from a retrieval/form-validation failure.
+        all_rewe_products = db.query(server.main_module.Product).filter(
+            server.main_module.Product.supermarket == "REWE"
+        ).all()
+        print(f"FULL-CATALOG AUDIT ROWS: {len(all_rewe_products)}")
+        # Exercise convenience discovery against the same complete imported
+        # REWE snapshot, not only the synthetic catalog fixtures.
+        for discovery_query in ("pizza", "chili con carne", "french fries"):
+            discovery = search_catalog_opportunities(db, discovery_query, limit=10)
+            assert discovery["catalog_count"] == product_count
+            assert discovery["products"], f"No real-catalog shortcuts found for {discovery_query!r}"
+            print(
+                f"REAL REWE DISCOVERY {discovery_query!r}: "
+                f"{len(discovery['products'])} results / {discovery['catalog_count']} catalog rows "
+                f"({discovery.get('retrieval')})"
+            )
+            for product in discovery["products"][:5]:
+                print(
+                    f"  SHORTCUT {product['name_original']} | "
+                    f"type={product['convenience_type']} | price={product['price']} | "
+                    f"pack={product['package_size']} {product['package_unit']}"
+                )
+            if discovery_query == "pizza":
+                pizza_kit = next(
+                    (row for row in discovery["products"] if "pizza kit" in normalize_text(row["name_original"])),
+                    None,
+                )
+                if pizza_kit:
+                    assert pizza_kit["convenience_type"] == "meal_kit", pizza_kit
+                for dough in (
+                    row for row in discovery["products"] if "pizzateig" in normalize_text(row["name_original"])
+                ):
+                    assert dough["convenience_type"] == "ready_to_cook", dough
+            if discovery_query == "chili con carne":
+                fix_sachet = next(
+                    (row for row in discovery["products"] if "maggi fix" in normalize_text(row["name_original"])),
+                    None,
+                )
+                if fix_sachet:
+                    assert fix_sachet["convenience_type"] == "prepared_component", fix_sachet
         adapter = server.main_module.CatalogAdapter(db)
         totals = Counter()
         per_recipe = []
@@ -295,6 +341,97 @@ def main():
                     f"(status={row['match_status']}, type={match_type}, category={category}, price={price_text})"
                     f"{unit_note}{suggestion_text}"
                 )
+                if row["match_status"] == "unmatched":
+                    ingredient = str(row.get("ingredient") or "")
+                    profile = (recipe.get("ingredient_intelligence") or {}).get(
+                        normalize_text(ingredient), {}
+                    )
+                    terms = ingredient_candidate_search_terms(ingredient, profile)
+                    audit_candidates = []
+                    for candidate in all_rewe_products:
+                        candidate_title = " ".join(str(value or "") for value in (
+                            candidate.name_original, candidate.name_normalized,
+                            candidate.translated_name,
+                        ))
+                        normalized_title = normalize_text(candidate_title)
+                        hits = [term for term in terms if normalize_text(term) in normalized_title]
+                        ingredient_hit = normalize_text(ingredient) in normalize_text(candidate.ingredient or "")
+                        if not hits and not ingredient_hit:
+                            continue
+                        audit_type = ingredient_product_match_type(
+                            ingredient, candidate_title, profile, candidate.category or ""
+                        )
+                        audit_score = (
+                            (100 if audit_type == "exact" else 50 if audit_type == "substitute"
+                             else 25 if audit_type == "suggested_substitution" else 0)
+                            + len(hits) * 10 + (8 if ingredient_hit else 0)
+                            + (2 if candidate.price is not None else 0)
+                        )
+                        audit_candidates.append((
+                            audit_score, candidate, audit_type, hits
+                        ))
+                    audit_candidates.sort(
+                        key=lambda item: (-item[0], item[1].name_original.casefold())
+                    )
+                    print(
+                        f"  FULL-CATALOG AUDIT {ingredient} | terms={terms[:12]} | "
+                        f"candidates={len(audit_candidates)}"
+                    )
+                    adapter_rows = adapter.search(ingredient, profile)
+                    print(
+                        f"  ADAPTER AUDIT {ingredient} | returned={len(adapter_rows)} | "
+                        f"products={[(row.get('name_original'), row.get('price'), row.get('availability'), row.get('ingredient_match_type')) for row in adapter_rows[:8]]}"
+                    )
+                    if normalize_text(ingredient) in {"curry powder", "burger buns", "red cabbage", "rolled oats"}:
+                        probes = {
+                            "curry powder": ("curry", "masala", "currypaste", "curry paste", "gewürzmischung", "madras"),
+                            "burger buns": ("brötchen", "brotchen", "kaiser", "sesambrötchen", "weizenbrötchen", "burger"),
+                            "red cabbage": ("weißkohl", "weisskohl", "spitzkohl", "rotkohl", "rotkraut"),
+                            "rolled oats": ("hafer", "oat", "porridge", "müsli", "musli"),
+                        }[normalize_text(ingredient)]
+                        broad = []
+                        for candidate in all_rewe_products:
+                            title = normalize_text(" ".join(str(value or "") for value in (
+                                candidate.name_original, candidate.name_normalized, candidate.translated_name
+                            )))
+                            if any(normalize_text(probe) in title for probe in probes):
+                                broad.append(candidate)
+                        print(f"  BROAD-ALTERNATIVE AUDIT {ingredient}: {len(broad)}")
+                        for candidate in broad[:30]:
+                            print(
+                                f"    BROAD {candidate.name_original} | category={candidate.category} "
+                                f"| pack={candidate.package_size} {candidate.package_unit} | price={candidate.price}"
+                            )
+                    for audit_score, candidate, audit_type, hits in audit_candidates[:12]:
+                        print(
+                            f"    CANDIDATE {candidate.name_original} | "
+                            f"category={candidate.category} | ingredient={candidate.ingredient} | "
+                            f"pack={candidate.package_size} {candidate.package_unit} | price={candidate.price} | "
+                            f"match={audit_type or 'rejected'} | hits={hits[:5]} | "
+                            f"price={candidate.price} | availability={candidate.availability} | "
+                            f"score={audit_score}"
+                        )
+                    alternative_patterns = {
+                        "grated cheddar cheese": (("gouda", "emmental", "gratinkase", "reibe", "gerieben", "streukase"), None),
+                        "burger buns": (("hamburgerbrot", "hamburger brot", "burgerbrot", "burger brot", "brioche", "kaiserbrot", "kaiser brot", "sesambrot", "sesam brot", "burger bun"), None),
+                        "curry powder": (("curry", "currypaste", "curry paste", "garam masala", "currypulver", "kurkuma"), None),
+                        "rolled oats": (("haferflocken", "hafer schmelzflocken", "oat flakes", "porridge", "muesli", "granola"), None),
+                        "red cabbage": (("rotkohl", "rotkraut", "red cabbage", "weisskohl", "weisskraut", "white cabbage", "spitzkohl", "coleslaw"), None),
+                    }
+                    if ingredient in alternative_patterns:
+                        patterns, categories = alternative_patterns[ingredient]
+                        alternatives = [
+                            candidate for candidate in all_rewe_products
+                            if (categories is None or normalize_text(candidate.category or "") in categories)
+                            and any(pattern in normalize_text(candidate.name_original) for pattern in patterns)
+                        ]
+                        print(f"  ALTERNATIVE FAMILY AUDIT {ingredient}: {len(alternatives)}")
+                        for candidate in alternatives[:15]:
+                            print(
+                                f"    ALTERNATIVE {candidate.name_original} | "
+                                f"category={candidate.category} | pack={candidate.package_size} "
+                                f"{candidate.package_unit} | price={candidate.price}"
+                            )
 
         total = sum(totals.values())
         resolved = totals["matched"] + totals["substituted"] + totals["covered"]
@@ -306,7 +443,7 @@ def main():
         print(f"Pantry-covered: {totals['covered']}")
         print(f"Unmatched: {totals['unmatched']}")
         print(f"Ingredients with invalid recipe units: {invalid_unit_count}")
-        print(f"Review-only semantic product suggestions: {semantic_review_count} (NOT counted as resolved)")
+        print(f"Review-only product suggestions: {semantic_review_count} (NOT counted as resolved)")
         print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
         print("\n=== PER-RECIPE SUMMARY ===")
         for name, found, count in per_recipe:

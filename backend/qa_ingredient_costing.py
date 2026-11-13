@@ -2,7 +2,7 @@
 
 Run from backend/: python qa_ingredient_costing.py
 """
-from app.shopping.optimizer import build_basket, consolidate
+from app.shopping.optimizer import _convert_ingredient_quantity, build_basket, consolidate
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -160,6 +160,14 @@ def run():
     )
     assert fries_basket[0]["match_status"] == "matched"
     assert fries_basket[0]["checkout_cost"] == 1.99
+
+    # Explicit mass/volume estimates for dressings and count/weight estimates for Romaine.
+    mayo_ml, mayo_note = _convert_ingredient_quantity(30, "g", "ml", "mayonnaise")
+    caesar_ml, caesar_note = _convert_ingredient_quantity(40, "g", "ml", "caesar dressing")
+    romaine_pieces, romaine_note = _convert_ingredient_quantity(150, "g", "piece", "romaine lettuce")
+    assert round(mayo_ml, 1) == 31.6 and "0.95 g/ml" in mayo_note
+    assert caesar_ml == 40 and "1 g/ml" in caesar_note
+    assert romaine_pieces == 1.5 and "100 g per piece" in romaine_note
 
     # Recipe ingredient quantities are generated for 2 servings and scaled exactly once.
     one_serving = consolidate([
