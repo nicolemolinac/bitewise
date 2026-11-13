@@ -95,20 +95,25 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
             return best
 
         rows.sort(key=score, reverse=True)
-        return [
+        lexical_results = [
             {
                 **main_module.product_dict(row),
                 "ingredient_match_type": match_types.get(row.id),
                 "ingredient_substitute": ingredient_substitution_name(
                     ingredient,
                     " ".join(str(value or "") for value in (
-                        row.name_original, row.name_normalized, row.translated_name, row.category, row.brand
+                        row.name_original, row.name_normalized, row.translated_name
                     )),
                     intelligence,
                 ) if match_types.get(row.id) == "substitute" else None,
             }
             for row in rows[:40]
         ]
+        from .semantic_catalog import semantic_product_candidates
+        semantic = semantic_product_candidates(self.db, ingredient, intelligence, limit=5)
+        seen_ids = {row.get("id") for row in lexical_results}
+        lexical_results.extend(row for row in semantic if row.get("id") not in seen_ids)
+        return lexical_results
 
     # Semantic fallback is local and review-only. It never auto-adds a product.
     from .semantic_catalog import semantic_product_candidates
