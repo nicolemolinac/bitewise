@@ -77,7 +77,8 @@ def _cached_query_vector(query_text: str) -> tuple[float, ...]:
     return tuple(float(value) for value in vector)
 
 
-def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
+def index_rewe_products(db, batch_size: int = 128, force: bool = False,
+                        progress_callback=None) -> dict:
     """Incrementally embed new/changed REWE products and persist their vectors."""
     products = db.query(Product).filter(Product.supermarket == "REWE").all()
     existing = {row.product_id: row for row in db.query(ProductSemanticEmbedding).all()}
@@ -90,7 +91,8 @@ def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
             pending.append((product, document, digest))
 
     indexed = 0
-    for start in range(0, len(pending), max(1, batch_size)):
+    batch_count = (len(pending) + max(1, batch_size) - 1) // max(1, batch_size)
+    for batch_number, start in enumerate(range(0, len(pending), max(1, batch_size)), start=1):
         batch = pending[start:start + max(1, batch_size)]
         vectors = list(_model().embed([document for _, document, _ in batch], batch_size=batch_size))
         for (product, _, digest), vector in zip(batch, vectors):
@@ -104,6 +106,8 @@ def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
             row.vector_json = json.dumps([float(value) for value in vector], separators=(",", ":"))
             indexed += 1
         db.commit()
+        if progress_callback is not None:
+            progress_callback(min(start + len(batch), len(pending)), len(pending), len(products))
     current_ids = {product.id for product in products}
     for product_id, row in existing.items():
         if product_id not in current_ids:
