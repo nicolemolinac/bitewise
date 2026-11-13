@@ -128,9 +128,12 @@ def run():
     assert ingredient_product_match_type(
         "burger buns", "REWE Hamburgerbrötchen mit Sesam 300g", {"form": "unspecified"}, "brot-cerealien-aufstriche"
     ) == "exact"
-    assert ingredient_product_match_type(
+    kaiser_match = ingredient_product_match_type(
         "burger buns", "REWE Kaiserbrötchen 4 Stück", {"form": "unspecified"}, "brot-cerealien-aufstriche"
-    ) == "substitute"
+    )
+    print("DEBUG KAISER BUN:", kaiser_match, normalize_text("REWE Kaiserbrötchen 4 Stück"),
+          ingredient_candidate_search_terms("burger buns", {"form": "unspecified"}))
+    assert kaiser_match == "substitute"
     assert ingredient_product_match_type(
         "grated cheddar cheese", "REWE Gouda gerieben 200g", {"form": "grated"}, "kaese-eier-molkerei"
     ) == "substitute"
