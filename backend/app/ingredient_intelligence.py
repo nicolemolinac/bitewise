@@ -405,8 +405,13 @@ def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bo
             and not any(token in title for token in ("ketchup", "sauce", "suppe", "fertiggericht"))
         )
     if normalized_ingredient == "burger buns":
-        # Bread/flour mixes and plain rolls are review-only alternatives; neither
-        # should be silently represented as a true labelled burger bun.
+        # A Kaiser roll is a close, unsweetened round roll and can safely stand
+        # in for a burger bun. Other generic rolls and bread mixes stay review-only.
+        if (
+            normalize_text(term) == normalize_text("kaiserbrötchen")
+            and "kaiserbrotchen" in title
+        ):
+            return False
         bread_mix = any(token in title for token in (
             "proteinmehl", "brotbackmischung", "brotchen backmischung", "brot teig",
         ))
