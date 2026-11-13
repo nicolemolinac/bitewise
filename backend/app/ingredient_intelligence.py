@@ -364,6 +364,13 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name in oils:
         return category_key in {"oele-sossen-gewuerze", "oele-fette", "oele-und-fette", "oele-fette-margarine"}
     if name in spices:
+        # A spice word in the flavor name of a finished condiment is not a
+        # purchasable spice ingredient (e.g. curry ketchup is not curry powder).
+        if any(token in title_key for token in (
+            "ketchup", "tomatenketchup", "mayonnaise", "dressing", "remoulade",
+            "dip", "marinade", "sauce", "sosse", "saucen", "aufstrich",
+        )):
+            return False
         return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
     if name in grains:
         allowed = {"kochen-backen", "brot-cerealien-aufstriche", "brot-backwaren", "backwaren"}
