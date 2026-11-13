@@ -181,6 +181,13 @@ def main():
                     "expected_price_per_unit": round(expected_unit_price, 8),
                     "relative_error": round(relative_error, 3),
                 })
+        assert invalid_price == 0, f"REWE snapshot contains {invalid_price} invalid numeric prices"
+        assert not inconsistent_unit_prices, (
+            f"REWE snapshot contains {len(inconsistent_unit_prices)} inconsistent package/unit prices"
+        )
+        assert not package_name_mismatches, (
+            f"REWE snapshot contains {len(package_name_mismatches)} package sizes that disagree with product titles"
+        )
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         stale = sum(row.last_checked_at is None or row.last_checked_at < cutoff for row in products)
 
