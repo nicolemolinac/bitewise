@@ -52,7 +52,7 @@ def run():
             product("chili-2", "Mexikanischer Chili Eintopf mit Rind", "Fertiggerichte", price=2.99),
             product("chili-3", "Kidney Bohnen rot", "Konserven", ingredient="kidney beans"),
             product("chili-4", "Maggi Fix Chili Con Carne 33g", "Gewürze", ingredient="seasoning mix"),
-            product("semantic-1", "REWE Kartoffelgratin Fertiggericht 400g", "Fertiggerichte", ingredient="potato gratin"),
+            product("semantic-1", "REWE Kartoffelgratin Fertiggericht 400g", "Fertiggerichte"),
             product("noise-1", "Hundefutter Chili Geschmack", "Tierbedarf", ingredient="pet food"),
         ])
         # Ensure discovery is backed by the whole catalog rather than a tiny curated list.
