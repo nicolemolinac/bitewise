@@ -250,7 +250,9 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             return category_key == "tiefkuehlkost"
         if normalized_form in {"canned", "konserve"}:
             return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
-        return category_key == "obst-gemuese" or (name == "fresh cilantro" and category_key == "frische-krauter")
+        return category_key == "obst-gemuese" or (
+            name == "fresh cilantro" and category_key in {"frische-kraeuter", "frische-krauter"}
+        )
     if name in proteins:
         prepared_terms = (
             "ofenbrot", "bolognese", "penne", "lasagne", "suppe",
