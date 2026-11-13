@@ -54,25 +54,24 @@ def normalize(value: str) -> str:
 
 
 def package(text: str):
-    # A unit-price reference (e.g. 100g = 1,49 €) is not the product's pack size.
-    text = re.sub(
-        r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stk\.?|stück|st\.)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+    # Remove reference prices first: "1 kg = 4,00 €" is €/kg, not proof
+    # that the product is a 1 kg package.
+    package_text = re.sub(
+        r"\\b1\\s*(?:kg|l)\\s*=\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?",
         " ",
         text or "",
         flags=re.I,
     )
     # Preserve multipack quantity: 2x200ml is 400ml, not 200ml.
     match = re.search(
-        r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)",
-        text,
+        r"(?:(\\d+)\\s*[x×]\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l|stk|st\\.|stück)",
+        package_text,
         re.I,
     )
     if not match:
         return None, None
     multiplier = int(match.group(1) or 1)
     amount = float(match.group(2).replace(",", ".")) * multiplier
-    if not math.isfinite(amount) or amount <= 0:
-        return None, None
     unit = match.group(3).lower()
     if unit == "kg":
         return amount * 1000, "g"
