@@ -266,7 +266,9 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
     selected_ids = set()
     for kind in ("ready_meal", "meal_kit", "ready_to_cook", "prepared_component"):
         added_for_kind = 0
-        max_for_kind = 4 if kind == "ready_to_cook" else 2
+        # Cook-at-home searches need enough distinct format slots to show
+        # dough, baguettes, frozen pizza, fries and flatbreads such as Flammkuchen.
+        max_for_kind = 5 if kind == "ready_to_cook" else 2
         selected_formats = set()
         for item in ranked:
             if item[2] != kind or item[1].id in selected_ids:
