@@ -69,14 +69,32 @@ def package(text: str):
     ))
     if not matches:
         return None, None
-    # REWE may list both content quantity and outer piece count (e.g.
-    # "2x2ml 2 Stück"). Prefer the last mass/volume quantity; fall back to
-    # count only for products whose size is genuinely sold by piece.
+    # If a reference price is present, choose the content quantity with the
+    # same dimension (€/kg -> g, €/l -> ml). Otherwise prefer mass/volume to
+    # outer piece counts such as "2x2ml 2 Stück".
+    reference = re.search(_reference_price_pattern(), text or "", re.I)
+    reference_unit = reference.group(2).lower() if reference else ""
+    reference_dimension = (
+        "g" if reference_unit in {"kg", "g"} else
+        "ml" if reference_unit in {"l", "ml"} else
+        "unit" if reference_unit in {"stück", "stk", "st."} else ""
+    )
     content_matches = [
         item for item in matches
         if item.group(3).lower() not in {"stk", "st.", "stück", "blatt"}
     ]
-    match = (content_matches or matches)[-1]
+    if reference_dimension:
+        same_dimension = [
+            item for item in matches
+            if (
+                item.group(3).lower() in {"kg", "g"} and reference_dimension == "g"
+                or item.group(3).lower() in {"l", "ml"} and reference_dimension == "ml"
+                or item.group(3).lower() in {"stk", "st.", "stück", "blatt"} and reference_dimension == "unit"
+            )
+        ]
+        match = (same_dimension or content_matches or matches)[-1]
+    else:
+        match = (content_matches or matches)[-1]
     multiplier = int(match.group(1) or 1)
     amount = float(match.group(2).replace(",", ".")) * multiplier
     if not math.isfinite(amount) or amount <= 0:
