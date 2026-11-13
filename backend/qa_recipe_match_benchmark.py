@@ -252,6 +252,10 @@ def main():
             server.main_module.Product.supermarket == "REWE"
         ).count()
         embedding_count = db.query(ProductSemanticEmbedding).count()
+        bread_cereal_count = db.query(Product).filter(
+            Product.supermarket == "REWE",
+            Product.category == "brot-cerealien-aufstriche",
+        ).count()
         latest_catalog_run = db.query(CatalogRun).order_by(CatalogRun.id.desc()).first()
         live_catalog_healthy = (
             _BENCHMARK_DB is None
@@ -260,7 +264,13 @@ def main():
         )
         print("BITEWISE 22-RECIPE / REAL REWE CATALOG BENCHMARK")
         print(f"REWE products in local DB: {product_count}")
+        print(f"Brot/Cerealien category products: {bread_cereal_count}")
         print(f"Local semantic vectors: {embedding_count}")
+        if live_catalog_healthy:
+            assert bread_cereal_count >= 1000, (
+                "A healthy live refresh must capture the paginated Brot/Cerealien department; "
+                f"only {bread_cereal_count} products were stored."
+            )
         if product_count == 0:
             raise SystemExit("No REWE catalog rows found. Refresh/import the local catalog first.")
         if product_count < 1000:
