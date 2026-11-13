@@ -15,6 +15,7 @@ os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "false"
 
 from app.rewe_refresh import _merge_rewe_product_data
+from app.server import app as server_app
 
 
 def product():
@@ -30,6 +31,20 @@ def product():
 
 
 def main():
+    refresh_routes = [
+        route for route in server_app.routes
+        if getattr(route, "path", None) == "/api/rewe/refresh"
+        and "POST" in (getattr(route, "methods", set()) or set())
+    ]
+    assert len(refresh_routes) == 1, (
+        f"Expected one REWE refresh route, found {len(refresh_routes)}"
+    )
+    assert refresh_routes[0].endpoint.__name__ == "rewe_refresh"
+    import inspect
+    assert "rewe_refresh_safe" in inspect.getsource(refresh_routes[0].endpoint), (
+        "The active API route must delegate to the guarded partial-refresh merge"
+    )
+
     now = datetime(2026, 11, 13, 12, 0, 0)
     existing = product()
     _merge_rewe_product_data(existing, {
