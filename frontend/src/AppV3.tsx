@@ -259,7 +259,7 @@ export default function AppV3(){
   const factor=portionFactor(profile);const todayIndex=(new Date().getDay()+6)%7;const todaySlots=weeklyPlan[todayIndex]?.slots||[];
   const weeklyStats=useMemo(()=>{let cost=0,calories=0,mealCount=0;weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(!s.meal)return;const portions=dayContexts[idx]?.people||1;cost+=s.meal.cost*factor*portions;calories+=caloriesOf(s.meal)*factor;mealCount++}));return {cost,avgCalories:mealCount?Math.round(calories/7):0,mealCount}},[weeklyPlan,dayContexts,factor]);
 
-  async function attachFreePhotos(fresh:Meal[], historyRows:any[]=[]){
+  async function attachFreePhotos(fresh:Meal[]){
     const resolved:any[]=[];
     for(let offset=0;offset<fresh.length;offset+=12){
       const batch=fresh.slice(offset,offset+12);
@@ -270,10 +270,19 @@ export default function AppV3(){
     // Refresh the DB snapshot because a user may have expanded a concept while
     // this asynchronous Google Images search was still running.
     const historySnapshot=(await api('/recipe-history').catch(()=>({records:history}))).records||history;
-    const updates:any[]=historyRows.map((row,index)=>{const meal=enriched[index];return row&&meal?.image?{record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',meal}:null;}).filter(Boolean);
     const photosByConcept=new Map<string,Meal>(enriched.filter(meal=>meal.id&&meal.image).map(meal=>[meal.id,meal] as [string,Meal]));
-    // If a user picks an idea before Google Images finishes, the recipe row may
-    // already exist without a photo. Propagate the concept photo to that row too.
+    const updates:any[]=[];
+    // Use current DB rows (not stale React state) so an async photo search cannot
+    // revert a concept from expanded/skipped back to discovered.
+    historySnapshot.forEach((row:any)=>{
+      const photo=photosByConcept.get(String(row.meal?.id||''));
+      if(photo?.image)updates.push({
+        record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',
+        meal:{...row.meal,image:photo.image,image_page:photo.image_page||'',photographer:photo.photographer||''},
+      });
+    });
+    // If a user picked an idea before Google Images finished, copy its concept
+    // photo onto the already-created full-recipe history row as well.
     historySnapshot.forEach((row:any)=>{
       if(row.record_type!=='recipe'||row.meal?.image)return;
       const sourceId=String(row.meal?.source_concept_id||String(row.record_key||'').replace(/^recipe:/,''));
@@ -320,16 +329,18 @@ export default function AppV3(){
         }
       });
       discoverPool.forEach(meal=>{
-        if(!meal?.id||!needsLocalRecipePhoto(meal))return;
+        if(!meal?.id)return;
         const row=history.find((candidate:any)=>candidate.meal?.id===meal.id)||null;
-        byMealId.set(meal.id,{meal,row});
+        const candidate=row?.meal?.image?row.meal:meal;
+        if(!needsLocalRecipePhoto(candidate))return;
+        byMealId.set(candidate.id,{meal:candidate,row});
       });
       const missing=[...byMealId.values()];
       if(!missing.length){
         setPhotoBackfillReport(inherited.length?'Reused saved Discovery photos for the expanded recipes.':'All Discovery and History entries already have saved photos.');
         return;
       }
-      const found=await attachFreePhotos(missing.map(item=>item.meal),missing.map(item=>item.row));
+      const found=await attachFreePhotos(missing.map(item=>item.meal));
       setPhotoBackfillReport(`Found and saved ${found} of ${missing.length} missing photos. Images are stored locally in backend/data/recipe_images and their paths are saved in history.`);
     }catch(e:any){setPhotoBackfillReport('Photo recovery failed: '+e.message);}
     finally{setPhotoBackfillRunning(false);}
@@ -350,7 +361,7 @@ export default function AppV3(){
       const saved=await api('/recipe-history',{method:'POST',body:JSON.stringify({records:requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal}))})});
       if(!saved.ok)throw new Error('Bitewise could not save this discovery to your permanent history.');
       setHistory(prev=>[...requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal})),...prev]);
-      setMeals(requestedMeals);setFilter('all');void attachFreePhotos(requestedMeals,requestedMeals.map(meal=>({record_key:meal.id,record_type:'concept',status:'discovered',prompt,meal}))).catch((e:any)=>setError('Could not save recipe photos: '+e.message));
+      setMeals(requestedMeals);setFilter('all');void attachFreePhotos(requestedMeals).catch((e:any)=>setError('Could not save recipe photos: '+e.message));
     }catch(e:any){setError(e.message)}finally{setLoading(false)}
   }
   async function react(meal:Meal,action:'like'|'skip'|'dislike'){
