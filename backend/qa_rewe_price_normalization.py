@@ -29,6 +29,14 @@ def main():
 
     assert package("Rice (1 kg = 4,00 €)") == (None, None)
     assert package("Rice 500g (1 kg = 4,00 €)") == (500.0, "g")
+    assert package("Cheese (100 g = 1,99 €)") == (None, None)
+    assert package("Cheese 200g (100 g = 1,99 €)") == (200.0, "g")
+    pack_price, per_gram = price_details("Cheese 200g (100 g = 1,99 €)", 200, "g")
+    assert pack_price == 3.98
+    assert abs(per_gram - 0.0199) < 1e-9
+    pack_price, per_ml = price_details("Drink 250ml (100 ml = 0,49 €)", 250, "ml")
+    assert pack_price == 1.23
+    assert abs(per_ml - 0.0049) < 1e-9
     size, unit = package("Rice 500g")
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49
