@@ -21,9 +21,9 @@ def normalize_text(value: Any) -> str:
 # not the full catalog: recipe-side AI metadata expands it per ingredient.
 _BASE_TERMS = {
     "black olives": ("black olives", "schwarze oliven", "oliven schwarz", "olives noires"),
-    "canned corn": ("canned corn", "mais aus der dose", "mais dose", "mais konserve", "zuckermais"),
-    "frozen sweet corn": ("frozen sweet corn", "tiefkuhl mais", "tiefkuhlmais", "tiefkuhlzuckermais", "mais tiefkuhl"),
-    "fresh cilantro": ("fresh cilantro", "cilantro", "koriander", "frischer koriander", "koriandergrun"),
+    "canned corn": ("canned corn", "mais aus der dose", "mais dose", "mais konserve", "zuckermais", "dosenmais", "mais konserviert"),
+    "frozen sweet corn": ("frozen sweet corn", "tiefkuhl mais", "tiefkuhlmais", "tiefkuhlzuckermais", "mais tiefkuhl", "zuckermais tiefgekuhlt", "tiefgekuhlter zuckermais", "mais tiefgekuhlt", "tiefgekuhlter mais"),
+    "fresh cilantro": ("fresh cilantro", "cilantro", "koriander", "frischer koriander", "koriandergrun", "korianderblatter", "korianderkraut"),
     "grated cheddar cheese": ("grated cheddar cheese", "cheddar gerieben", "geriebener cheddar", "cheddar geraspelt"),
     "hard boiled eggs": ("hard boiled eggs", "gekochte eier", "eier hart gekocht", "hartgekochte eier"),
     "hard taco shells": ("hard taco shells", "taco shells", "taco schalen", "taco shells knusprig", "taco schalen knusprig"),
@@ -39,7 +39,7 @@ _BASE_TERMS = {
     "vegetable oil": ("vegetable oil", "pflanzenol", "neutrales ol"),
     "garlic": ("garlic", "knoblauch", "knoblauchzehe", "knoblauchzehen"),
     "salt": ("salt", "salz", "speisesalz", "meersalz", "jodsalz"),
-    "frozen french fries": ("frozen french fries", "pommes frites", "pommes", "tiefkuhl pommes", "tiefkuhlpommes", "backofen pommes", "kartoffelstabchen"),
+    "frozen french fries": ("frozen french fries", "pommes frites", "pommes", "tiefkuhl pommes", "tiefkuhlpommes", "backofen pommes", "kartoffelstabchen", "pommes tiefgekuhlt", "tiefgekuhlte pommes"),
     "fresh potato": ("fresh potato", "potato", "potatoes", "kartoffel", "kartoffeln", "speisekartoffeln"),
     "onion": ("onion", "onions", "zwiebel", "zwiebeln", "speisezwiebeln"),
 }
