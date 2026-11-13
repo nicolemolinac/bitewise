@@ -176,6 +176,9 @@ def run():
         "oele-sossen-gewuerze",
     ) == "substitute", "Curated oil equivalents must never be silently upgraded to exact matches"
 
+    assert ingredient_product_match_type(
+        "lettuce", "REWE Bio Salat Crispy Mix 100g", {}, "obst-gemuese"
+    ) is None
     recipe = {
         "id": "oil-test", "name": "Oil test", "base_servings": 2,
         "ingredients": [["vegetable oil", 2, "cloves"]],
