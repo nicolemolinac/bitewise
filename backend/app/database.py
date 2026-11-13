@@ -1,4 +1,5 @@
 import csv
+from decimal import Decimal, ROUND_HALF_UP
 import math
 import os
 import re
@@ -345,6 +346,11 @@ def _snapshot_package_details(name: str, current_size: float, current_unit: str)
 def _snapshot_package_size(name: str, current_size: float, current_unit: str) -> float:
     """Backwards-compatible size-only wrapper around package title normalization."""
     return _snapshot_package_details(name, current_size, current_unit)[0]
+
+
+def _snapshot_round_checkout_price(value):
+    """Round calculated checkout prices using commercial half-up cent rounding."""
+    return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
