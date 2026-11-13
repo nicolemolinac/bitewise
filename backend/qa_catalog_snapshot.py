@@ -78,6 +78,9 @@ def main():
     )
     assert snapshot_price == 2.98
     assert abs(snapshot_per_gram - 0.0149) < 1e-9
+    assert _snapshot_pack_pricing(
+        "Drink 250ml (100 ml = 0,49 €)", 250, "ml", 0.49, None
+    )[0] == 1.23
 
     db = SessionLocal()
     try:
