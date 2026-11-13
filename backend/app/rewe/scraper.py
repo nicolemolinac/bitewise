@@ -119,6 +119,29 @@ def price(text: str):
     return price_details(text)[0]
 
 
+def _offer_availability(offers):
+    """Interpret schema.org stock state; an Offer alone does not prove in-stock."""
+    values = offers if isinstance(offers, list) else [offers]
+    states = []
+    for offer in values:
+        if not isinstance(offer, dict):
+            continue
+        raw = str(offer.get("availability") or "").strip().lower()
+        if not raw:
+            continue
+        if "instock" in raw or "limitedavailability" in raw:
+            states.append("available")
+        elif any(token in raw for token in ("outofstock", "soldout", "discontinued", "preorder")):
+            states.append("unavailable")
+    if "available" in states:
+        return "available"
+    if states and all(state == "unavailable" for state in states):
+        return "unavailable"
+    return "unknown"
+
+
+
+
 def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
     """Return only exact REWE product-detail URLs, never category/shop landing pages."""
     if not value:
@@ -215,19 +238,26 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 if image_url and urlsplit(image_url).scheme not in {"http", "https"}:
                     image_url = None
                 offers = candidate.get("offers") or {}
-                if isinstance(offers, list):
-                    offers = offers[0] if offers else {}
-                offer_price = offers.get("price") if isinstance(offers, dict) else None
-                try:
-                    offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
-                except Exception:
-                    offer_price = None
+                offer_rows = offers if isinstance(offers, list) else [offers]
+                offer_prices = []
+                for offer in offer_rows:
+                    raw_price = offer.get("price") if isinstance(offer, dict) else None
+                    try:
+                        parsed_price = float(str(raw_price).replace(",", ".")) if raw_price is not None else None
+                    except (TypeError, ValueError):
+                        parsed_price = None
+                    if parsed_price is not None and math.isfinite(parsed_price) and parsed_price > 0:
+                        offer_prices.append(parsed_price)
                 price_text = f"{name} {candidate.get('description') or ''}"
                 size, unit = package(price_text)
-                normalized_price, normalized_price_per_unit = price_details(price_text, size, unit)
-                if normalized_price is None and offer_price is not None:
-                    normalized_price = offer_price
-                    normalized_price_per_unit = offer_price / size if size else None
+                # schema.org Offer.price is the package checkout price. Prefer it
+                # over parsing display text, which may contain reference €/kg prices.
+                if offer_prices:
+                    normalized_price = min(offer_prices)
+                    normalized_price_per_unit = normalized_price / size if size and size > 0 else None
+                else:
+                    normalized_price, normalized_price_per_unit = price_details(price_text, size, unit)
+                stock_status = _offer_availability(offers)
                 external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
                 if not external_id:
                     external_id = hashlib.sha256(f"{name}|{product_url or raw_url}".encode()).hexdigest()[:20]
@@ -247,7 +277,7 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     "price_per_unit": normalized_price_per_unit,
                     "product_url": product_url,
                     "image_url": image_url,
-                    "availability": "available" if offers else "unknown",
+                    "availability": stock_status,
                 })
     return rows
 
