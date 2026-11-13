@@ -203,12 +203,24 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
         profile = intelligence if isinstance(intelligence, dict) else {}
         form = str(profile.get("form") or "")
         ranked = []
-        for index in np.argsort(scores)[::-1]:
+        # Score the complete indexed REWE matrix, then fetch a bounded top
+        # candidate pool in one SQL query. This avoids thousands of per-product
+        # ORM round trips while retaining broad coverage across the full catalog.
+        candidate_indices = np.argsort(scores)[::-1][
+            :max(400, min(max(1, int(limit)) * 200, 2000))
+        ]
+        candidate_ids = [int(product_ids[int(index)]) for index in candidate_indices]
+        candidate_products = {
+            product.id: product for product in db.query(Product).filter(
+                Product.id.in_(candidate_ids), Product.supermarket == "REWE"
+            ).all()
+        } if candidate_ids else {}
+        for index in candidate_indices:
             score = float(scores[index])
             if score < minimum_score:
                 break
-            product = db.get(Product, product_ids[int(index)])
-            if product is None or product.supermarket != "REWE":
+            product = candidate_products.get(int(product_ids[int(index)]))
+            if product is None:
                 continue
             title = " ".join(str(value or "") for value in (
                 product.name_original, product.name_normalized, product.translated_name, product.category
