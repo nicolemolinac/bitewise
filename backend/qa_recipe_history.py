@@ -99,6 +99,7 @@ def main():
             "name": "Persistent QA Pasta",
             "meal_type": "dinner",
             "ingredients": [["rice", 100, "g"]],
+            "ingredient_intelligence": {"rice": {"canonical": "rice", "name_en": "rice", "name_de": "Reis", "aliases": ["Langkornreis"], "form": "dry", "unit_dimension": "mass", "suggested_substitutions": []}},
             "steps": [{"text": "Cook rice.", "minutes": 10}],
         }
         concept_two = {
@@ -166,6 +167,8 @@ def main():
         assert history["count"] == 4
         saved_recipe_ids = {row["meal"].get("id") for row in history["records"] if row["record_type"] == "recipe"}
         assert saved_recipe_ids == {first["id"], second["id"]}, saved_recipe_ids
+        persisted_recipe = next(row["meal"] for row in history["records"] if row["record_type"] == "recipe" and row["meal"].get("id") == first["id"])
+        assert persisted_recipe["ingredient_intelligence"]["rice"]["name_de"] == "Reis"
         basket = call("POST", "/api/shopping", {
             "meal_ids": [first["id"]],
             "servings": {first["id"]: 2},
