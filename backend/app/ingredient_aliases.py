@@ -37,13 +37,13 @@ _ALIAS_GROUPS = [
     ("noodles", "nudeln"),
     ("couscous", "couscous"),
     ("quinoa", "quinoa"),
-    ("potato", "potatoes", "kartoffel", "kartoffeln"),
+    ("potato", "potatoes", "kartoffel", "kartoffeln", "speisekartoffel", "speisekartoffeln"),
     ("sweet potato", "sweet potatoes", "süßkartoffel", "süßkartoffeln", "suesskartoffel", "suesskartoffeln"),
     ("tomato", "tomatoes", "tomate", "tomaten"),
     ("cherry tomato", "cherry tomatoes", "cherrytomate", "cherrytomaten", "kirschtomate", "kirschtomaten", "cocktailtomate", "cocktailtomaten", "datteltomate", "datteltomaten"),
     ("cucumber", "gurke", "salatgurke"),
-    ("onion", "onions", "zwiebel", "zwiebeln"),
-    ("red onion", "rote zwiebel", "rote zwiebeln"),
+    ("onion", "onions", "zwiebel", "zwiebeln", "speisezwiebel", "speisezwiebeln"),
+    ("red onion", "rote zwiebel", "rote zwiebeln", "rote speisezwiebel", "rote speisezwiebeln"),
     ("garlic", "knoblauch"),
     ("carrot", "carrots", "karotte", "karotten", "möhre", "möhren", "moehre", "moehren"),
     ("bell pepper", "pepper", "paprika"),
@@ -98,6 +98,7 @@ _ALIAS_GROUPS = [
     ("sausage", "sausages", "wurst", "würstchen", "wuerstchen"),
     ("turkey", "pute", "putenfleisch"),
     ("wrap", "wraps", "tortilla", "tortillas", "weizentortilla"),
+    ("frozen french fries", "french fries", "fries", "pommes", "pommes frites", "tiefkühl pommes", "tiefkuehl pommes", "tiefkühlpommes", "tiefkuehlpommes", "backofen pommes", "kartoffelstäbchen", "kartoffelstaebchen"),
 ]
 
 
