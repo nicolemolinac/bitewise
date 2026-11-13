@@ -443,7 +443,7 @@ def main():
         print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
         if _BENCHMARK_DB is not None:
             print(
-                "NOTE: CI uses the committed static snapshot; raw rice, rolled oats and burger buns "
+                "NOTE: CI uses the committed static snapshot; rolled oats and burger buns "
                 "are known source-coverage gaps until a full local REWE refresh."
             )
         minimum_resolution = 0.95 if _BENCHMARK_DB is not None else 0.98
