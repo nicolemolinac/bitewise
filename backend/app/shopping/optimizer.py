@@ -156,6 +156,9 @@ _SPOON_GRAMS_PER_TSP = {
     "black pepper": 2.3,
 }
 
+# Approximate density for the common condiment whose recipe and pack units differ.
+_DENSITY_G_PER_ML = {"mayonnaise": 0.95}
+
 
 def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
     """Convert standard units plus explicit ingredient-specific kitchen estimates."""
@@ -165,6 +168,21 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
 
     source, target = _normal_unit(from_unit), _normal_unit(to_unit)
     ingredient_key = normalize_text(ingredient)
+
+    density = _DENSITY_G_PER_ML.get(ingredient_key)
+    if density and source in {"ml", "l"} and target in {"g", "kg"}:
+        volume_ml = float(quantity) * (1000 if source == "l" else 1)
+        grams = volume_ml * density
+        return (grams / 1000 if target == "kg" else grams), (
+            f"Estimated density {density:g} g/ml for {ingredient}; actual product density may vary."
+        )
+    if density and source in {"g", "kg"} and target in {"ml", "l"}:
+        grams = float(quantity) * (1000 if source == "kg" else 1)
+        volume_ml = grams / density
+        return (volume_ml / 1000 if target == "l" else volume_ml), (
+            f"Estimated density {density:g} g/ml for {ingredient}; actual product density may vary."
+        )
+
     # consolidate() converts tsp/tbsp to ml. Use a disclosed average density only
     # for common dry seasonings that REWE sells by mass.
     grams_per_tsp = _SPOON_GRAMS_PER_TSP.get(ingredient_key)
