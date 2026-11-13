@@ -123,7 +123,7 @@ export default function ReweCatalogControl() {
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => { setOpen(true); loadStatus().catch(() => undefined); }}
         className="fixed bottom-36 right-5 z-[70] flex items-center gap-2 rounded-full bg-[#2f6b4f] px-4 py-3 text-xs font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:shadow-2xl md:bottom-20"
         title="REWE catalog"
         aria-label="Open REWE catalog controls"
