@@ -34,7 +34,28 @@ class IntelligenceCatalog:
         return self.products.get(ingredient, [])
 
 
+def test_common_english_ingredients_have_german_catalog_terms():
+    expected = {
+        "tomato": "tomaten", "cherry tomato": "cocktailtomaten",
+        "chicken breast": "hahnchenbrust", "ground beef": "rinderhackfleisch",
+        "salmon": "lachs", "flour": "weizenmehl", "heavy cream": "schlagsahne",
+        "greek yogurt": "griechischer joghurt", "potato": "kartoffeln",
+        "mushroom": "champignons", "bell pepper": "paprika",
+        "cucumber": "salatgurke", "lemon": "zitrone", "olive oil": "olivenol",
+        "soy sauce": "sojasauce", "tomato paste": "tomatenmark",
+        "chickpeas": "kichererbsen", "lentils": "linsen",
+        "kidney beans": "kidneybohnen", "oats": "haferflocken",
+        "banana": "bananen", "baking powder": "backpulver",
+        "cornstarch": "speisestarke", "coconut milk": "kokosmilch",
+    }
+    for ingredient, german_term in expected.items():
+        assert german_term in ingredient_search_terms(ingredient), (
+            f"Missing German catalog term {german_term!r} for {ingredient!r}"
+        )
+
+
 def run():
+    test_common_english_ingredients_have_german_catalog_terms()
     raw = {
         "ingredients": [
             ["vegetable oil", 2, "cloves"],
