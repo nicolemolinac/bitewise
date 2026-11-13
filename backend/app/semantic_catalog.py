@@ -161,7 +161,7 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
             title = " ".join(str(value or "") for value in (
                 product.name_original, product.name_normalized, product.translated_name, product.category
             ))
-            if not _form_compatible(form, normalize_text(title)):
+            if not _form_compatible(form, normalize_text(title + " " + str(product.category or "")), ingredient):
                 continue
             if product.price is None or str(product.availability or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
