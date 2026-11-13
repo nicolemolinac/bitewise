@@ -79,9 +79,11 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         "name_original", "name_normalized", "translated_name"
     )))
     category = _normalise(getattr(product, "category", ""))
+    # Retail taxonomy varies by source spelling and hierarchy. Match the
+    # category family rather than a single exact label so child snacks and
+    # confectionery never surface as full-meal alternatives.
     if any(marker in category for marker in (
-        "baby", "kindernahrung", "baby food", "snacks", "suesses salziges",
-        "susses salziges", "suesswaren", "susswaren",
+        "baby", "kinder", "snack", "knabber", "suess", "suss", "salzig",
     )):
         return "catalog_product"
     # Tiny packs are usually snacks, toppings or seasoning sachets rather than
