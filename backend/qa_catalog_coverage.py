@@ -23,6 +23,22 @@ from app import server
 from app.database import Product, SessionLocal
 
 
+def _usable_catalog_candidate(product):
+    try:
+        price = float(product.get("price"))
+        package_size = float(product.get("package_size"))
+    except (TypeError, ValueError):
+        return False
+    package_unit = str(product.get("package_unit") or "").strip().lower()
+    availability = str(product.get("availability") or "unknown").lower()
+    return (
+        math.isfinite(price) and price > 0
+        and math.isfinite(package_size) and package_size > 0
+        and package_unit not in {"", "unknown"}
+        and availability not in {"unavailable", "out_of_stock", "not_available", "discontinued"}
+    )
+
+
 SAMPLE_INGREDIENTS = [
     "pasta", "spaghetti", "trofie pasta", "fresh basil pesto", "pine nuts",
     "parmesan", "salt", "garlic", "onion", "tomato", "cherry tomato",
@@ -67,6 +83,19 @@ def main():
         package_unit="unknown", availability="unknown",
     )
     assert server._catalog_search_score(priced, {"rice"}, "exact") > server._catalog_search_score(unknown_pack, {"rice"}, "exact")
+
+    assert not _usable_catalog_candidate({
+        "price": 1.99, "package_size": 1, "package_unit": "unknown",
+        "availability": "available",
+    })
+    assert _usable_catalog_candidate({
+        "price": 1.99, "package_size": 500, "package_unit": "g",
+        "availability": "unknown",
+    })
+    assert not _usable_catalog_candidate({
+        "price": 1.99, "package_size": 500, "package_unit": "g",
+        "availability": "out_of_stock",
+    })
 
     db = SessionLocal()
     try:
@@ -134,22 +163,22 @@ def main():
         for ingredient in SAMPLE_INGREDIENTS:
             candidates = adapter.search(ingredient) or []
             exact = [p for p in candidates if p.get("ingredient_match_type") == "exact"]
-            substitutes = [p for p in candidates if p.get("ingredient_match_type") == "substitute"]
-            usable = [
+            substitutes = [
                 p for p in candidates
-                if p.get("price") is not None
-                and math.isfinite(float(p.get("price")))
-                and float(p.get("price")) > 0
-                and str(p.get("availability") or "").lower()
-                    not in {"unavailable", "out_of_stock", "not_available", "discontinued"}
+                if p.get("ingredient_match_type") in {"substitute", "suggested_substitution"}
             ]
+            usable_exact = [p for p in exact if _usable_catalog_candidate(p)]
+            usable_substitutes = [p for p in substitutes if _usable_catalog_candidate(p)]
+            usable = [p for p in candidates if _usable_catalog_candidate(p)]
             coverage.append({
                 "ingredient": ingredient,
                 "exact": len(exact),
+                "usable_exact": len(usable_exact),
                 "substitutes": len(substitutes),
+                "usable_substitutes": len(usable_substitutes),
                 "priced_usable": len(usable),
-                "status": "exact" if exact and usable else (
-                    "substitute" if substitutes and usable else "gap"
+                "status": "exact" if usable_exact else (
+                    "substitute" if usable_substitutes else "gap"
                 ),
             })
 
