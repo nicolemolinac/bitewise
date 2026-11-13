@@ -230,6 +230,39 @@ def run():
     assert generic_recipe["ingredients"] == [["rapeseed oil", 20.0, "ml"]]
     assert generic_recipe["adaptations"][0]["replacement"] == "rapeseed oil"
 
+    # A structured cross-form transformation may replace a frozen component
+    # with a raw ingredient only when it supplies the missing preparation step.
+    fries_recipe = {
+        "id": "generic-fries-transform", "name": "Fries", "base_servings": 2,
+        "ingredients": [["frozen fries", 500, "g"]],
+        "steps": [{"text": "Cook the frozen fries until crisp."}],
+        "ingredient_intelligence": {
+            "frozen fries": {
+                "canonical": "frozen fries", "form": "frozen",
+                "culinary_role": "crispy potato side",
+                "substitution_options": [{
+                    "name": "fresh potatoes", "confidence": 0.97,
+                    "role_preserved": True, "safe_to_auto_apply": True,
+                    "quantity_ratio": 1.0,
+                    "preparation_adjustment": "Cut fresh potatoes into fries, rinse and dry thoroughly, coat lightly with oil, then cook until crisp.",
+                    "reason": "Fresh potatoes can be transformed into fries.",
+                }],
+            }
+        },
+    }
+    fries_profile = normalize_recipe_intelligence(fries_recipe)["frozen fries"]
+    assert ingredient_product_match_type(
+        "frozen fries", "REWE Speisekartoffeln 2kg", fries_profile, "obst-gemuese"
+    ) == "substitute"
+    fries_recipe["ingredient_intelligence"] = {"frozen fries": fries_profile}
+    _adapt_recipe_to_catalog(fries_recipe, [{
+        "ingredient": "frozen fries", "match_status": "substituted",
+        "needed_quantity": 500, "pantry_used": 0,
+        "product": {"ingredient_substitute": "fresh potatoes", "name_original": "REWE Speisekartoffeln 2kg"},
+    }])
+    assert fries_recipe["ingredients"] == [["fresh potatoes", 500.0, "g"]]
+    assert "Cut fresh potatoes into fries" in fries_recipe["steps"][0]["text"]
+
     unsafe_profile = {
         "form": "liquid",
         "substitution_options": [{
