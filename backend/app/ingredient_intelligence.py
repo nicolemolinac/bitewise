@@ -21,21 +21,21 @@ def normalize_text(value: Any) -> str:
 # not the full catalog: recipe-side AI metadata expands it per ingredient.
 _BASE_TERMS = {
     "bell pepper": ("bell pepper", "paprika", "rote paprika", "gelbe paprika", "grune paprika", "spitzpaprika"),
-    "red onion": ("red onion", "rote zwiebel", "rote speisezwiebel", "rote zwiebeln"),
-    "chicken breast": ("chicken breast", "hahnchenbrust", "haehnchenbrust", "hahnchenbrustfilet", "haehnchenbrustfilet"),
+    "red onion": ("red onion", "rote zwiebel", "rote speisezwiebel", "rote zwiebeln", "zwiebel rot", "zwiebeln rot"),
+    "chicken breast": ("chicken breast", "hahnchenbrust", "haehnchenbrust", "hahnchenbrustfilet", "haehnchenbrustfilet", "hahnchen brustfilet", "haehnchen brustfilet"),
     "olive oil": ("olive oil", "olivenol", "natives olivenol", "extra natives olivenol"),
     "sesame oil": ("sesame oil", "sesamol", "gerostetes sesamol"),
-    "soft tortillas": ("soft tortillas", "weizentortillas", "weizentortilla", "tortilla wraps", "wraps"),
+    "soft tortillas": ("soft tortillas", "weizentortillas", "weizentortilla", "weizen tortillas", "weizen tortilla", "tortilla wraps", "wraps"),
     "firm tofu": ("firm tofu", "naturtofu", "tofu natur", "fester tofu"),
     "curry powder": ("curry powder", "currypulver", "curry gewurz", "curry gewurzmischung"),
-    "cumin": ("cumin", "kreuzkummel", "kreuzkuemmel"),
-    "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "bruhwurfel gemuse", "bruhwuerfel gemuse"),
+    "cumin": ("cumin", "kreuzkummel", "kreuzkuemmel", "kreuz kummel"),
+    "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemuse bruhe", "bruhwurfel gemuse", "bruhwuerfel gemuse", "bruhwurfel"),
     "cooking cream": ("cooking cream", "kochcreme", "kochsahne", "sahne zum kochen"),
     "burger buns": ("burger buns", "hamburger brotchen", "burger brotchen"),
-    "caesar dressing": ("caesar dressing", "caesar salat dressing"),
-    "croutons": ("croutons", "brotcroutons"),
-    "canned chopped tomatoes": ("canned chopped tomatoes", "stuckige tomaten", "tomaten stuecke"),
-    "risotto rice": ("risotto rice", "risottoreis", "arborio reis", "carnaroli reis"),
+    "caesar dressing": ("caesar dressing", "caesar salat dressing", "caesar sauce"),
+    "croutons": ("croutons", "brotcroutons", "croûtons"),
+    "canned chopped tomatoes": ("canned chopped tomatoes", "stuckige tomaten", "tomaten stuecke", "tomaten in stuecken"),
+    "risotto rice": ("risotto rice", "risottoreis", "risotto reis", "arborio reis", "carnaroli reis"),
     "rolled oats": ("rolled oats", "haferflocken", "kernige haferflocken"),
     "black olives": ("black olives", "schwarze oliven", "oliven schwarz", "olives noires"),
     "canned corn": ("canned corn", "mais aus der dose", "mais dose", "mais konserve", "zuckermais", "dosenmais", "mais konserviert"),
@@ -68,6 +68,24 @@ _SUBSTITUTION_TERMS = {
     "parmesan cheese": ("grana padano", "grana padano gerieben"),
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
 }
+
+_RETAIL_QUERY_VARIANTS = {
+    "olivenol": ("olivenöl", "natives olivenöl", "extra natives olivenöl"),
+    "rapsol": ("rapsöl",),
+    "sonnenblumenol": ("sonnenblumenöl",),
+    "sesamol": ("sesamöl",),
+    "gemusebruhe": ("gemüsebrühe", "gemüse brühe"),
+    "bruhwurfel": ("brühwürfel",),
+    "hahnchenbrust": ("hähnchenbrust", "hähnchenbrustfilet", "hähnchen brustfilet"),
+    "haehnchenbrust": ("hähnchenbrust", "hähnchenbrustfilet", "hähnchen brustfilet"),
+    "kreuzkummel": ("kreuzkümmel",),
+    "stuckige tomaten": ("stückige tomaten",),
+    "brotchen": ("brötchen",),
+    "romersalat": ("römersalat",),
+    "zwiebel rot": ("zwiebel rot", "zwiebeln rot"),
+    "paprika edelsuss": ("paprika edelsüß",),
+}
+
 
 _PROPOSED_SUBSTITUTION_SYNONYMS = {
     "rapeseed oil": ("rapsol", "rapsoel", "canola oil", "rapeseed oil"),
@@ -143,7 +161,13 @@ def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None)
         substitutes = [substitutes]
     terms.update(normalize_text(term) for term in substitutes if isinstance(term, str))
     terms.update(normalize_text(term) for term in _SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
-    return sorted((term for term in terms if len(term) >= 2), key=lambda term: (-len(term), term))
+    # REWE product titles preserve German umlauts while matcher text is normalized.
+    # Keep both spellings for SQL retrieval; strict matching still normalizes titles.
+    retrieval_terms = set(terms)
+    for term in terms:
+        retrieval_terms.update(_RETAIL_QUERY_VARIANTS.get(term, ()))
+    return sorted((term for term in retrieval_terms if len(normalize_text(term)) >= 2),
+                  key=lambda term: (-len(normalize_text(term)), term))
 
 
 def _contains_phrase(title: str, phrase: str) -> bool:
