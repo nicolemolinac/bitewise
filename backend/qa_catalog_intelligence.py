@@ -33,10 +33,18 @@ def run():
         real_count = real_session.query(Product).filter(Product.supermarket == "REWE").count()
         if real_count:
             print(f"REAL REWE SNAPSHOT: {real_count} products")
+            for term in ("bistro baguette", "flammkuchen", "pizza baguette", "pizza teig"):
+                rows = real_session.query(Product).filter(
+                    Product.supermarket == "REWE",
+                    Product.name_original.ilike(f"%{term}%")
+                ).all()
+                print("REAL CATALOG TERM", term, [
+                    (row.name_original, row.category, row.price) for row in rows[:12]
+                ])
             for real_query in ("pizza", "pizza baguette", "chili con carne", "french fries"):
                 real_result = search_catalog_opportunities(real_session, real_query, limit=12)
                 names = [row["name_original"] for row in real_result["products"]]
-                print(f"REAL REWE SEARCH [{real_query}] ({real_result.get('retrieval')}): {names}")
+                print(f"REAL REWE SEARCH [{real_query}] ({real_result.get('retrieval')}): {[(row['name_original'], row['category'], row['convenience_type'], row['relevance_score']) for row in real_result['products']]}")
                 if real_query == "pizza":
                     assert any("Bistro Baguette" in name for name in names), names
                     assert any("Flammkuchen" in name for name in names), names
