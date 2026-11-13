@@ -501,12 +501,16 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         ingredient, product_category, title, product_form
     )
     terms = ingredient_search_terms(ingredient, intelligence)
+    substitution_only_terms = {
+        normalize_text(value)
+        for value in (
+            *(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ())),
+            *(_REVIEW_ONLY_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ())),
+        )
+    }
     exact_hit = form_compatible and category_compatible and any(
         _contains_phrase(title, term) for term in terms
-        if normalize_text(term) not in {
-            normalize_text(value)
-            for value in _SUBSTITUTION_TERMS.get(normalize_text(ingredient), ())
-        }
+        if normalize_text(term) not in substitution_only_terms
     )
     if exact_hit:
         return "exact"
