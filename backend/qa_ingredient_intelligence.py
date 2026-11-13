@@ -299,6 +299,14 @@ def run():
     assert ingredient_product_match_type(
         "vegetable oil", "REWE Rapsöl 1L", oil_profile, "Öle, Soßen & Gewürze"
     ) == "exact"
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Beste Wahl Air Fryer Spray Sonnenblumen- & Rapsöl 200ml",
+        oil_profile, "Öle, Soßen & Gewürze",
+    ) == "substitute"
+    assert ingredient_substitution_name(
+        "vegetable oil", "REWE Beste Wahl Air Fryer Spray Sonnenblumen- & Rapsöl 200ml",
+        oil_profile,
+    ) == "cooking oil spray"
 
     chicken_profile = {"chicken breast": {"canonical": "chicken breast", "form": "fresh", "aliases": ["Hähnchenbrustfilet"]}}
     assert ingredient_product_match_type(
