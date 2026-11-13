@@ -271,7 +271,7 @@ export default function AppV3(){
     // this asynchronous Google Images search was still running.
     const historySnapshot=(await api('/recipe-history').catch(()=>({records:history}))).records||history;
     const updates:any[]=historyRows.map((row,index)=>{const meal=enriched[index];return row&&meal?.image?{record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',meal}:null;}).filter(Boolean);
-    const photosByConcept=new Map(enriched.filter(meal=>meal.id&&meal.image).map(meal=>[meal.id,meal]));
+    const photosByConcept=new Map<string,Meal>(enriched.filter(meal=>meal.id&&meal.image).map(meal=>[meal.id,meal] as [string,Meal]));
     // If a user picks an idea before Google Images finishes, the recipe row may
     // already exist without a photo. Propagate the concept photo to that row too.
     historySnapshot.forEach((row:any)=>{
@@ -298,7 +298,7 @@ export default function AppV3(){
       // First reuse a concept photo for its expanded recipe instead of scraping twice.
       const conceptPhotos=new Map<string,Meal>(history
         .filter((row:any)=>row.record_type==='concept'&&row.meal?.image)
-        .map((row:any)=>[String(row.record_key),row.meal as Meal]));
+        .map((row:any)=>[String(row.record_key),row.meal as Meal] as [string,Meal]));
       const inherited=history.filter((row:any)=>row.record_type==='recipe'&&needsLocalRecipePhoto(row.meal)).map((row:any)=>{
         const sourceId=String(row.meal?.source_concept_id||String(row.record_key||'').replace(/^recipe:/,''));
         const concept=conceptPhotos.get(sourceId);
