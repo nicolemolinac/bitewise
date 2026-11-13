@@ -775,7 +775,11 @@ class ReweCatalogScraper:
         })
         text = soup.get_text(" ", strip=True)
         total_match = re.search(r"([\d.,]+)\s+Produkte\b", text, re.I)
-        if total_match and page_product_count:
+        # Only infer page count from the first page, which is full-sized.
+        # The final page is usually short; dividing total products by its smaller
+        # card count would invent hundreds of nonexistent pages.
+        current_number = self._page_number(current_url) or 1
+        if total_match and page_product_count and current_number == 1:
             total_text = total_match.group(1)
             total_products = int(re.sub(r"\D", "", total_text))
             if total_products > 0:
