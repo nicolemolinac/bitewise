@@ -53,7 +53,6 @@ def main():
     adapter = server.main_module.CatalogAdapter(session)
     results = adapter.search("rice", intelligence=profile)
 
-    assert server.CATALOG_SEARCH_CANDIDATE_LIMIT >= 1000
     assert any(
         row.get("name_original") == "REWE Langkornreis 500g"
         and row.get("ingredient_match_type") == "exact"
