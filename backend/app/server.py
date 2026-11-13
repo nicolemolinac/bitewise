@@ -46,6 +46,7 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
                 Product.name_normalized.ilike(pattern),
                 Product.name_original.ilike(pattern),
                 Product.translated_name.ilike(pattern),
+                Product.category.ilike(pattern),
             ]
         )
 
