@@ -52,6 +52,7 @@ SAMPLE_INGREDIENTS = [
     "chickpeas", "lentils", "kidney beans", "tortilla", "bread", "oats",
     "banana", "strawberry", "honey", "mayonnaise", "sugar", "baking powder", "cornstarch",
     "coconut milk", "tofu", "shrimp", "tuna", "bacon", "turkey",
+    "rolled oats", "burger buns",
 ]
 
 
@@ -288,10 +289,10 @@ def main():
         print(f"Sample coverage ({len(coverage)} common ingredients): {dict(counts)}")
         print("Sample coverage details:", coverage)
         gaps = [row for row in coverage if row["status"] == "gap"]
-        # This diagnostic intentionally imports the committed static CSV snapshot.
-        # Its old Kochen & Backen pages contain only pre-cooked rice products; the
-        # corrected live scraper now traverses the full department pagination.
-        known_snapshot_gaps = {"rice"}
+        # These gaps are absent from the committed snapshot, although the current
+        # REWE source category lists them. A fresh complete live crawl should resolve
+        # them; never disguise missing source rows with unsafe substitutes.
+        known_snapshot_gaps = {"rice", "rolled oats", "burger buns"}
         unexpected_gaps = [row for row in gaps if row["ingredient"] not in known_snapshot_gaps]
         if gaps:
             print(f"Known committed-snapshot assortment gaps (must disappear after live refresh): {gaps}")
@@ -305,6 +306,9 @@ def main():
             if row["status"] == "gap":
                 print("CATALOG GAP:", row)
                 hint_terms = {
+                    "rice": ("reis", "risotto", "basmati", "langkorn", "parboiled", "kuko"),
+                    "rolled oats": ("haferflocken", "hafer", "oat"),
+                    "burger buns": ("burger", "brötchen", "brotchen", "buns", "toast"),
                     "cherry tomato": ("tomat", "cocktail", "kirsche"),
                     "greek yogurt": ("joghurt", "yoghurt", "skyr", "quark"),
                     "chicken breast": ("hahnchen", "haehnchen", "huhn", "brust", "putenbrust", "pute"),
