@@ -310,8 +310,17 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         ingredient, product_category, title, product_form
     )
     terms = ingredient_search_terms(ingredient, intelligence)
-    if form_compatible and category_compatible and any(_contains_phrase(title, term) for term in terms):
+    exact_hit = form_compatible and category_compatible and any(
+        _contains_phrase(title, term) for term in terms
+        if normalize_text(term) not in {
+            normalize_text(value)
+            for value in _SUBSTITUTION_TERMS.get(normalize_text(ingredient), ())
+        }
+    )
+    if exact_hit:
         return "exact"
+    # Curated equivalents remain substitutions even when the recipe-side AI
+    # repeats them in its alias list; metadata must not silently upgrade them.
     substitutes = list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     for term in substitutes:
         normalized = normalize_text(term)
