@@ -174,6 +174,28 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
             f"Estimated {grams_per_tsp:g} g per teaspoon of {ingredient}."
         )
 
+    # These retail condiments are commonly sold by volume while recipes specify
+    # mass. Use explicit, visible estimates rather than pretending g == ml.
+    condiment_density_g_per_ml = {
+        "mayonnaise": 0.95,
+        "caesar dressing": 1.0,
+    }
+    density = condiment_density_g_per_ml.get(ingredient_key)
+    source_info, target_info = _UNIT_BASE.get(source), _UNIT_BASE.get(target)
+    if density and source_info and target_info:
+        if source_info[0] == "mass" and target_info[0] == "volume":
+            grams = float(quantity) * source_info[1]
+            millilitres = grams / density
+            return millilitres / target_info[1], (
+                f"Estimated {density:g} g/ml density for {ingredient}."
+            )
+        if source_info[0] == "volume" and target_info[0] == "mass":
+            millilitres = float(quantity) * source_info[1]
+            grams = millilitres * density
+            return grams / target_info[1], (
+                f"Estimated {density:g} g/ml density for {ingredient}."
+            )
+
     grams_per_piece = _ingredient_count_weight(ingredient)
     if grams_per_piece is None:
         return None, None
