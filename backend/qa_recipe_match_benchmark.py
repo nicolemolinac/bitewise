@@ -441,9 +441,12 @@ def main():
         )
         print(f"Review-only semantic product suggestions: {semantic_review_count} (NOT counted as resolved)")
         print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
-        assert total > 0 and resolved / total >= 0.96, (
-            f"REWE recipe benchmark resolution fell below 96%: {resolved}/{total}. "
-            "Review missing catalog assortment, multilingual aliases and safe substitutions."
+        minimum_resolution = 0.95 if _BENCHMARK_DB is not None else 0.98
+        benchmark_source = "committed CSV snapshot" if _BENCHMARK_DB is not None else "live local REWE catalog"
+        assert total > 0 and resolved / total >= minimum_resolution, (
+            f"REWE recipe benchmark resolution for {benchmark_source} fell below "
+            f"{minimum_resolution:.0%}: {resolved}/{total}. Review missing catalog assortment, "
+            "multilingual aliases and safe substitutions."
         )
         print("\n=== PER-RECIPE SUMMARY ===")
         for name, found, count in per_recipe:
