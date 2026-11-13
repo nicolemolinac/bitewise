@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 
 from fastapi import APIRouter, HTTPException
 
@@ -7,12 +8,14 @@ from .database import (
     CatalogRun,
     Product,
     ProductOverride,
+    ProductSemanticEmbedding,
     SessionLocal,
     ShoppingState,
 )
 from .rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper
 
 router = APIRouter(prefix="/api")
+logger = logging.getLogger(__name__)
 
 
 def _setting(db, key: str, default: str) -> str:
@@ -139,11 +142,22 @@ def rewe_refresh_safe():
         run.finished_at = datetime.utcnow()
         db.commit()
 
+        semantic_index = {"status": "not_initialized"}
+        if db.query(ProductSemanticEmbedding).count():
+            try:
+                from .semantic_catalog import index_rewe_products
+                semantic_index = {"status": "updated", **index_rewe_products(db)}
+            except Exception as exc:
+                db.rollback()
+                logger.warning("REWE catalog refreshed, but semantic index update failed: %s", exc)
+                semantic_index = {"status": "failed", "reason": str(exc)[:180]}
+
         after_count = db.query(Product).filter(Product.supermarket == "REWE").count()
         return {
             "ok": report["status"] != "failed",
             **report,
             **reconciliation,
+            "semantic_index": semantic_index,
             "catalog_before": before_count,
             "catalog_after": after_count,
             "message": (
