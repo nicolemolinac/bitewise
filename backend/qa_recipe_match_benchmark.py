@@ -221,7 +221,7 @@ RECIPES = [
         ("mushrooms", 100, "g", "Champignons", ["Weiße Champignons"], "fresh"),
         ("bell pepper", 0.5, "piece", "Paprika", ["rote Paprika"], "fresh"),
         ("oregano", 1, "tsp", "Oregano gerebelt", ["Oregano getrocknet"], "dried"),
-    ]),,
+    ]),
     R("b21", "Chorrillana chilena", [
         ("potatoes", 500, "g", "Speisekartoffeln", ["Kartoffeln"], "fresh"),
         ("beef steak", 250, "g", "Rinder-Minutensteaks", ["Rindersteak", "Rindergeschnetzeltes"], "fresh"),
