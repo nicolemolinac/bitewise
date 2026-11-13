@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, Product, ProductSemanticEmbedding, SessionLocal
-from app.catalog_intelligence import expand_catalog_query, search_catalog_opportunities
+from app.catalog_intelligence import search_catalog_opportunities
 from app import semantic_catalog
 
 
@@ -33,10 +33,6 @@ def run():
         real_count = real_session.query(Product).filter(Product.supermarket == "REWE").count()
         if real_count:
             print(f"REAL REWE SNAPSHOT: {real_count} products")
-            bistro = real_session.query(Product).filter(Product.name_original.ilike("%Bistro Baguette%")).first()
-            print("REAL BISTRO META:", (bistro.name_original, bistro.name_normalized, bistro.translated_name, bistro.category, bistro.package_size, bistro.package_unit, bistro.brand) if bistro else None)
-            print("BISTRO DIRECT COUNT:", real_session.query(Product).filter(Product.name_original.ilike("%bistro baguette%")).count())
-            print("PIZZA VARIANTS:", expand_catalog_query("pizza"))
             for real_query in ("pizza", "pizza baguette", "chili con carne", "french fries"):
                 real_result = search_catalog_opportunities(real_session, real_query, limit=12)
                 names = [row["name_original"] for row in real_result["products"]]
