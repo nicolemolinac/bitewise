@@ -156,14 +156,21 @@ def semantic_catalog_candidates(db, query: str, limit: int = 120,
             out=np.zeros(len(product_ids), dtype=np.float32), where=norms > 0,
         )
         ranked = []
-        # Bound ORM lookups even when the local index contains the entire catalog.
-        for index in np.argsort(scores)[::-1][:max(1, min(int(limit) * 4, 400))]:
+        # Fetch a bounded candidate set in one query instead of N ORM lookups.
+        candidate_indices = np.argsort(scores)[::-1][:max(1, min(int(limit) * 4, 400))]
+        candidate_ids = [int(product_ids[int(index)]) for index in candidate_indices]
+        products = {
+            product.id: product for product in db.query(Product).filter(
+                Product.id.in_(candidate_ids), Product.supermarket == "REWE"
+            ).all()
+        } if candidate_ids else {}
+        for index in candidate_indices:
             score = float(scores[index])
             if score < minimum_score:
                 break
             product_id = int(product_ids[int(index)])
-            product = db.get(Product, product_id)
-            if product is None or product.supermarket != "REWE":
+            product = products.get(product_id)
+            if product is None:
                 continue
             ranked.append({
                 "id": product.id,
