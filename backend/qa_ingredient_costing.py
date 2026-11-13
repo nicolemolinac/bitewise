@@ -43,7 +43,7 @@ def run():
     catalog = FakeCatalog({
         "rice": [{
             "id": 1, "name_original": "REWE Rice 500g", "package_size": 500,
-            "package_unit": "g", "price": 1.50, "price_per_unit": 0.003,
+            "package_unit": "g", "price": 1.50, "price_per_unit": 999.0,
             "availability": "available",
         }],
         "milk": [{
@@ -99,6 +99,7 @@ def run():
     assert rice["packs"] == 1 and rice["checkout_cost"] == 1.5
     assert rice["consumed_cost"] == 0.75
     assert rice["package_quantity"] == 500 and rice["package_unit"] == "g"
+    assert rice["unit_cost"] == 0.003, "Basket unit price must be recomputed from checkout price and pack size"
 
     assert milk["match_status"] == "matched"
     assert milk["checkout_cost"] == 1.19 and milk["consumed_cost"] == 0.59
