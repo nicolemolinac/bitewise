@@ -1,7 +1,7 @@
 """Deterministic pagination regression QA across every configured REWE category."""
 from urllib.parse import parse_qs, urlsplit
 
-from app.rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper
+from app.rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper, category_slug_from_url
 
 
 def product_page(category_path: str, page_number: int) -> str:
@@ -109,6 +109,15 @@ def main():
     finally:
         scraper_module.MAX_CATEGORY_PAGES = original_limit
 
+    current_bread_category = "https://www.rewe.de/shop/c/backwaren-cerealien-aufstriche/"
+    assert current_bread_category in REWE_CATEGORY_URLS
+    assert "https://www.rewe.de/shop/c/brot-cerealien-aufstriche/" not in REWE_CATEGORY_URLS
+    assert category_slug_from_url(current_bread_category) == "brot-cerealien-aufstriche"
+    assert category_slug_from_url(REWE_CATEGORY_URLS[0]) == "bonus"
+    assert scraper_module.MAX_CATEGORY_PAGES >= 150, (
+        "The current REWE bread/cereals parent department spans 139 pages; "
+        "the scraper safety cap must not silently make that category incomplete."
+    )
     assert len(REWE_CATEGORY_URLS) == 17, (
         f"Expected 17 configured category URLs, found {len(REWE_CATEGORY_URLS)}"
     )
