@@ -11,7 +11,7 @@ from sqlalchemy import or_
 # Import server first so CatalogAdapter uses the multilingual REWE matcher.
 from app import server
 from app.database import Product, ProductOverride, RecipeHistory, SessionLocal
-from app.ingredient_aliases import ingredient_search_terms
+from app.ingredient_intelligence import ingredient_candidate_search_terms
 
 
 def main():
@@ -29,7 +29,7 @@ def main():
         overrides = {row.ingredient: row.product_id for row in db.query(ProductOverride).all()}
         adapter = main_module.CatalogAdapter(db)
         pantry = main_module.pantry_snapshot(db)
-        unmatched = defaultdict(lambda: {"count": 0, "units": set(), "recipes": set()})
+        unmatched = defaultdict(lambda: {"count": 0, "units": set(), "recipes": set(), "suggestions": set(), "intelligence": None})
         total_ingredients = 0
         matched_ingredients = 0
 
@@ -57,6 +57,9 @@ def main():
                 record["count"] += 1
                 record["units"].add(str(item.get("unit") or ""))
                 record["recipes"].add(str(meal.get("name") or row.name))
+                record["intelligence"] = item.get("ingredient_intelligence") or record["intelligence"]
+                for suggestion in item.get("semantic_suggestions") or []:
+                    record["suggestions"].add(f"{suggestion.get('name_original')} ({suggestion.get('semantic_similarity', 0):.2f})")
 
         print(f"Saved recipes checked: {len(recipes)}")
         print(f"Ingredient rows: {total_ingredients}")
@@ -72,7 +75,7 @@ def main():
         for ingredient, record in sorted(
             unmatched.items(), key=lambda item: (-item[1]["count"], item[0].casefold())
         )[:30]:
-            terms = ingredient_search_terms(ingredient)
+            terms = ingredient_candidate_search_terms(ingredient, record.get("intelligence"))
             clauses = []
             for term in terms:
                 pattern = f"%{term}%"
@@ -81,6 +84,7 @@ def main():
                     Product.name_normalized.ilike(pattern),
                     Product.name_original.ilike(pattern),
                     Product.translated_name.ilike(pattern),
+                    Product.category.ilike(pattern),
                 ])
             candidates = db.query(Product).filter(or_(*clauses)).limit(8).all() if clauses else []
             print(
@@ -89,6 +93,8 @@ def main():
             )
             print("  recipes: " + "; ".join(sorted(record["recipes"])[:5]))
             print("  search terms: " + ", ".join(terms[:10]))
+            if record["suggestions"]:
+                print("  semantic suggestions (review-only): " + "; ".join(sorted(record["suggestions"])))
             if candidates:
                 print("  raw catalog candidates (before strict title/unit/price checks):")
                 for product in candidates:
