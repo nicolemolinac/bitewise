@@ -61,6 +61,7 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
                     row.name_original, row.name_normalized, row.translated_name
                 )),
                 intelligence,
+                row.category or "",
             )
             for row in rows
         }
