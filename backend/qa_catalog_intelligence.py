@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, Product, SessionLocal
 from app.catalog_intelligence import search_catalog_opportunities
+from app import semantic_catalog
 
 
 def product(external_id, name, category, ingredient="meal", price=2.0):
@@ -51,6 +52,7 @@ def run():
             product("chili-2", "Mexikanischer Chili Eintopf mit Rind", "Fertiggerichte", price=2.99),
             product("chili-3", "Kidney Bohnen rot", "Konserven", ingredient="kidney beans"),
             product("chili-4", "Maggi Fix Chili Con Carne 33g", "Gewürze", ingredient="seasoning mix"),
+            product("semantic-1", "REWE Kartoffelgratin Fertiggericht 400g", "Fertiggerichte", ingredient="potato gratin"),
             product("noise-1", "Hundefutter Chili Geschmack", "Tierbedarf", ingredient="pet food"),
         ])
         # Ensure discovery is backed by the whole catalog rather than a tiny curated list.
@@ -62,7 +64,7 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1008
+        assert pizza["catalog_count"] == 1009
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
@@ -84,6 +86,20 @@ def run():
         canned_beans = search_catalog_opportunities(session, "bohnen", limit=10)
         bean_row = next(row for row in canned_beans["products"] if row["name_original"] == "Kidney Bohnen rot")
         assert bean_row["convenience_type"] == "prepared_component", bean_row
+        # A semantic-only candidate can recover a concept with no shared retail words.
+        semantic_product = session.query(Product).filter_by(external_id="semantic-1").one()
+        original_semantic_search = semantic_catalog.semantic_catalog_candidates
+        semantic_catalog.semantic_catalog_candidates = lambda db, query, limit=120: [
+            {"id": semantic_product.id, "semantic_similarity": 0.77}
+        ]
+        try:
+            semantic_result = search_catalog_opportunities(session, "creamy potato gratin dinner", limit=5)
+            semantic_match = next(row for row in semantic_result["products"] if row["id"] == semantic_product.id)
+            assert semantic_result["retrieval"] == "hybrid_local"
+            assert semantic_match["semantic_similarity"] == 0.77
+            assert semantic_match["convenience_type"] == "ready_meal"
+        finally:
+            semantic_catalog.semantic_catalog_candidates = original_semantic_search
 
         empty = search_catalog_opportunities(session, "x", limit=10)
         assert empty["products"] == []
