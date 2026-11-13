@@ -87,7 +87,7 @@ def main():
     try:
         first_count = db.query(Product).filter(Product.supermarket == "REWE").count()
         assert first_count >= 11000, (
-            f"Expected the complete ~12k REWE catalog snapshot, got only {first_count} products"
+            f"Expected at least 11k rows in the committed REWE snapshot, got only {first_count}; category completeness is checked separately"
         )
         sample = db.query(Product).filter(
             Product.name_original.ilike("%Alete bewusst Kinderkeks Schoko 180g%")
