@@ -15,7 +15,7 @@ from typing import Any
 import threading
 
 import numpy as np
-from sqlalchemy import and_, func
+from sqlalchemy import func
 
 from .database import Product, ProductSemanticEmbedding
 from .ingredient_intelligence import _form_compatible, normalize_text
