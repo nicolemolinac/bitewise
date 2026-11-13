@@ -30,6 +30,11 @@ def main():
     assert abs(price_per_gram - 0.01106) < 0.000001
     assert _snapshot_package_size("Drink 2x200ml", 200, "ml") == 400
     assert _snapshot_package_size("Nuts 4x50g", 50, "g") == 200
+    snapshot_price, snapshot_per_gram = _snapshot_pack_pricing(
+        "Spice 200g (100 g = 1,49 €)", 200, "g", 1.49, None
+    )
+    assert snapshot_price == 2.98
+    assert abs(snapshot_per_gram - 0.0149) < 1e-9
 
     db = SessionLocal()
     try:
