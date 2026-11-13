@@ -387,6 +387,20 @@ def main():
                 category = product.get("category") or "—"
                 price = product.get("price")
                 price_text = f"€{float(price):.2f}" if price is not None else "no price"
+                if row["match_status"] in {"matched", "substituted"}:
+                    ingredient_key = normalize_text(ingredient)
+                    title_key = normalize_text(title)
+                    if ingredient_key == "chicken breast":
+                        assert not any(token in title_key for token in (
+                            "delikatess", "aufschnitt", "paprika", "100g", "150g",
+                            "gepokelt", "gebraten", "gebacken", "in scheiben", "geschnitten",
+                        )), f"Raw chicken breast matched to processed deli product: {title}"
+                    if ingredient_key in {"rice", "risotto rice"}:
+                        assert not any(token in title_key for token in (
+                            "express", "gekocht", "vorgekocht", "vorgedampft", "gedampft",
+                            "steamed", "griechischer reis", "djuvec", "curry", "tomaten",
+                            "gemuese", "mediterran", "oriental", "mexikanisch", "bowl",
+                        )), f"Raw rice matched to a prepared rice product: {title}"
                 unit_note = ""
                 validation = row.get("unit_validation") or {}
                 if not validation.get("valid", True):
