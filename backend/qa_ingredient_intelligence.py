@@ -191,6 +191,55 @@ def run():
     assert ingredient_product_match_type("custom cooking fat", "REWE Rapsöl 1L", proposed_only) == "suggested_substitution"
     assert ingredient_suggested_substitution_name("custom cooking fat", "REWE Rapeseed Oil 1L", proposed_only) == "rapeseed oil"
     assert ingredient_suggested_substitution_name("custom cooking fat", "REWE Rapsöl 1L", proposed_only) == "rapeseed oil"
+
+    # General recipe-aware substitutions are data-driven, not hard-coded by
+    # ingredient name. Only high-confidence, role-preserving options auto-apply.
+    generic_recipe = {
+        "id": "generic-oil-test", "name": "Roasted vegetables", "base_servings": 2,
+        "ingredients": [["neutral cooking fat", 20, "ml"]],
+        "steps": [{"text": "Coat the vegetables with neutral cooking fat and roast."}],
+        "ingredient_intelligence": {
+            "neutral cooking fat": {
+                "canonical": "neutral cooking fat", "name_en": "neutral cooking fat",
+                "name_de": "neutrales Speiseöl", "form": "liquid",
+                "culinary_role": "high-heat cooking fat",
+                "substitution_options": [{
+                    "name": "rapeseed oil", "confidence": 0.96,
+                    "role_preserved": True, "safe_to_auto_apply": True,
+                    "quantity_ratio": 1.0, "reason": "Same neutral high-heat cooking function.",
+                    "preparation_adjustment": "",
+                }],
+            }
+        },
+    }
+    generic_intelligence = normalize_recipe_intelligence(generic_recipe)
+    generic_profile = generic_intelligence["neutral cooking fat"]
+    assert generic_profile["substitution_options"][0]["safe_to_auto_apply"] is True
+    assert ingredient_product_match_type(
+        "neutral cooking fat", "REWE Rapsöl 1L", generic_profile, "oele-sossen-gewuerze"
+    ) == "substitute"
+    assert ingredient_suggested_substitution_name(
+        "neutral cooking fat", "REWE Rapsöl 1L", generic_profile
+    ) == "rapeseed oil"
+    generic_recipe["ingredient_intelligence"] = generic_intelligence
+    generic_adaptations = _adapt_recipe_to_catalog(generic_recipe, [{
+        "ingredient": "neutral cooking fat", "match_status": "substituted",
+        "needed_quantity": 20, "pantry_used": 0,
+        "product": {"ingredient_substitute": "rapeseed oil", "name_original": "REWE Rapsöl 1L"},
+    }])
+    assert generic_recipe["ingredients"] == [["rapeseed oil", 20.0, "ml"]]
+    assert generic_recipe["adaptations"][0]["replacement"] == "rapeseed oil"
+
+    unsafe_profile = {
+        "form": "liquid",
+        "substitution_options": [{
+            "name": "peanut butter", "confidence": 0.99,
+            "role_preserved": False, "safe_to_auto_apply": False,
+        }],
+    }
+    assert ingredient_product_match_type(
+        "neutral cooking fat", "Peanut butter creamy", unsafe_profile
+    ) == "suggested_substitution"
     assert ingredient_product_match_type("canned corn", "REWE Mais aus der Dose 300g", intelligence) == "exact"
     assert ingredient_product_match_type(
         "canned corn", "REWE Bio Zuckermais Tiefkühl 450g", intelligence
