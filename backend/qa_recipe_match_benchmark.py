@@ -441,6 +441,8 @@ def main():
         )
         print(f"Review-only semantic product suggestions: {semantic_review_count} (NOT counted as resolved)")
         print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
+        if _BENCHMARK_DB is not None:
+            print("NOTE: CI uses the committed static snapshot; raw rice is a known gap until a full local REWE refresh.")
         minimum_resolution = 0.95 if _BENCHMARK_DB is not None else 0.98
         benchmark_source = "committed CSV snapshot" if _BENCHMARK_DB is not None else "live local REWE catalog"
         assert total > 0 and resolved / total >= minimum_resolution, (
