@@ -59,9 +59,14 @@ def _catalog_search_score(row, aliases, match_type):
     if price is not None and math.isfinite(price) and price > 0:
         best += 10
     else:
-        best -= 100
-    if str(row.availability or "").lower() in {"available", "in_stock"}:
+        # Invalid/unpriced exact rows cannot crowd out priced alternatives
+        # before the basket optimizer gets a chance to evaluate them.
+        best -= 2000
+    availability = str(row.availability or "").lower()
+    if availability in {"available", "in_stock"}:
         best += 5
+    elif availability in {"unavailable", "out_of_stock", "not_available", "discontinued"}:
+        best -= 2000
     return best
 
 
