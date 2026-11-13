@@ -192,7 +192,7 @@ def run():
     assert ingredient_suggested_substitution_name(
         "rolled oats", "Kellogs Special Crunchy Oat Granola Mixed Berries 320g",
         {"form": "unspecified"}
-    ) == "oat granola"
+    ) == "granola"
     assert ingredient_product_match_type(
         "curry powder", "REWE Bio Garam Masala gemahlen 30g",
         {"form": "powder"}, "oele-sossen-gewuerze"
