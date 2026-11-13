@@ -221,7 +221,9 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     if form in {"frozen", "tiefkuhl"}:
         if any(token in title for token in ("chips", "snack", "knabberartikel")):
             return False
-        if any(token in title for token in ("frisch", "fresh", "konserve", "dose", "canned", "getrocknet", "dried", "obst gemuse", "fresh produce")):
+        # "Frisch vom Feld" is REWE/brand marketing also used on frozen peas.
+        # The department check below is the reliable discriminator for frozen produce.
+        if any(token in title for token in ("fresh", "konserve", "dose", "canned", "getrocknet", "dried", "obst gemuse", "fresh produce")):
             return False
     if form in {"canned", "konserve"} and any(token in title for token in ("tiefkuhl", "frozen", "frisch", "fresh")):
         return False
@@ -374,7 +376,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             allowed.add("tiefkuehlkost")
         return category_key in allowed
     if name == "firm tofu":
-        return category_key in {"kaese-eier-molkerei", "fleischersatz", "vegetarische-produkte", "vegan"}
+        return category_key in {
+            "kaese-eier-molkerei", "fleisch-wurst-fisch",
+            "fleischersatz", "vegetarische-produkte", "vegan",
+        } and "tofu" in title_key
     if name == "butter" and "margarine" in title_key:
         return category_key in {"kaese-eier-molkerei", "oele-sossen-gewuerze", "oele-fette", "oele-fette-margarine"}
     if name in dairy:
@@ -392,6 +397,12 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
     if name in grains:
         allowed = {"kochen-backen", "brot-cerealien-aufstriche", "brot-backwaren", "backwaren"}
+        if name in {"soft tortillas", "tortillas"} and "wrap" in title_key:
+            allowed.add("fertiggerichte-konserven")
+        if name == "croutons" and "crouton" in title_key and not any(
+            token in title_key for token in ("terrine", "kartoffelbrei", "suppe", "fertiggericht")
+        ):
+            allowed.add("oele-sossen-gewuerze")
         if name == "cornstarch":
             allowed.update({"backzutaten", "mehl-zucker"})
         return category_key in allowed
