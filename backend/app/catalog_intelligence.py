@@ -26,7 +26,7 @@ def _normalise(value: Any) -> str:
 # Search-language bridges are concepts, not ingredient-specific matching rules.
 # They make German supermarket naming discoverable from common English dish names.
 _QUERY_EXPANSIONS = {
-    "pizza": ("pizza", "pizza baguette", "pizzabaguette", "flammkuchen", "pizza kit", "pizzateig"),
+    "pizza": ("pizza", "pizza baguette", "pizzabaguette", "bistro baguette", "baguette pizza", "flammkuchen", "pizza kit", "pizzateig"),
     "chili con carne": ("chili con carne", "chili", "chili sin carne", "chili eintopf"),
     "french fries": ("pommes", "pommes frites", "backofen pommes"),
     "lasagna": ("lasagne", "lasagne fertig"),
@@ -41,7 +41,7 @@ _READY_MARKERS = (
 )
 _KIT_MARKERS = (
     "kit", "set", "basis", "backmischung", "pizzateig", "wrap kit",
-    "kochbox", "gewurzmix",
+    "kochbox",
 )
 _PREPARED_MARKERS = (
     "baguette", "flammkuchen", "pizza", "pommes", "gnocchi", "ravioli",
@@ -49,7 +49,8 @@ _PREPARED_MARKERS = (
 )
 _EXCLUDE_MARKERS = (
     "hundefutter", "katzenfutter", "proteinpulver", "duft", "reiniger",
-    "geschirrspul", "waschmittel",
+    "geschirrspul", "waschmittel", "fruchtgummi", "gummibonbon",
+    "susswaren", "suesswaren", "nascherei", "gewurzsalz",
 )
 
 
@@ -89,8 +90,10 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
             for term in expand_catalog_query(query)
         )
         return "ready_meal" if requested_dish_match else "prepared_component"
-    if " fix " in f" {text} " or any(marker in text for marker in _KIT_MARKERS):
+    if any(marker in text for marker in _KIT_MARKERS):
         return "meal_kit"
+    if "gewurze" in category or "gewurzmischung" in text or "wurzmittel" in category:
+        return "prepared_component"
     if any(marker in text for marker in _PREPARED_MARKERS):
         return "ready_to_cook"
     return "catalog_product"
