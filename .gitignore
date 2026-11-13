@@ -18,6 +18,7 @@ backend/data/*.db
 backend/data/ai_meals.json
 backend/data/meal_image_cache.json
 backend/data/rewe_storage_state.json
+backend/data/models/
 *.log
 .env
 .env.*
