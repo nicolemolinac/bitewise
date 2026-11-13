@@ -174,7 +174,7 @@ def main():
     assert by_name["Milk"]["package_size"] == 1000 and by_name["Milk"]["package_unit"] == "ml"
     assert by_name["Milk"]["price"] == 0.99
 
-    print("REWE price QA PASS: €/kg and €/l converted to pack prices; multipacks normalized")
+    print("REWE price QA PASS: reference prices converted to pack prices; multipacks and offers normalized")
 
 
 if __name__ == "__main__":
