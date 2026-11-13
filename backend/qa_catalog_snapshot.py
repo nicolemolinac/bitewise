@@ -37,6 +37,11 @@ def main():
     )
     assert snapshot_price == 2.69 and abs(snapshot_unit - 0.00747) < 1e-9
 
+    # Zero checkout prices are not real product prices.
+    assert _snapshot_pack_pricing(
+        "Rice 500g 0,00 €", 500, "g", 0.0, 0.0
+    ) == (None, None)
+
     # Pfand-only values are not checkout prices; use matching €/l to derive it.
     snapshot_price, snapshot_unit = _snapshot_pack_pricing(
         "Beer 20x0,5l (1 l = 2,00 €) zzgl. 4,50 € Pfand",
