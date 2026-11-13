@@ -32,6 +32,8 @@ def main():
         unmatched = defaultdict(lambda: {"count": 0, "units": set(), "recipes": set(), "suggestions": set(), "intelligence": None})
         total_ingredients = 0
         matched_ingredients = 0
+        match_counts = defaultdict(int)
+        review_suggestions = 0
 
         for row in recipes:
             try:
@@ -49,6 +51,8 @@ def main():
             )
             for item in basket:
                 total_ingredients += 1
+                match_counts[str(item.get("match_status") or "unknown")] += 1
+                review_suggestions += len(item.get("semantic_suggestions") or [])
                 if item.get("match_status") in {"matched", "substituted", "covered"}:
                     matched_ingredients += 1
                     continue
@@ -63,6 +67,10 @@ def main():
 
         print(f"Saved recipes checked: {len(recipes)}")
         print(f"Ingredient rows: {total_ingredients}")
+        print(f"Exact / user-confirmed matches: {match_counts['matched']}")
+        print(f"Applied same-form substitutions: {match_counts['substituted']}")
+        print(f"Covered by pantry: {match_counts['covered']}")
+        print(f"Review-only semantic suggestions: {review_suggestions}")
         print(f"Resolved: {matched_ingredients}")
         print(f"Unmatched: {total_ingredients - matched_ingredients}")
         if total_ingredients:
