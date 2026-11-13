@@ -294,6 +294,12 @@ def main():
             )
         if product_count == 0:
             raise SystemExit("No REWE catalog rows found. Refresh/import the local catalog first.")
+        if _BENCHMARK_DB is None and not live_catalog_healthy:
+            raise SystemExit(
+                "The local REWE catalog is only a bootstrap snapshot or its last refresh "
+                "was incomplete. Run a full /api/rewe/refresh and wait for status=healthy "
+                "across all 17 categories before running this benchmark."
+            )
         if product_count < 1000:
             raise SystemExit(f"REWE catalog is incomplete for a representative benchmark: {product_count} products (expected at least 1,000).")
 
