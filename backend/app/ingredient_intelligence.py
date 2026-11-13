@@ -36,13 +36,12 @@ _BASE_TERMS = {
     "shredded lettuce": ("shredded lettuce", "salatstreifen", "geschnittener eisbergsalat", "eisbergsalat geschnitten", "salatherzen geschnitten"),
     "taco seasoning": ("taco seasoning", "taco gewurz", "taco gewurzmix", "gewurz fur tacos", "mexikanische gewurzmischung"),
     "tortillas": ("tortillas", "weizentortillas", "weizentortilla", "wraps", "tortilla wraps"),
-    "vegetable oil": ("vegetable oil", "pflanzenol", "sonnenblumenol", "rapsol", "ripsol", "neutrales ol"),
+    "vegetable oil": ("vegetable oil", "pflanzenol", "neutrales ol"),
     "garlic": ("garlic", "knoblauch", "knoblauchzehe", "knoblauchzehen"),
     "salt": ("salt", "salz", "speisesalz", "meersalz", "jodsalz"),
     "frozen french fries": ("frozen french fries", "pommes frites", "pommes", "tiefkuhl pommes", "tiefkuhlpommes", "backofen pommes", "kartoffelstabchen"),
     "fresh potato": ("fresh potato", "potato", "potatoes", "kartoffel", "kartoffeln", "speisekartoffeln"),
     "onion": ("onion", "onions", "zwiebel", "zwiebeln", "speisezwiebeln"),
-    "vegetable oil": ("vegetable oil", "pflanzenol", "sonnenblumenol", "rapsol", "neutrales ol"),
 }
 
 _SUBSTITUTION_TERMS = {
