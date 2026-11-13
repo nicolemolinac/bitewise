@@ -187,13 +187,13 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
             grams = float(quantity) * source_info[1]
             millilitres = grams / density
             return millilitres / target_info[1], (
-                f"Estimated {density:g} g/ml density for {ingredient}."
+                f"Estimated density {density:g} g/ml for {ingredient}."
             )
         if source_info[0] == "volume" and target_info[0] == "mass":
             millilitres = float(quantity) * source_info[1]
             grams = millilitres * density
             return grams / target_info[1], (
-                f"Estimated {density:g} g/ml density for {ingredient}."
+                f"Estimated density {density:g} g/ml for {ingredient}."
             )
 
     grams_per_piece = _ingredient_count_weight(ingredient)
