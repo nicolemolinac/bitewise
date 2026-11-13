@@ -20,6 +20,11 @@ def main():
     assert pack_price == 2.19
     assert abs(per_ml - 0.00548) < 0.000001
 
+    size, unit = package("Spice 200g (100 g = 1,49 €)")
+    pack_price, per_gram = price_details("Spice 200g (100 g = 1,49 €)", size, unit)
+    assert pack_price == 2.98
+    assert abs(per_gram - 0.0149) < 1e-9
+
     size, unit = package("Rice 500g")
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49
