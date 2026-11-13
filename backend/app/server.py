@@ -22,7 +22,7 @@ from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
-from .ingredient_intelligence import ingredient_product_match_type, ingredient_search_terms, ingredient_substitution_name
+from .ingredient_intelligence import ingredient_candidate_search_terms, ingredient_product_match_type, ingredient_substitution_name
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -32,7 +32,7 @@ main_module.GeminiService = EfficientGeminiService
 
 def _multilingual_catalog_search(self, ingredient, intelligence=None):
     """Hybrid multilingual retrieval from cached recipe intent; no shopping-time LLM calls."""
-    aliases = ingredient_search_terms(ingredient, intelligence)
+    aliases = ingredient_candidate_search_terms(ingredient, intelligence)
     if not aliases:
         return []
 
