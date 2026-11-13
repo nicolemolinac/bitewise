@@ -265,8 +265,8 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         for product in raw_products:
             if product.get("ingredient_match_type") in {"semantic_candidate", "suggested_substitution"}:
                 if override_id is not None and str(product.get("id")) == str(override_id):
-                    semantic_type = product.get("semantic_match_type")
-                    if semantic_type == "substitute":
+                    semantic_type = product.get("semantic_match_type") or product.get("ingredient_match_type")
+                    if semantic_type in {"substitute", "suggested_substitution"} or product.get("ingredient_substitute"):
                         product = {
                             **product,
                             "ingredient_match_type": "substitute",
