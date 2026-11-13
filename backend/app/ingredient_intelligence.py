@@ -230,6 +230,7 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
                 "maccheroni", "pappardelle", "lasagne", "spirelli",
                 "rice pudding", "reisbrei",
                 "rice cake", "rice cakes", "reiswaffel", "rice cracker", "rice crackers",
+                "couscous", "cous cous", "cous-cous",
                 "rice crispies", "reis crispies", "rice flakes", "puffed rice",
                 "crispies", "flakes", "cereal", "muesli", "musli", "crunchy", "snack", "chips",
                 "reisdrink", "rice milk",
