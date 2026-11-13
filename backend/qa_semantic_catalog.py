@@ -1,7 +1,9 @@
 """Offline QA for the local REWE semantic index (no model download or API calls)."""
+import asyncio
 import os
 import tempfile
 from pathlib import Path
+from fastapi import BackgroundTasks
 
 _QA_DB_DIR = tempfile.TemporaryDirectory(prefix="bitewise-semantic-catalog-qa-")
 os.environ["DATABASE_URL"] = ""
@@ -160,7 +162,23 @@ def run():
             full_db.close()
             semantic._INDEX_CACHE = None
 
-        print("SEMANTIC CATALOG QA PASS: indexing, incremental updates, local retrieval, form safety, and stale-vector cleanup")
+        # Exercise the same on-demand API flow used by the REWE maintenance panel.
+        from app import main as main_app
+        initial_status = main_app.semantic_catalog_index_status()
+        assert initial_status["total"] == full_count
+        assert initial_status["indexed"] == full_count
+        assert initial_status["complete"] is True
+
+        background = BackgroundTasks()
+        started = main_app.start_semantic_catalog_index(background)
+        assert started["started"] is True and started["running"] is True
+        asyncio.run(background())
+        finished_status = main_app.semantic_catalog_index_status()
+        assert finished_status["complete"] is True
+        assert finished_status["indexed"] == full_count
+        assert finished_status["running"] is False
+
+        print("SEMANTIC CATALOG QA PASS: full-catalog indexing, incremental updates, local retrieval, and on-demand API controls")
     finally:
         db.close()
         Base.metadata.drop_all(engine)
