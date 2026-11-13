@@ -81,13 +81,18 @@ def _merge_rewe_product_data(existing, data: dict, current_postcode: str, now: d
             continue
         setattr(existing, key, value)
 
-    if valid_price and data.get("price_per_unit") is None:
+    if valid_price:
         try:
-            known_size = float(existing.package_size)
-            if math.isfinite(known_size) and known_size > 0:
-                existing.price_per_unit = incoming_price / known_size
+            current_unit_price = float(existing.price_per_unit) if existing.price_per_unit is not None else None
         except (TypeError, ValueError):
-            pass
+            current_unit_price = None
+        if current_unit_price is None or not math.isfinite(current_unit_price) or current_unit_price <= 0:
+            try:
+                known_size = float(existing.package_size)
+                if math.isfinite(known_size) and known_size > 0:
+                    existing.price_per_unit = incoming_price / known_size
+            except (TypeError, ValueError):
+                pass
     existing.postcode_context = current_postcode
     existing.last_seen_at = now
     existing.last_checked_at = now
