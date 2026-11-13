@@ -89,7 +89,7 @@ def package(text: str):
     reference_dimension = (
         "g" if reference_unit in {"kg", "g"} else
         "ml" if reference_unit in {"l", "ml"} else
-        "unit" if reference_unit in {"stück", "stk", "st."} else ""
+        "unit" if reference_unit in {"stück", "stk", "stk.", "st."} else ""
     )
     content_matches = [
         item for item in matches
