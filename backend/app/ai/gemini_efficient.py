@@ -246,7 +246,7 @@ id,name,description,time,difficulty,cost,calories,meal_type,cuisine,tags,ingredi
 
 Rules:
 - Keep the selected concept recognizable; do not replace it with another dish.
-- ingredients: [[english_name,quantity,unit]], units only g|ml|unit|cloves. Choose physically sensible units (oil must never use cloves; spices use g or tsp; countable produce may use unit/cloves).
+- ingredients: [[english_name,quantity,unit]], units only g|ml|unit|cloves|tsp|tbsp. Choose physically sensible units (oil must never use cloves; spices use g or tsp; countable produce may use unit/cloves).
 - ingredient_intelligence: an object keyed by the exact english_name in ingredients. For EVERY ingredient include canonical, name_en, name_de, name_es, aliases (up to 8 useful German/English retail names), form (fresh|frozen|canned|dried|grated|pre_cooked|whole|liquid|powder|unspecified), culinary_role, unit_dimension (mass|volume|count), allowed_substitutions (up to 3 genuinely usable options; empty if none), preparation. Keep translations concise and realistic for German supermarkets. Preserve requested forms: frozen is not fresh; grated is not block; canned is not frozen.
 - Every ingredient quantity MUST represent exactly 2 servings. Bitewise scales quantities after generation.
 - steps: 3-6 concise objects {{"text":"...","minutes":N}}.
