@@ -467,6 +467,15 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     title = normalize_text(product_text)
     if not title or _ingredient_specific_exclusions(ingredient, title):
         return None
+    if (
+        normalize_text(ingredient) == "burger buns"
+        and normalize_text(product_category) in {"tiefkuhlkost", "tiefkuehlkost"}
+        and any(term in title for term in ("brotchen", "semmel", "bread roll"))
+        and not any(term in title for term in (
+            "waffel", "eis", "dessert", "franz", "rosinen", "suss", "suess", "croissant",
+        ))
+    ):
+        return "suggested_substitution"
     # Frozen plain white-fish fillets are a legitimate review-only alternative
     # to fresh fillets; do not silently change the recipe's thawing/preparation.
     if (
