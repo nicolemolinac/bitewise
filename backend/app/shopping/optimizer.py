@@ -247,7 +247,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
 
         candidates = []
         semantic_suggestions = []
-        unit_validation = requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit)
+        unit_validation = requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit, requirement.get("ingredient_intelligence"))
         if not unit_validation.get("valid", True):
             base.update({
                 "unit_validation": unit_validation,
