@@ -145,10 +145,10 @@ def semantic_catalog_candidates(db, query: str, limit: int = 120,
     Unlike ingredient matching, this is intentionally a broad discovery layer:
     semantic similarity only ranks candidates and never authorizes substitutions.
     """
-    matrix, product_ids = _catalog_embedding_matrix(db)
-    if matrix is None or not product_ids:
-        return []
     try:
+        matrix, product_ids = _catalog_embedding_matrix(db)
+        if matrix is None or not product_ids:
+            return []
         query_vector = np.asarray(_cached_query_vector(_query_text(query)), dtype=np.float32)
         norms = np.linalg.norm(matrix, axis=1) * max(float(np.linalg.norm(query_vector)), 1e-12)
         scores = np.divide(
@@ -173,6 +173,12 @@ def semantic_catalog_candidates(db, query: str, limit: int = 120,
                 break
         return ranked
     except Exception as exc:
+        # A missing/temporarily unavailable vector table must not poison the
+        # caller's SQLAlchemy session or break the lexical fallback.
+        try:
+            db.rollback()
+        except Exception:
+            pass
         logger.warning("Local semantic meal discovery unavailable; using lexical matching only: %s", exc)
         return []
 
