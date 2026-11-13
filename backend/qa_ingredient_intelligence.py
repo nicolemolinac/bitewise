@@ -3,6 +3,7 @@
 Run from backend/: python qa_ingredient_intelligence.py
 """
 from app.ingredient_intelligence import (
+    ingredient_candidate_search_terms,
     ingredient_product_match_type,
     ingredient_search_terms,
     ingredient_substitution_name,
@@ -59,6 +60,9 @@ def run():
     assert len(intelligence) == 3
     assert normalize_text("weiß") == "weiss"
     assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
+    assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
+    assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
+    assert ingredient_product_match_type("canned corn", "REWE Mais aus der Dose 300g", intelligence) == "exact"
     assert ingredient_product_match_type(
         "canned corn", "REWE Bio Zuckermais Tiefkühl 450g", intelligence
     ) is None, "Canned corn must not match frozen corn"
