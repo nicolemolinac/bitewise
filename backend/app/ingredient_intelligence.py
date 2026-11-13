@@ -37,6 +37,8 @@ _BASE_TERMS = {
     "cucumber": ("cucumber", "cucumbers", "gurke", "gurken", "salatgurke", "schlangengurke"),
     "lemon": ("lemon", "lemons", "zitrone", "zitronen", "bio zitronen"),
     "olive oil": ("olive oil", "olivenol", "oliven ol", "natives olivenol", "natives oliven ol", "extra natives olivenol", "olivenol extra vergine"),
+    "rapeseed oil": ("rapeseed oil", "rapsol", "ripsol", "rapsoel"),
+    "sunflower oil": ("sunflower oil", "sonnenblumenol", "sonnenblumenoel"),
     "soy sauce": ("soy sauce", "sojasauce", "sojasosse", "sojasosse", "tamari"),
     "tomato paste": ("tomato paste", "tomatenmark", "tomatenpaste", "tomatenmark doppelt konzentriert"),
     "chickpeas": ("chickpeas", "chickpea", "kichererbsen", "kichererbse", "kichererbsen aus der dose"),
