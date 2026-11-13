@@ -32,6 +32,7 @@ def product_embedding_text(product: Product) -> str:
         product.name_original,
         product.translated_name,
         product.name_normalized,
+        product.ingredient,
         product.brand,
         product.category,
     ]
