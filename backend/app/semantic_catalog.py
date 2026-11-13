@@ -62,7 +62,9 @@ def _model():
     # FastEmbed uses a compact ONNX runtime model; no PyTorch/GPU is required.
     os.environ.setdefault("HF_HOME", str(BACKEND_DIR / "data" / "models" / "huggingface"))
     from fastembed import TextEmbedding
-    return TextEmbedding(model_name=MODEL_NAME)
+    cache_dir = BACKEND_DIR / "data" / "models" / "fastembed"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return TextEmbedding(model_name=MODEL_NAME, cache_dir=str(cache_dir))
 
 
 @lru_cache(maxsize=512)
