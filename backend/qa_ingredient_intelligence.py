@@ -154,6 +154,14 @@ def run():
         {"form": "fresh"}, "fleisch-wurst-fisch"
     ) is None
     assert ingredient_product_match_type(
+        "chicken breast", "REWE Bio Hähnchen Brustfilet Joghurt Knoblauch 320g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "Wiltmann Bio Hähnchenbrustfilet 50g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
         "vegetable oil", "REWE Beste Wahl Air Fryer Spray Sonnenblumen- & Rapsöl 200ml",
         {"form": "liquid"}, "oele-sossen-gewuerze"
     ) is None
