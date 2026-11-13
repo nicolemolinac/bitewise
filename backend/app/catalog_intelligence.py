@@ -54,6 +54,11 @@ _EXCLUDE_MARKERS = (
 def expand_catalog_query(query: str) -> list[str]:
     normal = _normalise(query)
     variants = list(_QUERY_EXPANSIONS.get(normal, ()))
+    # Also recognise a dish inside natural-language prompts such as
+    # "quick air-fryer chili con carne tonight" or "easy pizza for two".
+    for concept, aliases in _QUERY_EXPANSIONS.items():
+        if concept in normal and concept != normal:
+            variants.extend(aliases)
     if normal and normal not in variants:
         variants.insert(0, normal)
     return list(dict.fromkeys(term for term in variants if term))
