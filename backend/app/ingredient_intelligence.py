@@ -171,14 +171,20 @@ def ingredient_substitution_name(ingredient: str, product_text: str, intelligenc
     return None
 
 
-def validate_ingredient_unit(ingredient: str, unit: str) -> dict:
+def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = None) -> dict:
     name = normalize_text(ingredient)
     normalized_unit = normalize_text(unit)
     family = next((key for key, hints in _FAMILY_HINTS.items()
                    if any(normalize_text(hint) in name.split() for hint in hints)), None)
     if family is None:
         return {"valid": True, "family": None, "reason": None}
-    allowed = _UNIT_FAMILIES[family]
+    allowed = set(_UNIT_FAMILIES[family])
+    profile = _profile_lookup(intelligence, ingredient)
+    form = normalize_text(profile.get("form") or "")
+    if family == "produce" and form == "powder":
+        allowed = {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"}
+    elif family == "produce" and form == "grated":
+        allowed = {"g", "kg"}
     if normalized_unit in allowed:
         return {"valid": True, "family": family, "reason": None}
     return {
