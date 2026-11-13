@@ -65,6 +65,13 @@ def main():
     assert pack_price == 2.49
     assert abs(per_gram - 0.00498) < 0.000001
 
+    # Repeated REWE title metadata: use the full multipack and the content
+    # unit rather than an outer piece count or an earlier malformed size.
+    assert package("Wipes 2x80 Stück 2x80 Stück") == (160, "unit")
+    assert package("Vape 2x2ml 2 Stück") == (4, "ml")
+    assert package("Wine 0,75ml 0,75l (1 l = 10,65 €)") == (750, "ml")
+    assert package("Fruit pouch 4x90ml 4x90g (1 kg = 7,47 €)") == (360, "g")
+
     # Refundable bottle deposits must never be counted as the food's price.
     deposit_only = "Protein drink 330ml (1 l = 9,06 €) zzgl. 0,25 € Pfand"
     deposit_size, deposit_unit = package(deposit_only)
