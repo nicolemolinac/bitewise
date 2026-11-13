@@ -69,6 +69,7 @@ def run():
             product("pizza-3", "Frischer Pizzateig mit Tomatensauce", "Fertiggerichte-Konserven"),
             product("pizza-4", "Knack & Back Pizza-Kit 600g", "Fertiggerichte-Konserven"),
             product("pizza-5", "Tante Fanny Frischer Flammkuchenteig 260g", "Fertiggerichte-Konserven"),
+            product("pizza-6", "ja! Pizza Teig XXL 550g", "Fertiggerichte-Konserven"),
             product("pizza-snack-1", "FruchtBar Bio-Pizza-Flieger Tomate Käse 30g", "Baby & Kind", package_size=30),
             product("pizza-snack-2", "Mogli Bio Demeter Pizza Stangen 75g", "Süßes-Salziges", package_size=75),
             product("chili-1", "Chili con Carne 400g", "Konserven", price=2.49),
@@ -94,7 +95,7 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1020
+        assert pizza["catalog_count"] == 1021
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
@@ -104,6 +105,8 @@ def run():
         assert pizza_dough["convenience_type"] == "ready_to_cook", pizza_dough
         flammkuchen = next(row for row in pizza["products"] if "Flammkuchen" in row["name_original"])
         assert flammkuchen["convenience_type"] == "ready_to_cook", flammkuchen
+        separated_dough = next(row for row in pizza["products"] if row["name_original"] == "ja! Pizza Teig XXL 550g")
+        assert separated_dough["convenience_type"] == "ready_to_cook", separated_dough
         steinofen = next(row for row in pizza["products"] if "Steinofen Pizza" in row["name_original"])
         assert steinofen["convenience_type"] == "ready_meal", steinofen
         assert not any("Hundefutter" in name or "Taco Kit" in name or "FruchtBar" in name or "Mogli" in name for name in pizza_names), pizza_names
