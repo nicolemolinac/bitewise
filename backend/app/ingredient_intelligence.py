@@ -104,7 +104,7 @@ def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None)
     """Recall terms include curated/AI-approved substitutes; matching still labels them separately."""
     terms = set(ingredient_search_terms(ingredient, intelligence))
     profile = _profile_lookup(intelligence, ingredient)
-    substitutes = profile.get("allowed_substitutions", [])
+    substitutes = profile.get("suggested_substitutions", profile.get("allowed_substitutions", []))
     if isinstance(substitutes, str):
         substitutes = [substitutes]
     terms.update(normalize_text(term) for term in substitutes if isinstance(term, str))
@@ -145,11 +145,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     terms = ingredient_search_terms(ingredient, intelligence)
     if any(_contains_phrase(title, term) for term in terms):
         return "exact"
-    profile = _profile_lookup(intelligence, ingredient)
-    substitutes = profile.get("allowed_substitutions", [])
-    if isinstance(substitutes, str):
-        substitutes = [substitutes]
-    substitutes = list(substitutes) + list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
+    substitutes = list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     for term in substitutes:
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
@@ -214,7 +210,7 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
             aliases = [aliases]
         if not isinstance(aliases, list):
             aliases = []
-        substitutions = row.get("allowed_substitutions", [])
+        substitutions = row.get("suggested_substitutions", row.get("allowed_substitutions", []))
         if isinstance(substitutions, str):
             substitutions = [substitutions]
         if not isinstance(substitutions, list):
@@ -229,7 +225,7 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
             "form": str(row.get("form") or "unspecified").strip()[:50],
             "culinary_role": str(row.get("culinary_role") or "").strip()[:80],
             "unit_dimension": str(row.get("unit_dimension") or "").strip()[:20],
-            "allowed_substitutions": [
+            "suggested_substitutions": [
                 str(value).strip()[:100] for value in substitutions[:8]
                 if isinstance(value, str) and value.strip()
             ],
