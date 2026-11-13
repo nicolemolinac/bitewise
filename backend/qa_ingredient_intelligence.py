@@ -155,6 +155,10 @@ def run():
         {"form": "fresh"}, "obst-gemuese"
     ) == "suggested_substitution"
     assert ingredient_product_match_type(
+        "red cabbage", "Rotkohl ca. 1,8kg 1 Stück ca. 1800 g",
+        {"form": "fresh"}, "fertiggerichte-konserven"
+    ) == "exact"
+    assert ingredient_product_match_type(
         "bratwurst", "ja! Schweine-Bratwurst grob 4x100g", {}, "fleisch-wurst-fisch"
     ) == "exact"
     assert ingredient_product_match_type(
