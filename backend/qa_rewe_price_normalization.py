@@ -151,7 +151,10 @@ def main():
     assert len(milk_rows) == 1 and milk_rows[0]["product_url"] is None
 
     # Nested title wrappers must not hide the product's own pack size and price.
-    nested_card_html = """<html><body><div class="product-grid">
+    nested_card_html = """<html><body><script type="application/ld+json">
+      {"@type":"ItemList","itemListElement":[{"item":{"@type":"Product",
+      "name":"Rice","offers":{"@type":"Offer","price":"1.79","priceCurrency":"EUR"}}}]}
+    </script><div class="product-grid">
       <div class="product-card">
         <div class="product-title"><a href="/shop/p/rice/123">Rice</a></div>
         <div class="product-details"><span>500g</span><span>1,79 €</span></div>
@@ -167,6 +170,7 @@ def main():
     by_name = {row["name_original"]: row for row in extracted_cards}
     assert by_name["Rice"]["package_size"] == 500 and by_name["Rice"]["package_unit"] == "g"
     assert by_name["Rice"]["price"] == 1.79
+    assert by_name["Rice"]["product_url"].endswith("/rice/123")
     assert by_name["Milk"]["package_size"] == 1000 and by_name["Milk"]["package_unit"] == "ml"
     assert by_name["Milk"]["price"] == 0.99
 
