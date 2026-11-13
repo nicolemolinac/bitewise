@@ -88,6 +88,12 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
     # Explicit kits take precedence over broad ready-meal aisle labels.
     if any(marker in text for marker in _KIT_MARKERS):
         return "meal_kit"
+    # A frozen/retail pizza is a complete meal; pizza dough and pizza kits
+    # remain cook-at-home formats and are classified by the rules below.
+    if "pizza" in name and not any(marker in name for marker in (
+        "pizzateig", "pizza dough", "baguette",
+    )):
+        return "ready_meal"
     if "gewurze" in category:
         return "prepared_component"
     # Product formats that still require cooking/heating outrank broad aisle
