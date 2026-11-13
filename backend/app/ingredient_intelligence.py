@@ -212,6 +212,13 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         token in title for token in ("udon", "ramen", "soba", "glasnudel", "reisnudel", "instant noodles")
     ):
         return False
+    if ingredient_name in {"rice", "risotto rice"} and any(
+        token in title for token in (
+            "express", "mikrowelle", "microwave", "gekocht", "vorgekocht",
+            "ready to eat", "djuvec", "mediterran", "oriental",
+        )
+    ):
+        return False
     ingredient_tokens = set(normalize_text(ingredient).split())
     fresh_produce_tokens = {"garlic", "onion", "potato", "tomato", "lettuce", "cilantro", "coriander", "carrot", "olive"}
     compound_product_terms = ("wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen", "suppe", "brustfilet", "hahnchen", "chicken", "garnelen", "shrimp", "tempeh", "mettwurst", "pesto", "brot", "bread", "butter", "aufstrich")
