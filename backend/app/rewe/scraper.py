@@ -48,7 +48,7 @@ def category_slug_from_url(url: str) -> str:
 
 SHOP_DELIVERY_URL = "https://www.rewe.de/shop/?serviceTypes=delivery"
 STATE_FILE = Path(__file__).resolve().parents[2] / "data" / "rewe_storage_state.json"
-MAX_CATEGORY_PAGES = 200
+MAX_CATEGORY_PAGES = 500
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
