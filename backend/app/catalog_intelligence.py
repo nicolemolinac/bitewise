@@ -123,7 +123,9 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         and not any(marker in name for marker in ("teig", "boden", "backmischung"))
     ):
         return "ready_meal"
-    if "gewurze" in category:
+    if "gewurze" in category or any(term in name for term in (
+        "mehl", "flour", "gewurzmischung", "seasoning mix",
+    )):
         return "prepared_component"
     if "pizza" in text and any(marker in text for marker in (" mehl ", " flour ")):
         return "prepared_component"
