@@ -413,6 +413,8 @@ def main():
                             "rice flour", "reismehl", "rice paper", "rice noodles", "rice vermicelli",
                             "rice pudding", "reisbrei", "rice cake", "rice cakes", "reiswaffel",
                             "rice cracker", "rice crackers", "reisdrink", "rice milk",
+                            "rice crispies", "reis crispies", "rice flakes", "puffed rice",
+                            "crispies", "flakes", "cereal", "muesli", "musli", "crunchy", "snack", "chips",
                             "fusilli", "nudel", "nudeln", "pasta", "spaghetti", "penne",
                             "maccheroni", "pappardelle", "lasagne", "spirelli",
                             "fried rice", "egg fried", "risotto steinpilz",
