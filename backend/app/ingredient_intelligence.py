@@ -133,12 +133,12 @@ def _form_compatible(form: str, title: str) -> bool:
     return True
 
 
-def ingredient_product_match_type(ingredient: str, product_text: str, intelligence: Any = None) -> str | None:
+def ingredient_product_match_type(ingredient: str, product_text: str, intelligence: Any = None, product_category: str = "") -> str | None:
     title = normalize_text(product_text)
     if not title:
         return None
     profile = _profile_lookup(intelligence, ingredient)
-    if not _form_compatible(str(profile.get("form") or ""), title):
+    if not _form_compatible(str(profile.get("form") or ""), title + " " + normalize_text(product_category)):
         return None
     terms = ingredient_search_terms(ingredient, intelligence)
     if any(_contains_phrase(title, term) for term in terms):
