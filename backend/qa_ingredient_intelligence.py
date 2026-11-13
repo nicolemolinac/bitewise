@@ -224,6 +224,14 @@ def run():
     assert ingredient_product_match_type(
         "canned corn", "REWE Bio Zuckermais Tiefkühl 450g", intelligence
     ) is None, "Canned corn must not match frozen corn"
+    assert ingredient_product_match_type(
+        "burger buns", "Butcher's Burger Sesam Burger Buns 4 Stück",
+        {"form": "unspecified", "name_de": "Hamburger Brötchen"}, "brot-cerealien-aufstriche"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "rolled oats", "REWE Bio zarte Haferflocken 500g",
+        {"form": "unspecified", "name_de": "Haferflocken"}, "brot-cerealien-aufstriche"
+    ) == "exact"
     # Department/category guard: matching a word inside an unrelated prepared product is not a match.
     fresh_pepper = {"form": "fresh", "name_de": "Paprika", "aliases": ["Paprika"]}
     assert ingredient_product_match_type("bell pepper", "REWE Beste Wahl Lyoner Paprika vegan 100g", fresh_pepper, "fleisch-wurst-fisch") is None
