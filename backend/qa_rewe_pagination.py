@@ -37,6 +37,27 @@ class FakeSession:
         return FakeResponse(product_page(parsed.path, page))
 
 
+def compact_page(category_path: str, page_number: int) -> str:
+    product_id = f"{category_path.rsplit('/', 1)[-1]}-long-{page_number}"
+    # Mirrors REWE's compact pagination strip: 1, 2, 3, …, last page.
+    links = "".join(f'<a href="?page={n}">{n}</a>' for n in (1, 2, 3, 139))
+    return (
+        f'<html><body><article><a href="/shop/p/{product_id}">'
+        f'Product {product_id}</a></article><nav>{links}</nav></body></html>'
+    )
+
+
+class LongPaginationSession:
+    def __init__(self):
+        self.calls = []
+
+    def get(self, url, **kwargs):
+        self.calls.append(url)
+        parsed = urlsplit(url)
+        page = int(parse_qs(parsed.query).get("page", ["1"])[0])
+        return FakeResponse(compact_page(parsed.path, page))
+
+
 def main():
     scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
     session = FakeSession()
@@ -74,6 +95,27 @@ def main():
             f"Browser {category_url}: duplicate page content"
         )
         browser_pages += len(browser_result)
+
+    # REWE's real category pages use compact strips like 1, 2, 3, …, 139.
+    # The scraper must request pages 4–138 sequentially instead of jumping to 139.
+    long_scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
+    long_session = LongPaginationSession()
+    long_scraper.session = long_session
+    long_url = "https://www.rewe.de/shop/c/backwaren-cerealien-aufstriche/"
+    long_pages = list(long_scraper.pages(long_url))
+    assert len(long_pages) == 139, f"Expected all 139 REWE pages, got {len(long_pages)}"
+    assert len(long_session.calls) == 139
+    assert long_scraper._page_number(long_session.calls[3]) == 4
+    assert long_scraper._page_number(long_session.calls[-1]) == 139
+
+    browser_long = ReweCatalogScraper(delay=0, browser_enabled=False)
+    browser_long._browser_category_html = lambda page, url: compact_page(
+        urlsplit(url).path, int(parse_qs(urlsplit(url).query).get("page", ["1"])[0])
+    )
+    browser_long_pages = list(browser_long._browser_category_pages(object(), long_url))
+    assert len(browser_long_pages) == 139, (
+        f"Expected browser pagination to cover all 139 pages, got {len(browser_long_pages)}"
+    )
 
     # Repeated content and the hard page cap must fail closed, not masquerade as
     # a complete category (which could trigger destructive stale-product cleanup).
