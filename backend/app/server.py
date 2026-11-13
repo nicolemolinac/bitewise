@@ -50,7 +50,10 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
             ]
         )
 
-    rows = self.db.query(Product).filter(or_(*clauses)).limit(240).all()
+    # The REWE snapshot is only ~12k rows. Do not cap before relevance scoring:
+    # SQL's arbitrary first 240 matches can hide the only valid exact product
+    # behind broad aliases (e.g. oil, cheese, or potato).
+    rows = self.db.query(Product).filter(or_(*clauses)).all()
     if rows:
         # Search columns improve recall, but the actual product title must independently
         # confirm compatibility. Catalog ingredient labels can be broad or misclassified.
