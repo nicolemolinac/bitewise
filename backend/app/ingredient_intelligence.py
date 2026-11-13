@@ -149,27 +149,44 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     return True
 
 
+def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bool:
+    # Frozen fries -> raw potatoes is an intentional, recipe-adapted transition.
+    # Do not let this exception turn potato chips/snacks into a substitute.
+    if normalize_text(ingredient) != "frozen french fries":
+        return False
+    if normalize_text(term) not in {"fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"}:
+        return False
+    return (
+        any(token in title for token in ("kartoffel", "potato"))
+        and not any(token in title for token in ("chips", "snack", "knabberartikel", "wedges", "croquette"))
+    )
+
+
 def ingredient_product_match_type(ingredient: str, product_text: str, intelligence: Any = None, product_category: str = "") -> str | None:
     title = normalize_text(product_text)
     if not title:
         return None
     profile = _profile_lookup(intelligence, ingredient)
-    if not _form_compatible(str(profile.get("form") or ""), title + " " + normalize_text(product_category), ingredient):
-        return None
+    form_compatible = _form_compatible(
+        str(profile.get("form") or ""),
+        title + " " + normalize_text(product_category),
+        ingredient,
+    )
     terms = ingredient_search_terms(ingredient, intelligence)
-    if any(_contains_phrase(title, term) for term in terms):
+    if form_compatible and any(_contains_phrase(title, term) for term in terms):
         return "exact"
     substitutes = list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     for term in substitutes:
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
-            return "substitute"
+            if form_compatible or _curated_cross_form_substitute(ingredient, normalized, title):
+                return "substitute"
     proposed = profile.get("suggested_substitutions", [])
     if isinstance(proposed, str):
         proposed = [proposed]
     for term in proposed if isinstance(proposed, list) else []:
         normalized = normalize_text(term)
-        if normalized and _contains_phrase(title, normalized):
+        if normalized and _contains_phrase(title, normalized) and form_compatible:
             return "suggested_substitution"
     return None
 
