@@ -400,11 +400,10 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         return None
     profile = _profile_lookup(intelligence, ingredient)
     product_form = str(profile.get("form") or "")
-    form_compatible = _form_compatible(
-        product_form,
-        title + " " + normalize_text(product_category),
-        ingredient,
-    )
+    # Keep category labels out of form-token checks: a valid "Fleisch-Wurst-Fisch"
+    # department must not make every fresh chicken product look like sausage.
+    # Department compatibility is evaluated separately below.
+    form_compatible = _form_compatible(product_form, title, ingredient)
     category_compatible = _category_compatible(
         ingredient, product_category, title, product_form
     )
