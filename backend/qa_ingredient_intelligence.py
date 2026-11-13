@@ -248,6 +248,14 @@ def run():
         "rolled oats", "REWE Bio zarte Haferflocken 500g",
         {"form": "unspecified", "name_de": "Haferflocken"}, "brot-cerealien-aufstriche"
     ) == "exact"
+    assert ingredient_product_match_type(
+        "chicken breast", "ja! Hähnchenbrustfilet Paprika 150g",
+        {"form": "fresh", "name_de": "Hähnchenbrust"}, "fleisch-wurst-fisch"
+    ) is None, "Seasoned cured chicken deli slices are not raw chicken breast"
+    assert ingredient_product_match_type(
+        "chicken breast", "Wilhelm Brandenburg Hähnchenbrustfilet 100g",
+        {"form": "fresh", "name_de": "Hähnchenbrust"}, "fleisch-wurst-fisch"
+    ) == "exact"
     # Department/category guard: matching a word inside an unrelated prepared product is not a match.
     fresh_pepper = {"form": "fresh", "name_de": "Paprika", "aliases": ["Paprika"]}
     assert ingredient_product_match_type("bell pepper", "REWE Beste Wahl Lyoner Paprika vegan 100g", fresh_pepper, "fleisch-wurst-fisch") is None
