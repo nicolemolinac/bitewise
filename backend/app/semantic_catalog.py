@@ -104,6 +104,11 @@ def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
             row.vector_json = json.dumps([float(value) for value in vector], separators=(",", ":"))
             indexed += 1
         db.commit()
+    current_ids = {product.id for product in products}
+    for product_id, row in existing.items():
+        if product_id not in current_ids:
+            db.delete(row)
+    db.commit()
     return {
         "model": MODEL_NAME,
         "products_seen": len(products),
