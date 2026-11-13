@@ -81,7 +81,7 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
     category = _normalise(getattr(product, "category", ""))
     if any(marker in category for marker in (
         "baby", "kindernahrung", "baby food", "snacks", "suesses salziges",
-        "suesswaren", "susswaren",
+        "susses salziges", "suesswaren", "susswaren",
     )):
         return "catalog_product"
     # Dry "Fix" seasoning sachets often share the canned/ready-meal aisle;
