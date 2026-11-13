@@ -4,7 +4,7 @@ import { isCanonicalReweProductUrl } from './reweUrl.js';
 import {
   AirVent, CalendarDays, Check, ChefHat, ExternalLink, Flame, Home,
   Microwave, PackageCheck, Settings, ShoppingBasket,
-  UtensilsCrossed, X,
+  UtensilsCrossed, X, RefreshCw,
 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -179,6 +179,8 @@ export default function AppV3(){
   const [loading,setLoading]=useState(false);
   const [cartAdding,setCartAdding]=useState(false);
   const [photoBackfillRunning,setPhotoBackfillRunning]=useState(false);
+  const [matchRefreshRunning,setMatchRefreshRunning]=useState(false);
+  const [matchRefreshReport,setMatchRefreshReport]=useState('');
   const [photoBackfillReport,setPhotoBackfillReport]=useState('');
   const [cartReport,setCartReport]=useState<any>(null);
   const [error,setError]=useState('');
@@ -412,6 +414,35 @@ export default function AppV3(){
     }
   }
 
+  async function refreshPickMatches(){
+    if(!liked.length||matchRefreshRunning)return;
+    const recordKeys=liked.map(meal=>{
+      const row=history.find(item=>item.record_type==='recipe'&&item.meal?.id===meal.id);
+      return row?.record_key||('recipe:'+((meal as any).source_concept_id||meal.id));
+    });
+    setMatchRefreshRunning(true);setMatchRefreshReport('');setError('');
+    try{
+      const result=await api('/recipe-history/reconcile',{method:'POST',body:JSON.stringify({record_keys:recordKeys})});
+      const refreshed=(result.records||[]).filter((row:any)=>row?.meal?.id);
+      const byId=new Map<string,Meal>(refreshed.map((row:any)=>[String(row.meal.id),row.meal as Meal]));
+      const sourceEntries=refreshed.map((row:any)=>[String(row.meal.source_concept_id||''),row.meal as Meal] as [string,Meal]).filter(([key])=>!!key);
+      const bySource=new Map<string,Meal>(sourceEntries);
+      setLiked(current=>current.map(meal=>byId.get(meal.id)||bySource.get(String((meal as any).source_concept_id||''))||meal));
+      setHistory(current=>current.map(row=>{
+        const updated=refreshed.find((item:any)=>item.record_key===row.record_key);
+        return updated?{...row,meal:updated.meal,updated_at:new Date().toISOString()}:row;
+      }));
+      setDetail(current=>current?(byId.get(current.id)||bySource.get(String((current as any).source_concept_id||''))||current):null);
+      setBasket([]);setSummary(null);
+      const unmatched=refreshed.reduce((sum:number,row:any)=>sum+Number(row.meal?.costing?.unmatched_ingredients||0),0);
+      const total=refreshed.reduce((sum:number,row:any)=>sum+Number(row.meal?.costing?.total_ingredients||0),0);
+      setMatchRefreshReport(refreshed.length
+        ? 'Updated '+refreshed.length+' of '+liked.length+' picks · '+unmatched+' unmatched ingredients remaining out of '+total+'. Your basket was cleared so it can be rebuilt with the new matches.'
+        : 'No saved recipe matches were refreshed. Check that your Picks are saved in recipe history.');
+    }catch(e:any){setError('Could not refresh ingredient matches: '+e.message)}
+    finally{setMatchRefreshRunning(false)}
+  }
+
   async function makeBasket(nextStrategy:Strategy=strategy,selectedExtras:ExtraItem[]=extras,selectedOwned:string[]=owned,includeUnplannedPicks=basketUsesUnplannedPicks){if(!liked.length&&!selectedExtras.length){setBasketUsesUnplannedPicks(false);setBasket([]);setSummary({recipe_total:0,extras_total:0,total:0});return;}setBasketUsesUnplannedPicks(includeUnplannedPicks);setLoading(true);setError('');try{const servings=servingTotals(includeUnplannedPicks);const d=Object.keys(servings).length?await api('/shopping',{method:'POST',body:JSON.stringify({meal_ids:Object.keys(servings),servings,owned:selectedOwned,mode:nextStrategy})}):{items:[],total:0};const recipeItems:BasketItem[]=d.items||d.basket||[];const extraItems:BasketItem[]=selectedExtras.map(extra=>{const requested=Math.max(0,Math.ceil(Number(extra.weeklyQuantity??1)||0));const onHand=Math.max(0,Math.floor(Number(extra.onHand)||0));const packs=Math.max(0,requested-onHand);const priced=Boolean(extra.product?.id&&extra.product?.price!==null&&extra.product?.price!==undefined);return {ingredient:`extra:${extra.id}`,quantity:requested,needed_quantity:packs,unit:'pack',product:extra.product,packs,total:priced?Number((packs*Number(extra.product!.price)).toFixed(2)):0,pantry_used:onHand,badge:extra.kind==='freezer-meal'?'Quick freezer meal':extra.kind==='beverage'?'Beverage':'Household extra',match_status:priced?'matched':'unmatched'} as BasketItem;}).filter(item=>item.needed_quantity!>0);const combined=[...recipeItems,...extraItems];const extrasTotal=extraItems.reduce((sum,item)=>sum+Number(item.total||0),0);setBasket(combined);setSummary({...d,recipe_total:d.total,extras_total:Number(extrasTotal.toFixed(2)),total:Number((Number(d.total||0)+extrasTotal).toFixed(2))});setTab('basket')}catch(e:any){setError(e.message)}finally{setLoading(false)}}
   async function addBasketToRewe(){
     const items=basket.filter(item=>item.product?.id&&exactRewe(item.product.product_url)&&Number(item.packs)>0).map(item=>({product_id:item.product!.id,packs:Math.max(1,Math.ceil(Number(item.packs)||1))}));
@@ -475,7 +506,7 @@ export default function AppV3(){
         {!visible.length&&!loading?<div className="mt-5 rounded-[28px] bg-white p-10 text-center"><ChefHat className="mx-auto text-[#18392b]/20"/><div className="mt-3 font-black">No exact matches yet</div><button onClick={()=>generateAI(`${filter==='all'?'varied':filter} ${mealType} ideas`)} className="mt-4 rounded-full bg-[#18392b] px-5 py-2.5 text-sm font-black text-white">Generate matching meals</button></div>:!visible.length&&loading?<div className="mt-5 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-[#18392b]/45">Creating your {mealType} ideas…</div>:<div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{visible.map(m=><MealCard key={m.id} meal={m} open={()=>!m.is_concept&&setDetail(m)} like={()=>react(m,'like')} skip={()=>react(m,'skip')} picked={false} busy={loading}/>)}</div>}
       </>}
 
-      {tab==='picks'&&<><Title title="Your picks" sub="Only selected ideas become full recipes. Portions adapt to your profile and each day's guest count."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{liked.map(m=><MealCard key={m.id} meal={m} open={()=>setDetail(m)} like={()=>void removePick(m)} skip={()=>void removePick(m)} picked/>)}</div>{liked.length>0&&<button onClick={()=>makeBasket(strategy,extras,owned,true)} className="mt-6 rounded-2xl bg-[#18392b] px-5 py-3 text-sm font-black text-white"><ShoppingBasket size={15} className="mr-2 inline"/>Build adaptive weekly basket</button>}</>}
+      {tab==='picks'&&<><div className="flex flex-wrap items-end justify-between gap-3"><Title title="Your picks" sub="Your saved recipes stay here. Re-run REWE product matching whenever the catalog or matching engine changes."/><button onClick={()=>void refreshPickMatches()} disabled={!liked.length||matchRefreshRunning} className="inline-flex items-center gap-2 rounded-xl bg-[#18392b] px-4 py-2.5 text-sm font-black text-white disabled:opacity-40"><RefreshCw size={15} className={matchRefreshRunning?'animate-spin':''}/>{matchRefreshRunning?'Updating ingredients…':'Update ingredient matches'}</button></div>{matchRefreshReport&&<p role="status" className="mt-3 rounded-xl bg-[#edf3ee] px-4 py-3 text-sm font-bold text-[#18392b]">{matchRefreshReport}</p>}<div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{liked.map(m=><MealCard key={m.id} meal={m} open={()=>setDetail(m)} like={()=>void removePick(m)} skip={()=>void removePick(m)} picked/>)}</div>{liked.length>0&&<button onClick={()=>makeBasket(strategy,extras,owned,true)} className="mt-6 rounded-2xl bg-[#18392b] px-5 py-3 text-sm font-black text-white"><ShoppingBasket size={15} className="mr-2 inline"/>Build adaptive weekly basket</button>}</>}
 
       {tab==='history'&&<><div className="flex flex-wrap items-end justify-between gap-3"><Title title="Recipe history" sub="Your generated ideas and completed recipes are saved in the permanent Bitewise database."/><button onClick={()=>void findMissingHistoryPhotos()} disabled={photoBackfillRunning||!history.some(row=>needsLocalRecipePhoto(row.meal))} className="rounded-xl bg-[#18392b] px-4 py-2.5 text-sm font-black text-white disabled:opacity-40">{photoBackfillRunning?'Finding photos…':'Find missing photos'}</button></div>{photoBackfillReport&&<p className="mt-3 text-xs text-[#18392b]/60">{photoBackfillReport}</p>}<div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{history.map((row:any)=><article key={row.record_key} className="overflow-hidden rounded-[22px] bg-white shadow-sm"><div className="aspect-[4/3] bg-[#e8e5dc]">{row.meal?.image?<img src={mealImageSrc(row.meal.image)} alt={row.meal?.name||row.name} className="h-full w-full object-cover" loading="lazy"/>:<div className="grid h-full place-items-center text-xs font-black uppercase tracking-[.12em] text-[#18392b]/25">Finding photo…</div>}</div><div className="p-4"><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/40">{row.record_type==='recipe'?'Full recipe':'Idea'}</span><span className="rounded-full bg-[#edf3ee] px-2 py-1 text-[10px] font-bold capitalize">{row.status}</span></div><div className="mt-2 font-black">{row.meal?.name||row.name}</div><div className="mt-1 text-xs text-[#18392b]/45">{row.meal?.meal_type||''} · {row.meal?.time||'—'} min</div><div className="mt-3 flex gap-2">{row.record_type==='recipe'?<button onClick={()=>setDetail(row.meal)} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white">Open recipe</button>:<button disabled={row.status==='expanded'} onClick={()=>react(row.meal,'like')} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white disabled:opacity-40">{row.status==='expanded'?'Expanded':'Create recipe'}</button>}</div></div></article>)}</div>{!history.length&&<Empty text="Your generated ideas and recipes will appear here."/>}</>}
 
