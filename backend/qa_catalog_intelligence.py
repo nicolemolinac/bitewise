@@ -37,6 +37,10 @@ def run():
                 real_result = search_catalog_opportunities(real_session, real_query, limit=12)
                 names = [row["name_original"] for row in real_result["products"]]
                 print(f"REAL REWE SEARCH [{real_query}] ({real_result.get('retrieval')}): {names}")
+                if real_query == "pizza":
+                    assert any("Bistro Baguette" in name for name in names), names
+                if real_query == "chili con carne":
+                    assert any("Chili con Carne" in name for name in names), names
     finally:
         real_session.close()
 
