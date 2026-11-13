@@ -122,11 +122,13 @@ def run():
         db.commit()
         changed = semantic.index_rewe_products(db, batch_size=2)
         assert changed["products_indexed"] == 1
+        assert semantic._INDEX_CACHE is None, "Reindexing must invalidate the cached full-catalog matrix"
 
         db.delete(chips)
         db.commit()
         cleaned = semantic.index_rewe_products(db, batch_size=2)
         assert cleaned["total_embeddings"] == 4
+        assert semantic._INDEX_CACHE is None, "Catalog cleanup must invalidate stale semantic vectors"
         assert db.query(ProductSemanticEmbedding).count() == 4
 
         # The committed REWE snapshot is ~12k rows. Verify that the actual
