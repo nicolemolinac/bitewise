@@ -67,6 +67,7 @@ _UNIT_ALIASES = {
     "milliliter": "ml", "milliliters": "ml", "millilitre": "ml", "ml": "ml",
     "liter": "l", "litre": "l", "liters": "l", "litres": "l", "l": "l",
     "stück": "piece", "stuck": "piece", "pcs": "piece", "pc": "piece",
+    "clove": "cloves", "cloves": "cloves",
     "pieces": "piece", "piece": "piece", "unit": "piece", "units": "piece",
     "tbsp": "tbsp", "tablespoon": "tbsp", "tablespoons": "tbsp",
     "tsp": "tsp", "teaspoon": "tsp", "teaspoons": "tsp",
