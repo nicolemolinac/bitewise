@@ -10,7 +10,6 @@ import re
 import subprocess
 import sys
 import time
-from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urljoin, urlsplit, urlunsplit
 
@@ -36,6 +35,7 @@ REWE_CATEGORY_URLS = [
     "https://www.rewe.de/shop/c/kueche-haushalt/",
     "https://www.rewe.de/shop/c/haus-freizeit/",
 ]
+
 
 def category_slug_from_url(url: str) -> str:
     slug = str(url or "").rstrip("/").split("/")[-1] or "bonus"
