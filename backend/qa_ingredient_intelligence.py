@@ -152,6 +152,30 @@ def run():
     assert ingredient_product_match_type("pre-cooked shredded chicken", "REWE Hähnchenbrust 400g", cooked_chicken, "Fleisch") is None
     assert ingredient_product_match_type("pre-cooked shredded chicken", "REWE Hähnchenbrust gegart 300g", cooked_chicken, "Fleisch") == "exact"
 
+    # Regression guards for known false positives from the real REWE benchmark.
+    assert ingredient_product_match_type(
+        "butter", "BE-KIND Protein Crunchy Peanut Butter 50g", {}, "kaese-eier-molkerei"
+    ) is None
+    assert ingredient_product_match_type(
+        "honey", "REWE Honig-Senfsauce 60g", {}, "oele-sossen-gewuerze"
+    ) is None
+    assert ingredient_product_match_type(
+        "pasta", "REWE Beste Wahl Udon-Nudeln vorgekocht 200g", {}, "kochen-backen"
+    ) is None
+    assert ingredient_product_match_type(
+        "white fish fillet", "Nadler Alaska Seelachs Mus 125g", {}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "bell pepper", "REWE Paprika rot 1 Stück", {"form": "fresh", "name_de": "Paprika"}, "obst-gemuese"
+    ) == "exact"
+    assert validate_ingredient_unit("bell pepper", "piece")["valid"] is True
+    assert validate_ingredient_unit("bell pepper", "piece")["family"] == "produce"
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Rapsöl 1L",
+        {"name_de": "Pflanzenöl", "aliases": ["Rapsöl", "Sonnenblumenöl"], "form": "liquid"},
+        "oele-sossen-gewuerze",
+    ) == "substitute", "Curated oil equivalents must never be silently upgraded to exact matches"
+
     recipe = {
         "id": "oil-test", "name": "Oil test", "base_servings": 2,
         "ingredients": [["vegetable oil", 2, "cloves"]],
