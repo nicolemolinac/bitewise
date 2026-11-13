@@ -237,6 +237,10 @@ def run():
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
     ) is None, "Cooked microwave rice must not satisfy a raw rice ingredient"
     assert ingredient_product_match_type(
+        "rice", "Reis-fit Basmati-Reis 4x125g",
+        {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
+    ) is None, "Pre-steamed rice must not match a raw rice ingredient"
+    assert ingredient_product_match_type(
         "rice", "reis-fit Griechischer Reis 250g",
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
     ) is None, "Prepared Greek-style rice must not satisfy raw rice"
