@@ -252,10 +252,19 @@ def main():
             server.main_module.Product.supermarket == "REWE"
         ).count()
         embedding_count = db.query(ProductSemanticEmbedding).count()
-        bread_cereal_count = db.query(Product).filter(
-            Product.supermarket == "REWE",
-            Product.category == "brot-cerealien-aufstriche",
-        ).count()
+        major_department_counts = {
+            category: db.query(Product).filter(
+                Product.supermarket == "REWE",
+                Product.category == category,
+            ).count()
+            for category in (
+                "brot-cerealien-aufstriche",
+                "fleisch-wurst-fisch",
+                "obst-gemuese",
+                "kaese-eier-molkerei",
+                "tiefkuehlkost",
+            )
+        }
         latest_catalog_run = db.query(CatalogRun).order_by(CatalogRun.id.desc()).first()
         live_catalog_healthy = (
             _BENCHMARK_DB is None
@@ -264,12 +273,16 @@ def main():
         )
         print("BITEWISE 22-RECIPE / REAL REWE CATALOG BENCHMARK")
         print(f"REWE products in local DB: {product_count}")
-        print(f"Brot/Cerealien category products: {bread_cereal_count}")
+        print(f"Major REWE department counts: {major_department_counts}")
         print(f"Local semantic vectors: {embedding_count}")
         if live_catalog_healthy:
-            assert bread_cereal_count >= 1000, (
-                "A healthy live refresh must capture the paginated Brot/Cerealien department; "
-                f"only {bread_cereal_count} products were stored."
+            underfilled = {
+                category: count for category, count in major_department_counts.items()
+                if count < 1000
+            }
+            assert not underfilled, (
+                "A healthy live refresh must capture all major paginated REWE departments; "
+                f"underfilled categories: {underfilled}"
             )
         if product_count == 0:
             raise SystemExit("No REWE catalog rows found. Refresh/import the local catalog first.")
