@@ -32,6 +32,8 @@ jobs:
         run: python qa_catalog_snapshot.py
       - name: REWE catalog coverage and missing-price diagnostics
         run: python qa_catalog_coverage.py
+      - name: Catalog lexical search recall QA
+        run: python qa_catalog_search_recall.py
       - name: Import API and verify critical routes
         run: |
           python - <<'PY'
