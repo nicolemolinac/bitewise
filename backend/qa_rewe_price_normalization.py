@@ -201,7 +201,7 @@ def main():
     by_name = {row["name_original"]: row for row in extracted_cards}
     assert by_name["Rice"]["package_size"] == 500 and by_name["Rice"]["package_unit"] == "g"
     assert by_name["Rice"]["price"] == 1.79
-    assert by_name["Rice"]["product_url"].rstrip("/").endswith("/rice/123")
+    assert by_name["Rice"]["product_url"] and by_name["Rice"]["product_url"].rstrip("/").endswith("/rice/123"), by_name["Rice"]
     assert by_name["Milk"]["package_size"] == 1000 and by_name["Milk"]["package_unit"] == "ml"
     assert by_name["Milk"]["price"] == 0.99
 
