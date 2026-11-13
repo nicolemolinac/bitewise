@@ -220,7 +220,7 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
         )
         is_potato_replacement = any(token in replacement_key for token in ("potat", "kartoffel"))
         if is_frozen_fries and is_potato_replacement:
-            adaptation["preparation_adjustment"] = "Cut fresh potatoes into evenly sized fries, rinse briefly, dry very thoroughly and coat lightly with oil. Cook using the recipe’s selected appliance until golden and tender; fresh potatoes need longer than frozen fries. If using an air fryer, use about 190°C for 20–25 minutes, shaking halfway. Adjust for thickness and appliance."
+            adaptation["preparation_adjustment"] = "Cut fresh potatoes into evenly sized fries, rinse briefly, dry very thoroughly and coat lightly with oil. Cook using the recipe’s selected appliance until golden and tender. Fresh potatoes need longer than frozen fries. If using an air fryer, use about 190°C for 20–25 minutes, shaking halfway. Adjust for thickness and appliance."
     if replacements:
         adapted_ingredients = []
         substitution_rows = {
