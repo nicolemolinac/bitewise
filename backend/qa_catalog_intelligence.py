@@ -2,7 +2,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base, Product
+from app.database import Base, Product, SessionLocal
 from app.catalog_intelligence import search_catalog_opportunities
 
 
@@ -26,6 +26,19 @@ def product(external_id, name, category, ingredient="meal", price=2.0):
 
 
 def run():
+    # Smoke-test the currently imported REWE snapshot as well as isolated fixtures.
+    real_session = SessionLocal()
+    try:
+        real_count = real_session.query(Product).filter(Product.supermarket == "REWE").count()
+        if real_count:
+            print(f"REAL REWE SNAPSHOT: {real_count} products")
+            for real_query in ("pizza", "chili con carne"):
+                real_result = search_catalog_opportunities(real_session, real_query, limit=8)
+                names = [row["name_original"] for row in real_result["products"]]
+                print(f"REAL REWE SEARCH [{real_query}] ({real_result.get('retrieval')}): {names}")
+    finally:
+        real_session.close()
+
     engine = create_engine("sqlite://")
     Base.metadata.create_all(engine, tables=[Product.__table__])
     session = sessionmaker(bind=engine)()
