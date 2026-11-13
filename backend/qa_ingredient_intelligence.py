@@ -70,6 +70,7 @@ def run():
     assert fallback["vegetable oil"]["unit_dimension"] == "volume"
     assert normalize_text("weiß") == "weiss"
     assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
+    assert ingredient_product_match_type("frozen sweet corn", "REWE Zuckermais tiefgekühlt 450g", {"form": "frozen", "aliases": ["Zuckermais tiefgekühlt"]}, "Tiefkühlkost") == "exact"
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
     assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
     proposed_only = {"canonical": "custom cooking fat", "suggested_substitutions": ["rapeseed oil"]}
