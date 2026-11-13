@@ -201,7 +201,7 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
     # than showing ten near-identical products from one format.
     diversified = []
     selected_ids = set()
-    for kind in ("ready_meal", "meal_kit", "ready_to_cook", "prepared_component", "catalog_product"):
+    for kind in ("ready_meal", "meal_kit", "ready_to_cook", "prepared_component"):
         added_for_kind = 0
         for item in ranked:
             if item[2] == kind and item[1].id not in selected_ids and added_for_kind < 2:
