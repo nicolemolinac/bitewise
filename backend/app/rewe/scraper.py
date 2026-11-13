@@ -69,9 +69,14 @@ def package(text: str):
     ))
     if not matches:
         return None, None
-    # Some product titles contain a typo/partial size before the real pack
-    # size (e.g. 0,75ml ... 0,75l); prefer the final explicit size token.
-    match = matches[-1]
+    # REWE may list both content quantity and outer piece count (e.g.
+    # "2x2ml 2 Stück"). Prefer the last mass/volume quantity; fall back to
+    # count only for products whose size is genuinely sold by piece.
+    content_matches = [
+        item for item in matches
+        if item.group(3).lower() not in {"stk", "st.", "stück", "blatt"}
+    ]
+    match = (content_matches or matches)[-1]
     multiplier = int(match.group(1) or 1)
     amount = float(match.group(2).replace(",", ".")) * multiplier
     if not math.isfinite(amount) or amount <= 0:
