@@ -57,6 +57,7 @@ def run():
             product("fries-1", "REWE Beste Wahl Pommes Frites 750g", "Tiefkühlkost", ingredient="frozen fries"),
             product("fries-noise-1", "Haribo Fruchtgummi Pommes Sauer", "Süßwaren", ingredient="candy"),
             product("fries-noise-2", "REWE Pommes Gewürzsalz 70g", "Gewürze", ingredient="seasoning"),
+            product("fries-noise-3", "Bautzner Pommes Sauce 429ml", "Saucen", ingredient="sauce"),
             product("semantic-1", "REWE Kartoffelgratin Fertiggericht 400g", "Fertiggerichte"),
             product("noise-1", "Hundefutter Chili Geschmack", "Tierbedarf", ingredient="pet food"),
         ])
@@ -69,7 +70,7 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1014
+        assert pizza["catalog_count"] == 1015
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
@@ -97,7 +98,7 @@ def run():
         fries = search_catalog_opportunities(session, "french fries", limit=10)
         fries_names = [row["name_original"] for row in fries["products"]]
         assert any("Pommes Frites" in name for name in fries_names), fries_names
-        assert not any("Haribo" in name or "Gewürzsalz" in name for name in fries_names), fries_names
+        assert not any("Haribo" in name or "Gewürzsalz" in name or "Pommes Sauce" in name for name in fries_names), fries_names
         # A semantic-only candidate can recover a concept with no shared retail words.
         semantic_product = session.query(Product).filter_by(external_id="semantic-1").one()
         original_semantic_search = semantic_catalog.semantic_catalog_candidates
