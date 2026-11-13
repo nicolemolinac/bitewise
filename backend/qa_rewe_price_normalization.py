@@ -67,6 +67,8 @@ def main():
 
     deposit_with_pack_price = "Protein drink 330ml 2,99 € zzgl. 0,25 € Pfand"
     assert price_details(deposit_with_pack_price, 330, "ml")[0] == 2.99
+    assert price_details("Water 1L zzgl. 0,25 € Pfand", 1000, "ml")[0] is None
+    assert price_details("Water 1L Pfand 0,25 €", 1000, "ml")[0] is None
 
     # A reference price must never be mistaken for a checkout price when the
     # package size could not be parsed or its unit does not match.
