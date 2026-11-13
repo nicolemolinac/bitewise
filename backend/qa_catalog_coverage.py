@@ -39,20 +39,24 @@ SAMPLE_INGREDIENTS = [
 def main():
     priced = SimpleNamespace(
         ingredient="rice", translated_name=None, name_normalized="rice 500g",
-        name_original="Rice 500g", price=1.99, availability="unknown",
+        name_original="Rice 500g", price=1.99, package_size=500,
+        package_unit="g", availability="unknown",
     )
     invalid = SimpleNamespace(
         ingredient="rice", translated_name=None, name_normalized="rice 500g",
-        name_original="Rice 500g", price=float("nan"), availability="unknown",
+        name_original="Rice 500g", price=float("nan"), package_size=500,
+        package_unit="g", availability="unknown",
     )
     assert server._catalog_search_score(priced, {"rice"}, "exact") > server._catalog_search_score(invalid, {"rice"}, "exact")
     valid_substitute = SimpleNamespace(
         ingredient="rice", translated_name=None, name_normalized="rice alternative",
-        name_original="Rice alternative", price=1.49, availability="available",
+        name_original="Rice alternative", price=1.49, package_size=500,
+        package_unit="g", availability="available",
     )
     unavailable_exact = SimpleNamespace(
         ingredient="rice", translated_name=None, name_normalized="rice 500g",
-        name_original="Rice 500g", price=1.99, availability="out_of_stock",
+        name_original="Rice 500g", price=1.99, package_size=500,
+        package_unit="g", availability="out_of_stock",
     )
     assert server._catalog_search_score(valid_substitute, {"rice"}, "substitute") > server._catalog_search_score(invalid, {"rice"}, "exact")
     assert server._catalog_search_score(valid_substitute, {"rice"}, "substitute") > server._catalog_search_score(unavailable_exact, {"rice"}, "exact")
