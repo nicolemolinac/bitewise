@@ -65,7 +65,7 @@ def run():
     assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
     proposed_only = {"canonical": "custom cooking fat", "suggested_substitutions": ["rapeseed oil"]}
     assert "rapeseed oil" in ingredient_candidate_search_terms("custom cooking fat", proposed_only)
-    assert ingredient_product_match_type("custom cooking fat", "REWE Rapsöl 1L", proposed_only) is None
+    assert ingredient_product_match_type("custom cooking fat", "REWE Rapsöl 1L", proposed_only) == "suggested_substitution"
     assert ingredient_product_match_type("canned corn", "REWE Mais aus der Dose 300g", intelligence) == "exact"
     assert ingredient_product_match_type(
         "canned corn", "REWE Bio Zuckermais Tiefkühl 450g", intelligence
@@ -132,12 +132,17 @@ def run():
         "package_size": 500, "package_unit": "g", "price": 1.99,
         "availability": "available", "ingredient_match_type": "semantic_candidate",
         "semantic_similarity": 0.84,
+    }, {
+        "id": 13, "name_original": "AI-proposed possible substitute",
+        "package_size": 500, "package_unit": "g", "price": 2.19,
+        "availability": "available", "ingredient_match_type": "suggested_substitution",
     }]})
     semantic_requirement = [{"ingredient": "unknown", "quantity": 100, "unit": "g", "source_meals": ["Test"]}]
     review_basket = build_basket(semantic_requirement, semantic_catalog)
     assert review_basket[0]["match_status"] == "unmatched"
     assert review_basket[0]["product"] is None
     assert review_basket[0]["semantic_suggestions"][0]["semantic_similarity"] == 0.84
+    assert len(review_basket[0]["semantic_suggestions"]) == 2
     confirmed_basket = build_basket(semantic_requirement, semantic_catalog, overrides={"unknown": 12})
     assert confirmed_basket[0]["match_status"] == "matched"
     assert confirmed_basket[0]["selected_by_user"] is True
