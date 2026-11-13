@@ -12,7 +12,7 @@ from decimal import Decimal
 from dotenv import load_dotenv
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 # Load backend/.env before database.py is imported so DATABASE_URL and auth settings
 # are available both locally and in the deployed cloud entrypoint.
@@ -90,14 +90,28 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
 
     Product = main_module.Product
     clauses = []
+    # The committed REWE snapshot's legacy normalizer preserves German umlauts,
+    # while recipe aliases use Unicode decomposition (ä -> a, ö -> o, ü -> u).
+    # Normalize the SQL search columns too so terms such as speisestarke,
+    # olivenol and hahnchen can retrieve Speisestärke, Olivenöl and Hähnchen.
+    def _ascii_search_column(column):
+        value = func.lower(column)
+        for source, target in (("ä", "a"), ("ö", "o"), ("ü", "u"), ("ß", "ss")):
+            value = func.replace(value, source, target)
+        return value
+
     for term in aliases:
         pattern = f"%{term}%"
         clauses.extend(
             [
                 Product.ingredient.ilike(pattern),
+                _ascii_search_column(Product.ingredient).ilike(pattern),
                 Product.name_normalized.ilike(pattern),
+                _ascii_search_column(Product.name_normalized).ilike(pattern),
                 Product.name_original.ilike(pattern),
+                _ascii_search_column(Product.name_original).ilike(pattern),
                 Product.translated_name.ilike(pattern),
+                _ascii_search_column(Product.translated_name).ilike(pattern),
                 Product.category.ilike(pattern),
             ]
         )
