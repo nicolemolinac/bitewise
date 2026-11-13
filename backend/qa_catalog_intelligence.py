@@ -57,6 +57,11 @@ def run():
 
         chili = search_catalog_opportunities(session, "chili con carne", limit=10)
         chili_names = [row["name_original"] for row in chili["products"]]
+        natural_language_chili = search_catalog_opportunities(session, "quick air-fryer chili con carne tonight", limit=10)
+        natural_chili_names = [row["name_original"] for row in natural_language_chili["products"]]
+        assert any(name == "Chili con Carne 400g" for name in natural_chili_names), natural_chili_names
+        natural_language_pizza = search_catalog_opportunities(session, "easy pizza for two", limit=10)
+        assert any("Pizza Baguette" in row["name_original"] for row in natural_language_pizza["products"])
         assert any(name == "Chili con Carne 400g" for name in chili_names), chili_names
         assert any("Chili Eintopf" in name for name in chili_names), chili_names
         assert next(row for row in chili["products"] if row["name_original"] == "Chili con Carne 400g")["convenience_type"] == "ready_meal"
