@@ -19,14 +19,23 @@ import app.semantic_catalog as semantic
 class FakeEmbeddingModel:
     def embed(self, texts, batch_size=32):
         for text in texts:
-            if (
-                str(text).startswith("query:")
-                or "pommes" in str(text).casefold()
-                or "muesli" in str(text).casefold()
-            ):
-                yield np.asarray([1.0, 0.0, 0.0], dtype=np.float32)
+            value = str(text).casefold()
+            if value.startswith("query:"):
+                if "rolled oats" in value:
+                    vector = [0.0, 1.0, 0.0]
+                elif "white fish fillet" in value:
+                    vector = [0.0, 0.0, 1.0]
+                else:
+                    vector = [1.0, 0.0, 0.0]
+            elif "muesli" in value:
+                vector = [0.0, 1.0, 0.0]
+            elif "seelachsfilet" in value:
+                vector = [0.0, 0.0, 1.0]
+            elif "pommes" in value:
+                vector = [1.0, 0.0, 0.0]
             else:
-                yield np.asarray([0.0, 1.0, 0.0], dtype=np.float32)
+                vector = [0.0, 0.0, 0.0]
+            yield np.asarray(vector, dtype=np.float32)
 
 
 def _product(external_id, name, category):
@@ -59,17 +68,19 @@ def run():
         potatoes = _product("potatoes-1", "REWE Speisekartoffeln 2kg", "Obst & Gemüse")
         muesli = _product("muesli-1", "Kölln Müsli Früchte 500g", "Brot-Cerealien-Aufstriche")
         muesli.ingredient = "oat cereal"
-        db.add_all([fries, chips, potatoes, muesli])
+        fish = _product("fish-1", "REWE Beste Wahl Alaska Seelachsfilet 400g", "Tiefkühlkost")
+        fish.ingredient = "white fish fillet"
+        db.add_all([fries, chips, potatoes, muesli, fish])
         db.commit()
 
         first = semantic.index_rewe_products(db, batch_size=2)
-        assert first["products_seen"] == 4
-        assert first["products_indexed"] == 4
-        assert db.query(ProductSemanticEmbedding).count() == 4
+        assert first["products_seen"] == 5
+        assert first["products_indexed"] == 5
+        assert db.query(ProductSemanticEmbedding).count() == 5
 
         second = semantic.index_rewe_products(db, batch_size=2)
         assert second["products_indexed"] == 0
-        assert second["products_already_indexed"] == 4
+        assert second["products_already_indexed"] == 5
 
         semantic._INDEX_CACHE = None
         candidates = semantic.semantic_product_candidates(
@@ -94,6 +105,13 @@ def run():
         assert muesli_suggestion["ingredient_match_type"] == "semantic_candidate"
         assert muesli_suggestion["semantic_match_type"] == "semantic_only"
 
+        fish_suggestions = semantic.semantic_product_candidates(
+            db, "white fish fillet", {"canonical": "white fish fillet", "form": "fresh"},
+            limit=5, minimum_score=0.5,
+        )
+        frozen_fish = next(row for row in fish_suggestions if row["id"] == fish.id)
+        assert frozen_fish["semantic_match_type"] == "suggested_substitution"
+
         fries.name_original = "REWE Backofen Pommes Frites 750g"
         fries.name_normalized = fries.name_original.casefold()
         db.commit()
@@ -103,8 +121,8 @@ def run():
         db.delete(chips)
         db.commit()
         cleaned = semantic.index_rewe_products(db, batch_size=2)
-        assert cleaned["total_embeddings"] == 3
-        assert db.query(ProductSemanticEmbedding).count() == 3
+        assert cleaned["total_embeddings"] == 4
+        assert db.query(ProductSemanticEmbedding).count() == 4
 
         # The committed REWE snapshot is ~12k rows. Verify that the actual
         # indexer embeds every imported REWE product, not a capped sample.
