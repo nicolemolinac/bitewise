@@ -2,7 +2,7 @@
 
 Run from backend/: python qa_ingredient_costing.py
 """
-from app.shopping.optimizer import build_basket, consolidate
+from app.shopping.optimizer import _convert_ingredient_quantity, build_basket, consolidate
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
