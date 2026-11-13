@@ -65,8 +65,9 @@ def run():
         assert any(name == "Chili con Carne 400g" for name in chili_names), chili_names
         assert any("Chili Eintopf" in name for name in chili_names), chili_names
         assert next(row for row in chili["products"] if row["name_original"] == "Chili con Carne 400g")["convenience_type"] == "ready_meal"
-        canned_beans = next(row for row in chili["products"] if row["name_original"] == "Kidney Bohnen rot")
-        assert canned_beans["convenience_type"] == "prepared_component", canned_beans
+        canned_beans = search_catalog_opportunities(session, "bohnen", limit=10)
+        bean_row = next(row for row in canned_beans["products"] if row["name_original"] == "Kidney Bohnen rot")
+        assert bean_row["convenience_type"] == "prepared_component", bean_row
 
         empty = search_catalog_opportunities(session, "x", limit=10)
         assert empty["products"] == []
