@@ -20,6 +20,22 @@ def normalize_text(value: Any) -> str:
 # Small, high-confidence cross-language vocabulary. This is a seed ontology,
 # not the full catalog: recipe-side AI metadata expands it per ingredient.
 _BASE_TERMS = {
+    "bell pepper": ("bell pepper", "paprika", "rote paprika", "gelbe paprika", "grune paprika", "spitzpaprika"),
+    "red onion": ("red onion", "rote zwiebel", "rote speisezwiebel", "rote zwiebeln"),
+    "chicken breast": ("chicken breast", "hahnchenbrust", "haehnchenbrust", "hahnchenbrustfilet", "haehnchenbrustfilet"),
+    "olive oil": ("olive oil", "olivenol", "natives olivenol", "extra natives olivenol"),
+    "sesame oil": ("sesame oil", "sesamol", "gerostetes sesamol"),
+    "firm tofu": ("firm tofu", "naturtofu", "tofu natur", "fester tofu"),
+    "curry powder": ("curry powder", "currypulver", "curry gewurz", "curry gewurzmischung"),
+    "cumin": ("cumin", "kreuzkummel", "kreuzkuemmel"),
+    "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "bruhwuerfel gemuse"),
+    "cooking cream": ("cooking cream", "kochcreme", "kochsahne", "sahne zum kochen"),
+    "burger buns": ("burger buns", "hamburger brotchen", "burger brotchen"),
+    "caesar dressing": ("caesar dressing", "caesar salat dressing"),
+    "croutons": ("croutons", "brotcroutons"),
+    "canned chopped tomatoes": ("canned chopped tomatoes", "stuckige tomaten", "tomaten stuecke"),
+    "risotto rice": ("risotto rice", "risottoreis", "arborio reis", "carnaroli reis"),
+    "rolled oats": ("rolled oats", "haferflocken", "kernige haferflocken"),
     "black olives": ("black olives", "schwarze oliven", "oliven schwarz", "olives noires"),
     "canned corn": ("canned corn", "mais aus der dose", "mais dose", "mais konserve", "zuckermais", "dosenmais", "mais konserviert"),
     "frozen sweet corn": ("frozen sweet corn", "tiefkuhl mais", "tiefkuhlmais", "tiefkuhlzuckermais", "mais tiefkuhl", "zuckermais tiefgekuhlt", "tiefgekuhlter zuckermais", "mais tiefgekuhlt", "tiefgekuhlter mais"),
@@ -63,8 +79,8 @@ _UNIT_FAMILIES = {
 _FAMILY_HINTS = {
     "oil": ("oil", "pflanzenol", "sonnenblumenol", "rapsol", "olivenol"),
     "liquid": ("milk", "cream", "sauce", "vinegar", "stock", "juice", "sahne", "milch", "essig", "brühe"),
-    "spice": ("salt", "pepper", "paprika", "cumin", "cinnamon", "spice", "seasoning", "gewürz", "gewürzmischung", "salz", "pfeffer"),
-    "produce": ("onion", "onions", "garlic", "potato", "potatoes", "tomato", "tomatoes", "lettuce", "cilantro", "carrot", "carrots", "olive", "olives", "zwiebel", "zwiebeln", "knoblauch", "kartoffel", "kartoffeln"),
+    "spice": ("salt", "black pepper", "peppercorn", "paprika powder", "cumin", "cinnamon", "spice", "seasoning", "gewürz", "gewürzmischung", "salz", "pfeffer"),
+    "produce": ("bell pepper", "red onion", "pepper", "paprika", "onion", "onions", "garlic", "potato", "potatoes", "tomato", "tomatoes", "lettuce", "cilantro", "carrot", "carrots", "olive", "olives", "zwiebel", "zwiebeln", "knoblauch", "kartoffel", "kartoffeln"),
     "count": ("egg", "eggs", "eier", "tortilla", "tortillas", "shell", "shells", "bun", "buns", "wurstchen", "sausage", "sausages"),
 }
 
@@ -199,6 +215,15 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "caesar dressing", "vegetable stock", "coconut milk", "honey",
     }
 
+    if name == "honey" and any(term in title_key for term in ("senf", "mustard", "dressing", "sauce")):
+        return False
+    if name == "butter" and any(term in title_key for term in ("peanut", "erdnuss", "mandel", "brotaufstrich", "aufstrich")):
+        return False
+    if name in {"pasta", "spaghetti"} and any(term in title_key for term in ("udon", "ramen", "glasnudel", "reisnudel", "instant nudel", "mie nudel")):
+        return False
+    if name == "bell pepper" and any(term in title_key for term in ("pulver", "powder", "chips", "wurst", "lyoner")):
+        return False
+
     if name in produce:
         normalized_form = normalize_text(form)
         if normalized_form in {"frozen", "tiefkuhl"}:
@@ -251,9 +276,28 @@ def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bo
     )
 
 
+def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
+    """Reject known lexical traps before aliases/categories can create false positives."""
+    name = normalize_text(ingredient)
+    t = normalize_text(title)
+    exclusions = {
+        "butter": ("peanut butter", "erdnussbutter", "mandelmus", "nuss nougat", "brotaufstrich", "aufstrich", "butterkeks", "butterwaffel"),
+        "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing"),
+        "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln"),
+        "spaghetti": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "mie nudeln"),
+        "bell pepper": ("paprikapulver", "paprika pulver", "paprika chips", "paprika lyoner", "paprika wurst"),
+        "red onion": ("red onion chips", "rote zwiebel chips", "zwiebel chips"),
+        "chicken breast": ("hahnchen wurst", "haehnchen wurst", "hahnchen aufschnitt", "haehnchen aufschnitt", "brotaufstrich"),
+        "olive oil": ("olivenol dusche", "olivenol creme", "olivenol shampoo", "olivenol nachtcreme"),
+        "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol"),
+        "white fish fillet": ("fischmus", "fischburger", "fischstabchen", "surimi"),
+        "salsa": ("mais rollchen", "mais roellchen", "snack", "chips"),
+    }
+    return any(_contains_phrase(t, normalize_text(term)) for term in exclusions.get(name, ()))
+
 def ingredient_product_match_type(ingredient: str, product_text: str, intelligence: Any = None, product_category: str = "") -> str | None:
     title = normalize_text(product_text)
-    if not title:
+    if not title or _ingredient_specific_exclusions(ingredient, title):
         return None
     profile = _profile_lookup(intelligence, ingredient)
     product_form = str(profile.get("form") or "")
@@ -314,8 +358,11 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
 def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = None) -> dict:
     name = normalize_text(ingredient)
     normalized_unit = normalize_text(unit)
-    family = next((key for key, hints in _FAMILY_HINTS.items()
-                   if any(normalize_text(hint) in name.split() for hint in hints)), None)
+    if name in {"bell pepper", "red pepper", "green pepper", "yellow pepper", "sweet pepper", "paprika"}:
+        family = "produce"
+    else:
+        family = next((key for key, hints in _FAMILY_HINTS.items()
+                       if any(normalize_text(hint) in name.split() for hint in hints)), None)
     if family is None:
         return {"valid": True, "family": None, "reason": None}
     allowed = set(_UNIT_FAMILIES[family])
