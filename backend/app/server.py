@@ -370,6 +370,106 @@ async def save_recipe_history(request: Request):
     return {"ok": True, "saved": saved}
 
 
+@app.post("/api/recipe-history/reconcile")
+def reconcile_saved_recipe_catalog_matches(request: Request):
+    """Rebuild saved recipe matches after a user confirms a catalog suggestion."""
+    db = SessionLocal()
+    try:
+        owner = _history_owner(request)
+        rows = (
+            db.query(RecipeHistory)
+            .filter_by(user_id=owner, record_type="recipe")
+            .filter(RecipeHistory.status.in_(["saved", "cooked"]))
+            .order_by(RecipeHistory.updated_at.desc())
+            .limit(100)
+            .all()
+        )
+        overrides = {
+            row.ingredient: row.product_id
+            for row in db.query(main_module.ProductOverride).all()
+        }
+        pantry = main_module.pantry_snapshot(db)
+        catalog_ready = db.query(main_module.Product).filter(
+            main_module.Product.supermarket == "REWE"
+        ).count() > 0
+        updated_records = []
+
+        for row in rows:
+            try:
+                recipe = json.loads(row.meal_json)
+            except Exception:
+                continue
+            if not isinstance(recipe, dict) or not recipe.get("ingredients"):
+                continue
+
+            original = recipe.get("catalog_original")
+            if not isinstance(original, dict):
+                original = {
+                    "ingredients": copy.deepcopy(recipe.get("ingredients") or []),
+                    "steps": copy.deepcopy(recipe.get("steps") or []),
+                }
+                recipe["catalog_original"] = original
+            recipe["ingredients"] = copy.deepcopy(original.get("ingredients") or [])
+            recipe["steps"] = copy.deepcopy(original.get("steps") or [])
+
+            costing = recipe.get("costing") if isinstance(recipe.get("costing"), dict) else {}
+            try:
+                servings = float(costing.get("servings") or recipe.get("base_servings") or 2)
+            except (TypeError, ValueError):
+                servings = 2.0
+            servings = min(12.0, max(0.1, servings))
+            requirements = main_module.consolidate(
+                [recipe], {str(recipe.get("id") or ""): servings}
+            )
+            basket = main_module.build_basket(
+                requirements,
+                main_module.CatalogAdapter(db),
+                "best-value",
+                overrides=overrides,
+                pantry=pantry,
+            )
+            matched = [item for item in basket if item.get("match_status") in {"matched", "substituted"}]
+            exact = [item for item in basket if item.get("match_status") == "matched"]
+            substituted = [item for item in basket if item.get("match_status") == "substituted"]
+            covered = [item for item in basket if item.get("match_status") == "covered"]
+            unmatched = [item for item in basket if item.get("match_status") == "unmatched"]
+            checkout_total = round(sum(float(item.get("checkout_cost") or 0) for item in matched), 2)
+            consumed_total = round(sum(float(item.get("consumed_cost") or 0) for item in matched), 2)
+
+            recipe["product_matches"] = basket
+            adaptations = _adapt_recipe_to_catalog(recipe, basket)
+            recipe["costing"] = {
+                **costing,
+                "matched_ingredients": len(exact),
+                "substituted_ingredients": len(substituted),
+                "covered_ingredients": len(covered),
+                "unmatched_ingredients": len(unmatched),
+                "total_ingredients": len(basket),
+                "catalog_ready": catalog_ready,
+                "checkout_total": checkout_total if matched else None,
+                "consumed_cost": consumed_total if matched else None,
+                "servings": servings,
+                "cost_per_serving": round(consumed_total / servings, 2) if matched else None,
+                "cost_scope": "matched_ingredients_only",
+                "shopping_ready": len(unmatched) == 0,
+                "catalog_coverage": round((len(matched) + len(covered)) / len(basket), 4) if basket else 1.0,
+                "currency": "EUR",
+            }
+            recipe["catalog_adaptations"] = adaptations
+            recipe = _json_safe(recipe)
+            row.meal_json = json.dumps(recipe, ensure_ascii=False, default=_json_history_default)
+            row.updated_at = datetime.utcnow()
+            updated_records.append({"record_key": row.record_key, "meal": recipe})
+
+        db.commit()
+        return {"ok": True, "updated": len(updated_records), "records": updated_records}
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(500, f"Could not reconcile saved recipe catalog matches: {str(exc)[:240]}")
+    finally:
+        db.close()
+
+
 @app.patch("/api/recipe-history/{record_key:path}")
 async def update_recipe_history(record_key: str, request: Request):
     try:
