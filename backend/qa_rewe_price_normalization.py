@@ -36,6 +36,13 @@ def main():
     pack_price, per_ml = price_details("Drink 250ml (100 ml = 0,39 €)", size, unit)
     assert pack_price == 0.98 and abs(per_ml - 0.0039) < 1e-9
 
+    granini_title = "Granini Fresh Schorle 0,75ml (EINWEG) 0,75l (1 l = 2,12 €)"
+    granini_size, granini_unit = package(granini_title)
+    assert granini_size == 750 and granini_unit == "ml"
+    assert price_details(granini_title, granini_size, granini_unit)[0] == 1.59
+    assert package("Babywell Aqua Tücher 2x80 Stück 2x80 Stück") == (160, "unit")
+    assert package("Toilettenpapier 8x150 Blatt 8x150 Stück") == (1200, "unit")
+
     assert package("Invalid product 0g") == (None, None)
 
     assert package("Rice (1 kg = 4,00 €)") == (None, None)
