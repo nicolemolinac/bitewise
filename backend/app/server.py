@@ -24,7 +24,6 @@ from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
 from .ingredient_intelligence import ingredient_candidate_search_terms, ingredient_product_match_type, ingredient_substitution_name, ingredient_suggested_substitution_name
-from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
 # Swap in the token-efficient implementation without duplicating the route.
@@ -660,7 +659,6 @@ app.router.routes = [
         and "POST" in (getattr(route, "methods", None) or set())
     )
 ]
-app.include_router(rewe_refresh_router)
 app.include_router(cloud_router)
 app.include_router(migration_router)
 
