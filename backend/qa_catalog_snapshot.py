@@ -19,6 +19,12 @@ from app.database import (
 )
 
 
+
+def main():
+    assert _snapshot_float("NaN") is None
+    assert _snapshot_float("inf") is None
+    assert _snapshot_float("-inf") is None
+
     # Snapshot unit prices are recalculated from whole-pack checkout prices.
     snapshot_price, snapshot_unit = _snapshot_pack_pricing(
         "Hipp bars 10x10g 100g", 100, "g", 2.99, 0.299
@@ -38,12 +44,6 @@ from app.database import (
     )
     assert snapshot_price == 20.0 and snapshot_unit == 0.002
 
-
-
-def main():
-    assert _snapshot_float("NaN") is None
-    assert _snapshot_float("inf") is None
-    assert _snapshot_float("-inf") is None
 
     pack_price, price_per_gram = _snapshot_pack_pricing(
         "Alete Kinderkeks 180g (1 kg = 11,06 €)", 180, "g", 11.06, 0.0614
