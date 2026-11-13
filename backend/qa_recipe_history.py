@@ -196,7 +196,11 @@ def main():
         adapted_recipe = next(row["meal"] for row in refreshed["records"] if row["record_key"] == "recipe:" + concept_two["id"])
         assert adapted_recipe["ingredients"][0][0] == "fresh potatoes"
         assert adapted_recipe["costing"]["substituted_ingredients"] == 1
-        assert any("Fresh potatoes need longer than frozen fries" in step["text"] for step in adapted_recipe["steps"])
+        if not any("Fresh potatoes need longer than frozen fries" in step.get("text", "") for step in adapted_recipe["steps"] if isinstance(step, dict)):
+            print("DEBUG catalog adaptations:", adapted_recipe.get("catalog_adaptations"))
+            print("DEBUG product matches:", adapted_recipe.get("product_matches"))
+            print("DEBUG steps:", adapted_recipe.get("steps"))
+        assert any("Fresh potatoes need longer than frozen fries" in step.get("text", "") for step in adapted_recipe["steps"] if isinstance(step, dict))
         # Reconciliation must restore the original ingredients first, then adapt once.
         call("POST", "/api/recipe-history/reconcile", {})
         refreshed_again = call("GET", "/api/recipe-history")
