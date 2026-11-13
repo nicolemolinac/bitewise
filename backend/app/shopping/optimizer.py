@@ -190,19 +190,6 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
     return None, None
 
 
-def _number(product, *keys, default=0.0):
-    for key in keys:
-        value = product.get(key)
-        if value is not None:
-            try:
-                number = float(value)
-                if math.isfinite(number):
-                    return number
-            except (TypeError, ValueError):
-                pass
-    return default
-
-
 def _package(product):
     raw_qty = product.get("pack_qty")
     if raw_qty is None:
