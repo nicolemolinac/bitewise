@@ -28,6 +28,14 @@ def main():
     assert _offer_availability({"price": "2.99"}) == "unknown"
     assert _offer_availability({"price": "2.99", "availability": "https://schema.org/InStock"}) == "available"
     assert _offer_availability({"availability": "https://schema.org/OutOfStock"}) == "unavailable"
+    assert _offer_availability([
+        {"availability": "https://schema.org/OutOfStock"},
+        {"price": "2.99"},
+    ]) == "unknown"
+    assert _offer_availability([
+        {"availability": "https://schema.org/OutOfStock"},
+        {"availability": "https://schema.org/InStock"},
+    ]) == "available"
 
     html = """<script type="application/ld+json">
     {"@type":"ItemList","itemListElement":[{"item":{"@type":"Product",
@@ -48,6 +56,17 @@ def main():
     assert unparsed[0]["package_size"] == 1
     assert unparsed[0]["package_unit"] == "unknown"
     assert unparsed[0]["price"] == 0.99
+
+    mixed_offer_html = """<script type="application/ld+json">
+    {"@type":"ItemList","itemListElement":[{"item":{"@type":"Product",
+    "name":"Rice 500g","offers":[
+      {"@type":"Offer","price":"1.79","availability":"https://schema.org/OutOfStock"},
+      {"@type":"Offer","price":"2.49","availability":"https://schema.org/InStock"}
+    ]}}]}
+    </script>"""
+    mixed = _json_ld_products(BeautifulSoup(mixed_offer_html, "html.parser"), "https://www.rewe.de", "Lebensmittel")
+    assert mixed[0]["price"] == 2.49
+    assert mixed[0]["availability"] == "available"
 
     print("REWE price QA PASS: €/kg and €/l converted to pack prices; multipacks normalized")
 
