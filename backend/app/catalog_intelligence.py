@@ -78,7 +78,7 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         "name_original", "name_normalized", "translated_name"
     )))
     category = _normalise(getattr(product, "category", ""))
-    if any(marker in category for marker in ("babynahrung", "kindernahrung", "baby food", "snacks")):
+    if any(marker in category for marker in ("babynahrung", "kindernahrung", "baby food")):
         return "catalog_product"
     if any(marker in text for marker in _READY_MARKERS) or any(
         marker in category for marker in ("fertiggerichte", "fertigmahlzeiten", "ready meals")
@@ -96,6 +96,13 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         return "meal_kit"
     if "gewurze" in category or "gewurzmischung" in text or "wurzmittel" in category:
         return "prepared_component"
+    try:
+        package_size = float(getattr(product, "package_size", 0) or 0)
+        package_unit = _normalise(getattr(product, "package_unit", ""))
+        if 0 < package_size < 100 and package_unit in {"g", "ml"}:
+            return "catalog_product"
+    except (TypeError, ValueError):
+        pass
     if any(marker in text for marker in _PREPARED_MARKERS):
         return "ready_to_cook"
     return "catalog_product"
