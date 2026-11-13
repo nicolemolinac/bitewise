@@ -415,19 +415,33 @@ async def save_recipe_history(request: Request):
 
 
 @app.post("/api/recipe-history/reconcile")
-def reconcile_saved_recipe_catalog_matches(request: Request):
-    """Rebuild saved recipe matches after a user confirms a catalog suggestion."""
+async def reconcile_saved_recipe_catalog_matches(request: Request):
+    """Re-run catalog matching for selected saved recipes, or all saved recipes when no selection is supplied."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    requested_keys = payload.get("record_keys") if isinstance(payload, dict) else None
+    if requested_keys is not None and (
+        not isinstance(requested_keys, list)
+        or not all(isinstance(key, str) and key.strip() for key in requested_keys)
+    ):
+        raise HTTPException(422, "record_keys must be a list of non-empty recipe history keys")
+    requested_keys = list(dict.fromkeys(requested_keys or []))[:100] if requested_keys is not None else None
+
     db = SessionLocal()
     try:
         owner = _history_owner(request)
-        rows = (
+        query = (
             db.query(RecipeHistory)
             .filter_by(user_id=owner, record_type="recipe")
             .filter(RecipeHistory.status.in_(["saved", "cooked"]))
-            .order_by(RecipeHistory.updated_at.desc())
-            .limit(100)
-            .all()
         )
+        if requested_keys is not None:
+            if not requested_keys:
+                return {"ok": True, "updated": 0, "records": []}
+            query = query.filter(RecipeHistory.record_key.in_(requested_keys))
+        rows = query.order_by(RecipeHistory.updated_at.desc()).limit(100).all()
         overrides = {
             row.ingredient: row.product_id
             for row in db.query(main_module.ProductOverride).all()
