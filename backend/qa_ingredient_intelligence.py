@@ -61,6 +61,26 @@ def test_high_risk_false_positive_guards():
         product_category="Fertiggerichte & Konserven",
     ) is None
     assert ingredient_product_match_type(
+        "frozen peas", "Iglo Gartenerbsen Frisch vom Feld 400g",
+        {"form": "frozen"}, "Tiefkühlkost",
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "firm tofu", "REWE Bio pflanzlich Tofu Natur 2x200g",
+        {"aliases": ["Tofu Natur"]}, "Fleisch-Wurst-Fisch",
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g",
+        {"form": "soft", "aliases": ["Wraps"]}, "Fertiggerichte & Konserven",
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "croutons", "Knorr Salatkrönung Croutinos mit Walnuss Croutons 25g",
+        {}, "Öle, Soßen & Gewürze",
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "croutons", "Maggi 5 Minuten Terrine Kartoffelbrei mit Röstzwiebeln & Croutons 56g",
+        {}, "Fertiggerichte & Konserven",
+    ) is None
+    assert ingredient_product_match_type(
         "white fish fillet", "Nadler Alaska Seelachs Mus 125g",
         product_category="Fleisch, Wurst & Fisch",
     ) is None
