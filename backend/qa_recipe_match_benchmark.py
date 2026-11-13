@@ -28,10 +28,10 @@ from app.database import Product, ProductSemanticEmbedding, SessionLocal
 from app.ingredient_intelligence import (
     _category_compatible, _form_compatible,
     ingredient_candidate_search_terms, ingredient_product_match_type,
-    normalize_recipe_intelligence,
+    ingredient_search_terms, normalize_recipe_intelligence,
     normalize_text,
 )
-from app.shopping.optimizer import build_basket, consolidate, _convert_ingredient_quantity
+from app.shopping.optimizer import _convert_ingredient_quantity, build_basket, consolidate, _convert_ingredient_quantity
 
 
 # Each ingredient carries the same kind of cached multilingual retail metadata that
@@ -319,6 +319,9 @@ def main():
                     if ranked_candidates:
                         print(f"  CATALOG CANDIDATES FOR {ingredient}:")
                         for _, candidate, matched_terms in ranked_candidates[:8]:
+                            candidate_title = normalize_text(" ".join(str(value or "") for value in (
+                                candidate.name_original, candidate.name_normalized, candidate.translated_name
+                            )))
                             candidate_match = ingredient_product_match_type(
                                 ingredient,
                                 " ".join(str(value or "") for value in (
