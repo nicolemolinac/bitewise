@@ -268,7 +268,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     ):
         return False
     if name == "salsa" and any(
-        token in title_key for token in ("chips", "snack", "rollchen", "knabberartikel", "mais roellchen")
+        token in title_key for token in (
+            "chips", "snack", "rollchen", "knabberartikel", "mais roellchen",
+            "hering", "fisch", "thunfisch", "sardine", "matjes", "filets",
+        )
     ):
         return False
     if name == "white fish fillet" and any(
@@ -389,8 +392,12 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         return category_key in allowed
     if name == "honey":
         return (
-            category_key in {"brot-cerealien-aufstriche", "kochen-backen", "suesses-salziges"}
-            and not any(token in title_key for token in ("senfsauce", "honey mustard", "honig senf", "riegel", "muesli", "snack"))
+            category_key in {"brot-cerealien-aufstriche", "kochen-backen"}
+            and not any(token in title_key for token in (
+                "senfsauce", "honey mustard", "honig senf", "riegel", "muesli", "snack",
+                "bonbon", "husten", "drops", "lutscher", "pastillen", "fruchtgummi",
+                "kaubonbon", "sussigkeit", "suessigkeit", "candy",
+            ))
         )
     if name in sauces:
         allowed = {"oele-sossen-gewuerze", "fertiggerichte-konserven", "feinkost", "feinkost-antipasti"}
