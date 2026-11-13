@@ -69,9 +69,6 @@ _BASE_TERMS = {
 # auto-select. They are retrieved only as explicit user-review suggestions.
 _REVIEW_ONLY_SUBSTITUTION_TERMS = {
     "curry powder": ("curry paste", "currypaste", "garam masala", "madras curry paste"),
-    # Sweetened/flavoured granola can work as a crunchy topping in some oat
-    # recipes, but it is not a neutral replacement for plain rolled oats.
-    "rolled oats": ("granola", "oat granola", "crunchy oat cereal"),
 }
 
 
