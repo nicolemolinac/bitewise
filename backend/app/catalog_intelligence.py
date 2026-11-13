@@ -134,17 +134,17 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
                 Product.category.ilike(pattern),
                 Product.ingredient.ilike(pattern),
             ),
-        ).limit(150).all()
+        ).all()
         candidate_rows.update({row.id: row for row in term_rows})
     for token in sorted(token_set)[:8]:
         pattern = f"%{token}%"
         token_rows = db.query(Product).filter(
             Product.supermarket == "REWE",
             or_(Product.name_original.ilike(pattern), Product.category.ilike(pattern)),
-        ).limit(150).all()
+        ).all()
         candidate_rows.update({row.id: row for row in token_rows})
     catalog_count = db.query(Product).filter(Product.supermarket == "REWE").count()
-    rows = list(candidate_rows.values())[:1800]
+    rows = list(candidate_rows.values())
 
     # Add broad local-embedding candidates when the optional index exists. The
     # semantic layer is discovery-only; exact lexical evidence still dominates.
