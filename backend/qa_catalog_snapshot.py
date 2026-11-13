@@ -25,6 +25,13 @@ def main():
     assert _snapshot_float("inf") is None
     assert _snapshot_float("-inf") is None
 
+    # A reference price in an incompatible dimension must not be reused as
+    # a checkout price when no explicit pack price is available.
+    snapshot_price, snapshot_unit = _snapshot_pack_pricing(
+        "Aioli 235ml (1 kg = 9,16 €)", 235, "ml", 2.15, 0.00915
+    )
+    assert snapshot_price is None and snapshot_unit is None
+
     # Snapshot unit prices are recalculated from whole-pack checkout prices.
     snapshot_price, snapshot_unit = _snapshot_pack_pricing(
         "Hipp bars 10x10g 100g", 100, "g", 2.99, 0.299
