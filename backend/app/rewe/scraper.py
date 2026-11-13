@@ -790,11 +790,12 @@ class ReweCatalogScraper:
         seen_numbers = {
             ReweCatalogScraper._page_number(url) or 1 for url in seen_urls
         }
-        highest_seen = max(seen_numbers, default=0)
-        if highest_seen < expected_last_page:
+        expected_numbers = set(range(1, expected_last_page + 1))
+        missing_numbers = sorted(expected_numbers - seen_numbers)
+        if missing_numbers:
             raise RuntimeError(
-                f"REWE category pagination stopped at page {highest_seen} "
-                f"but the page advertises {expected_last_page} pages: {category_url}"
+                f"REWE category pagination is incomplete; missing pages "
+                f"{missing_numbers[:10]} (advertises {expected_last_page} pages): {category_url}"
             )
 
     def pages(self, start):
