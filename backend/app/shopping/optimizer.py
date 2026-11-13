@@ -365,12 +365,20 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             if not math.isfinite(pack_qty) or pack_qty <= 0:
                 continue
             needed_in_pack_unit, unit_conversion_note = _convert_ingredient_quantity(needed, unit, product_unit, ingredient)
-            if needed_in_pack_unit is None:
+            if needed_in_pack_unit is None or not math.isfinite(needed_in_pack_unit) or needed_in_pack_unit <= 0:
                 continue
             packs = max(1, math.ceil(needed_in_pack_unit / pack_qty))
-            purchased_quantity = packs * pack_qty
+            try:
+                purchased_quantity = packs * pack_qty
+                checkout_cost = packs * numeric_price
+            except OverflowError:
+                continue
+            if (
+                not math.isfinite(purchased_quantity) or purchased_quantity <= 0
+                or not math.isfinite(checkout_cost) or checkout_cost <= 0
+            ):
+                continue
             waste_in_pack_unit = max(0.0, purchased_quantity - needed_in_pack_unit)
-            checkout_cost = packs * float(price)
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
             waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1e-9)
             unit_price = _number(product, "unit_price", "price_per_unit", default=numeric_price / pack_qty)
