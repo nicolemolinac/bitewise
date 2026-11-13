@@ -39,6 +39,16 @@ def main():
     assert extracted[0]["price_per_unit"] == 1.79 / 500
     assert extracted[0]["availability"] == "unknown", extracted[0]
 
+    unparsed_html = """<script type="application/ld+json">
+    {"@type":"ItemList","itemListElement":[{"item":{"@type":"Product",
+    "name":"Loose produce","offers":{"@type":"Offer","price":"0.99",
+    "availability":"https://schema.org/InStock"}}}]}
+    </script>"""
+    unparsed = _json_ld_products(BeautifulSoup(unparsed_html, "html.parser"), "https://www.rewe.de", "Obst & Gemüse")
+    assert unparsed[0]["package_size"] == 1
+    assert unparsed[0]["package_unit"] == "unknown"
+    assert unparsed[0]["price"] == 0.99
+
     print("REWE price QA PASS: €/kg and €/l converted to pack prices; multipacks normalized")
 
 
