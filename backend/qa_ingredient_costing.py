@@ -60,6 +60,18 @@ def run():
             "id": 8, "name_original": "Invalid zero-price product", "package_size": 100,
             "package_unit": "g", "price": 0, "availability": "available",
         }],
+        "nan-priced": [{
+            "id": 9, "name_original": "Invalid NaN-price product", "package_size": 100,
+            "package_unit": "g", "price": float("nan"), "availability": "available",
+        }],
+        "infinite-priced": [{
+            "id": 10, "name_original": "Invalid infinite-price product", "package_size": 100,
+            "package_unit": "g", "price": float("inf"), "availability": "available",
+        }],
+        "invalid-pack": [{
+            "id": 11, "name_original": "Invalid package-size product", "package_size": float("nan"),
+            "package_unit": "g", "price": 1.99, "availability": "available",
+        }],
         "pine nuts": [{
             "id": 5, "ingredient": "sunflower seeds", "ingredient_match_type": "substitute",
             "ingredient_substitute": "sunflower seeds",
@@ -74,9 +86,12 @@ def run():
         {"ingredient": "unknown", "quantity": 2, "unit": "tbsp", "source_meals": ["Sauce"]},
         {"ingredient": "unpriced", "quantity": 50, "unit": "g", "source_meals": ["Soup"]},
         {"ingredient": "zero-priced", "quantity": 50, "unit": "g", "source_meals": ["Soup"]},
+        {"ingredient": "nan-priced", "quantity": 50, "unit": "g", "source_meals": ["Soup"]},
+        {"ingredient": "infinite-priced", "quantity": 50, "unit": "g", "source_meals": ["Soup"]},
+        {"ingredient": "invalid-pack", "quantity": 50, "unit": "g", "source_meals": ["Soup"]},
     ]
     basket = build_basket(requirements, catalog, mode="cheapest")
-    rice, milk, unknown, unpriced, zero_priced = basket
+    rice, milk, unknown, unpriced, zero_priced, nan_priced, infinite_priced, invalid_pack = basket
 
     assert rice["match_status"] == "matched"
     assert rice["packs"] == 1 and rice["checkout_cost"] == 1.5
@@ -92,6 +107,9 @@ def run():
     assert unpriced["checkout_cost"] == 0
     assert zero_priced["match_status"] == "unmatched", "Zero-priced catalog rows are not valid purchasable products"
     assert zero_priced["checkout_cost"] == 0
+    for invalid_row in (nan_priced, infinite_priced, invalid_pack):
+        assert invalid_row["match_status"] == "unmatched", "Non-finite prices and invalid package sizes must never enter the basket"
+        assert invalid_row["checkout_cost"] == 0
 
     substitute_basket = build_basket(
         [{"ingredient": "pine nuts", "quantity": 30, "unit": "g", "source_meals": ["Pesto pasta"]}],
