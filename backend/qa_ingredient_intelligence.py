@@ -269,12 +269,13 @@ def run():
     assert ingredient_product_match_type(
         "salsa", "Alnatura Bio Mais Röllchen Milde Salsa 125g", None, "Süßes-Salziges"
     ) is None
+    curry_powder_profile = {"form": "powder", "aliases": ["Currypulver", "Curry Gewürzmischung"]}
     assert ingredient_product_match_type(
-        "curry powder", "Heinz Curry Gewürz Ketchup Original 400ml", None,
+        "curry powder", "Heinz Curry Gewürz Ketchup Original 400ml", curry_powder_profile,
         "Öle, Soßen & Gewürze"
     ) is None
     assert ingredient_product_match_type(
-        "curry powder", "REWE Bio Curry Gewürzmischung 50g", None,
+        "curry powder", "REWE Bio Curry Gewürzmischung 50g", curry_powder_profile,
         "Öle, Soßen & Gewürze"
     ) == "exact"
 
