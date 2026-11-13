@@ -263,7 +263,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             raw_products = list(adapter.search(ingredient) or [])
         override_id = overrides.get(ingredient)
         for product in raw_products:
-            if product.get("ingredient_match_type") == "semantic_candidate":
+            if product.get("ingredient_match_type") in {"semantic_candidate", "suggested_substitution"}:
                 if override_id is not None and str(product.get("id")) == str(override_id):
                     product = {**product, "ingredient_match_type": "exact"}
                 else:
