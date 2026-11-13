@@ -761,7 +761,7 @@ class ReweCatalogScraper:
             number = self._page_number(href)
             if number is None:
                 label = " ".join(anchor.stripped_strings)
-                match = re.fullmatch(r"\\s*(\\d+)\\s*", label)
+                match = re.fullmatch(r"\s*(\d+)\s*", label)
                 if match:
                     number = int(match.group(1))
             if number is not None:
@@ -774,10 +774,10 @@ class ReweCatalogScraper:
             if _canonical_product_url(anchor.get("href", ""), current_url)
         })
         text = soup.get_text(" ", strip=True)
-        total_match = re.search(r"([\\d.,]+)\\s+Produkte\\b", text, re.I)
+        total_match = re.search(r"([\d.,]+)\s+Produkte\b", text, re.I)
         if total_match and page_product_count:
             total_text = total_match.group(1)
-            total_products = int(re.sub(r"\\D", "", total_text))
+            total_products = int(re.sub(r"\D", "", total_text))
             if total_products > 0:
                 count_based_last_page = math.ceil(total_products / page_product_count)
                 expected = max(expected or 0, count_based_last_page)
