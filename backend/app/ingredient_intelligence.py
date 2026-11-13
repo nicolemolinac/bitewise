@@ -412,12 +412,13 @@ def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bo
         ))
         bread_roll = (
             normalize_text(term) in {
-                "bread rolls", "brötchen", "weizenbrötchen",
-                "kaiserbrötchen", "sesambrötchen",
+                normalize_text(value) for value in (
+                    "bread rolls", "brötchen", "weizenbrötchen",
+                    "kaiserbrötchen", "sesambrötchen",
+                )
             }
             and any(token in title for token in (
-                "brötchen", "broetchen", "bread roll", "bread rolls",
-                "kaisersemmel", "semmel",
+                "brotchen", "bread roll", "bread rolls", "kaisersemmel", "semmel",
             ))
             and not any(token in title for token in (
                 "süß", "suess", "rosinen", "schoko", "croissant",
