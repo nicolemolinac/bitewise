@@ -121,7 +121,7 @@ def main():
                 "canonical": "potato fries", "name_en": "frozen french fries",
                 "name_de": "Tiefkühl-Pommes", "aliases": ["Pommes Frites", "Tiefkühlpommes"],
                 "form": "frozen", "unit_dimension": "mass",
-                "suggested_substitutions": ["fresh potatoes"],
+                "suggested_substitutions": ["fresh potatoes"], "substitution_options": [{"name": "fresh potatoes", "reason": "Fresh potatoes are the closest whole-food equivalent.", "role_preserving": True, "safe_to_auto_apply": True, "quantity_ratio": 1, "preparation_adjustment": "Fresh potatoes need longer than frozen fries: cut them evenly and cook until tender and crisp."}],
             }},
             "steps": [{"text": "Add frozen french fries to the basket.", "minutes": 5}],
         }
