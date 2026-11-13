@@ -108,6 +108,13 @@ _COUNT_TO_GRAMS = {
     "apple": 180,
     "banana": 120,
     "zucchini": 200,
+    "garlic": 3,
+    "tortillas": 45,
+    "soft tortillas": 45,
+    "burger buns": 70,
+    "hot dog buns": 50,
+    "cheese slices": 20,
+    "eggs": 60,
 }
 
 
@@ -119,22 +126,44 @@ def _ingredient_count_weight(ingredient):
     return None
 
 
+_SPOON_GRAMS_PER_TSP = {
+    "curry powder": 2.0,
+    "cumin": 2.1,
+    "paprika powder": 2.3,
+    "oregano": 1.0,
+    "baking powder": 4.0,
+    "taco seasoning": 2.5,
+    "salt": 6.0,
+    "black pepper": 2.3,
+}
+
+
 def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
-    """Convert units, with a curated average-weight estimate for whole produce."""
+    """Convert standard units plus explicit ingredient-specific kitchen estimates."""
     converted = _convert_quantity(quantity, from_unit, to_unit)
     if converted is not None:
         return converted, None
 
     source, target = _normal_unit(from_unit), _normal_unit(to_unit)
+    ingredient_key = normalize_text(ingredient)
+    # consolidate() converts tsp/tbsp to ml. Use a disclosed average density only
+    # for common dry seasonings that REWE sells by mass.
+    grams_per_tsp = _SPOON_GRAMS_PER_TSP.get(ingredient_key)
+    if source == "ml" and target in {"g", "kg"} and grams_per_tsp is not None:
+        grams = float(quantity) * grams_per_tsp / 5.0
+        return (grams / 1000 if target == "kg" else grams), (
+            f"Estimated {grams_per_tsp:g} g per teaspoon of {ingredient}."
+        )
+
     grams_per_piece = _ingredient_count_weight(ingredient)
     if grams_per_piece is None:
         return None, None
-    if source == "piece" and target in {"g", "kg"}:
+    if source in {"piece", "cloves"} and target in {"g", "kg"}:
         grams = float(quantity) * grams_per_piece
         return (grams / 1000 if target == "kg" else grams), (
             f"Estimated {grams_per_piece} g per piece of {ingredient.rstrip('s')}."
         )
-    if source in {"g", "kg"} and target == "piece":
+    if source in {"g", "kg"} and target in {"piece", "cloves"}:
         grams = float(quantity) * (1000 if source == "kg" else 1)
         return grams / grams_per_piece, (
             f"Estimated {grams_per_piece} g per piece of {ingredient.rstrip('s')}."
