@@ -52,6 +52,9 @@ def run():
             product("chili-2", "Mexikanischer Chili Eintopf mit Rind", "Fertiggerichte", price=2.99),
             product("chili-3", "Kidney Bohnen rot", "Konserven", ingredient="kidney beans"),
             product("chili-4", "Maggi Fix Chili Con Carne 33g", "Gewürze", ingredient="seasoning mix"),
+            product("fries-1", "REWE Beste Wahl Pommes Frites 750g", "Tiefkühlkost", ingredient="frozen fries"),
+            product("fries-noise-1", "Haribo Fruchtgummi Pommes Sauer", "Süßwaren", ingredient="candy"),
+            product("fries-noise-2", "REWE Pommes Gewürzsalz 70g", "Gewürze", ingredient="seasoning"),
             product("semantic-1", "REWE Kartoffelgratin Fertiggericht 400g", "Fertiggerichte"),
             product("noise-1", "Hundefutter Chili Geschmack", "Tierbedarf", ingredient="pet food"),
         ])
@@ -64,7 +67,7 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1009
+        assert pizza["catalog_count"] == 1012
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
@@ -81,11 +84,15 @@ def run():
         assert any(name == "Chili con Carne 400g" for name in chili_names), chili_names
         assert any("Chili Eintopf" in name for name in chili_names), chili_names
         fix_kit = next(row for row in chili["products"] if row["name_original"] == "Maggi Fix Chili Con Carne 33g")
-        assert fix_kit["convenience_type"] == "meal_kit", fix_kit
+        assert fix_kit["convenience_type"] == "prepared_component", fix_kit
         assert next(row for row in chili["products"] if row["name_original"] == "Chili con Carne 400g")["convenience_type"] == "ready_meal"
         canned_beans = search_catalog_opportunities(session, "bohnen", limit=10)
         bean_row = next(row for row in canned_beans["products"] if row["name_original"] == "Kidney Bohnen rot")
         assert bean_row["convenience_type"] == "prepared_component", bean_row
+        fries = search_catalog_opportunities(session, "french fries", limit=10)
+        fries_names = [row["name_original"] for row in fries["products"]]
+        assert any("Pommes Frites" in name for name in fries_names), fries_names
+        assert not any("Haribo" in name or "Gewürzsalz" in name for name in fries_names), fries_names
         # A semantic-only candidate can recover a concept with no shared retail words.
         semantic_product = session.query(Product).filter_by(external_id="semantic-1").one()
         original_semantic_search = semantic_catalog.semantic_catalog_candidates
