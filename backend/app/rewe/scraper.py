@@ -244,13 +244,18 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     image_url = None
                 offers = candidate.get("offers") or {}
                 offer_rows = offers if isinstance(offers, list) else [offers]
+                overall_stock_status = _offer_availability(offers)
                 offer_prices = []
                 for offer in offer_rows:
                     if not isinstance(offer, dict):
                         continue
-                    # Never use an explicitly out-of-stock offer as the displayed
-                    # checkout price when another offer is currently purchasable.
-                    if _offer_availability(offer) == "unavailable":
+                    offer_stock_status = _offer_availability(offer)
+                    # If REWE explicitly identifies an in-stock offer, only price
+                    # those in-stock offers; otherwise retain unknown-but-not-
+                    # explicitly-unavailable prices without claiming live stock.
+                    if overall_stock_status == "available" and offer_stock_status != "available":
+                        continue
+                    if offer_stock_status == "unavailable":
                         continue
                     raw_price = offer.get("price")
                     try:
@@ -268,7 +273,7 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     normalized_price_per_unit = normalized_price / size if size and size > 0 else None
                 else:
                     normalized_price, normalized_price_per_unit = price_details(price_text, size, unit)
-                stock_status = _offer_availability(offers)
+                stock_status = overall_stock_status
                 external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
                 if not external_id:
                     external_id = hashlib.sha256(f"{name}|{product_url or raw_url}".encode()).hexdigest()[:20]
