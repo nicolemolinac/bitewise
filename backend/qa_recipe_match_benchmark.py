@@ -24,8 +24,11 @@ if os.getenv("BITEWISE_BENCHMARK_ISOLATED", "").strip().lower() in {"1", "true",
     os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app import server  # installs the multilingual CatalogAdapter.search override
-from app.database import ProductSemanticEmbedding, SessionLocal
-from app.ingredient_intelligence import normalize_recipe_intelligence
+from app.database import Product, ProductSemanticEmbedding, SessionLocal
+from app.ingredient_intelligence import (
+    ingredient_candidate_search_terms, ingredient_product_match_type,
+    normalize_recipe_intelligence,
+)
 from app.shopping.optimizer import build_basket, consolidate
 
 
@@ -276,6 +279,33 @@ def main():
                 semantic_review_count += len(suggestions)
                 if not (row.get("unit_validation") or {}).get("valid", True):
                     invalid_unit_count += 1
+                if row["match_status"] == "unmatched":
+                    ingredient = row.get("ingredient") or ""
+                    profile = recipe.get("ingredient_intelligence", {}).get(ingredient, {})
+                    search_terms = ingredient_candidate_search_terms(ingredient, profile)
+                    candidates = {}
+                    for term in search_terms[:10]:
+                        matches = db.query(Product).filter(
+                            Product.supermarket == "REWE",
+                            Product.name_normalized.ilike(f"%{term}%"),
+                        ).limit(3).all()
+                        for candidate in matches:
+                            candidates[candidate.id] = candidate
+                    if candidates:
+                        print(f"  CATALOG CANDIDATES FOR {ingredient}:")
+                        for candidate in list(candidates.values())[:8]:
+                            candidate_match = ingredient_product_match_type(
+                                ingredient, candidate.name_original or candidate.name_normalized,
+                                profile, candidate.category or "",
+                            )
+                            print(
+                                f"    {candidate.name_original} "
+                                f"(category={candidate.category}, price={candidate.price}, "
+                                f"pack={candidate.package_size} {candidate.package_unit}, "
+                                f"match_type={candidate_match})"
+                            )
+                    else:
+                        print(f"  NO CATALOG TITLE CANDIDATES FOR {ingredient}; terms={search_terms[:10]}")
                 suggestion_text = ""
                 if suggestions:
                     suggestion_text = " | REVIEW: " + "; ".join(
