@@ -40,17 +40,18 @@ def run():
     try:
         fries = _product("fries-1", "REWE Pommes Frites 750g", "Tiefkühlkost")
         chips = _product("chips-1", "Pommes Frites Chips", "Snacks")
-        db.add_all([fries, chips])
+        potatoes = _product("potatoes-1", "REWE Speisekartoffeln 2kg", "Obst & Gemüse")
+        db.add_all([fries, chips, potatoes])
         db.commit()
 
         first = semantic.index_rewe_products(db, batch_size=2)
-        assert first["products_seen"] == 2
-        assert first["products_indexed"] == 2
-        assert db.query(ProductSemanticEmbedding).count() == 2
+        assert first["products_seen"] == 3
+        assert first["products_indexed"] == 3
+        assert db.query(ProductSemanticEmbedding).count() == 3
 
         second = semantic.index_rewe_products(db, batch_size=2)
         assert second["products_indexed"] == 0
-        assert second["products_already_indexed"] == 2
+        assert second["products_already_indexed"] == 3
 
         semantic._INDEX_CACHE = None
         candidates = semantic.semantic_product_candidates(
@@ -60,8 +61,10 @@ def run():
             limit=5,
             minimum_score=0.5,
         )
-        assert [row["id"] for row in candidates] == [fries.id]
-        assert candidates[0]["ingredient_match_type"] == "semantic_candidate"
+        candidate_by_id = {row["id"]: row for row in candidates}
+        assert set(candidate_by_id) == {fries.id, potatoes.id}
+        assert candidate_by_id[fries.id]["ingredient_match_type"] == "semantic_candidate"
+        assert candidate_by_id[potatoes.id]["semantic_match_type"] == "substitute"
 
         fries.name_original = "REWE Backofen Pommes Frites 750g"
         fries.name_normalized = fries.name_original.casefold()
@@ -72,8 +75,8 @@ def run():
         db.delete(chips)
         db.commit()
         cleaned = semantic.index_rewe_products(db, batch_size=2)
-        assert cleaned["total_embeddings"] == 1
-        assert db.query(ProductSemanticEmbedding).count() == 1
+        assert cleaned["total_embeddings"] == 2
+        assert db.query(ProductSemanticEmbedding).count() == 2
 
         print("SEMANTIC CATALOG QA PASS: indexing, incremental updates, local retrieval, form safety, and stale-vector cleanup")
     finally:
