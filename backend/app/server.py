@@ -124,6 +124,14 @@ def _assign_expanded_recipe_identity(recipe: dict, concept_id: str) -> dict:
     return recipe
 
 
+def _inherit_concept_photo(recipe: dict, concept: dict) -> dict:
+    """Carry the already-persisted Discovery photo into the saved full recipe."""
+    for field in ("image", "image_page", "photographer"):
+        if concept.get(field):
+            recipe[field] = concept[field]
+    return recipe
+
+
 def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
     """Apply explicit catalog substitutions to ingredients and cooking steps."""
     import re
@@ -395,6 +403,7 @@ async def expand_ai_recipe(request: Request):
             existing_db.close()
     try:
         recipe = copy.deepcopy(EfficientGeminiService().expand_concept(concept, str(context or ""), appliances))
+        recipe = _inherit_concept_photo(recipe, concept)
         if concept_id:
             # Gemini may reuse a generic recipe ID across separate ideas. Give
             # each expansion a stable ID derived from its originating concept.
