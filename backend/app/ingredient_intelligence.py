@@ -151,7 +151,14 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
 
 def _category_compatible(ingredient: str, category: str, title: str, form: str = "") -> bool:
     """Reject keyword hits from unrelated REWE departments and prepared foods."""
-    category_key = normalize_text(category)
+    # REWE exposes display labels with German umlauts. Normalize those to the
+    # ASCII transliteration used by the allow/deny lists (ä->ae, ö->oe, ü->ue).
+    # normalize_text intentionally strips diacritics for product-name matching,
+    # so use a category-specific normalization to avoid rejecting real departments.
+    raw_category = str(category or "").casefold()
+    raw_category = (raw_category.replace("ä", "ae").replace("ö", "oe")
+                    .replace("ü", "ue").replace("ß", "ss"))
+    category_key = normalize_text(raw_category)
     if not category_key:
         return True
     name = normalize_text(ingredient)
