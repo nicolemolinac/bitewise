@@ -150,7 +150,7 @@ def run():
     substitute_only = FakeCatalog({"rice": [{
         "id": 25, "name_original": "Alternative grain", "package_size": 500,
         "package_unit": "g", "price": 0.50, "availability": "available",
-        "ingredient_match_type": "suggested_substitution",
+        "ingredient_match_type": "substitute",
         "ingredient_substitute": "alternative grain",
     }]})
     substitute_only_result = build_basket(
