@@ -22,7 +22,7 @@ from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
-from .ingredient_aliases import ingredient_product_match_type, ingredient_search_terms, ingredient_substitution_name
+from .ingredient_intelligence import ingredient_product_match_type, ingredient_search_terms, ingredient_substitution_name
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -30,9 +30,9 @@ from .rewe_refresh import router as rewe_refresh_router
 main_module.GeminiService = EfficientGeminiService
 
 
-def _multilingual_catalog_search(self, ingredient):
-    """Match English recipe ingredients against the German REWE catalog without LLM calls."""
-    aliases = ingredient_search_terms(ingredient)
+def _multilingual_catalog_search(self, ingredient, intelligence=None):
+    """Hybrid multilingual retrieval from cached recipe intent; no shopping-time LLM calls."""
+    aliases = ingredient_search_terms(ingredient, intelligence)
     if not aliases:
         return []
 
@@ -57,8 +57,9 @@ def _multilingual_catalog_search(self, ingredient):
             row.id: ingredient_product_match_type(
                 ingredient,
                 " ".join(str(value or "") for value in (
-                    row.name_original, row.name_normalized, row.translated_name
+                    row.name_original, row.name_normalized, row.translated_name, row.category, row.brand
                 )),
+                intelligence,
             )
             for row in rows
         }
@@ -100,8 +101,9 @@ def _multilingual_catalog_search(self, ingredient):
                 "ingredient_substitute": ingredient_substitution_name(
                     ingredient,
                     " ".join(str(value or "") for value in (
-                        row.name_original, row.name_normalized, row.translated_name
+                        row.name_original, row.name_normalized, row.translated_name, row.category, row.brand
                     )),
+                    intelligence,
                 ) if match_types.get(row.id) == "substitute" else None,
             }
             for row in rows[:40]
