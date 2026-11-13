@@ -344,7 +344,7 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "spaghetti": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln"),
         "bell pepper": ("paprikapulver", "paprika pulver", "paprika chips", "paprika lyoner", "paprika wurst"),
         "red onion": ("red onion chips", "rote zwiebel chips", "zwiebel chips"),
-        "chicken breast": ("hahnchen wurst", "haehnchen wurst", "hahnchen aufschnitt", "haehnchen aufschnitt", "brotaufstrich", "gepokelt", "gebacken", "gerauchert", "hauchzart", "delikatess", "paprika", "mariniert", "gegrillt", "brandenburg", "bernard matthews", "gutfried", "filetstucke", "filetstuecke", "hahnchenbrust natur", "haehnchenbrust natur"),
+        "chicken breast": ("hahnchen wurst", "haehnchen wurst", "hahnchen aufschnitt", "haehnchen aufschnitt", "brotaufstrich", "gepokelt", "gebacken", "gerauchert", "hauchzart", "delikatess", "paprika", "mariniert", "gegrillt", "brandenburg", "bernard matthews", "gutfried", "herta", "finesse", "filetstucke", "filetstuecke", "hahnchenbrust natur", "haehnchenbrust natur", "hahnchenbrust mit curry"),
         "olive oil": ("olivenol dusche", "olivenol creme", "olivenol shampoo", "olivenol nachtcreme"),
         "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol", "mayonnaise", "mayo", "salatcreme", "dressing", "sauce", "spray", "spruhol"),
         "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung"),
