@@ -375,11 +375,35 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
     ):
         normalized_unit_price = unit_price / reference_quantity
         return round(normalized_unit_price * package_size, 2), normalized_unit_price
+
+    if match:
+        # A reference price in an incompatible dimension (e.g. €/kg for a
+        # liquid pack) cannot be treated as a checkout price. Trust only a
+        # separate explicit pack price from the title; otherwise mark unpriced.
+        checkout_text = re.sub(
+            r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*\d+[,.]\d{2}\s*€",
+            " ", name or "", flags=re.I,
+        )
+        checkout_text = re.sub(
+            r"(?:zzgl\.?\s*)?(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?\s*(?:Pfand|deposit)|"
+            r"(?:Pfand|deposit)\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+            " ", checkout_text, flags=re.I,
+        )
+        explicit = re.search(
+            r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})|(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
+            checkout_text, re.I,
+        )
+        if explicit:
+            amount = _snapshot_float(explicit.group(1) or explicit.group(2))
+            return amount, amount / package_size if amount and package_size > 0 else None
+        return None, None
+
     fallback = _snapshot_float(raw_price)
-    per_unit = _snapshot_float(raw_price_per_unit)
-    if per_unit is None and fallback is not None and package_size > 0:
-        per_unit = fallback / package_size
-    return fallback, per_unit
+    if fallback is not None and fallback > 0 and package_size > 0:
+        # Recompute: older snapshots may store per-unit price for one inner
+        # item while package_size represents the whole multipack.
+        return fallback, fallback / package_size
+    return None, None
 
 
 def _auto_import_rewe_csv_snapshot() -> None:
