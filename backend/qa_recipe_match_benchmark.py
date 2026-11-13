@@ -25,7 +25,10 @@ if os.getenv("BITEWISE_BENCHMARK_ISOLATED", "").strip().lower() in {"1", "true",
 
 from app import server  # installs the multilingual CatalogAdapter.search override
 from app.database import ProductSemanticEmbedding, SessionLocal
-from app.ingredient_intelligence import normalize_recipe_intelligence
+from app.ingredient_intelligence import (
+    ingredient_candidate_search_terms, ingredient_product_match_type,
+    normalize_recipe_intelligence, normalize_text,
+)
 from app.shopping.optimizer import build_basket, consolidate
 
 
@@ -255,6 +258,13 @@ def main():
         if product_count < 1000:
             raise SystemExit(f"REWE catalog is incomplete for a representative benchmark: {product_count} products (expected at least 1,000).")
 
+        # Audit unresolved ingredients against every imported REWE row, not
+        # only the adapter's bounded SQL candidate pool. This separates a
+        # missing catalog product from a retrieval/form-validation failure.
+        all_rewe_products = db.query(server.main_module.Product).filter(
+            server.main_module.Product.supermarket == "REWE"
+        ).all()
+        print(f"FULL-CATALOG AUDIT ROWS: {len(all_rewe_products)}")
         adapter = server.main_module.CatalogAdapter(db)
         totals = Counter()
         per_recipe = []
@@ -295,6 +305,49 @@ def main():
                     f"(status={row['match_status']}, type={match_type}, category={category}, price={price_text})"
                     f"{unit_note}{suggestion_text}"
                 )
+                if row["match_status"] == "unmatched":
+                    ingredient = str(row.get("ingredient") or "")
+                    profile = (recipe.get("ingredient_intelligence") or {}).get(
+                        normalize_text(ingredient), {}
+                    )
+                    terms = ingredient_candidate_search_terms(ingredient, profile)
+                    audit_candidates = []
+                    for candidate in all_rewe_products:
+                        candidate_title = " ".join(str(value or "") for value in (
+                            candidate.name_original, candidate.name_normalized,
+                            candidate.translated_name,
+                        ))
+                        normalized_title = normalize_text(candidate_title)
+                        hits = [term for term in terms if normalize_text(term) in normalized_title]
+                        ingredient_hit = normalize_text(ingredient) in normalize_text(candidate.ingredient or "")
+                        if not hits and not ingredient_hit:
+                            continue
+                        audit_type = ingredient_product_match_type(
+                            ingredient, candidate_title, profile, candidate.category or ""
+                        )
+                        audit_score = (
+                            (100 if audit_type == "exact" else 50 if audit_type == "substitute"
+                             else 25 if audit_type == "suggested_substitution" else 0)
+                            + len(hits) * 10 + (8 if ingredient_hit else 0)
+                            + (2 if candidate.price is not None else 0)
+                        )
+                        audit_candidates.append((
+                            audit_score, candidate, audit_type, hits
+                        ))
+                    audit_candidates.sort(
+                        key=lambda item: (-item[0], item[1].name_original.casefold())
+                    )
+                    print(
+                        f"  FULL-CATALOG AUDIT {ingredient} | terms={terms[:12]} | "
+                        f"candidates={len(audit_candidates)}"
+                    )
+                    for audit_score, candidate, audit_type, hits in audit_candidates[:6]:
+                        print(
+                            f"    CANDIDATE {candidate.name_original} | "
+                            f"category={candidate.category} | ingredient={candidate.ingredient} | "
+                            f"match={audit_type or 'rejected'} | hits={hits[:5]} | "
+                            f"score={audit_score}"
+                        )
 
         total = sum(totals.values())
         resolved = totals["matched"] + totals["substituted"] + totals["covered"]
