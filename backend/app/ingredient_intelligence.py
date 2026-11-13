@@ -65,6 +65,13 @@ _BASE_TERMS = {
     "onion": ("onion", "onions", "zwiebel", "zwiebeln", "speisezwiebeln"),
 }
 
+# These are useful but not equivalent enough to auto-select. They appear
+# as review-only choices so the shopper can decide whether the recipe can adapt.
+_REVIEW_ONLY_SUBSTITUTION_TERMS = {
+    "rolled oats": ("granola", "oat granola", "muesli"),
+}
+
+
 _SUBSTITUTION_TERMS = {
     "vegetable oil": ("sunflower oil", "rapeseed oil", "sonnenblumenol", "rapsol", "ripsol"),
     "sunflower oil": ("vegetable oil", "rapeseed oil", "pflanzenol", "rapsol"),
@@ -190,6 +197,7 @@ def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None)
                         for value in _PROPOSED_SUBSTITUTION_SYNONYMS.get(normalized_option_term, ())
                     )
     terms.update(normalize_text(term) for term in _SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
+    terms.update(normalize_text(term) for term in _REVIEW_ONLY_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     # REWE product titles preserve German umlauts while matcher text is normalized.
     # Keep both spellings for SQL retrieval; strict matching still normalizes titles.
     retrieval_terms = set(terms)
@@ -531,6 +539,9 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     for term in proposed if isinstance(proposed, list) else []:
         normalized = normalize_text(term)
         if normalized and _proposed_term_visible(title, normalized) and form_compatible and category_compatible:
+            return "suggested_substitution"
+    for term in _REVIEW_ONLY_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()):
+        if _contains_phrase(title, normalize_text(term)) and form_compatible and category_compatible:
             return "suggested_substitution"
     return None
 
