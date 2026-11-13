@@ -84,6 +84,15 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         "susses salziges", "suesswaren", "susswaren",
     )):
         return "catalog_product"
+    # Tiny packs are usually snacks, toppings or seasoning sachets rather than
+    # complete meals, even when their titles contain a dish word like "pizza".
+    try:
+        package_size = float(getattr(product, "package_size", 0) or 0)
+        package_unit = _normalise(getattr(product, "package_unit", ""))
+        if 0 < package_size < 100 and package_unit in {"g", "ml"}:
+            return "catalog_product"
+    except (TypeError, ValueError):
+        pass
     # Dry "Fix" seasoning sachets often share the canned/ready-meal aisle;
     # classify them as components before using broad aisle metadata.
     if " fix " in f" {text} " or "gewurzmischung" in text or "wurzmittel" in category:
@@ -119,13 +128,6 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
             for term in expand_catalog_query(query)
         )
         return "ready_meal" if requested_dish_match else "prepared_component"
-    try:
-        package_size = float(getattr(product, "package_size", 0) or 0)
-        package_unit = _normalise(getattr(product, "package_unit", ""))
-        if 0 < package_size < 100 and package_unit in {"g", "ml"}:
-            return "catalog_product"
-    except (TypeError, ValueError):
-        pass
     return "catalog_product"
 
 
