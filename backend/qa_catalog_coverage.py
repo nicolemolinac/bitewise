@@ -57,6 +57,13 @@ def main():
     assert server._catalog_search_score(valid_substitute, {"rice"}, "substitute") > server._catalog_search_score(invalid, {"rice"}, "exact")
     assert server._catalog_search_score(valid_substitute, {"rice"}, "substitute") > server._catalog_search_score(unavailable_exact, {"rice"}, "exact")
 
+    unknown_pack = SimpleNamespace(
+        ingredient="rice", translated_name=None, name_normalized="rice 500g",
+        name_original="Rice 500g", price=1.99, package_size=1,
+        package_unit="unknown", availability="unknown",
+    )
+    assert server._catalog_search_score(priced, {"rice"}, "exact") > server._catalog_search_score(unknown_pack, {"rice"}, "exact")
+
     db = SessionLocal()
     try:
         query = db.query(Product).filter(Product.supermarket == "REWE")
