@@ -402,20 +402,6 @@ def main():
                                 f"    BROAD {candidate.name_original} | category={candidate.category} "
                                 f"| pack={candidate.package_size} {candidate.package_unit} | price={candidate.price}"
                             )
-                        if normalize_text(ingredient) == "rolled oats":
-                            relevant_oats = [
-                                candidate for candidate in broad
-                                if normalize_text(candidate.category or "") != "baby kind"
-                                and any(term in normalize_text(candidate.name_original) for term in (
-                                    "haferflocken", "oat flakes", "oatmeal", "porridge", "schmelzflocken"
-                                ))
-                            ]
-                            print(f"  NON-BABY OAT FLAKE OPTIONS: {len(relevant_oats)}")
-                            for candidate in relevant_oats:
-                                print(
-                                    f"    OAT OPTION {candidate.name_original} | category={candidate.category} "
-                                    f"| pack={candidate.package_size} {candidate.package_unit} | price={candidate.price}"
-                                )
                     for audit_score, candidate, audit_type, hits in audit_candidates[:12]:
                         print(
                             f"    CANDIDATE {candidate.name_original} | "
