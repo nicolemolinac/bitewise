@@ -121,6 +121,20 @@ def main():
         ingredients = Counter(str(row.ingredient or "unclassified") for row in products)
         names = Counter(str(row.name_normalized or row.name_original or "").strip().lower() for row in products)
         duplicate_name_rows = sum(count - 1 for count in names.values() if count > 1)
+        duplicate_groups = {}
+        for row in products:
+            normalized_name = str(row.name_normalized or row.name_original or "").strip().lower()
+            duplicate_groups.setdefault(normalized_name, []).append(row)
+        duplicate_examples = [
+            {
+                "normalized_name": name,
+                "count": len(rows),
+                "ids": [row.id for row in rows],
+                "titles": [row.name_original for row in rows],
+                "product_urls": [row.product_url for row in rows],
+            }
+            for name, rows in duplicate_groups.items() if len(rows) > 1
+        ]
         with_product_url = sum(bool(str(row.product_url or "").strip()) for row in products)
         with_image_url = sum(bool(str(row.image_url or "").strip()) for row in products)
         invalid_packages = sum(
@@ -254,6 +268,8 @@ def main():
             print(f"Additional price issues omitted from log: {missing_price + invalid_price - len(price_issue_examples)}")
         print(f"Stale or never checked (>30 days): {stale} ({stale / total:.1%})")
         print(f"Duplicate normalized-name rows: {duplicate_name_rows}")
+        for duplicate in duplicate_examples[:20]:
+            print("DUPLICATE NORMALIZED NAME:", duplicate)
         print(f"Products with REWE product URL: {with_product_url} ({with_product_url / total:.1%})")
         print(f"Products with image URL: {with_image_url} ({with_image_url / total:.1%})")
         print(f"Invalid package sizes/units: {invalid_packages}")
