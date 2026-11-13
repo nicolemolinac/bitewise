@@ -180,8 +180,6 @@ export default function AppV3(){
   const [catalogOpportunityQuery,setCatalogOpportunityQuery]=useState('');
   const [catalogOpportunityRetrieval,setCatalogOpportunityRetrieval]=useState('lexical_fallback');
   const [catalogOpportunityCatalogCount,setCatalogOpportunityCatalogCount]=useState(0);
-  const [semanticIndexStatus,setSemanticIndexStatus]=useState<any>(null);
-  const [semanticIndexStarting,setSemanticIndexStarting]=useState(false);
   const [detailCatalogOpportunities,setDetailCatalogOpportunities]=useState<any[]>([]);
   const [detailCatalogLoading,setDetailCatalogLoading]=useState(false);
   const [quickMealReplacements,setQuickMealReplacements]=useState<Record<string,ExtraItem>>(()=>read('quickMealReplacements',{}));
@@ -204,21 +202,12 @@ export default function AppV3(){
   const [alternatives,setAlternatives]=useState<Product[]>([]);
 
   useEffect(()=>{boot()},[]);
-  useEffect(()=>{let active=true;api('/catalog/semantic-index/status').then((status:any)=>{if(active)setSemanticIndexStatus(status)}).catch(()=>{if(active)setSemanticIndexStatus(null)});return()=>{active=false}},[]);
-  useEffect(()=>{if(!semanticIndexStatus?.running)return;let active=true;const timer=window.setInterval(()=>{api('/catalog/semantic-index/status').then((status:any)=>{if(active)setSemanticIndexStatus(status)}).catch(()=>{})},2500);return()=>{active=false;window.clearInterval(timer)}},[semanticIndexStatus?.running]);
   useEffect(()=>{let active=true;if(!detail){setDetailCatalogOpportunities([]);setDetailCatalogLoading(false);return()=>{active=false;};}setDetailCatalogLoading(true);setDetailCatalogOpportunities([]);api(`/catalog/opportunities?q=${encodeURIComponent(detail.name)}&limit=8`).then((result:any)=>{if(active)setDetailCatalogOpportunities(result.products||[])}).catch(()=>{if(active)setDetailCatalogOpportunities([])}).finally(()=>{if(active)setDetailCatalogLoading(false)});return()=>{active=false}},[detail?.id,detail?.name]);
   useEffect(()=>save('tab',tab),[tab]);useEffect(()=>save('liked',liked),[liked]);useEffect(()=>save('skipped',skipped),[skipped]);
   useEffect(()=>save('mealType',mealType),[mealType]);useEffect(()=>save('filter',filter),[filter]);useEffect(()=>save('brain',brain),[brain]);
   useEffect(()=>save('appliances',appliances),[appliances]);useEffect(()=>save('profile',profile),[profile]);useEffect(()=>save('dayContexts',dayContexts),[dayContexts]);
   useEffect(()=>save('calendarAssignments',calendarAssignments),[calendarAssignments]);useEffect(()=>save('calendarView',calendarView),[calendarView]);useEffect(()=>save('calendarCursor',calendarCursor),[calendarCursor]);useEffect(()=>save('extras',extras),[extras]);useEffect(()=>save('quickMealReplacements',quickMealReplacements),[quickMealReplacements]);useEffect(()=>save('basket',basket),[basket]);
   useEffect(()=>save('summary',summary),[summary]);useEffect(()=>save('basketUsesUnplannedPicks',basketUsesUnplannedPicks),[basketUsesUnplannedPicks]);useEffect(()=>save('strategy',strategy),[strategy]);useEffect(()=>save('owned',owned),[owned]);
-
-  async function buildSemanticIndex(){
-    setSemanticIndexStarting(true);
-    try{const status=await api('/catalog/semantic-index',{method:'POST'});setSemanticIndexStatus(status);}
-    catch(e:any){setError('Could not start the local REWE semantic index: '+e.message)}
-    finally{setSemanticIndexStarting(false)}
-  }
 
   async function boot(){
     try{
@@ -525,10 +514,6 @@ export default function AppV3(){
 
       {tab==='discover'&&<>
         <div className="grid gap-3 rounded-[26px] bg-[#18392b] p-5 text-white lg:grid-cols-[1fr_auto] lg:items-center"><div><div className="text-xs font-black uppercase tracking-[.18em] text-white/45">AI food decision engine</div><h1 className="mt-1 text-2xl font-black">What do you feel like eating?</h1><p className="mt-1 text-sm text-white/55">Browse lightweight ideas first. Bitewise creates the full recipe only when you pick one.</p></div><div className="text-right"><div className="text-xs text-white/40">Adaptive portion</div><div className="text-xl font-black">{factor.toFixed(2)}×</div></div></div>
-        <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#18392b]/10 bg-white p-3">
-          <div className="min-w-0"><div className="text-xs font-black text-[#18392b]">Local semantic search · full REWE catalog</div><div className="mt-1 text-[10px] text-[#18392b]/55">{semanticIndexStatus?.running ? "Indexing " + Number(semanticIndexStatus.indexed||0).toLocaleString() + " / " + Number(semanticIndexStatus.total||semanticIndexStatus.pending||0).toLocaleString() + " products…" : semanticIndexStatus?.complete ? Number(semanticIndexStatus.indexed||0).toLocaleString() + " products indexed · " + (semanticIndexStatus.model||"local multilingual model") : semanticIndexStatus?.error ? "Index failed: " + semanticIndexStatus.error : Number(semanticIndexStatus?.total||catalogOpportunityCatalogCount||0).toLocaleString() + " REWE products available · build the local index for meaning-based discovery"}</div></div>
-          <button disabled={semanticIndexStarting||semanticIndexStatus?.running} onClick={()=>void buildSemanticIndex()} className="rounded-xl bg-[#18392b] px-3 py-2 text-[10px] font-black text-white disabled:opacity-50">{semanticIndexStarting?"Starting…":semanticIndexStatus?.running?"Indexing…":semanticIndexStatus?.complete?"Refresh local index":"Index all REWE products"}</button>
-        </section>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{mealTypes.map(t=><button key={t.id} onClick={()=>setMealType(t.id)} className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-black',mealType===t.id?'bg-[#dff2df] text-[#173b2d]':'bg-white text-[#173b2d]/55')}>{t.emoji} {t.label}</button>)}</div>
         <div className="mt-3 flex flex-col gap-2 rounded-2xl bg-white p-3 shadow-sm sm:flex-row"><input value={brain} onChange={e=>setBrain(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!loading&&brain.trim()&&generateAI(brain)} disabled={loading} className="min-w-0 flex-1 rounded-xl bg-[#f3f1eb] px-4 py-3 text-sm outline-none" placeholder="Fancy but easy tonight · cheap breakfast · use what I have..."/><button onClick={()=>brain.trim()&&generateAI(brain)} disabled={loading} className="rounded-xl bg-[#18392b] px-5 py-3 text-sm font-black text-white disabled:opacity-50">{loading?'Thinking…':'Generate'}</button><button onClick={()=>void findMissingHistoryPhotos()} disabled={photoBackfillRunning||(!history.some(row=>needsLocalRecipePhoto(row.meal))&&!discoverPool.some(needsLocalRecipePhoto))} className="rounded-xl border border-[#18392b]/15 px-3 py-2 text-xs font-black text-[#18392b] disabled:opacity-40">{photoBackfillRunning?'Recovering…':'Recover photos'}</button></div>{photoBackfillReport&&<p className="mt-2 text-xs text-[#18392b]/55">{photoBackfillReport}</p>}
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{cuisines.map(c=><button key={c} onClick={()=>setFilter(c)} className={cx('shrink-0 rounded-full border px-3 py-1.5 text-xs font-black capitalize',filter===c?'border-[#18392b] bg-[#18392b] text-white':'border-[#18392b]/10 bg-white text-[#18392b]/55')}>{c.replace('-',' ')}</button>)}</div>
