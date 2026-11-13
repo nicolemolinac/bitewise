@@ -1,5 +1,13 @@
 """Regression QA for lexical search recall beyond the old 240-row cutoff."""
 
+import os
+import tempfile
+from pathlib import Path
+
+_QA_DB_DIR = tempfile.TemporaryDirectory(prefix="bitewise-catalog-recall-qa-")
+os.environ["DATABASE_URL"] = ""
+os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_DB_DIR.name) / "qa.sqlite")
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
