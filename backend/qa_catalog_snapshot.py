@@ -14,7 +14,7 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app.database import (
     AppSetting, CatalogRun, Product, SessionLocal, _auto_import_rewe_csv_snapshot,
-    _snapshot_pack_pricing, _snapshot_package_size, _snapshot_float,
+    _snapshot_pack_pricing, _snapshot_package_size, _snapshot_package_details, _snapshot_float,
 )
 
 
@@ -30,6 +30,15 @@ def main():
     assert abs(price_per_gram - 0.01106) < 0.000001
     assert _snapshot_package_size("Drink 2x200ml", 200, "ml") == 400
     assert _snapshot_package_size("Nuts 4x50g", 50, "g") == 200
+    assert _snapshot_package_details(
+        "Granini 0,75ml (EINWEG) 0,75l (1 l = 2,12 €)", 0.75, "ml"
+    ) == (750.0, "ml")
+    assert _snapshot_package_details(
+        "Babywell Aqua Tücher 2x80 Stück 2x80 Stück", 80, "unit"
+    ) == (160.0, "unit")
+    assert _snapshot_package_details(
+        "Toilettenpapier 8x150 Blatt 8x150 Stück", 150, "unit"
+    ) == (1200.0, "unit")
     snapshot_price, snapshot_per_gram = _snapshot_pack_pricing(
         "Spice 200g (100 g = 1,49 €)", 200, "g", 1.49, None
     )
