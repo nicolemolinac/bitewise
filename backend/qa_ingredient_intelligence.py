@@ -49,8 +49,16 @@ def test_high_risk_false_positive_guards():
         product_category="Brot, Cerealien & Aufstriche",
     ) == "exact"
     assert ingredient_product_match_type(
+        "honey", "Em-eukal Hustenbonbons Honig gefüllt zuckerhaltig 75g",
+        product_category="Süßes & Salziges",
+    ) is None
+    assert ingredient_product_match_type(
         "salsa", "Alnatura Bio Mais Röllchen Milde Salsa 125g",
         product_category="Süßes & Salziges",
+    ) is None
+    assert ingredient_product_match_type(
+        "salsa", "Appel Zarte Filets vom Hering Salsa-Picante 200g",
+        product_category="Fertiggerichte & Konserven",
     ) is None
     assert ingredient_product_match_type(
         "white fish fillet", "Nadler Alaska Seelachs Mus 125g",
