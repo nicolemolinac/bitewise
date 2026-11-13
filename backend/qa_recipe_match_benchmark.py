@@ -346,23 +346,38 @@ def main():
                             )
                     else:
                         print(f"  NO CATALOG TITLE CANDIDATES FOR {ingredient}; terms={search_terms[:10]}")
-                        # Distinguish missing REWE assortment from a narrow alias list.
-                        broad_tokens = {
-                            "burger buns": ("brioche", "burger", "hamburger", "broetchen", "brotchen", "toastbrot", "toast"),
-                            "rolled oats": ("hafer", "oat", "porridge", "muesli", "musli"),
-                            "curry powder": ("curry",),
-                        }.get(normalize_text(ingredient), ())
-                        if broad_tokens:
-                            broad_rows = []
-                            for candidate in catalog_products:
-                                candidate_title = normalize_text(" ".join(str(value or "") for value in (
-                                    candidate.name_original, candidate.name_normalized, candidate.translated_name
-                                )))
-                                if any(token in candidate_title for token in broad_tokens):
-                                    broad_rows.append(candidate)
-                            print(f"  BROAD CATALOG DIAGNOSTICS FOR {ingredient}: {len(broad_rows)} rows")
-                            for candidate in broad_rows[:20]:
-                                print(f"    {candidate.name_original} (category={candidate.category}, price={candidate.price}, pack={candidate.package_size} {candidate.package_unit})")
+
+                    # Distinguish a true assortment gap from a narrow ingredient alias list.
+                    broad_diagnostics = {
+                        "burger buns": (
+                            ("brioche", "burger", "hamburger", "broetchen", "brotchen", "toastbrot", "toast"),
+                            {"brot-cerealien-aufstriche", "kochen-backen", "brot-backwaren", "backwaren"},
+                        ),
+                        "rolled oats": (
+                            ("hafer", "oat", "porridge", "muesli", "musli"),
+                            {"kochen-backen", "brot-cerealien-aufstriche"},
+                        ),
+                        "curry powder": (
+                            ("curry",),
+                            {"oele-sossen-gewuerze", "kochen-backen"},
+                        ),
+                    }
+                    diagnostic = broad_diagnostics.get(normalize_text(ingredient))
+                    if diagnostic:
+                        broad_tokens, allowed_categories = diagnostic
+                        broad_rows = []
+                        for candidate in catalog_products:
+                            candidate_title = normalize_text(" ".join(str(value or "") for value in (
+                                candidate.name_original, candidate.name_normalized, candidate.translated_name
+                            )))
+                            category_key = normalize_text(candidate.category or "").replace(" ", "-")
+                            if category_key in allowed_categories and any(
+                                token in candidate_title for token in broad_tokens
+                            ):
+                                broad_rows.append(candidate)
+                        print(f"  RELEVANT-DEPARTMENT CATALOG DIAGNOSTICS FOR {ingredient}: {len(broad_rows)} rows")
+                        for candidate in broad_rows[:30]:
+                            print(f"    {candidate.name_original} (category={candidate.category}, price={candidate.price}, pack={candidate.package_size} {candidate.package_unit})")
                 suggestion_text = ""
                 if suggestions:
                     suggestion_text = " | REVIEW: " + "; ".join(
