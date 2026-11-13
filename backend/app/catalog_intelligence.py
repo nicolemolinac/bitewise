@@ -13,6 +13,8 @@ from sqlalchemy import or_
 
 from .database import Product
 
+_QUERY_STOPWORDS = {"a", "an", "and", "for", "two", "the", "tonight", "today", "quick", "quickly", "easy", "easiest", "simple", "healthy", "cheap", "budget", "meal", "recipe", "make", "cook", "cooking", "air", "fryer", "with", "of", "to", "in", "on", "my", "some", "please", "ich", "ein", "eine", "fur", "mit", "heute", "schnell", "einfach"}
+
 
 def _normalise(value: Any) -> str:
     text = unicodedata.normalize("NFKD", str(value or "").casefold())
@@ -86,9 +88,9 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
     if len(_normalise(query)) < 2:
         return {"query": query, "products": [], "catalog_count": 0}
     variants = expand_catalog_query(query)
-    token_set = {token for token in _normalise(query).split() if len(token) > 2}
+    token_set = {token for token in _normalise(query).split() if len(token) > 2 and token not in _QUERY_STOPWORDS}
     for variant in variants:
-        token_set.update(token for token in _normalise(variant).split() if len(token) > 2)
+        token_set.update(token for token in _normalise(variant).split() if len(token) > 2 and token not in _QUERY_STOPWORDS)
 
     # Pull a broad but bounded lexical candidate pool from every searchable catalog field.
     clauses = []
@@ -108,6 +110,26 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
     catalog_count = db.query(Product).filter(Product.supermarket == "REWE").count()
     rows = query_rows.limit(500).all()
 
+    # Add broad local-embedding candidates when the optional index exists. The
+    # semantic layer is discovery-only; exact lexical evidence still dominates.
+    semantic_scores = {}
+    try:
+        from .semantic_catalog import semantic_catalog_candidates
+        semantic_scores = {
+            int(row["id"]): float(row["semantic_similarity"])
+            for row in semantic_catalog_candidates(db, query, limit=160)
+        }
+        if semantic_scores:
+            existing_ids = {row.id for row in rows}
+            missing_ids = [product_id for product_id in semantic_scores if product_id not in existing_ids]
+            if missing_ids:
+                rows.extend(db.query(Product).filter(
+                    Product.supermarket == "REWE", Product.id.in_(missing_ids)
+                ).all())
+    except Exception:
+        # The lexical path remains fully functional without model files/indexes.
+        semantic_scores = {}
+
     ranked = []
     for product in rows:
         text = _product_text(product)
@@ -115,12 +137,13 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
             continue
         phrase_hits = sum(1 for variant in variants if _normalise(variant) in text)
         token_hits = sum(1 for token in token_set if token in text.split())
-        if not phrase_hits and not token_hits:
+        semantic_score = semantic_scores.get(int(product.id), 0.0)
+        if not phrase_hits and not token_hits and semantic_score < 0.52:
             continue
         kind = _convenience_type(text)
-        # Ready meals and cook-at-home shortcuts are surfaced alongside raw ingredients,
-        # but exact dish identity remains the strongest relevance signal.
-        score = phrase_hits * 8 + token_hits * 1.5
+        # Exact dish matches dominate; embeddings recover useful German/English
+        # supermarket formats when wording differs from the user's query.
+        score = phrase_hits * 8 + token_hits * 1.5 + max(0.0, semantic_score - 0.45) * 16
         if kind == "ready_meal":
             score += 2.5
         elif kind == "meal_kit":
@@ -160,6 +183,8 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
             "availability": product.availability,
             "convenience_type": kind,
             "relevance_score": round(score, 2),
+            **({"semantic_similarity": round(semantic_scores[int(product.id)], 4)}
+               if int(product.id) in semantic_scores else {}),
         })
         if len(products) >= max(1, min(int(limit), 30)):
             break
@@ -168,4 +193,5 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
         "catalog_count": catalog_count,
         "products": products,
         "source": "local_rewe_catalog",
+        "retrieval": "hybrid_local" if semantic_scores else "lexical_fallback",
     }
