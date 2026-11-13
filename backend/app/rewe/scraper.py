@@ -53,15 +53,14 @@ def normalize(value: str) -> str:
     return re.sub(r"[^a-z0-9äöüß]+", " ", (value or "").lower()).strip()
 
 
+def _reference_price_pattern():
+    return r"\\b(\\d+(?:[.,]\\d+)?)\\s*(kg|g|l|ml)\\s*=\\s*(?:€\\s*)?(\\d+[,.]\\d{2})\\s*(?:€|EUR|Euro)?"
+
+
 def package(text: str):
-    # Remove reference prices first: "1 kg = 4,00 €" is €/kg, not proof
-    # that the product is a 1 kg package.
-    package_text = re.sub(
-        r"\\b1\\s*(?:kg|l)\\s*=\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?",
-        " ",
-        text or "",
-        flags=re.I,
-    )
+    # Remove reference prices first: "100 g = 1,99 €" is €/100g, not
+    # proof that the product itself is a 100 g package.
+    package_text = re.sub(_reference_price_pattern(), " ", text or "", flags=re.I)
     # Preserve multipack quantity: 2x200ml is 400ml, not 200ml.
     match = re.search(
         r"(?:(\\d+)\\s*[x×]\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l|stk|st\\.|stück)",
@@ -83,30 +82,22 @@ def package(text: str):
 
 
 def _displayed_unit_price(text: str):
-    """Return the normalized price per g, ml or piece from a REWE reference price."""
-    match = re.search(
-        r"\b(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|stk\.?|stück|st\.)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
-        text,
-        re.I,
-    )
+    """Read REWE reference prices (€/kg, €/100g, €/l, €/100ml) per base unit."""
+    match = re.search(_reference_price_pattern(), text or "", re.I)
     if not match:
         return None, None
-    reference_quantity = float(match.group(1).replace(",", "."))
+    quantity = float(match.group(1).replace(",", "."))
+    unit = match.group(2).lower()
     amount = float(match.group(3).replace(",", "."))
-    raw_unit = match.group(2).lower()
-    if raw_unit == "kg":
-        reference_quantity *= 1000
+    if unit == "kg":
+        quantity *= 1000
         unit = "g"
-    elif raw_unit == "l":
-        reference_quantity *= 1000
+    elif unit == "l":
+        quantity *= 1000
         unit = "ml"
-    elif raw_unit in {"g", "ml"}:
-        unit = raw_unit
-    else:
-        unit = "unit"
-    if not math.isfinite(reference_quantity) or reference_quantity <= 0 or amount <= 0:
+    if quantity <= 0:
         return None, None
-    return amount / reference_quantity, unit
+    return amount / quantity, unit
 
 
 def price_details(text: str, package_size=None, package_unit=None):
