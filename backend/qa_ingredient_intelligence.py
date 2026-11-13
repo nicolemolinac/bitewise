@@ -36,6 +36,30 @@ class IntelligenceCatalog:
         return self.products.get(ingredient, [])
 
 
+def test_high_risk_false_positive_guards():
+    assert validate_ingredient_unit("bell pepper", "piece")["valid"] is True
+    assert ingredient_product_match_type(
+        "butter", "BE-KIND Protein Crunchy Peanut Butter 50g",
+        product_category="Käse & Eier & Molkerei",
+    ) is None
+    assert ingredient_product_match_type(
+        "honey", "Honig-Senfsauce 60g",
+        product_category="Öle, Soßen & Gewürze",
+    ) is None
+    assert ingredient_product_match_type(
+        "salsa", "Alnatura Bio Mais Röllchen Milde Salsa 125g",
+        product_category="Süßes & Salziges",
+    ) is None
+    assert ingredient_product_match_type(
+        "white fish fillet", "Nadler Alaska Seelachs Mus 125g",
+        product_category="Fleisch, Wurst & Fisch",
+    ) is None
+    assert ingredient_product_match_type(
+        "pasta", "Ayuko Udon Nudeln 200g",
+        product_category="Kochen & Backen",
+    ) is None
+
+
 def test_common_english_ingredients_have_german_catalog_terms():
     expected = {
         "tomato": "tomaten", "cherry tomato": "cocktailtomaten",
@@ -59,6 +83,7 @@ def test_common_english_ingredients_have_german_catalog_terms():
 
 def run():
     test_common_english_ingredients_have_german_catalog_terms()
+    test_high_risk_false_positive_guards()
     raw = {
         "ingredients": [
             ["vegetable oil", 2, "cloves"],
