@@ -34,7 +34,7 @@ _BASE_TERMS = {
     "cumin": ("cumin", "kreuzkummel", "kreuzkuemmel", "kreuz kummel"),
     "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemuse bruhe", "bruhwurfel gemuse", "bruhwuerfel gemuse", "bruhwurfel"),
     "cooking cream": ("cooking cream", "kochcreme", "kochsahne", "sahne zum kochen"),
-    "burger buns": ("burger buns", "hamburger brotchen", "burger brotchen"),
+    "burger buns": ("burger buns", "hamburger brotchen", "hamburgerbrotchen", "hamburgerbroetchen", "burger brotchen", "burgerbrotchen", "burgerbroetchen"),
     "caesar dressing": ("caesar dressing", "caesar salat dressing", "caesar sauce"),
     "croutons": ("croutons", "brotcroutons", "croûtons"),
     "canned chopped tomatoes": ("canned chopped tomatoes", "stuckige tomaten", "tomaten stuecke", "tomaten in stuecken"),
@@ -69,6 +69,7 @@ _SUBSTITUTION_TERMS = {
     "sunflower oil": ("vegetable oil", "rapeseed oil", "pflanzenol", "rapsol"),
     "frozen french fries": ("fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"),
     "parmesan cheese": ("grana padano", "grana padano gerieben"),
+    "grated cheddar cheese": ("grated gouda", "geriebener gouda", "gouda gerieben", "emmentaler gerieben", "geriebener emmentaler", "gratinkäse"),
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
 }
 
@@ -289,6 +290,18 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name == "bell pepper" and any(term in title_key for term in ("pulver", "powder", "chips", "wurst", "lyoner")):
         return False
 
+    # REWE's imported aisle metadata sometimes places wraps and croutons in
+    # the convenience-food/oil-and-sauce aisles. Strong product-title evidence
+    # should win over those known aisle misclassifications.
+    if name in {"soft tortillas", "tortillas"} and any(
+        term in title_key for term in ("wrap", "tortilla")
+    ) and category_key in {"fertiggerichte-konserven", "brot-cerealien-aufstriche", "kochen-backen"}:
+        return True
+    if name == "croutons" and any(
+        term in title_key for term in ("crouton", "brotwurfel gerostet")
+    ) and category_key in {"oele-sossen-gewuerze", "fertiggerichte-konserven"}:
+        return True
+
     if name in produce:
         normalized_form = normalize_text(form)
         if normalized_form in {"frozen", "tiefkuhl"}:
@@ -379,6 +392,14 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     title = normalize_text(product_text)
     if not title or _ingredient_specific_exclusions(ingredient, title):
         return None
+    # Frozen plain white-fish fillets are a legitimate review-only alternative
+    # to fresh fillets; do not silently change the recipe's thawing/preparation.
+    if (
+        normalize_text(ingredient) == "white fish fillet"
+        and normalize_text(product_category) == "tiefkuehlkost"
+        and any(term in title for term in ("seelachsfilet", "kabeljaufilet", "pollack fillet"))
+    ):
+        return "suggested_substitution"
     if normalize_text(ingredient) in {"lettuce", "romaine lettuce", "shredded lettuce"}:
         lettuce_identity_terms = (
             "eisbergsalat", "kopfsalat", "romersalat", "romana", "romaine",
