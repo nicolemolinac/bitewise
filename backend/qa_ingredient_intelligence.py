@@ -1,0 +1,108 @@
+"""Focused QA for cached recipe-side ingredient intelligence.
+
+Run from backend/: python qa_ingredient_intelligence.py
+"""
+from app.ingredient_intelligence import (
+    ingredient_product_match_type,
+    ingredient_search_terms,
+    ingredient_substitution_name,
+    normalize_recipe_intelligence,
+    validate_ingredient_unit,
+)
+from app.shopping.optimizer import build_basket, consolidate
+
+
+class IntelligenceCatalog:
+    def __init__(self, products):
+        self.products = products
+        self.received_intelligence = None
+
+    def search(self, ingredient, intelligence=None):
+        self.received_intelligence = intelligence
+        return self.products.get(ingredient, [])
+
+
+def run():
+    raw = {
+        "ingredients": [
+            ["vegetable oil", 2, "cloves"],
+            ["frozen french fries", 300, "g"],
+            ["canned corn", 100, "g"],
+        ],
+        "ingredient_intelligence": {
+            "vegetable oil": {
+                "canonical": "vegetable oil", "name_en": "vegetable oil",
+                "name_de": "Pflanzenöl", "name_es": "aceite vegetal",
+                "aliases": ["neutral cooking oil", "Pflanzenöl"],
+                "form": "liquid", "culinary_role": "cooking fat",
+                "unit_dimension": "volume",
+                "allowed_substitutions": ["sunflower oil", "rapeseed oil"],
+            },
+            "frozen french fries": {
+                "canonical": "potato fries", "name_en": "frozen french fries",
+                "name_de": "Tiefkühl-Pommes", "name_es": "patatas fritas congeladas",
+                "aliases": ["Pommes Frites", "Tiefkühlpommes"],
+                "form": "frozen", "culinary_role": "starchy side",
+                "unit_dimension": "mass", "allowed_substitutions": ["fresh potatoes"],
+            },
+            "canned corn": {
+                "canonical": "sweet corn", "name_en": "canned sweet corn",
+                "name_de": "Mais aus der Dose", "name_es": "maíz en conserva",
+                "aliases": ["Mais Konserve", "Dosenmais"],
+                "form": "canned", "culinary_role": "vegetable",
+                "unit_dimension": "mass", "allowed_substitutions": [],
+            },
+        },
+    }
+    intelligence = normalize_recipe_intelligence(raw)
+    assert len(intelligence) == 3
+    assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
+    assert ingredient_product_match_type(
+        "canned corn", "REWE Bio Zuckermais Tiefkühl 450g", intelligence
+    ) is None, "Canned corn must not match frozen corn"
+    assert ingredient_product_match_type(
+        "frozen french fries", "REWE Pommes Frites 750g", intelligence
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "frozen french fries", "REWE Speisekartoffeln 2kg", intelligence
+    ) == "substitute"
+    assert ingredient_substitution_name(
+        "vegetable oil", "REWE Rapsöl 1L", intelligence
+    ) == "rapeseed oil"
+    assert validate_ingredient_unit("vegetable oil", "cloves")["valid"] is False
+    assert validate_ingredient_unit("chocolate", "g")["valid"] is True
+
+    recipe = {
+        "id": "oil-test", "name": "Oil test", "base_servings": 2,
+        "ingredients": [["vegetable oil", 2, "cloves"]],
+        "ingredient_intelligence": intelligence,
+    }
+    requirement = consolidate([recipe], {"oil-test": 2})
+    assert requirement[0]["unit_validation"]["valid"] is False
+
+    catalog = IntelligenceCatalog({
+        "vegetable oil": [{
+            "id": 11, "name_original": "REWE Rapsöl 1L",
+            "package_size": 1, "package_unit": "l", "price": 2.49,
+            "availability": "available", "ingredient_match_type": "substitute",
+            "ingredient_substitute": "rapeseed oil",
+        }]
+    })
+    basket = build_basket(
+        [{"ingredient": "vegetable oil", "quantity": 30, "unit": "ml",
+          "source_meals": ["Oil test"], "ingredient_intelligence": intelligence["vegetable oil"],
+          "unit_validation": {"valid": True}}],
+        catalog,
+    )
+    assert basket[0]["match_status"] == "substituted"
+    assert catalog.received_intelligence["name_de"] == "Pflanzenöl"
+
+    invalid_basket = build_basket(requirement, catalog)
+    assert invalid_basket[0]["match_status"] == "unmatched"
+    assert invalid_basket[0]["product"] is None
+
+    print("INGREDIENT INTELLIGENCE QA PASS: cached multilingual intent, form-aware matching, safe substitutions, and unit validation")
+
+
+if __name__ == "__main__":
+    run()
