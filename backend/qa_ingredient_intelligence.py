@@ -12,6 +12,7 @@ os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_DB_DIR.name) / "qa.sqlite")
 
 from app.ingredient_intelligence import (
     _category_compatible, _form_compatible,
+    _ingredient_specific_exclusions,
     ingredient_candidate_search_terms,
     ingredient_product_match_type,
     ingredient_search_terms,
@@ -144,10 +145,13 @@ def run():
     assert ingredient_product_match_type(
         "curry powder", "REWE Bio Thai Curry Paste 100g", {"form": "powder"}, "oele-sossen-gewuerze"
     ) == "suggested_substitution"
-    assert ingredient_product_match_type(
-        "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
-        {"form": "fresh"}, "tiefkuehlkost"
-    ) == "suggested_substitution"
+    fish_test_title = "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g"
+    fish_test_match = ingredient_product_match_type(
+        "white fish fillet", fish_test_title, {"form": "fresh"}, "tiefkuehlkost"
+    )
+    print("DEBUG FROZEN FISH:", fish_test_match, normalize_text("tiefkuehlkost"),
+          normalize_text(fish_test_title), _ingredient_specific_exclusions("white fish fillet", normalize_text(fish_test_title)))
+    assert fish_test_match == "suggested_substitution"
     assert ingredient_product_match_type(
         "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
         {"form": "fresh"}, "Tiefkühlkost"
