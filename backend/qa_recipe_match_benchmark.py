@@ -221,7 +221,22 @@ RECIPES = [
         ("mushrooms", 100, "g", "Champignons", ["Weiße Champignons"], "fresh"),
         ("bell pepper", 0.5, "piece", "Paprika", ["rote Paprika"], "fresh"),
         ("oregano", 1, "tsp", "Oregano gerebelt", ["Oregano getrocknet"], "dried"),
+    ]),,
+    R("b21", "Chorrillana chilena", [
+        ("potatoes", 500, "g", "Speisekartoffeln", ["Kartoffeln"], "fresh"),
+        ("beef steak", 250, "g", "Rinder-Minutensteaks", ["Rindersteak", "Rindergeschnetzeltes"], "fresh"),
+        ("onion", 2, "piece", "Speisezwiebel", ["Zwiebeln"], "fresh"),
+        ("eggs", 2, "piece", "Eier", ["Freilandeier"], "unspecified"),
+        ("vegetable oil", 30, "ml", "Pflanzenöl", ["Rapsöl", "Sonnenblumenöl"], "liquid"),
     ]),
+    R("b22", "Simple tomato pasta", [
+        ("pasta", 180, "g", "Nudeln", ["Penne", "Fusilli", "Spaghetti"], "unspecified"),
+        ("tomato passata", 250, "g", "passierte Tomaten", ["Passata", "Tomaten passiert"], "liquid"),
+        ("garlic", 2, "cloves", "Knoblauch", ["Knoblauchzehen"], "fresh"),
+        ("onion", 1, "piece", "Speisezwiebel", ["Zwiebeln"], "fresh"),
+        ("olive oil", 15, "ml", "Olivenöl", ["natives Olivenöl"], "liquid"),
+        ("parmesan cheese", 30, "g", "Parmesan gerieben", ["Parmigiano Reggiano", "Parmesan"], "grated"),
+    ])
 ]
 
 
