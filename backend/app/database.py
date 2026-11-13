@@ -389,7 +389,7 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         # liquid pack) cannot be treated as a checkout price. Trust only a
         # separate explicit pack price from the title; otherwise mark unpriced.
         checkout_text = re.sub(
-            r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*\d+[,.]\d{2}\s*€",
+            r"\b\d+(?:[.,]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
             " ", name or "", flags=re.I,
         )
         checkout_text = re.sub(
