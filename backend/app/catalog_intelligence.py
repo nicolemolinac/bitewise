@@ -210,10 +210,16 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
     ranked = diversified
     products = []
     seen = set()
+    brand_counts = {}
     for score, product, kind in ranked:
         if product.id in seen:
             continue
+        brand_key = _normalise(product.brand)
+        if brand_key and brand_counts.get(brand_key, 0) >= 2:
+            continue
         seen.add(product.id)
+        if brand_key:
+            brand_counts[brand_key] = brand_counts.get(brand_key, 0) + 1
         products.append({
             "id": product.id,
             "name_original": product.name_original,
