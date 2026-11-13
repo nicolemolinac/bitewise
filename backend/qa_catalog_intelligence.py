@@ -40,7 +40,7 @@ def run():
                 if real_query == "pizza":
                     assert any("Bistro Baguette" in name for name in names), names
                     assert any("Flammkuchen" in name for name in names), names
-                    assert not any("Taco Kit" in name for name in names), names
+                    assert not any("Taco Kit" in name or "FruchtBar" in name or "Hipp" in name for name in names), names
                 if real_query == "chili con carne":
                     assert any("Chili con Carne" in name for name in names), names
                 if real_query == "french fries":
