@@ -124,6 +124,23 @@ def main():
         compact_page(urlsplit(long_url).path, 1), long_url, long_url
     ) == 139
 
+    # Pagination is only useful if every page's product cards are extracted.
+    # 138 full pages plus the 7-card final page represent 5,527 distinct SKUs.
+    long_products = [
+        product
+        for page_url, html in long_pages
+        for product in long_scraper.extract(
+            html, page_url, category_slug_from_url(long_url)
+        )
+    ]
+    long_external_ids = {product["external_id"] for product in long_products}
+    assert len(long_products) == 5527, (
+        f"Expected 5,527 product cards extracted across 139 pages, got {len(long_products)}"
+    )
+    assert len(long_external_ids) == 5527, (
+        f"Expected 5,527 unique REWE product IDs, got {len(long_external_ids)}"
+    )
+
     # If REWE advertises a total count but its pager links disappear from the
     # HTTP response, one page must not be silently reported as a complete category.
     incomplete_html = (
