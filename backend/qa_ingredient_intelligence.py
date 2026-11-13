@@ -180,9 +180,25 @@ def run():
     }]
     potato_review = build_basket(potato_requirement, potato_catalog)
     assert potato_review[0]["match_status"] == "unmatched"
+    assert potato_review[0]["semantic_suggestions"][0]["semantic_match_type"] == "suggested_substitution"
     potato_confirmed = build_basket(potato_requirement, potato_catalog, overrides={"frozen french fries": 14})
     assert potato_confirmed[0]["match_status"] == "substituted"
     assert potato_confirmed[0]["product"]["ingredient_substitute"] == "fresh potatoes"
+
+    ai_substitute_catalog = IntelligenceCatalog({"custom cooking fat": [{
+        "id": 15, "name_original": "REWE Rapeseed Oil 1L",
+        "package_size": 1, "package_unit": "l", "price": 2.49,
+        "availability": "available", "ingredient_match_type": "suggested_substitution",
+        "ingredient_substitute": "rapeseed oil",
+    }]})
+    ai_substitute_requirement = [{
+        "ingredient": "custom cooking fat", "quantity": 30, "unit": "ml",
+        "source_meals": ["Test"],
+        "ingredient_intelligence": {"canonical": "custom cooking fat", "suggested_substitutions": ["rapeseed oil"]},
+    }]
+    ai_confirmed = build_basket(ai_substitute_requirement, ai_substitute_catalog, overrides={"custom cooking fat": 15})
+    assert ai_confirmed[0]["match_status"] == "substituted"
+    assert ai_confirmed[0]["product"]["ingredient_substitute"] == "rapeseed oil"
 
     adapted_recipe = {"ingredients": [["frozen french fries", 300, "g"]], "steps": [{"text": "Add frozen french fries to the basket."}]}
     _adapt_recipe_to_catalog(adapted_recipe, potato_confirmed)
