@@ -112,6 +112,21 @@ def run():
     assert invalid_basket[0]["match_status"] == "unmatched"
     assert invalid_basket[0]["product"] is None
 
+    semantic_catalog = IntelligenceCatalog({"unknown": [{
+        "id": 12, "name_original": "Possible semantic REWE product",
+        "package_size": 500, "package_unit": "g", "price": 1.99,
+        "availability": "available", "ingredient_match_type": "semantic_candidate",
+        "semantic_similarity": 0.84,
+    }]})
+    semantic_requirement = [{"ingredient": "unknown", "quantity": 100, "unit": "g", "source_meals": ["Test"]}]
+    review_basket = build_basket(semantic_requirement, semantic_catalog)
+    assert review_basket[0]["match_status"] == "unmatched"
+    assert review_basket[0]["product"] is None
+    assert review_basket[0]["semantic_suggestions"][0]["semantic_similarity"] == 0.84
+    confirmed_basket = build_basket(semantic_requirement, semantic_catalog, overrides={"unknown": 12})
+    assert confirmed_basket[0]["match_status"] == "matched"
+    assert confirmed_basket[0]["selected_by_user"] is True
+
     print("INGREDIENT INTELLIGENCE QA PASS: cached multilingual intent, form-aware matching, safe substitutions, and unit validation")
 
 
