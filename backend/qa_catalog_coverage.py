@@ -252,6 +252,14 @@ def main():
         print(f"Distinct ingredient labels: {len(ingredients)}")
         print(f"Distinct categories: {len(categories)}")
         print(f"REWE category distribution: {dict(categories)}")
+        bread_cereal_rows = categories.get("brot-cerealien-aufstriche", 0)
+        if bread_cereal_rows < 1000:
+            print(
+                "WARNING: committed snapshot has only "
+                f"{bread_cereal_rows} Brot/Cerealien rows. This is not a complete "
+                "capture of the paginated REWE department; run a healthy full refresh "
+                "before treating the catalog as complete."
+            )
         print(f"Missing prices (not necessarily source errors): {missing_price} ({missing_price / total:.1%})")
         print(f"Invalid numeric prices (non-finite or <= 0): {invalid_price} ({invalid_price / total:.1%})")
         price_issue_examples = [
