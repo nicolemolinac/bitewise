@@ -470,7 +470,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     category_key = normalize_text(product_category)
     whole_fresh_red_cabbage = (
         normalize_text(ingredient) == "red cabbage"
-        and category_key == "fertiggerichte-konserven"
+        and category_key.replace(" ", "-") == "fertiggerichte-konserven"
         and any(term in title for term in ("rotkohl", "rotkraut", "blaukraut"))
         and any(term in title for term in ("1 stuck", "1 stueck", "ca 1", "ca 1800"))
         and not any(term in title for term in ("apfel", "fix fertig", "fertiggericht", "sauce", "glas"))
