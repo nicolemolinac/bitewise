@@ -51,7 +51,13 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
 
     # Category/aisle labels are metadata, not ingredient evidence. Searching them
     # creates noisy result sets and can push valid products beyond the candidate cap.
-    rows = self.db.query(Product).filter(or_(*clauses)).limit(600).all()
+    # Search the complete REWE catalog. A global LIMIT can silently hide
+    # valid products behind broad aliases (e.g. "wraps" or "cheese"); strict
+    # title/form validation below is the quality gate, not a truncated pool.
+    rows = self.db.query(Product).filter(
+        Product.supermarket == "REWE",
+        or_(*clauses),
+    ).all()
     if rows:
         # Search columns improve recall, but the actual product title must independently
         # confirm compatibility. Catalog ingredient labels can be broad or misclassified.
