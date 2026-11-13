@@ -399,9 +399,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             waste_in_pack_unit = max(0.0, purchased_quantity - needed_in_pack_unit)
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
             waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1e-9)
-            unit_price = _number(product, "unit_price", "price_per_unit", default=numeric_price / pack_qty)
-            if not math.isfinite(unit_price) or unit_price <= 0:
-                unit_price = numeric_price / pack_qty
+            # The checkout price and normalized package quantity are the
+            # authoritative pair. Recompute unit price instead of trusting a
+            # stale/misparsed cached price_per_unit field.
+            unit_price = numeric_price / pack_qty
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             # Exact matches win over substitutions; a substitute is used only when
             # no exact priced/available option is present.
