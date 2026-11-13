@@ -171,6 +171,10 @@ def run():
         {"form": "fresh"}, "fertiggerichte-konserven"
     ) == "exact"
     assert ingredient_product_match_type(
+        "rolled oats", "Kellogs Special Crunchy Oat Granola Mixed Berries 320g",
+        {"form": "unspecified"}, "brot-cerealien-aufstriche"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
         "bratwurst", "ja! Schweine-Bratwurst grob 4x100g", {}, "fleisch-wurst-fisch"
     ) == "exact"
     assert ingredient_product_match_type(
