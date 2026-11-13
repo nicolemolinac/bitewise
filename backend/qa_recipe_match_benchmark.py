@@ -24,6 +24,7 @@ if os.getenv("BITEWISE_BENCHMARK_ISOLATED", "").strip().lower() in {"1", "true",
     os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app import server  # installs the multilingual CatalogAdapter.search override
+from app.catalog_intelligence import search_catalog_opportunities
 from app.database import ProductSemanticEmbedding, SessionLocal
 from app.ingredient_intelligence import (
     ingredient_candidate_search_terms, ingredient_product_match_type,
@@ -265,6 +266,22 @@ def main():
             server.main_module.Product.supermarket == "REWE"
         ).all()
         print(f"FULL-CATALOG AUDIT ROWS: {len(all_rewe_products)}")
+        # Exercise convenience discovery against the same complete imported
+        # REWE snapshot, not only the synthetic catalog fixtures.
+        for discovery_query in ("pizza", "chili con carne", "french fries"):
+            discovery = search_catalog_opportunities(db, discovery_query, limit=10)
+            assert discovery["catalog_count"] == product_count
+            print(
+                f"REAL REWE DISCOVERY {discovery_query!r}: "
+                f"{len(discovery['products'])} results / {discovery['catalog_count']} catalog rows "
+                f"({discovery.get('retrieval')})"
+            )
+            for product in discovery["products"][:5]:
+                print(
+                    f"  SHORTCUT {product['name_original']} | "
+                    f"type={product['convenience_type']} | price={product['price']} | "
+                    f"pack={product['package_size']} {product['package_unit']}"
+                )
         adapter = server.main_module.CatalogAdapter(db)
         totals = Counter()
         per_recipe = []
