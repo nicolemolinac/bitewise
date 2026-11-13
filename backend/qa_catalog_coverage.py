@@ -17,6 +17,8 @@ os.environ["DATABASE_URL"] = ""
 os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
+from types import SimpleNamespace
+
 from app import server
 from app.database import Product, SessionLocal
 
@@ -35,6 +37,16 @@ SAMPLE_INGREDIENTS = [
 
 
 def main():
+    priced = SimpleNamespace(
+        ingredient="rice", translated_name=None, name_normalized="rice 500g",
+        name_original="Rice 500g", price=1.99, availability="unknown",
+    )
+    invalid = SimpleNamespace(
+        ingredient="rice", translated_name=None, name_normalized="rice 500g",
+        name_original="Rice 500g", price=float("nan"), availability="unknown",
+    )
+    assert server._catalog_search_score(priced, {"rice"}, "exact") > server._catalog_search_score(invalid, {"rice"}, "exact")
+
     db = SessionLocal()
     try:
         query = db.query(Product).filter(Product.supermarket == "REWE")
