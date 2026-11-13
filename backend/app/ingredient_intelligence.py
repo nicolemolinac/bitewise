@@ -187,6 +187,9 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     if form == "fresh" and any(token in title for token in ("tiefkuhl", "frozen", "konserve", "dose", "getrocknet", "gemahlen", "gewurze", "gewurz", "spices", "seasonings")):
         return False
     if form in {"frozen", "tiefkuhl"}:
+        frozen_markers = ("tiefkuhl", "tiefkuehl", "tiefgefroren", "frozen", " tk ")
+        if not any(token in " " + title + " " for token in frozen_markers):
+            return False
         if any(token in title for token in ("chips", "snack", "knabberartikel")):
             return False
         if any(token in title for token in ("frisch", "fresh", "konserve", "dose", "canned", "getrocknet", "dried", "obst gemuse", "fresh produce")):
