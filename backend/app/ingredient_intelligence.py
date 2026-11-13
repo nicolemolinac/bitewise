@@ -321,6 +321,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         term in title_key for term in ("crouton", "cro ton", "brotwurfel gerostet")
     ) and category_key in {"oele-sossen-gewuerze", "fertiggerichte-konserven"}:
         return True
+    if name == "curry powder" and any(
+        term in title_key for term in ("curry paste", "currypaste")
+    ) and category_key in {"oele-sossen-gewuerze", "fertiggerichte-konserven"}:
+        return True
     # REWE occasionally labels whole, fresh red cabbage under the canned-food
     # aisle. A single whole cabbage with no cooked/fruit/ready-meal markers is
     # still fresh produce despite that aisle metadata.
@@ -393,7 +397,14 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
 def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bool:
     # Frozen fries -> raw potatoes is an intentional, recipe-adapted transition.
     # Do not let this exception turn potato chips/snacks into a substitute.
-    if normalize_text(ingredient) != "frozen french fries":
+    normalized_ingredient = normalize_text(ingredient)
+    if normalized_ingredient == "curry powder":
+        return (
+            normalize_text(term) in {"curry paste", "currypaste", "madras curry paste"}
+            and any(token in title for token in ("curry paste", "currypaste"))
+            and not any(token in title for token in ("ketchup", "sauce", "suppe", "fertiggericht"))
+        )
+    if normalized_ingredient != "frozen french fries":
         return False
     if normalize_text(term) not in {"fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"}:
         return False
@@ -435,7 +446,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         and any(term in title for term in ("seelachsfilet", "kabeljaufilet", "pollack fillet"))
         and not any(term in title for term in (
             "paella", "pfanne", "fertiggericht", "fish burger", "fischburger",
-            "brotaufstrich", "salat", "suppe", "sauce",
+            "brotaufstrich", "salat", "suppe", "sauce", "paniert", "backteig",
         ))
     ):
         return "suggested_substitution"
