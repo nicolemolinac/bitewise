@@ -2,7 +2,7 @@ import math
 from collections import defaultdict
 
 from ..ingredient_aliases import ingredient_aliases
-from ..ingredient_intelligence import ingredient_substitution_name, ingredient_suggested_substitution_name, validate_ingredient_unit
+from ..ingredient_intelligence import ingredient_substitution_name, ingredient_suggested_substitution_name, normalize_text, validate_ingredient_unit
 
 
 STRATEGIES = {
@@ -38,7 +38,15 @@ def consolidate(meals, servings_map):
             row["source_meals"].append(meal["name"])
             intelligence = meal.get("ingredient_intelligence") or {}
             if isinstance(intelligence, dict):
-                row["ingredient_intelligence"] = intelligence.get(name.lower().strip()) or intelligence.get(name) or row["ingredient_intelligence"]
+                # Recipe metadata keys are normalized with normalize_text(), so use
+                # the same normalization here (hyphens, accents and punctuation matter).
+                intelligence_key = normalize_text(name)
+                row["ingredient_intelligence"] = (
+                    intelligence.get(intelligence_key)
+                    or intelligence.get(name.lower().strip())
+                    or intelligence.get(name)
+                    or row["ingredient_intelligence"]
+                )
             row["unit_validation"] = validate_ingredient_unit(name, normalized_unit, row["ingredient_intelligence"])
     return [
         {
