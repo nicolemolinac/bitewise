@@ -423,8 +423,23 @@ export default function AppV3(){
   async function changeStrategy(s:Strategy){setStrategy(s);await api('/settings',{method:'PATCH',body:JSON.stringify({shopping_strategy:s})});if(basket.length)await makeBasket(s)}
   async function toggleOwned(ingredient:string){if(ingredient.startsWith('extra:')){const id=ingredient.slice(6);const nextExtras=extras.map(item=>item.id===id?{...item,onHand:Math.max(Number(item.onHand)||0,Number(item.weeklyQuantity??1)||0)}:item);setExtras(nextExtras);await makeBasket(strategy,nextExtras);return;}const next=owned.includes(ingredient)?owned.filter(x=>x!==ingredient):[...owned,ingredient];setOwned(next);try{await api('/shopping/state',{method:'PUT',body:JSON.stringify({ingredient,state:next.includes(ingredient)?'owned':'needed'})});if(basket.length)await makeBasket(strategy,extras,next)}catch(e:any){setError('Could not update pantry status: '+e.message)}}
   async function openAlternatives(item:BasketItem){setAltItem(item);const query=item.ingredient.startsWith('extra:')?(item.product?.name_original||item.ingredient):item.ingredient;const d=await api(`/products/search?q=${encodeURIComponent(query)}`);setAlternatives(d.products||[])}
-  async function chooseAlternative(p:Product){if(!altItem||!p.id)return;if(altItem.ingredient.startsWith('extra:')){const id=altItem.ingredient.slice(6);const nextExtras=extras.map(extra=>extra.id===id?{...extra,product:p,label:p.name_original}:extra);setExtras(nextExtras);setAltItem(null);await makeBasket(strategy,nextExtras);return;}await api('/products/replace',{method:'POST',body:JSON.stringify({ingredient:altItem.ingredient,product_id:p.id})});setAltItem(null);await makeBasket(strategy)}
-  async function useSemanticSuggestion(item:BasketItem,p:Product){if(!p.id)return;await api('/products/replace',{method:'POST',body:JSON.stringify({ingredient:item.ingredient,product_id:p.id})});await makeBasket(strategy)}
+  async function reconcileSavedRecipes(){
+    const result=await api('/recipe-history/reconcile',{method:'POST'});
+    const updates=result.records||[];
+    const byKey=new Map<string,Meal>(updates.map((row:any)=>[row.record_key,row.meal as Meal]));
+    setHistory(current=>current.map((row:any)=>byKey.has(row.record_key)?{...row,meal:byKey.get(row.record_key)}:row));
+    setLiked(current=>current.map(meal=>{
+      const conceptId=String((meal as any).source_concept_id||'');
+      return byKey.get(`recipe:${conceptId}`)||meal;
+    }));
+    setDetail(current=>{
+      if(!current)return current;
+      const conceptId=String((current as any).source_concept_id||'');
+      return byKey.get(`recipe:${conceptId}`)||current;
+    });
+  }
+  async function chooseAlternative(p:Product){if(!altItem||!p.id)return;if(altItem.ingredient.startsWith('extra:')){const id=altItem.ingredient.slice(6);const nextExtras=extras.map(extra=>extra.id===id?{...extra,product:p,label:p.name_original}:extra);setExtras(nextExtras);setAltItem(null);await makeBasket(strategy,nextExtras);return;}await api('/products/replace',{method:'POST',body:JSON.stringify({ingredient:altItem.ingredient,product_id:p.id})});setAltItem(null);await reconcileSavedRecipes();await makeBasket(strategy)}
+  async function useSemanticSuggestion(item:BasketItem,p:Product){if(!p.id)return;await api('/products/replace',{method:'POST',body:JSON.stringify({ingredient:item.ingredient,product_id:p.id})});await reconcileSavedRecipes();await makeBasket(strategy)}
   async function purchase(item:BasketItem){if(item.ingredient.startsWith('extra:')){const id=item.ingredient.slice(6);const nextExtras=extras.map(extra=>extra.id===id?{...extra,onHand:(Number(extra.onHand)||0)+Math.max(1,Number(item.packs)||1)}:extra);setExtras(nextExtras);await makeBasket(strategy,nextExtras);return;}if(!item.product?.id)return;await api('/shopping/purchase',{method:'POST',body:JSON.stringify({product_id:item.product.id,packs:item.packs,ingredient:item.ingredient})});setPantry(await api('/pantry'));await makeBasket(strategy)}
   async function searchExtras(){if(!extraQuery.trim())return;const d=await api(`/products/search?q=${encodeURIComponent(extraQuery)}`);setExtraResults(d.products||[])}
   async function addExtra(p:Product){const id=`${extraKind}-${p.id||p.name_original}`;if(extras.some(x=>x.id===id)){setTab('basket');return;}const next=[...extras,{id,kind:extraKind,label:p.name_original,product:p,dailyUse:extraKind==='beverage'?1:0,weeklyQuantity:1,onHand:0}];setExtras(next);await makeBasket(strategy,next);}
