@@ -77,6 +77,14 @@ def run():
     assert "pommes frites" in fallback["frozen french fries"]["aliases"]
     assert fallback["pre cooked shredded chicken"]["form"] == "pre_cooked"
     assert fallback["vegetable oil"]["unit_dimension"] == "volume"
+    # Hyphenated ingredient names must still receive normalized metadata in consolidate().
+    hyphenated_recipe = {
+        "id": "hyphenated-chicken", "name": "Chicken wrap", "base_servings": 2,
+        "ingredients": [["pre-cooked shredded chicken", 200, "g"]],
+        "ingredient_intelligence": fallback,
+    }
+    hyphenated_requirement = consolidate([hyphenated_recipe], {"hyphenated-chicken": 2})
+    assert hyphenated_requirement[0]["ingredient_intelligence"]["form"] == "pre_cooked"
     shredded_fallback = normalize_recipe_intelligence({"ingredients": [["shredded lettuce", 100, "g"]]})
     assert shredded_fallback["shredded lettuce"]["form"] == "unspecified"
     assert ingredient_product_match_type("shredded lettuce", "REWE Eisbergsalat 1 Stück") == "exact"
