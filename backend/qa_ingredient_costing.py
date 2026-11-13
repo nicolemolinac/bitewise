@@ -143,7 +143,7 @@ def run():
         onion_catalog, mode="cheapest",
     )
     assert onion_basket[0]["match_status"] == "matched"
-    assert onion_basket[0]["unit_conversion_note"] == "Estimated 150 g per onions."
+    assert onion_basket[0]["unit_conversion_note"] == "Estimated 150 g per piece of onion."
     assert onion_basket[0]["needed_quantity"] == 2
     assert onion_basket[0]["checkout_cost"] == 1.49
 
