@@ -652,15 +652,21 @@ class ReweCatalogScraper:
             response.raise_for_status()
             fingerprint = self._page_fingerprint(response.text)
             if fingerprint in seen_content:
-                # REWE sometimes serves page 1 again under a different pagination URL.
-                # Stop this category rather than repeatedly ingesting identical content.
-                break
+                # A duplicate page before pagination is exhausted means this category
+                # may be incomplete. Fail closed so refresh cannot mark it healthy and
+                # delete products that were simply not reached.
+                raise RuntimeError(f"REWE repeated page content before pagination completed: {url}")
             seen_content.add(fingerprint)
             yield url, response.text
             for href in self._pagination_links(response.text, url, start):
                 if href not in seen_urls and href not in pending:
                     pending.append(href)
             time.sleep(self.delay)
+        if pending:
+            raise RuntimeError(
+                f"REWE category exceeded the {MAX_CATEGORY_PAGES}-page safety limit; "
+                "catalog refresh is incomplete"
+            )
 
     def extract(self, html, url, category):
         soup = BeautifulSoup(html, "html.parser")
@@ -828,13 +834,19 @@ class ReweCatalogScraper:
             html = self._browser_category_html(page, current)
             fingerprint = self._page_fingerprint(html)
             if fingerprint in seen_content:
-                # Stop when REWE returns the same product page for a different URL.
-                break
+                raise RuntimeError(
+                    f"REWE browser pagination repeated page content before completion: {current}"
+                )
             seen_content.add(fingerprint)
             yield current, html
             for href in self._pagination_links(html, current, start):
                 if href not in seen_urls and href not in pending:
                     pending.append(href)
+        if pending:
+            raise RuntimeError(
+                f"REWE browser category exceeded the {MAX_CATEGORY_PAGES}-page safety limit; "
+                "catalog refresh is incomplete"
+            )
 
     def _base_report(self, postcode, mode):
         return {
