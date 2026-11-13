@@ -291,13 +291,13 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         if name in {"chickpeas", "lentils", "kidney beans"}:
             allowed.add("kochen-backen")
         return category_key in allowed
+    if name == "honey":
+        return (
+            category_key in {"brot-cerealien-aufstriche", "kochen-backen", "suesses-salziges"}
+            and not any(token in title_key for token in ("senfsauce", "honey mustard", "honig senf", "riegel", "muesli", "snack"))
+        )
     if name in sauces:
         allowed = {"oele-sossen-gewuerze", "fertiggerichte-konserven"}
-        if name == "honey":
-            return (
-                category_key in {"brot-cerealien-aufstriche", "kochen-backen", "suesses-salziges"}
-                and not any(token in title_key for token in ("senfsauce", "honey mustard", "honig senf", "riegel", "muesli", "snack"))
-            )
         return category_key in allowed
     return True
 
