@@ -20,6 +20,7 @@ from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
 from .shopping.optimizer import STRATEGIES, build_basket, consolidate
+from .catalog_intelligence import search_catalog_opportunities
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 app = FastAPI(title='Bitewise API', version='2.0')
@@ -191,6 +192,14 @@ def update_settings(payload:SettingsIn):
    else:db.add(AppSetting(key=k,value=v))
   db.commit();return {'ok':True,**values}
  finally:db.close()
+@app.get('/api/catalog/opportunities')
+def catalog_opportunities(q: str = Query(default='', max_length=160), limit: int = Query(default=12, ge=1, le=30)):
+ db=SessionLocal()
+ try:
+  return search_catalog_opportunities(db, q, limit)
+ finally:
+  db.close()
+
 @app.get('/api/products')
 def products(q:str='',ingredient:str|None=None):
  db=SessionLocal()
