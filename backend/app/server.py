@@ -62,6 +62,18 @@ def _catalog_search_score(row, aliases, match_type):
         # Invalid/unpriced exact rows cannot crowd out priced alternatives
         # before the basket optimizer gets a chance to evaluate them.
         best -= 2000
+    try:
+        package_size = float(row.package_size) if row.package_size is not None else None
+    except (TypeError, ValueError):
+        package_size = None
+    package_unit = str(row.package_unit or "").strip().lower()
+    if (
+        package_size is not None and math.isfinite(package_size) and package_size > 0
+        and package_unit not in {"", "unknown"}
+    ):
+        best += 5
+    else:
+        best -= 2000
     availability = str(row.availability or "").lower()
     if availability in {"available", "in_stock"}:
         best += 5
