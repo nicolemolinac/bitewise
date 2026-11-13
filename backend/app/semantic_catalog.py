@@ -108,7 +108,7 @@ def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
         "products_seen": len(products),
         "products_indexed": indexed,
         "products_already_indexed": len(products) - len(pending),
-        "total_embeddings": len(existing),
+        "total_embeddings": len(products),
     }
 
 
