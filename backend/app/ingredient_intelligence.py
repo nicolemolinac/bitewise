@@ -470,6 +470,13 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         ingredient, product_category, title, product_form
     )
     terms = ingredient_search_terms(ingredient, intelligence)
+    if (
+        normalize_text(ingredient) in {"vegetable oil", "sunflower oil", "rapeseed oil"}
+        and "spray" in title
+        and form_compatible and category_compatible
+        and any(_contains_phrase(title, term) for term in terms)
+    ):
+        return "substitute"
     if form_compatible and category_compatible and any(_contains_phrase(title, term) for term in terms):
         return "exact"
     substitutes = list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
@@ -494,6 +501,11 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
 
 def ingredient_substitution_name(ingredient: str, product_text: str, intelligence: Any = None) -> str | None:
     title = normalize_text(product_text)
+    if (
+        normalize_text(ingredient) in {"vegetable oil", "sunflower oil", "rapeseed oil"}
+        and "spray" in title
+    ):
+        return "cooking oil spray"
     substitutes = list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     for term in sorted(substitutes, key=lambda value: -len(normalize_text(value))):
         normalized = normalize_text(term)
