@@ -110,9 +110,9 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
             for row in rows[:40]
         ]
 
-    # Never substitute seed/demo products for a real REWE catalog match.
-    # An empty result is more honest than displaying invented availability or prices.
-    return []
+    # Semantic fallback is local and review-only. It never auto-adds a product.
+    from .semantic_catalog import semantic_product_candidates
+    return semantic_product_candidates(self.db, ingredient, intelligence, limit=5)
 
 
 main_module.CatalogAdapter.search = _multilingual_catalog_search
