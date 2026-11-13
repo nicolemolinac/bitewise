@@ -2,6 +2,7 @@ import math
 from collections import defaultdict
 
 from ..ingredient_aliases import ingredient_aliases
+from ..ingredient_intelligence import validate_ingredient_unit
 
 
 STRATEGIES = {
@@ -15,7 +16,7 @@ STRATEGIES = {
 
 
 def consolidate(meals, servings_map):
-    grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": []})
+    grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": [], "ingredient_intelligence": None, "unit_validation": None})
     canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
     for meal in meals:
         servings = max(0.1, float(servings_map.get(meal["id"], 2) or 2))
@@ -35,12 +36,18 @@ def consolidate(meals, servings_map):
             row = grouped[key]
             row["quantity"] += normalized_quantity * factor
             row["source_meals"].append(meal["name"])
+            intelligence = meal.get("ingredient_intelligence") or {}
+            if isinstance(intelligence, dict):
+                row["ingredient_intelligence"] = intelligence.get(name.lower().strip()) or intelligence.get(name) or row["ingredient_intelligence"]
+            row["unit_validation"] = validate_ingredient_unit(name, normalized_unit)
     return [
         {
             "ingredient": ingredient,
             "quantity": round(value["quantity"], 2),
             "unit": unit,
             "source_meals": list(dict.fromkeys(value["source_meals"])),
+            "ingredient_intelligence": value.get("ingredient_intelligence"),
+            "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit),
         }
         for (ingredient, unit), value in grouped.items()
     ]
@@ -217,6 +224,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "package_unit": None,
             "unit_cost": None,
             "unit_conversion_note": None,
+            "unit_validation": requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit),
             "match_status": "unmatched",
             "match_reason": None,
             "why": None,
@@ -237,7 +245,20 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             continue
 
         candidates = []
-        raw_products = list(adapter.search(ingredient) or [])
+        unit_validation = requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit)
+        if not unit_validation.get("valid", True):
+            base.update({
+                "unit_validation": unit_validation,
+                "match_reason": unit_validation.get("reason") or "Ingredient unit failed validation.",
+                "why": "Recipe ingredient needs correction before safe product matching.",
+            })
+            output.append(base)
+            continue
+        intelligence = requirement.get("ingredient_intelligence")
+        try:
+            raw_products = list(adapter.search(ingredient, intelligence=intelligence) or [])
+        except TypeError:
+            raw_products = list(adapter.search(ingredient) or [])
         override_id = overrides.get(ingredient)
         for product in raw_products:
             price = product.get("price")
