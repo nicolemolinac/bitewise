@@ -1,4 +1,4 @@
-"""Real-catalog benchmark: 20 representative recipes against the local REWE database.
+"""Real-catalog benchmark: 22 representative recipes against the local REWE database.
 
 Run from backend/: python qa_recipe_match_benchmark.py
 Read-only: no Gemini calls, no scraping, no DB writes, no pantry assumptions.
@@ -247,7 +247,7 @@ def main():
             server.main_module.Product.supermarket == "REWE"
         ).count()
         embedding_count = db.query(ProductSemanticEmbedding).count()
-        print("BITEWISE 20-RECIPE / REAL REWE CATALOG BENCHMARK")
+        print("BITEWISE 22-RECIPE / REAL REWE CATALOG BENCHMARK")
         print(f"REWE products in local DB: {product_count}")
         print(f"Local semantic vectors: {embedding_count}")
         if product_count == 0:
