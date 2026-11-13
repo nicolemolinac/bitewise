@@ -44,7 +44,6 @@ def main():
     )
     assert snapshot_price == 20.0 and snapshot_unit == 0.002
 
-
     pack_price, price_per_gram = _snapshot_pack_pricing(
         "Alete Kinderkeks 180g (1 kg = 11,06 €)", 180, "g", 11.06, 0.0614
     )
@@ -61,6 +60,7 @@ def main():
     assert _snapshot_package_details(
         "Toilettenpapier 8x150 Blatt 8x150 Stück", 150, "unit"
     ) == (1200.0, "unit")
+
     snapshot_price, snapshot_per_gram = _snapshot_pack_pricing(
         "Spice 200g (100 g = 1,49 €)", 200, "g", 1.49, None
     )
@@ -84,12 +84,21 @@ def main():
         assert run is not None and run.status == "snapshot"
         source = db.get(AppSetting, "rewe_snapshot_source")
         assert source is not None and source.value == "committed-csv-snapshot"
-        alete = db.query(Product).filter(Product.name_original.like("Alete bewusst Kinderkeks Schoko%")).first()
+
+        alete = db.query(Product).filter(
+            Product.name_original.like("Alete bewusst Kinderkeks Schoko%")
+        ).first()
         if alete:
-            assert abs(alete.price - 1.99) < 0.02, f"Expected normalized 180g pack price near €1.99, got {alete.price}"
+            assert abs(alete.price - 1.99) < 0.02, (
+                f"Expected normalized 180g pack price near €1.99, got {alete.price}"
+            )
+
         multipack = db.query(Product).filter(Product.name_original.like("%2x200ml%")).first()
         if multipack:
-            assert multipack.package_size == 400, f"Expected 400ml multi-pack, got {multipack.package_size}"
+            assert multipack.package_size == 400, (
+                f"Expected 400ml multi-pack, got {multipack.package_size}"
+            )
+
         granini = db.query(Product).filter(
             Product.name_original.like("%Granini Fresh Leichte Schorle Apfel-Limette%")
         ).first()
@@ -98,14 +107,17 @@ def main():
             f"Expected Granini 0.75l, got {granini.package_size} {granini.package_unit}"
         )
         assert granini.price is not None and abs(granini.price - 1.59) < 0.02, granini.price
+
         wipes = db.query(Product).filter(
             Product.name_original.like("%Babywell Aqua Tücher 2x80 Stück%")
         ).first()
         assert wipes is not None and wipes.package_size == 160 and wipes.package_unit == "unit"
+
         toilet_paper = db.query(Product).filter(
             Product.name_original.like("%Danke Toilettenpapier 3-lagig 8x150 Blatt%")
         ).first()
-        assert toilet_paper is not None and toilet_paper.package_size == 1200 and toilet_paper.package_unit == "unit"
+        assert toilet_paper is not None
+        assert toilet_paper.package_size == 1200 and toilet_paper.package_unit == "unit"
     finally:
         db.close()
 
