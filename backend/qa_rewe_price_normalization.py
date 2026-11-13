@@ -60,6 +60,7 @@ def main():
     pack_price, per_ml = price_details("Drink 250ml (100 ml = 0,49 €)", 250, "ml")
     assert pack_price == 1.23
     assert abs(per_ml - 0.0049) < 1e-9
+    assert price_details("Drink 250ml (100 ml = 0,49 €)", 250, "ml")[0] == 1.23
     size, unit = package("Rice 500g")
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49
