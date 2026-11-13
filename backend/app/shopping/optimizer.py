@@ -33,7 +33,10 @@ def consolidate(meals, servings_map):
             normalized_unit = _normal_unit(unit)
             try:
                 raw_quantity = float(quantity)
-                normalized_quantity = raw_quantity if math.isfinite(raw_quantity) else float("nan")
+                normalized_quantity = (
+                    raw_quantity if math.isfinite(raw_quantity) and raw_quantity >= 0
+                    else float("nan")
+                )
             except (TypeError, ValueError):
                 normalized_quantity = float("nan")
             unit_info = _UNIT_BASE.get(normalized_unit)
@@ -46,7 +49,8 @@ def consolidate(meals, servings_map):
             row = grouped[key]
             scaled_quantity = normalized_quantity * factor
             row["quantity"] = (
-                scaled_quantity if not math.isfinite(row["quantity"]) or not math.isfinite(scaled_quantity)
+                float("nan")
+                if not math.isfinite(row["quantity"]) or not math.isfinite(scaled_quantity)
                 else row["quantity"] + scaled_quantity
             )
             row["source_meals"].append(meal["name"])
