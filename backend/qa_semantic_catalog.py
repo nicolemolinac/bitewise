@@ -6,19 +6,23 @@ from pathlib import Path
 _QA_DB_DIR = tempfile.TemporaryDirectory(prefix="bitewise-semantic-catalog-qa-")
 os.environ["DATABASE_URL"] = ""
 os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_DB_DIR.name) / "qa.sqlite")
+os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 import numpy as np
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base, Product, ProductSemanticEmbedding
+from app.database import Base, Product, ProductSemanticEmbedding, SessionLocal
 import app.semantic_catalog as semantic
 
 
 class FakeEmbeddingModel:
     def embed(self, texts, batch_size=32):
-        for _ in texts:
-            yield np.asarray([1.0, 0.0, 0.0], dtype=np.float32)
+        for text in texts:
+            if str(text).startswith("query:") or "pommes" in str(text).casefold():
+                yield np.asarray([1.0, 0.0, 0.0], dtype=np.float32)
+            else:
+                yield np.asarray([0.0, 1.0, 0.0], dtype=np.float32)
 
 
 def _product(external_id, name, category):
@@ -85,6 +89,40 @@ def run():
         cleaned = semantic.index_rewe_products(db, batch_size=2)
         assert cleaned["total_embeddings"] == 2
         assert db.query(ProductSemanticEmbedding).count() == 2
+
+        # The committed REWE snapshot is ~12k rows. Verify that the actual
+        # indexer embeds every imported REWE product, not a capped sample.
+        full_db = SessionLocal()
+        try:
+            full_count = full_db.query(Product).filter(Product.supermarket == "REWE").count()
+            assert full_count >= 10000, (
+                f"Expected the full committed REWE catalog (>=10,000 rows), got {full_count}"
+            )
+            full_index = semantic.index_rewe_products(full_db, batch_size=256)
+            indexed_count = full_db.query(ProductSemanticEmbedding).filter(
+                ProductSemanticEmbedding.model_name == semantic.MODEL_NAME
+            ).count()
+            assert full_index["products_seen"] == full_count
+            assert full_index["total_embeddings"] == full_count
+            assert indexed_count == full_count, (indexed_count, full_count)
+
+            semantic._INDEX_CACHE = None
+            full_candidates = semantic.semantic_product_candidates(
+                full_db, "frozen french fries", {"form": "frozen"},
+                limit=5, minimum_score=0.5,
+            )
+            assert any("Pommes Frites" in row["name_original"] for row in full_candidates), (
+                "Full-catalog semantic retrieval did not recover a REWE fries product"
+            )
+            unchanged = semantic.index_rewe_products(full_db, batch_size=256)
+            assert unchanged["products_indexed"] == 0
+            print(
+                f"FULL REWE SEMANTIC INDEX PASS: {full_count} products indexed and searched; "
+                "incremental rerun indexed 0 unchanged products"
+            )
+        finally:
+            full_db.close()
+            semantic._INDEX_CACHE = None
 
         print("SEMANTIC CATALOG QA PASS: indexing, incremental updates, local retrieval, form safety, and stale-vector cleanup")
     finally:
