@@ -83,6 +83,7 @@ def _cached_query_vector(query_text: str) -> tuple[float, ...]:
 def index_rewe_products(db, batch_size: int = 128, force: bool = False,
                         progress_callback=None) -> dict:
     """Incrementally embed new/changed REWE products and persist their vectors."""
+    global _INDEX_CACHE
     products = db.query(Product).filter(Product.supermarket == "REWE").all()
     existing = {row.product_id: row for row in db.query(ProductSemanticEmbedding).all()}
     pending = []
@@ -116,6 +117,8 @@ def index_rewe_products(db, batch_size: int = 128, force: bool = False,
         if product_id not in current_ids:
             db.delete(row)
     db.commit()
+    # The in-process matrix must reflect changed/deleted vectors immediately.
+    _INDEX_CACHE = None
     return {
         "model": MODEL_NAME,
         "products_seen": len(products),
