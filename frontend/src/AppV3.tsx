@@ -267,29 +267,65 @@ export default function AppV3(){
       resolved.push(...(photos?.photos||[]));
     }
     const enriched=fresh.map((meal,index)=>{const photo=resolved[index]||{};return {...meal,image:photo.image||meal.image||'',image_page:photo.image_page||meal.image_page||'',photographer:photo.photographer||meal.photographer||''};});
-    const updates=historyRows.map((row,index)=>{const meal=enriched[index];return row&&meal?.image?{record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',meal}:null;}).filter(Boolean);
+    const updates:any[]=historyRows.map((row,index)=>{const meal=enriched[index];return row&&meal?.image?{record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',meal}:null;}).filter(Boolean);
+    const photosByConcept=new Map(enriched.filter(meal=>meal.id&&meal.image).map(meal=>[meal.id,meal]));
+    // If a user picks an idea before Google Images finishes, the recipe row may
+    // already exist without a photo. Propagate the concept photo to that row too.
+    history.forEach((row:any)=>{
+      if(row.record_type!=='recipe'||row.meal?.image)return;
+      const sourceId=String(row.meal?.source_concept_id||String(row.record_key||'').replace(/^recipe:/,''));
+      const photo=photosByConcept.get(sourceId);
+      if(photo?.image)updates.push({
+        record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',
+        meal:{...row.meal,image:photo.image,image_page:photo.image_page||'',photographer:photo.photographer||''},
+      });
+    });
     if(updates.length)await api('/recipe-history',{method:'POST',body:JSON.stringify({records:updates})});
     setMeals(current=>{const byId=new Map(current.map(meal=>[meal.id,meal]));enriched.forEach(meal=>byId.set(meal.id,meal));return [...byId.values()];});
-    setLiked(current=>current.map(meal=>enriched.find(x=>x.id===meal.id)||meal));
-    setDetail(current=>current?enriched.find(x=>x.id===current.id)||current:current);
+    const photoForRecipe=(meal:Meal)=>enriched.find(x=>x.id===meal.id||x.id===(meal as any).source_concept_id);
+    setLiked(current=>current.map(meal=>{const photo=photoForRecipe(meal);return photo?.image?{...meal,image:photo.image,image_page:photo.image_page||meal.image_page,photographer:photo.photographer||meal.photographer}:meal;}));
+    setDetail(current=>{if(!current)return current;const photo=photoForRecipe(current);return photo?.image?{...current,image:photo.image,image_page:photo.image_page||current.image_page,photographer:photo.photographer||current.photographer}:current;});
     setHistory(current=>current.map(row=>{const update=updates.find((x:any)=>x.record_key===row.record_key);return update?{...row,meal:update.meal}:row;}));
     return enriched.filter(meal=>meal.image?.startsWith('/api/meal-photos/files/')).length;
   }
 
   async function findMissingHistoryPhotos(){
-    const byMealId=new Map<string,{meal:Meal;row:any|null}>();
-    history.forEach((row:any)=>{
-      if(row.meal?.id&&needsLocalRecipePhoto(row.meal))byMealId.set(row.meal.id,{meal:row.meal,row});
-    });
-    discoverPool.forEach(meal=>{
-      if(!meal?.id||!needsLocalRecipePhoto(meal))return;
-      const row=history.find((candidate:any)=>candidate.meal?.id===meal.id)||null;
-      byMealId.set(meal.id,{meal,row});
-    });
-    const missing=[...byMealId.values()];
-    if(!missing.length){setPhotoBackfillReport('All Discovery and History entries already have saved photos.');return;}
     setPhotoBackfillRunning(true);setPhotoBackfillReport('');
     try{
+      // First reuse a concept photo for its expanded recipe instead of scraping twice.
+      const conceptPhotos=new Map<string,Meal>(history
+        .filter((row:any)=>row.record_type==='concept'&&row.meal?.image)
+        .map((row:any)=>[String(row.record_key),row.meal as Meal]));
+      const inherited=history.filter((row:any)=>row.record_type==='recipe'&&needsLocalRecipePhoto(row.meal)).map((row:any)=>{
+        const sourceId=String(row.meal?.source_concept_id||String(row.record_key||'').replace(/^recipe:/,''));
+        const concept=conceptPhotos.get(sourceId);
+        return concept?.image?{
+          record_key:row.record_key,record_type:row.record_type,status:row.status,prompt:row.prompt||'',
+          meal:{...row.meal,image:concept.image,image_page:concept.image_page||'',photographer:concept.photographer||''},
+        }:null;
+      }).filter(Boolean);
+      if(inherited.length){
+        await api('/recipe-history',{method:'POST',body:JSON.stringify({records:inherited})});
+        setHistory(current=>current.map(row=>{const update=inherited.find((x:any)=>x.record_key===row.record_key);return update?{...row,meal:update.meal}:row;}));
+        setLiked(current=>current.map(meal=>{const update=inherited.find((x:any)=>x.meal?.source_concept_id===(meal as any).source_concept_id||x.meal?.id===meal.id);return update?{...meal,image:update.meal.image,image_page:update.meal.image_page,photographer:update.meal.photographer}:meal;}));
+      }
+
+      const byMealId=new Map<string,{meal:Meal;row:any|null}>();
+      history.forEach((row:any)=>{
+        if(row.meal?.id&&needsLocalRecipePhoto(row.meal)&&!inherited.some((x:any)=>x.record_key===row.record_key)){
+          byMealId.set(row.meal.id,{meal:row.meal,row});
+        }
+      });
+      discoverPool.forEach(meal=>{
+        if(!meal?.id||!needsLocalRecipePhoto(meal))return;
+        const row=history.find((candidate:any)=>candidate.meal?.id===meal.id)||null;
+        byMealId.set(meal.id,{meal,row});
+      });
+      const missing=[...byMealId.values()];
+      if(!missing.length){
+        setPhotoBackfillReport(inherited.length?'Reused saved Discovery photos for the expanded recipes.':'All Discovery and History entries already have saved photos.');
+        return;
+      }
       const found=await attachFreePhotos(missing.map(item=>item.meal),missing.map(item=>item.row));
       setPhotoBackfillReport(`Found and saved ${found} of ${missing.length} missing photos. Images are stored locally in backend/data/recipe_images and their paths are saved in history.`);
     }catch(e:any){setPhotoBackfillReport('Photo recovery failed: '+e.message);}
