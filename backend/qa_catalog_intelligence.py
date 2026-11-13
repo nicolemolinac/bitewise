@@ -87,6 +87,7 @@ def run():
             product("fries-noise-3", "Bautzner Pommes Sauce 429ml", "Saucen", ingredient="sauce"),
             product("semantic-1", "REWE Kartoffelgratin Fertiggericht 400g", "Fertiggerichte"),
             product("pizza-noise-1", "Fuego Taco Kit 320g", "Kits", ingredient="taco kit"),
+            product("pizza-noise-2", "Wilhelm Brandenburg Pizza-Fleischkäse 100g", "Fleisch-Wurst-Fisch", ingredient="meat snack"),
             product("noise-1", "Hundefutter Chili Geschmack", "Tierbedarf", ingredient="pet food"),
         ])
         # Ensure discovery is backed by the whole catalog rather than a tiny curated list.
@@ -120,7 +121,10 @@ def run():
         assert steinofen["convenience_type"] == "ready_meal", steinofen
         pizza_flour = next(row for row in pizza["products"] if "Mehl für Pizza" in row["name_original"])
         assert pizza_flour["convenience_type"] == "prepared_component", pizza_flour
-        assert not any("Hundefutter" in name or "Taco Kit" in name or "FruchtBar" in name or "Mogli" in name for name in pizza_names), pizza_names
+        assert not any(
+            term in name for name in pizza_names
+            for term in ("Hundefutter", "Taco Kit", "FruchtBar", "Mogli", "Pizza-Fleischkäse")
+        ), pizza_names
         assert all(row["convenience_type"] in {"ready_meal", "meal_kit", "ready_to_cook", "prepared_component", "catalog_product"} for row in pizza["products"])
         pizza_types = {row["convenience_type"] for row in pizza["products"]}
         assert {"meal_kit", "ready_to_cook"}.issubset(pizza_types), pizza_types
