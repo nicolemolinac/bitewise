@@ -68,6 +68,17 @@ def main():
     assert mixed[0]["price"] == 2.49
     assert mixed[0]["availability"] == "available"
 
+    mixed_unknown_html = """<script type="application/ld+json">
+    {"@type":"ItemList","itemListElement":[{"item":{"@type":"Product",
+    "name":"Rice 500g","offers":[
+      {"@type":"Offer","price":"1.79"},
+      {"@type":"Offer","price":"2.49","availability":"https://schema.org/InStock"}
+    ]}}]}
+    </script>"""
+    mixed_unknown = _json_ld_products(BeautifulSoup(mixed_unknown_html, "html.parser"), "https://www.rewe.de", "Lebensmittel")
+    assert mixed_unknown[0]["price"] == 2.49
+    assert mixed_unknown[0]["availability"] == "available"
+
     print("REWE price QA PASS: €/kg and €/l converted to pack prices; multipacks normalized")
 
 
