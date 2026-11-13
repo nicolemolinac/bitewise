@@ -166,8 +166,21 @@ def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None)
     terms.update(normalize_text(term) for term in substitutes if isinstance(term, str))
     options = profile.get("substitution_options", [])
     if isinstance(options, list):
-        terms.update(normalize_text(option.get("name")) for option in options
-                     if isinstance(option, dict) and option.get("name"))
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            option_terms = [option.get("name"), option.get("name_de")]
+            aliases = option.get("aliases", [])
+            if isinstance(aliases, list):
+                option_terms.extend(aliases)
+            for option_term in option_terms:
+                normalized_option_term = normalize_text(option_term)
+                if normalized_option_term:
+                    terms.add(normalized_option_term)
+                    terms.update(
+                        normalize_text(value)
+                        for value in _PROPOSED_SUBSTITUTION_SYNONYMS.get(normalized_option_term, ())
+                    )
     terms.update(normalize_text(term) for term in _SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     # REWE product titles preserve German umlauts while matcher text is normalized.
     # Keep both spellings for SQL retrieval; strict matching still normalizes titles.
@@ -411,9 +424,16 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         for option in options:
             if not isinstance(option, dict):
                 continue
-            term = str(option.get("name") or "")
-            normalized = normalize_text(term)
-            if not normalized or not _proposed_term_visible(title, normalized) or not category_compatible:
+            option_terms = [option.get("name"), option.get("name_de")]
+            aliases = option.get("aliases", [])
+            if isinstance(aliases, list):
+                option_terms.extend(aliases)
+            matched_option_term = next(
+                (str(term).strip() for term in option_terms
+                 if term and _proposed_term_visible(title, str(term))),
+                "",
+            )
+            if not matched_option_term or not category_compatible:
                 continue
             safe_option = (
                 option.get("safe_to_auto_apply") is True
@@ -460,7 +480,11 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
         for option in sorted((value for value in options if isinstance(value, dict)),
                              key=lambda value: -len(normalize_text(value.get("name")))):
             term = str(option.get("name") or "")
-            if term and _proposed_term_visible(title, term):
+            option_terms = [term, option.get("name_de")]
+            aliases = option.get("aliases", [])
+            if isinstance(aliases, list):
+                option_terms.extend(aliases)
+            if term and any(value and _proposed_term_visible(title, str(value)) for value in option_terms):
                 return term
     for term in sorted(proposed if isinstance(proposed, list) else [], key=lambda value: -len(normalize_text(value))):
         normalized = normalize_text(term)
@@ -569,6 +593,12 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
             option_name = str(option.get("name") or option.get("ingredient") or "").strip()[:100]
             if not option_name:
                 continue
+            option_name_de = str(option.get("name_de") or "").strip()[:100]
+            option_aliases = option.get("aliases", [])
+            if isinstance(option_aliases, str):
+                option_aliases = [option_aliases]
+            if not isinstance(option_aliases, list):
+                option_aliases = []
             try:
                 ratio = float(option.get("quantity_ratio", 1) or 1)
             except (TypeError, ValueError):
@@ -581,6 +611,9 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
                 confidence = 0
             substitution_options.append({
                 "name": option_name,
+                "name_de": option_name_de,
+                "aliases": [str(value).strip()[:100] for value in option_aliases[:6]
+                            if isinstance(value, str) and value.strip()],
                 "quantity_ratio": ratio,
                 "confidence": max(0, min(1, confidence)),
                 "role_preserved": option.get("role_preserved") is True,
