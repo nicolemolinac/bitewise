@@ -165,8 +165,24 @@ def run():
     assert confirmed_basket[0]["match_status"] == "matched"
     assert confirmed_basket[0]["selected_by_user"] is True
 
+    potato_catalog = IntelligenceCatalog({"frozen french fries": [{
+        "id": 14, "name_original": "REWE Speisekartoffeln 2kg",
+        "package_size": 2, "package_unit": "kg", "price": 3.49,
+        "availability": "available", "ingredient_match_type": "semantic_candidate",
+        "semantic_match_type": "substitute",
+    }]})
+    potato_requirement = [{
+        "ingredient": "frozen french fries", "quantity": 300, "unit": "g",
+        "source_meals": ["Fries"], "ingredient_intelligence": intelligence["frozen french fries"],
+    }]
+    potato_review = build_basket(potato_requirement, potato_catalog)
+    assert potato_review[0]["match_status"] == "unmatched"
+    potato_confirmed = build_basket(potato_requirement, potato_catalog, overrides={"frozen french fries": 14})
+    assert potato_confirmed[0]["match_status"] == "substituted"
+    assert potato_confirmed[0]["product"]["ingredient_substitute"] == "fresh potatoes"
+
     adapted_recipe = {"ingredients": [["frozen french fries", 300, "g"]], "steps": [{"text": "Add frozen french fries to the basket."}]}
-    _adapt_recipe_to_catalog(adapted_recipe, [{"ingredient": "frozen french fries", "match_status": "substituted", "needed_quantity": 300, "product": {"ingredient_substitute": "fresh potatoes", "name_original": "REWE Speisekartoffeln"}}])
+    _adapt_recipe_to_catalog(adapted_recipe, potato_confirmed)
     assert adapted_recipe["ingredients"][0][0] == "fresh potatoes"
     assert "selected appliance" in adapted_recipe["steps"][0]["text"]
 
