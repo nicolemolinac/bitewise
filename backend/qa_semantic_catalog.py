@@ -66,7 +66,7 @@ def run():
         fries = _product("fries-1", "REWE Pommes Frites 750g", "Tiefkühlkost")
         chips = _product("chips-1", "Pommes Frites Chips", "Snacks")
         potatoes = _product("potatoes-1", "REWE Speisekartoffeln 2kg", "Obst & Gemüse")
-        oats = _product("oats-1", "REWE Bio Hafer Kernmix 500g", "Brot-Cerealien-Aufstriche")
+        oats = _product("oats-1", "REWE Bio Haferflocken zart 500g", "Brot-Cerealien-Aufstriche")
         oats.ingredient = "rolled oats"
         fish = _product("fish-1", "REWE Beste Wahl Alaska Seelachsfilet 400g", "Tiefkühlkost")
         fish.ingredient = "white fish fillet"
