@@ -71,6 +71,8 @@ _FAMILY_HINTS = {
 def _profile_lookup(intelligence: Any, ingredient: str) -> dict:
     if not isinstance(intelligence, dict):
         return {}
+    if any(field in intelligence for field in ("canonical", "name_en", "name_de", "form", "aliases")):
+        return intelligence
     key = normalize_text(ingredient)
     direct = intelligence.get(ingredient) or intelligence.get(key)
     if isinstance(direct, dict):
