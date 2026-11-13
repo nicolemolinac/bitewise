@@ -411,6 +411,7 @@ def main():
                             "kuko", "kurzkoch", "tilda sticky rice",
                             "vegetable rice", "golden vegetable",
                             "rice flour", "reismehl", "rice paper", "rice noodles", "rice vermicelli",
+                            "couscous", "cous cous", "cous-cous",
                             "rice pudding", "reisbrei", "rice cake", "rice cakes", "reiswaffel",
                             "rice cracker", "rice crackers", "reisdrink", "rice milk",
                             "rice crispies", "reis crispies", "rice flakes", "puffed rice",
