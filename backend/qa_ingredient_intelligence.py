@@ -92,6 +92,33 @@ def run():
     assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
     assert ingredient_product_match_type("frozen sweet corn", "REWE Zuckermais tiefgekühlt 450g", {"form": "frozen", "aliases": ["Zuckermais tiefgekühlt"]}, "Tiefkühlkost") == "exact"
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
+    assert "olivenöl" in ingredient_candidate_search_terms("olive oil", {"form": "liquid"})
+    assert "rapsöl" in ingredient_candidate_search_terms("vegetable oil", {"form": "liquid"})
+    assert "hähnchenbrustfilet" in ingredient_candidate_search_terms("chicken breast", {"form": "fresh"})
+    assert ingredient_product_match_type(
+        "olive oil", "REWE Bio Olivenöl Nativ Extra 500ml", {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Rapsöl 1L", {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "red onion", "Zwiebel rot 500g im Netz", {"form": "fresh"}, "obst-gemuese"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "chicken breast", "REWE Bio Hähnchenbrustfilet 400g", {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "white fish fillet", "REWE Alaska Seelachsfilet 300g", {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "lettuce", "REWE Feine Welt Erlesener Blüten Salat 100g", {"form": "fresh"}, "obst-gemuese"
+    ) is None
+    assert ingredient_product_match_type(
+        "frozen peas", "REWE Erbsen fein 450g", {"form": "frozen"}, "tiefkuehlkost"
+    ) is None, "A frozen ingredient must not match an unmarked fresh product title/category"
+    assert ingredient_product_match_type(
+        "frozen peas", "REWE Erbsen fein tiefgefroren 450g", {"form": "frozen"}, "tiefkuehlkost"
+    ) == "exact"
     assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
     proposed_only = {"canonical": "custom cooking fat", "suggested_substitutions": ["rapeseed oil"]}
     assert "rapeseed oil" in ingredient_candidate_search_terms("custom cooking fat", proposed_only)
