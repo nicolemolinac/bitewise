@@ -177,11 +177,11 @@ def run():
     assert ingredient_product_match_type(
         "burger buns", "REWE Weizenbrötchen 6 Stück",
         {"form": "bread"}, "brot-cerealien-aufstriche"
-    ) == "suggested_substitution"
+    ) == "substitute"
     assert ingredient_product_match_type(
         "burger buns", "Mühlenkraft Proteinmehl Brot & Brötchen 800g",
         {"form": "bread"}, "kochen-backen"
-    ) == "suggested_substitution"
+    ) is None
     assert ingredient_product_match_type(
         "curry powder", "Bamboo Garden Thai Curry Paste 100g",
         {"form": "powder"}, "oele-sossen-gewuerze"
