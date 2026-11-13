@@ -27,7 +27,7 @@ def _normalise(value: Any) -> str:
 # They make German supermarket naming discoverable from common English dish names.
 _QUERY_EXPANSIONS = {
     "pizza": ("pizza", "pizza baguette", "pizzabaguette", "bistro baguette", "baguette pizza", "flammkuchen", "pizza kit", "pizzateig"),
-    "chili con carne": ("chili con carne", "chili", "chili sin carne", "chili eintopf"),
+    "chili con carne": ("chili con carne", "chili sin carne", "chili eintopf"),
     "french fries": ("pommes", "pommes frites", "backofen pommes"),
     "lasagna": ("lasagne", "lasagne fertig"),
     "burger": ("burger", "hamburger", "cheeseburger"),
