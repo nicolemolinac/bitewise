@@ -233,6 +233,7 @@ def run():
         {"form": "unspecified", "name_de": "Hamburger Brötchen"}, "brot-cerealien-aufstriche"
     ) == "exact"
     assert "hamburger broetchen" in ingredient_search_terms("burger buns")
+    assert "hamburger brotchen" in ingredient_search_terms("burger buns")
     generic_bun_match = ingredient_product_match_type(
         "burger buns", "REWE Beste Wahl Hamburger Brötchen 4 Stück",
         None, "brot-cerealien-aufstriche"
