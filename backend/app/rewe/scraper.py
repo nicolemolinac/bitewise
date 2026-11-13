@@ -12,7 +12,7 @@ import sys
 import time
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
-from urllib.parse import parse_qs, urljoin, urlsplit, urlunsplit
+from urllib.parse import parse_qs, urlencode, urljoin, urlsplit, urlunsplit
 
 import requests
 from bs4 import BeautifulSoup
@@ -724,7 +724,25 @@ class ReweCatalogScraper:
                 if number > threshold
             )
             if forward:
-                candidates.append(forward[0][1])
+                next_number, next_href = forward[0]
+                # REWE can render a compact page strip such as 1, 2, 3, …, 139.
+                # After page 3, the next visible numeric link is the LAST page,
+                # not page 4. Advance the current page query sequentially instead
+                # of jumping over the entire middle of the category.
+                if (
+                    current_number is not None
+                    and next_number > current_number + 1
+                    and urlsplit(next_href).path == urlsplit(current_url).path
+                ):
+                    parsed = urlsplit(current_url)
+                    query = parse_qs(parsed.query, keep_blank_values=True)
+                    page_key = next((key for key in ("page", "seite") if key in query), "page")
+                    query[page_key] = [str(current_number + 1)]
+                    next_href = urlunsplit((
+                        parsed.scheme, parsed.netloc, parsed.path,
+                        urlencode(query, doseq=True), parsed.fragment,
+                    ))
+                candidates.append(next_href)
 
         unique = []
         for href in candidates:
