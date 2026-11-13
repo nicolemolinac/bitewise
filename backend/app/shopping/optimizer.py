@@ -200,6 +200,7 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
     condiment_density_g_per_ml = {
         "mayonnaise": 0.95,
         "caesar dressing": 1.0,
+        "salsa": 1.0,
     }
     density = condiment_density_g_per_ml.get(ingredient_key)
     source_info, target_info = _UNIT_BASE.get(source), _UNIT_BASE.get(target)
