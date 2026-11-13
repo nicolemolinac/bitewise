@@ -203,7 +203,7 @@ export default function ReweCatalogControl() {
                     {semanticStatus?.model ? ` · ${semanticStatus.model}` : ''}
                   </div>
                   <div className="mt-1 text-xs text-[#18392b]/45">
-                    Builds multilingual product vectors locally for all REWE products. No Gemini calls. New or changed products are indexed incrementally.
+                    First run downloads a compact multilingual model once, then builds vectors locally for all REWE products. No Gemini calls. New or changed products are indexed incrementally.
                   </div>
                   {semanticStatus?.error && <div className="mt-2 text-xs font-bold text-red-700">{semanticStatus.error}</div>}
                 </div>
