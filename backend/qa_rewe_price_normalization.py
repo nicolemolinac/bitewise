@@ -42,6 +42,15 @@ def main():
     assert price_details(granini_title, granini_size, granini_unit)[0] == 1.59
     assert package("Babywell Aqua Tücher 2x80 Stück 2x80 Stück") == (160, "unit")
     assert package("Toilettenpapier 8x150 Blatt 8x150 Stück") == (1200, "unit")
+    assert package("Eggs 10 Stück (1 Stück = 0,29 €)") == (10, "unit")
+    piece_pack_price, piece_unit_price = price_details(
+        "Eggs 10 Stück (1 Stück = 0,29 €)", 10, "unit"
+    )
+    assert piece_pack_price == 2.90 and abs(piece_unit_price - 0.29) < 1e-9
+    multi_piece_price, multi_piece_unit_price = price_details(
+        "Wipes 2x80 Stück (1 Stück = 0,01 €)", 160, "unit"
+    )
+    assert multi_piece_price == 1.60 and abs(multi_piece_unit_price - 0.01) < 1e-9
 
     assert package("Invalid product 0g") == (None, None)
 
