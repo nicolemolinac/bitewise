@@ -22,6 +22,9 @@ def normalize_text(value: Any) -> str:
 _BASE_TERMS = {
     "bell pepper": ("bell pepper", "paprika", "rote paprika", "gelbe paprika", "grune paprika", "spitzpaprika"),
     "red onion": ("red onion", "rote zwiebel", "rote speisezwiebel", "rote zwiebeln", "zwiebel rot", "zwiebeln rot"),
+    "romaine lettuce": ("romaine lettuce", "romanasalat", "romersalat", "romana salat", "romer salat"),
+    "white fish fillet": ("white fish fillet", "seelachsfilet", "alaska seelachsfilet", "kabeljaufilet", "pollack fillet"),
+    "frozen peas": ("frozen peas", "tiefkuhlerbsen", "tiefkuhl erbsen", "erbsen tiefgekuhlt", "tk erbsen"),
     "chicken breast": ("chicken breast", "hahnchenbrust", "haehnchenbrust", "hahnchenbrustfilet", "haehnchenbrustfilet", "hahnchen brustfilet", "haehnchen brustfilet"),
     "olive oil": ("olive oil", "olivenol", "natives olivenol", "extra natives olivenol"),
     "sesame oil": ("sesame oil", "sesamol", "gerostetes sesamol"),
@@ -277,8 +280,13 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             "ofenbrot", "bolognese", "penne", "lasagne", "suppe",
             "sandwich", "pizza", "salat", "snack", "chips", "baby",
             "brei", "fertiggericht", "brotaufstrich", "fischburger",
+            "aufschnitt", "wurst", "wuerstchen", "burger patty",
         )
         if any(term in title_key for term in prepared_terms):
+            return False
+        # Chicken/Hähnchen/Brustfilet are positive ingredient evidence, not
+        # prepared-food markers. Only cooked/prepared chicken is excluded here.
+        if name == "chicken breast" and any(term in title_key for term in ("gegart", "gekocht", "gebraten", "cooked", "roasted")):
             return False
         allowed = {"fleisch-wurst-fisch", "fleisch"}
         if normalize_text(form) in {"frozen", "tiefkuhl"}:
@@ -336,7 +344,7 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol"),
         "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung"),
         "salsa": ("mais rollchen", "mais roellchen", "snack", "chips"),
-        "lettuce": ("crispy mix", "salat mix", "salatmischung", "salatmix"),
+        "lettuce": ("crispy mix", "salat mix", "salatmischung", "salatmix", "bluten salat", "blutensalat", "baby leaf", "babyleaf", "salat bouquet"),
     }
     return any(_contains_phrase(t, normalize_text(term)) for term in exclusions.get(name, ()))
 
