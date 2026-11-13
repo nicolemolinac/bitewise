@@ -149,6 +149,95 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     return True
 
 
+def _category_compatible(ingredient: str, category: str, title: str, form: str = "") -> bool:
+    """Reject keyword hits from unrelated REWE departments and prepared foods."""
+    category_key = normalize_text(category)
+    if not category_key:
+        return True
+    name = normalize_text(ingredient)
+    title_key = normalize_text(title)
+    category_key = category_key.replace(" ", "-")
+    if category_key in {
+        "drogerie-gesundheit", "tierbedarf", "kueche-haushalt",
+        "haus-freizeit", "bonus", "getraenke-genussmittel",
+        "kaffee-tee-kakao", "baby-kind",
+    }:
+        return False
+
+    produce = {
+        "garlic", "onion", "red onion", "potato", "potatoes", "tomato",
+        "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
+        "cucumber", "bell pepper", "carrot", "broccoli", "fresh cilantro",
+        "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
+        "red cabbage", "strawberries", "blueberries", "banana", "parsley",
+    }
+    proteins = {
+        "chicken breast", "pre cooked shredded chicken", "ground beef",
+        "salmon fillet", "bratwurst", "white fish fillet", "bacon",
+    }
+    dairy = {
+        "feta cheese", "sour cream", "cheese slices", "butter", "mozzarella",
+        "greek yogurt", "plain yogurt", "cooking cream", "eggs",
+        "grated cheddar cheese", "parmesan cheese", "firm tofu",
+    }
+    grains = {
+        "rice", "risotto rice", "spaghetti", "pasta", "wheat flour",
+        "rolled oats", "pizza dough", "burger buns", "soft tortillas",
+        "tortillas", "croutons",
+    }
+    spices = {
+        "curry powder", "cumin", "paprika powder", "oregano",
+        "baking powder", "taco seasoning", "salt", "pepper",
+    }
+    oils = {"vegetable oil", "olive oil", "sesame oil", "sunflower oil"}
+    canned = {
+        "black beans", "canned tuna", "canned corn", "canned chopped tomatoes",
+        "black olives", "pickles",
+    }
+    sauces = {
+        "tomato passata", "mayonnaise", "soy sauce", "salsa",
+        "caesar dressing", "vegetable stock", "coconut milk", "honey",
+    }
+
+    if name in produce:
+        normalized_form = normalize_text(form)
+        if normalized_form in {"frozen", "tiefkuhl"}:
+            return category_key == "tiefkuehlkost"
+        if normalized_form in {"canned", "konserve"}:
+            return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
+        return category_key == "obst-gemuese"
+    if name in proteins:
+        prepared_terms = (
+            "ofenbrot", "bolognese", "penne", "lasagne", "suppe",
+            "sandwich", "pizza", "salat", "snack", "chips", "baby",
+            "brei", "fertiggericht", "brotaufstrich", "fischburger",
+        )
+        if any(term in title_key for term in prepared_terms):
+            return False
+        allowed = {"fleisch-wurst-fisch"}
+        if normalize_text(form) in {"frozen", "tiefkuhl"}:
+            allowed.add("tiefkuehlkost")
+        return category_key in allowed
+    if name in dairy:
+        return category_key == "kaese-eier-molkerei"
+    if name in oils:
+        return category_key == "oele-sossen-gewuerze"
+    if name in spices:
+        return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
+    if name in grains:
+        return category_key in {"kochen-backen", "brot-cerealien-aufstriche"}
+    if name in canned:
+        return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
+    if name in sauces:
+        allowed = {"oele-sossen-gewuerze", "fertiggerichte-konserven"}
+        if name == "salsa":
+            allowed.add("suesses-salziges")
+        if name == "honey":
+            allowed.update({"brot-cerealien-aufstriche", "kochen-backen"})
+        return category_key in allowed
+    return True
+
+
 def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bool:
     # Frozen fries -> raw potatoes is an intentional, recipe-adapted transition.
     # Do not let this exception turn potato chips/snacks into a substitute.
@@ -167,13 +256,17 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     if not title:
         return None
     profile = _profile_lookup(intelligence, ingredient)
+    product_form = str(profile.get("form") or "")
     form_compatible = _form_compatible(
-        str(profile.get("form") or ""),
+        product_form,
         title + " " + normalize_text(product_category),
         ingredient,
     )
+    category_compatible = _category_compatible(
+        ingredient, product_category, title, product_form
+    )
     terms = ingredient_search_terms(ingredient, intelligence)
-    if form_compatible and any(_contains_phrase(title, term) for term in terms):
+    if form_compatible and category_compatible and any(_contains_phrase(title, term) for term in terms):
         return "exact"
     substitutes = list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     for term in substitutes:
@@ -181,14 +274,14 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         if normalized and _contains_phrase(title, normalized):
             if _curated_cross_form_substitute(ingredient, normalized, title):
                 return "suggested_substitution"
-            if form_compatible:
+            if form_compatible and category_compatible:
                 return "substitute"
     proposed = profile.get("suggested_substitutions", [])
     if isinstance(proposed, str):
         proposed = [proposed]
     for term in proposed if isinstance(proposed, list) else []:
         normalized = normalize_text(term)
-        if normalized and _contains_phrase(title, normalized) and form_compatible:
+        if normalized and _contains_phrase(title, normalized) and form_compatible and category_compatible:
             return "suggested_substitution"
     return None
 
