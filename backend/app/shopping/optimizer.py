@@ -312,7 +312,11 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "match_reason": (
                 "Used a curated culinary substitute because an exact catalog match was not selected."
                 if selected_match_type == "substitute"
-                else "Matched against a priced catalog product using compatible units."
+                else (
+                    "Matched against a priced catalog product. " + chosen["unit_conversion_note"]
+                    if chosen.get("unit_conversion_note")
+                    else "Matched against a priced catalog product using compatible units."
+                )
             ),
             "availability_status": availability_status,
             "availability_note": availability_note,
