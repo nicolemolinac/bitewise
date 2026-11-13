@@ -358,6 +358,9 @@ def main():
         )
         print(f"Review-only semantic product suggestions: {semantic_review_count} (NOT counted as resolved)")
         print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
+        assert total > 0 and resolved / total >= 0.85, (
+            f"REWE recipe benchmark resolution fell below 85%: {resolved}/{total}"
+        )
         print("\n=== PER-RECIPE SUMMARY ===")
         for name, found, count in per_recipe:
             print(f"{found:>2}/{count:<2}  {found / max(1, count):>6.1%}  {name}")
