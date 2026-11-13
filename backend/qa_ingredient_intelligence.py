@@ -130,7 +130,7 @@ def run():
     ) == "exact"
     assert ingredient_product_match_type(
         "burger buns", "REWE Kaiserbrötchen 4 Stück", {"form": "unspecified"}, "brot-cerealien-aufstriche"
-    ) == "suggested_substitution"
+    ) == "substitute"
     assert ingredient_product_match_type(
         "grated cheddar cheese", "REWE Gouda gerieben 200g", {"form": "grated"}, "kaese-eier-molkerei"
     ) == "substitute"
