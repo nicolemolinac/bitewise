@@ -90,6 +90,22 @@ def main():
         multipack = db.query(Product).filter(Product.name_original.like("%2x200ml%")).first()
         if multipack:
             assert multipack.package_size == 400, f"Expected 400ml multi-pack, got {multipack.package_size}"
+        granini = db.query(Product).filter(
+            Product.name_original.like("%Granini Fresh Leichte Schorle Apfel-Limette%")
+        ).first()
+        assert granini is not None
+        assert granini.package_size == 750 and granini.package_unit == "ml", (
+            f"Expected Granini 0.75l, got {granini.package_size} {granini.package_unit}"
+        )
+        assert granini.price is not None and abs(granini.price - 1.59) < 0.02, granini.price
+        wipes = db.query(Product).filter(
+            Product.name_original.like("%Babywell Aqua Tücher 2x80 Stück%")
+        ).first()
+        assert wipes is not None and wipes.package_size == 160 and wipes.package_unit == "unit"
+        toilet_paper = db.query(Product).filter(
+            Product.name_original.like("%Danke Toilettenpapier 3-lagig 8x150 Blatt%")
+        ).first()
+        assert toilet_paper is not None and toilet_paper.package_size == 1200 and toilet_paper.package_unit == "unit"
     finally:
         db.close()
 
