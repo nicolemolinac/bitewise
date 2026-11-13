@@ -184,7 +184,8 @@ def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
     parts = urlsplit(absolute)
     if parts.scheme.lower() != "https" or parts.netloc.lower() not in {"www.rewe.de", "rewe.de"} or not parts.path.startswith("/shop/p/"):
         return None
-    return urlunsplit((parts.scheme or "https", parts.netloc, parts.path, parts.query, ""))
+    # Query parameters are tracking/navigation state, not product identity.
+    return urlunsplit(("https", parts.netloc.lower(), parts.path.rstrip("/") + "/", "", ""))
 
 
 def _cart_add_status(confirmation_seen: bool, packs_requested: int) -> str:
