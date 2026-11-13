@@ -65,6 +65,10 @@ def main():
             or not str(row.package_unit or "").strip()
             for row in products
         )
+        unknown_package_units = sum(
+            str(row.package_unit or "").strip().lower() == "unknown"
+            for row in products
+        )
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         stale = sum(row.last_checked_at is None or row.last_checked_at < cutoff for row in products)
 
@@ -115,6 +119,7 @@ def main():
         print(f"Products with REWE product URL: {with_product_url} ({with_product_url / total:.1%})")
         print(f"Products with image URL: {with_image_url} ({with_image_url / total:.1%})")
         print(f"Invalid package sizes/units: {invalid_packages}")
+        print(f"Package size not parsed by source extractor: {unknown_package_units} (not automatically a REWE data error)")
         print(f"Availability distribution: {dict(availability)}")
         print(f"Sample coverage ({len(coverage)} common ingredients): {dict(counts)}")
         for row in coverage:
