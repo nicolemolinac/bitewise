@@ -446,7 +446,7 @@ def main():
                 "NOTE: CI uses the committed static snapshot; rolled oats and burger buns "
                 "are known source-coverage gaps until a full local REWE refresh."
             )
-        minimum_resolution = 0.95 if _BENCHMARK_DB is not None else 0.98
+        minimum_resolution = 0.98
         benchmark_source = "committed CSV snapshot" if _BENCHMARK_DB is not None else "live local REWE catalog"
         assert total > 0 and resolved / total >= minimum_resolution, (
             f"REWE recipe benchmark resolution for {benchmark_source} fell below "
