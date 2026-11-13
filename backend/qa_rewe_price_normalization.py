@@ -138,6 +138,18 @@ def main():
     assert duplicate_source[0]["external_id"] == "12345"
     assert duplicate_source[0]["price"] == 1.79
 
+    near_match_html = """<html><head><script type="application/ld+json">
+    {"@type":"ItemList","itemListElement":[{"item":{"@type":"Product",
+    "sku":"SKU-MILK","name":"Milk","offers":{"@type":"Offer","price":"1.19"}}}]}
+    </script></head><body><article>
+    <a href="/shop/p/milk-chocolate/999">Milk chocolate 100g</a>
+    </article></body></html>"""
+    near_match = ReweCatalogScraper(delay=0, browser_enabled=False).extract(
+        near_match_html, "https://www.rewe.de/shop/c/kaffee-tee-kakao/", "Kaffee & Kakao"
+    )
+    milk_rows = [row for row in near_match if row["name_original"] == "Milk"]
+    assert len(milk_rows) == 1 and milk_rows[0]["product_url"] is None
+
     print("REWE price QA PASS: €/kg and €/l converted to pack prices; multipacks normalized")
 
 
