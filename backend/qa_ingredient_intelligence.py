@@ -69,6 +69,9 @@ def run():
     assert "pommes frites" in fallback["frozen french fries"]["aliases"]
     assert fallback["pre cooked shredded chicken"]["form"] == "pre_cooked"
     assert fallback["vegetable oil"]["unit_dimension"] == "volume"
+    shredded_fallback = normalize_recipe_intelligence({"ingredients": [["shredded lettuce", 100, "g"]]})
+    assert shredded_fallback["shredded lettuce"]["form"] == "unspecified"
+    assert ingredient_product_match_type("shredded lettuce", "REWE Eisbergsalat 1 Stück") == "exact"
     assert normalize_text("weiß") == "weiss"
     assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
     assert ingredient_product_match_type("frozen sweet corn", "REWE Zuckermais tiefgekühlt 450g", {"form": "frozen", "aliases": ["Zuckermais tiefgekühlt"]}, "Tiefkühlkost") == "exact"
