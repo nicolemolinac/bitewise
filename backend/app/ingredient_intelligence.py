@@ -343,8 +343,12 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         term in title_key for term in (
             "hamburgerbrotchen", "burgerbrotchen", "burger bun",
             "kaiserbrotchen", "weizenbrotchen", "sesambrotchen",
+            "dinkelbrotchen", "mehrkornbrotchen", "laugenbrotchen",
         )
-    ) and category_key in {"brot-cerealien-aufstriche", "kochen-backen", "fertiggerichte-konserven"}:
+    ) and category_key in {
+        "brot-cerealien-aufstriche", "kochen-backen",
+        "fertiggerichte-konserven", "tiefkuehlkost",
+    }:
         return True
 
     if name in produce:
@@ -411,9 +415,17 @@ def _curated_cross_form_substitute(ingredient: str, term: str, title: str) -> bo
             and not any(token in title for token in ("ketchup", "sauce", "suppe", "fertiggericht"))
         )
     if normalized_ingredient == "burger buns":
+        # Frozen bake-at-home rolls are a plausible but non-identical bun
+        # replacement: the user must confirm and bake them first.
+        frozen_roll = any(token in title for token in (
+            "tiefkuhl", "tiefkuehl", "tiefgefroren", "frozen",
+        )) and any(token in title for token in (
+            "weizenbrotchen", "dinkelbrotchen", "mehrkornbrotchen",
+            "laugenbrotchen", "brotchen",
+        ))
         # A bread/flour mix can produce buns, but requires extra preparation;
-        # keep that as review-only. Plain rolls are handled as a normal substitute.
-        return any(token in title for token in (
+        # keep that as review-only. Plain fresh rolls remain curated substitutes.
+        return frozen_roll or any(token in title for token in (
             "proteinmehl", "brotbackmischung", "brotchen backmischung", "brot teig",
         ))
     if normalized_ingredient != "frozen french fries":
@@ -442,7 +454,10 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol", "mayonnaise", "mayo", "salatcreme", "dressing", "sauce", "spray", "spruhol"),
         "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung", "paniert", "backteig"),
         "rolled oats": ("riegel", "granola bar", "protein bar", "snack bar"),
-        "burger buns": ("proteinmehl", "brotbackmischung", "backmischung", "brot mix", "brotmix", "mehl"),
+        "burger buns": (
+            "proteinmehl", "brotbackmischung", "backmischung", "brot mix", "brotmix", "mehl",
+            "franzbrotchen", "waffeleis", "schoko", "zimt",
+        ),
         "salsa": ("mais rollchen", "mais roellchen", "snack", "chips"),
         "lettuce": ("crispy mix", "salat mix", "salatmischung", "salatmix", "bluten salat", "blutensalat", "baby leaf", "babyleaf", "salat bouquet", "wildkrauter salat", "wildkrautersalat", "feiner salat", "der feine salat"),
     }
