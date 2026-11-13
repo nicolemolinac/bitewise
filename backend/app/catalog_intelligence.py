@@ -179,6 +179,20 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
         item[1].price if item[1].price is not None else float("inf"),
         item[1].name_original.casefold(),
     ))
+    # Reserve a small number of slots for each useful convenience format so
+    # the first screen compares meals, kits and cook-at-home shortcuts rather
+    # than showing ten near-identical products from one format.
+    diversified = []
+    selected_ids = set()
+    for kind in ("ready_meal", "meal_kit", "ready_to_cook", "prepared_component", "catalog_product"):
+        added_for_kind = 0
+        for item in ranked:
+            if item[2] == kind and item[1].id not in selected_ids and added_for_kind < 2:
+                diversified.append(item)
+                selected_ids.add(item[1].id)
+                added_for_kind += 1
+    diversified.extend(item for item in ranked if item[1].id not in selected_ids)
+    ranked = diversified
     products = []
     seen = set()
     for score, product, kind in ranked:
