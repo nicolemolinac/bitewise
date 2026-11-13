@@ -142,6 +142,14 @@ def run():
         {"form": "fresh"}, "fleisch-wurst-fisch"
     ) is None
     assert ingredient_product_match_type(
+        "chicken breast", "Bernard Matthews Hähnchenbrust-Filetstücke Klassik 150g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "Gutfried Hähnchenbrust Natur 100g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
         "vegetable oil", "REWE Beste Wahl Air Fryer Spray Sonnenblumen- & Rapsöl 200ml",
         {"form": "liquid"}, "oele-sossen-gewuerze"
     ) is None
