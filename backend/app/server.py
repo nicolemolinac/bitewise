@@ -58,7 +58,7 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
             row.id: ingredient_product_match_type(
                 ingredient,
                 " ".join(str(value or "") for value in (
-                    row.name_original, row.name_normalized, row.translated_name, row.category, row.brand
+                    row.name_original, row.name_normalized, row.translated_name
                 )),
                 intelligence,
             )
