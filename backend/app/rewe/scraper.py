@@ -762,9 +762,18 @@ class ReweCatalogScraper:
                         new_size = float(value)
                     except (TypeError, ValueError):
                         old_size, new_size = float("nan"), float("nan")
+                    old_unit = str(merged.get("package_unit") or "").strip().lower()
+                    new_unit = str(product.get("package_unit") or "").strip().lower()
                     if (
-                        (not math.isfinite(old_size) or old_size <= 0)
-                        and math.isfinite(new_size) and new_size > 0
+                        (
+                            old_unit in {"", "unknown"}
+                            and new_unit not in {"", "unknown"}
+                            and math.isfinite(new_size) and new_size > 0
+                        )
+                        or (
+                            (not math.isfinite(old_size) or old_size <= 0)
+                            and math.isfinite(new_size) and new_size > 0
+                        )
                     ):
                         merged[key] = value
                     continue
