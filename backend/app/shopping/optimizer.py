@@ -1,6 +1,8 @@
 import math
 from collections import defaultdict
 
+from ..ingredient_aliases import ingredient_aliases
+
 
 STRATEGIES = {
     "maximum-savings",
@@ -76,6 +78,54 @@ def _convert_quantity(quantity, from_unit, to_unit):
         return None
     return float(quantity) * source_info[1] / target_info[1]
 
+# Approximate edible weights are used only when a recipe gives a whole produce
+# count but REWE sells that ingredient by weight. They are explicit estimates,
+# never generic piece-to-gram conversions.
+_COUNT_TO_GRAMS = {
+    "onion": 150,
+    "red onion": 150,
+    "potato": 170,
+    "tomato": 120,
+    "carrot": 70,
+    "bell pepper": 150,
+    "lemon": 100,
+    "lime": 70,
+    "apple": 180,
+    "banana": 120,
+    "zucchini": 200,
+}
+
+
+def _ingredient_count_weight(ingredient):
+    terms = set(ingredient_aliases(ingredient))
+    for canonical, grams in _COUNT_TO_GRAMS.items():
+        if terms.intersection(ingredient_aliases(canonical)):
+            return grams
+    return None
+
+
+def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
+    """Convert units, with a curated average-weight estimate for whole produce."""
+    converted = _convert_quantity(quantity, from_unit, to_unit)
+    if converted is not None:
+        return converted, None
+
+    source, target = _normal_unit(from_unit), _normal_unit(to_unit)
+    grams_per_piece = _ingredient_count_weight(ingredient)
+    if grams_per_piece is None:
+        return None, None
+    if source == "piece" and target in {"g", "kg"}:
+        grams = float(quantity) * grams_per_piece
+        return (grams / 1000 if target == "kg" else grams), (
+            f"Estimated {grams_per_piece} g per {ingredient}."
+        )
+    if source in {"g", "kg"} and target == "piece":
+        grams = float(quantity) * (1000 if source == "kg" else 1)
+        return grams / grams_per_piece, (
+            f"Estimated {grams_per_piece} g per {ingredient}."
+        )
+    return None, None
+
 
 def _number(product, *keys, default=0.0):
     for key in keys:
@@ -146,7 +196,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         pantry_row = pantry.get(ingredient)
         pantry_used = 0.0
         if pantry_row:
-            converted_pantry = _convert_quantity(pantry_row.get("quantity", 0), pantry_row.get("unit"), unit)
+            converted_pantry, _ = _convert_ingredient_quantity(pantry_row.get("quantity", 0), pantry_row.get("unit"), unit, ingredient)
             if converted_pantry is not None:
                 pantry_used = min(requested, max(0.0, converted_pantry))
         needed = max(0.0, requested - pantry_used)
@@ -166,6 +216,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "package_quantity": None,
             "package_unit": None,
             "unit_cost": None,
+            "unit_conversion_note": None,
             "match_status": "unmatched",
             "match_reason": None,
             "why": None,
@@ -195,7 +246,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             }:
                 continue
             pack_qty, product_unit = _package(product)
-            needed_in_pack_unit = _convert_quantity(needed, unit, product_unit)
+            needed_in_pack_unit, unit_conversion_note = _convert_ingredient_quantity(needed, unit, product_unit, ingredient)
             if needed_in_pack_unit is None:
                 continue
             packs = max(1, math.ceil(needed_in_pack_unit / pack_qty))
@@ -221,6 +272,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 "product": product, "selected_by_user": selected_by_user,
                 "package_quantity": purchased_quantity, "package_unit": product_unit,
                 "needed_in_pack_unit": needed_in_pack_unit,
+                "unit_conversion_note": unit_conversion_note,
             })
 
         if not candidates:
@@ -255,6 +307,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "package_quantity": round(chosen["package_quantity"], 2),
             "package_unit": chosen["package_unit"],
             "unit_cost": round(chosen["unit_price"], 6),
+            "unit_conversion_note": chosen.get("unit_conversion_note"),
             "match_status": "substituted" if selected_match_type == "substitute" else "matched",
             "match_reason": (
                 "Used a curated culinary substitute because an exact catalog match was not selected."
