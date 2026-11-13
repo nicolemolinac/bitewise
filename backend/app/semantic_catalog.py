@@ -153,7 +153,7 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
             if product is None or product.supermarket != "REWE":
                 continue
             title = " ".join(str(value or "") for value in (
-                product.name_original, product.name_normalized, product.translated_name
+                product.name_original, product.name_normalized, product.translated_name, product.category
             ))
             if not _form_compatible(form, normalize_text(title)):
                 continue
