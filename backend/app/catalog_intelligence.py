@@ -105,9 +105,10 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
     if len(_normalise(query)) < 2:
         return {"query": query, "products": [], "catalog_count": 0}
     variants = expand_catalog_query(query)
+    # Token overlap comes only from the user's words. Alias tokens are
+    # searched as complete phrases below; otherwise a generic alias such as
+    # "kit" could pull in an unrelated taco kit for a pizza query.
     token_set = {token for token in _normalise(query).split() if len(token) > 2 and token not in _QUERY_STOPWORDS}
-    for variant in variants:
-        token_set.update(token for token in _normalise(variant).split() if len(token) > 2 and token not in _QUERY_STOPWORDS)
 
     # Pull a broad but bounded lexical candidate pool from every searchable catalog field.
     clauses = []
@@ -161,9 +162,13 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
         )
         if multiword_dish_query:
             # A single shared word ("chili" or "pommes") is not enough to
-            # match a compound dish; require two meaningful title tokens or
-            # a strong local semantic candidate.
-            if token_hits < 2 and semantic_score < 0.58:
+            # match a compound dish; require two user-query tokens, a complete
+            # multiword alias phrase, or a strong local semantic candidate.
+            multiword_phrase_hits = sum(
+                1 for variant in variants
+                if len(_normalise(variant).split()) >= 2 and _normalise(variant) in text
+            )
+            if token_hits < 2 and not multiword_phrase_hits and semantic_score < 0.58:
                 continue
         elif not phrase_hits and not token_hits and semantic_score < 0.58:
             continue
