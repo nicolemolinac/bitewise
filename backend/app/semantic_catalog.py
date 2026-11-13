@@ -169,9 +169,19 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
             )
             if not form_compatible and curated_match not in {"substitute", "suggested_substitution"}:
                 continue
-            if product.price is None or not np.isfinite(float(product.price)) or float(product.price) <= 0 or str(product.availability or "").lower() in {
-                "unavailable", "out_of_stock", "not_available", "discontinued"
-            }:
+            try:
+                package_size = float(product.package_size) if product.package_size is not None else None
+            except (TypeError, ValueError):
+                package_size = None
+            package_unit = str(product.package_unit or "").strip().lower()
+            if (
+                package_size is None or not np.isfinite(package_size) or package_size <= 0
+                or package_unit in {"", "unknown"}
+                or product.price is None or not np.isfinite(float(product.price)) or float(product.price) <= 0
+                or str(product.availability or "").lower() in {
+                    "unavailable", "out_of_stock", "not_available", "discontinued"
+                }
+            ):
                 continue
             ranked.append({
                 "id": product.id,
