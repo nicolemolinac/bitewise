@@ -74,6 +74,16 @@ def test_common_english_ingredients_have_german_catalog_terms():
         "banana": "bananen", "baking powder": "backpulver",
         "cornstarch": "speisestarke", "coconut milk": "kokosmilch",
         "rapeseed oil": "rapsol", "sunflower oil": "sonnenblumenol",
+        "red onion": "zwiebel rot", "soft tortillas": "weizentortillas",
+        "curry powder": "currypulver", "frozen peas": "tiefkuhlerbsen",
+        "firm tofu": "naturtofu", "sesame oil": "sesamol",
+        "vegetable stock": "gemusebruhe", "cooking cream": "kochsahne",
+        "burger buns": "burgerbroetchen", "romaine lettuce": "romanasalat",
+        "croutons": "brotwuerfel", "caesar dressing": "caesar dressing",
+        "canned chopped tomatoes": "gehackte tomaten", "cumin": "kreuzkuemmel",
+        "red cabbage": "rotkohl", "risotto rice": "risottoreis",
+        "rolled oats": "haferflocken", "vegetable oil": "pflanzenol",
+        "mayonnaise": "salatmayonnaise", "paprika powder": "paprikapulver",
     }
     for ingredient, german_term in expected.items():
         assert german_term in ingredient_search_terms(ingredient), (
