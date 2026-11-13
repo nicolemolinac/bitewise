@@ -56,6 +56,12 @@ def run():
                 "aliases": ["Pommes Frites", "Tiefkühlpommes"],
                 "form": "frozen", "culinary_role": "starchy side",
                 "unit_dimension": "mass", "suggested_substitutions": ["fresh potatoes"],
+                "substitution_options": [{
+                    "name": "fresh potatoes", "reason": "Closest whole-food equivalent.",
+                    "role_preserving": True, "safe_to_auto_apply": True,
+                    "quantity_ratio": 1,
+                    "preparation_adjustment": "Fresh potatoes need longer than frozen fries; cut evenly and cook until tender.",
+                }],
             },
             "canned corn": {
                 "canonical": "sweet corn", "name_en": "canned sweet corn",
@@ -441,7 +447,7 @@ def run():
     adapted_recipe = {"ingredients": [["frozen french fries", 300, "g"]], "steps": [{"text": "Add frozen french fries to the basket."}]}
     _adapt_recipe_to_catalog(adapted_recipe, potato_confirmed)
     assert adapted_recipe["ingredients"][0][0] == "fresh potatoes"
-    assert "selected appliance" in adapted_recipe["steps"][0]["text"]
+    assert any("Fresh potatoes need longer than frozen fries" in step["text"] for step in adapted_recipe["steps"])
 
     print("INGREDIENT INTELLIGENCE QA PASS: cached multilingual intent, form-aware matching, safe substitutions, and unit validation")
 
