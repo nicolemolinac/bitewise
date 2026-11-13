@@ -232,6 +232,11 @@ def run():
         "burger buns", "Butcher's Burger Sesam Burger Buns 4 Stück",
         {"form": "unspecified", "name_de": "Hamburger Brötchen"}, "brot-cerealien-aufstriche"
     ) == "exact"
+    assert "reis" in ingredient_search_terms("rice")
+    assert ingredient_product_match_type(
+        "rice", "Davert Echter Bio Basmati-Reis 250g",
+        {"form": "unspecified"}, "kochen-backen"
+    ) == "exact"
     assert ingredient_product_match_type(
         "rice", "REWE Beste Wahl Express Basmati Reis 250g",
         {"form": "unspecified", "name_de": "Reis"}, "kochen-backen"
