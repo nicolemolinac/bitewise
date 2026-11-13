@@ -185,8 +185,16 @@ def _number(product, *keys, default=0.0):
 
 
 def _package(product):
-    qty = _number(product, "pack_qty", "package_size", default=1.0)
+    raw_qty = product.get("pack_qty")
+    if raw_qty is None:
+        raw_qty = product.get("package_size")
+    if raw_qty is None:
+        raw_qty = 1.0
     unit = product.get("unit") or product.get("package_unit") or "piece"
+    try:
+        qty = float(raw_qty)
+    except (TypeError, ValueError):
+        return 0.0, _normal_unit(unit)
     if not math.isfinite(qty) or qty <= 0:
         return 0.0, _normal_unit(unit)
     return qty, _normal_unit(unit)
