@@ -76,7 +76,7 @@ _BASE_TERMS = {
     "cumin": ("cumin", "kreuzkuemmel", "kreuzkummel", "kreuzkuemmel gemahlen"),
     "red onion": ("red onion", "red onions", "rote zwiebel", "rote zwiebeln", "zwiebel rot", "rote speisezwiebel"),
     "soft tortillas": ("soft tortillas", "soft tortilla", "weizentortillas", "weizentortilla", "tortilla wraps", "wraps"),
-    "curry powder": ("curry powder", "currypulver", "curry pulver", "curry gewurz", "curry gewurzmischung", "curry gemahlen"),
+    "curry powder": ("curry powder", "currypulver", "curry pulver", "curry gewurz", "curry gewurzmischung", "curry gemahlen", "curry"),
     "frozen peas": ("frozen peas", "tiefkuhlerbsen", "tiefkuehlerbsen", "tk erbsen", "erbsen tiefgekuhlt", "tiefgekuhlte erbsen", "gartenerbsen"),
     "firm tofu": ("firm tofu", "naturtofu", "tofu natur", "fester tofu", "tofu fest", "festtofu"),
     "sesame oil": ("sesame oil", "sesamol", "sesamoel", "geroestetes sesamol", "sesamol geroestet"),
@@ -110,6 +110,7 @@ _SUBSTITUTION_TERMS = {
     "trofie pasta": ("pasta", "nudeln", "penne", "fusilli", "spaghetti"),
     "cherry tomato": ("tomato", "tomatoes", "tomaten", "rispentomaten", "strauchtomaten"),
     "olive oil": ("vegetable oil", "sunflower oil", "rapeseed oil", "pflanzenol", "sonnenblumenol", "rapsol"),
+    "red cabbage": ("cooked red cabbage", "rotkohl", "rotkraut"),
     "cornstarch": ("potato starch", "kartoffelstarke"),
 }
 
@@ -440,6 +441,19 @@ def _curated_cross_form_substitute(
             any(token in title for token in ("kartoffel", "potato"))
             and not any(token in title for token in ("chips", "snack", "knabberartikel", "wedges", "croquette"))
         )
+    if name == "red cabbage":
+        # Fresh red cabbage and ready-to-serve Rotkohl are different forms.
+        # Permit the latter only as an explicit, labelled culinary substitution.
+        category_key = normalize_text(
+            str(product_category or "").casefold()
+            .replace("ü", "ue").replace("ö", "oe").replace("ä", "ae").replace("ß", "ss")
+        ).replace(" ", "-")
+        return (
+            normalized_term in {"rotkohl", "rotkraut", "cooked red cabbage"}
+            and category_key == "fertiggerichte-konserven"
+            and any(token in title for token in ("rotkohl", "rotkraut"))
+            and not any(token in title for token in ("chips", "snack", "suppe", "baby"))
+        )
     if name == "white fish fillet":
         # Frozen, unbreaded cod fillets are a transparent substitute for fresh
         # white fish; do not silently treat them as an exact fresh match.
@@ -511,6 +525,7 @@ def ingredient_substitution_name(ingredient: str, product_text: str, intelligenc
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
             labels = {
+                "rotkohl": "cooked red cabbage", "rotkraut": "cooked red cabbage",
                 "rapsol": "rapeseed oil", "sonnenblumenol": "sunflower oil",
                 "kartoffeln": "fresh potatoes", "speisekartoffeln": "fresh potatoes",
                 "kabeljaufilet": "frozen cod fillet", "cod fillet": "frozen cod fillet",
