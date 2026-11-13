@@ -71,10 +71,19 @@ def test_rewe_cart_dom_probe_contract():
       });
     </script>
     """
+    endpoint = os.getenv(
+        "BITEWISE_CHROME_CDP_URL",
+        os.getenv("REWE_CHROME_CDP_URL", "http://127.0.0.1:9222"),
+    ).rstrip("/")
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
+        # Use the same already-running Google Chrome for Testing instance as
+        # Bitewise scraping. Never launch Playwright's bundled Chromium.
+        browser = playwright.chromium.connect_over_cdp(endpoint, timeout=15_000)
+        page = None
         try:
-            page = browser.new_page()
+            if not browser.contexts:
+                raise AssertionError(f"Chrome for Testing at {endpoint} has no browser context")
+            page = browser.contexts[0].new_page()
             page.set_content(html)
             add_index = _rewe_add_button_index(page)
             assert add_index is not None
@@ -87,6 +96,10 @@ def test_rewe_cart_dom_probe_contract():
             state = _rewe_cart_stepper_snapshot(page)
             assert state and state["quantity"] == 3
         finally:
+            if page:
+                page.close()
+            # Closing a CDP-connected Browser disconnects Playwright; it does
+            # not terminate the user's Google Chrome for Testing process.
             browser.close()
 
 
