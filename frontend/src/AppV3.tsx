@@ -424,7 +424,7 @@ export default function AppV3(){
     try{
       const result=await api('/recipe-history/reconcile',{method:'POST',body:JSON.stringify({record_keys:recordKeys})});
       const refreshed=(result.records||[]).filter((row:any)=>row?.meal?.id);
-      const byId=new Map<string,Meal>(refreshed.map((row:any)=>[String(row.meal.id),row.meal as Meal]));
+      const byId=new Map<string,Meal>(refreshed.map((row:any)=>[String(row.meal.id),row.meal as Meal] as [string,Meal]));
       const sourceEntries=refreshed.map((row:any)=>[String(row.meal.source_concept_id||''),row.meal as Meal] as [string,Meal]).filter(([key])=>!!key);
       const bySource=new Map<string,Meal>(sourceEntries);
       setLiked(current=>current.map(meal=>byId.get(meal.id)||bySource.get(String((meal as any).source_concept_id||''))||meal));
