@@ -25,6 +25,14 @@ def main():
     assert pack_price == 2.49
     assert abs(per_gram - 0.00498) < 0.000001
 
+    # A reference price must never be mistaken for a checkout price when the
+    # package size could not be parsed or its unit does not match.
+    assert price_details("Rice (1 kg = 4,00 €)", None, None) == (None, None)
+    assert price_details("Rice (1 kg = 4,00 €)", float("nan"), "g") == (None, None)
+    assert price_details("Rice (1 kg = 4,00 €)", 500, "ml") == (None, None)
+    direct, _ = price_details("Rice 500g (1 kg = 4,00 €) €2,49", None, None)
+    assert direct == 2.49
+
     assert _offer_availability({"price": "2.99"}) == "unknown"
     assert _offer_availability({"price": "2.99", "availability": "https://schema.org/InStock"}) == "available"
     assert _offer_availability({"availability": "https://schema.org/OutOfStock"}) == "unavailable"
