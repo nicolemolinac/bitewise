@@ -172,11 +172,11 @@ def run():
     assert ingredient_product_match_type(
         "red cabbage", "Rotkohl ca. 1,8kg 1 Stück ca. 1800 g",
         {"form": "fresh"}, "fertiggerichte-konserven"
-    ) == "exact"
+    ) is None, "Prepared red cabbage must not match a fresh raw cabbage ingredient"
     assert ingredient_product_match_type(
         "rolled oats", "Kellogs Special Crunchy Oat Granola Mixed Berries 320g",
         {"form": "unspecified"}, "brot-cerealien-aufstriche"
-    ) == "suggested_substitution"
+    ) is None, "Sweetened granola is not a safe substitute for plain rolled oats"
     assert ingredient_product_match_type(
         "bratwurst", "ja! Schweine-Bratwurst grob 4x100g", {}, "fleisch-wurst-fisch"
     ) == "exact"
