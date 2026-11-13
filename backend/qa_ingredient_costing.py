@@ -4,7 +4,7 @@ Run from backend/: python qa_ingredient_costing.py
 """
 import math
 
-from app.shopping.optimizer import build_basket, consolidate
+from app.shopping.optimizer import build_basket, consolidate, _convert_ingredient_quantity
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -39,6 +39,9 @@ def run():
     assert ingredient_product_match_type("parmesan", "Grana Padano") == "substitute"
     assert ingredient_product_match_type("pine nuts", "Sonnenblumenkerne 200g") == "substitute"
     assert ingredient_substitution_name("pine nuts", "REWE Bio Sonnenblumenkerne 200g") == "sunflower seeds"
+    mayo_volume, mayo_note = _convert_ingredient_quantity(30, "g", "ml", "mayonnaise")
+    assert abs(mayo_volume - (30 / 0.95)) < 0.001
+    assert "Estimated density 0.95 g/ml" in mayo_note
 
     catalog = FakeCatalog({
         "rice": [{
