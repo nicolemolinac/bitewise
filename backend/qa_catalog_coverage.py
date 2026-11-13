@@ -272,7 +272,8 @@ def main():
                 hint_terms = {
                     "cherry tomato": ("tomat", "cocktail", "kirsche"),
                     "greek yogurt": ("joghurt", "yoghurt", "skyr", "quark"),
-                    "chicken breast": ("hahnchen", "haehnchen", "huhn", "brust"),
+                    "chicken breast": ("hahnchen", "haehnchen", "huhn", "brust", "putenbrust", "pute"),
+                    "olive oil": ("oliven", "olivenol", "olivenoel", "rapsol", "rapsoel", "sonnenblumenol", "pflanzenol"),
                     "olive oil": ("oliven", "olivenol", "olivenoel"),
                     "cornstarch": ("speisestarke", "speise starke", "maisstarke", "mais starke", "mondamin"),
                 }.get(row["ingredient"], tuple(row["ingredient"].split()))
