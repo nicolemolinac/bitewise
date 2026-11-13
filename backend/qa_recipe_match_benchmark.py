@@ -276,9 +276,17 @@ def main():
         print(f"Major REWE department counts: {major_department_counts}")
         print(f"Local semantic vectors: {embedding_count}")
         if live_catalog_healthy:
+            department_minimums = {
+                "brot-cerealien-aufstriche": 1000,
+                "fleisch-wurst-fisch": 1000,
+                "obst-gemuese": 1000,
+                "kaese-eier-molkerei": 1500,
+                "tiefkuehlkost": 1000,
+            }
             underfilled = {
-                category: count for category, count in major_department_counts.items()
-                if count < 1000
+                category: {"count": count, "minimum": department_minimums[category]}
+                for category, count in major_department_counts.items()
+                if count < department_minimums[category]
             }
             assert not underfilled, (
                 "A healthy live refresh must capture all major paginated REWE departments; "
@@ -480,8 +488,9 @@ def main():
         print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
         if _BENCHMARK_DB is not None:
             print(
-                "NOTE: CI uses the committed static snapshot; rolled oats and burger buns "
-                "are known source-coverage gaps until a full local REWE refresh."
+                "NOTE: CI uses a committed bootstrap snapshot that underrepresents several "
+                "large REWE departments. Rolled oats and burger buns are two explicit ingredient "
+                "gaps; run a healthy full local refresh before judging total catalog coverage."
             )
         minimum_resolution = 1.0 if live_catalog_healthy else 0.98
         benchmark_source = (
