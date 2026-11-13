@@ -227,8 +227,9 @@ def _semantic_index_status(db):
 
 
 def _build_semantic_index():
-    db = SessionLocal()
+    db = None
     try:
+        db = SessionLocal()
         from .semantic_catalog import index_rewe_products
         total = db.query(Product).filter(Product.supermarket == "REWE").count()
         _SEMANTIC_INDEX_STATE.update({
@@ -261,7 +262,8 @@ def _build_semantic_index():
             "running": False, "error": str(exc), "started": True,
         })
     finally:
-        db.close()
+        if db is not None:
+            db.close()
         _SEMANTIC_INDEX_GUARD.release()
 
 
