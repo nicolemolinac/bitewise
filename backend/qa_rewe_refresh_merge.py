@@ -47,6 +47,15 @@ def main():
     assert existing.last_price is None
     assert existing.last_seen_at == now and existing.last_checked_at == now
 
+    invalid_update = product()
+    _merge_rewe_product_data(invalid_update, {
+        "price": float("nan"), "price_per_unit": float("inf"),
+        "package_size": float("nan"), "package_unit": "g",
+    }, "13353", now)
+    assert invalid_update.price == 2.49
+    assert invalid_update.price_per_unit == 0.00498
+    assert invalid_update.package_size == 500 and invalid_update.package_unit == "g"
+
     # A new trustworthy checkout price updates price history but keeps the
     # previous known pack size when the current card failed to expose it.
     _merge_rewe_product_data(existing, {
