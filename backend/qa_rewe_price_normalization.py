@@ -72,6 +72,8 @@ def main():
     assert package("Wine 0,75ml 0,75l (1 l = 10,65 €)") == (750, "ml")
     assert package("Fruit pouch 4x90ml 4x90g (1 kg = 7,47 €)") == (360, "g")
 
+    assert package("Soup 400g 380ml (1 kg = 4,98 €)") == (400, "g")
+    assert package("Aioli 250g 235ml (1 kg = 9,16 €)") == (250, "g")
     # Refundable bottle deposits must never be counted as the food's price.
     deposit_only = "Protein drink 330ml (1 l = 9,06 €) zzgl. 0,25 € Pfand"
     deposit_size, deposit_unit = package(deposit_only)
