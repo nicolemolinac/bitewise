@@ -79,7 +79,10 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         "name_original", "name_normalized", "translated_name"
     )))
     category = _normalise(getattr(product, "category", ""))
-    if any(marker in category for marker in ("babynahrung", "kindernahrung", "baby food")):
+    if any(marker in category for marker in (
+        "baby", "kindernahrung", "baby food", "snacks", "suesses salziges",
+        "suesswaren", "susswaren",
+    )):
         return "catalog_product"
     # Dry "Fix" seasoning sachets often share the canned/ready-meal aisle;
     # classify them as components before using broad aisle metadata.
