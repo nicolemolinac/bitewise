@@ -106,7 +106,7 @@ def run():
         pizza_dough = next(row for row in pizza["products"] if row["name_original"] == "Frischer Pizzateig mit Tomatensauce")
         assert pizza_kit["convenience_type"] == "meal_kit", pizza_kit
         assert pizza_dough["convenience_type"] == "ready_to_cook", pizza_dough
-        flammkuchen = next(row for row in pizza["products"] if "Flammkuchen" in row["name_original"])
+        flammkuchen = next(row for row in pizza["products"] if row["name_original"] == "Tante Fanny Frischer Flammkuchenteig 260g")
         assert flammkuchen["convenience_type"] == "ready_to_cook", flammkuchen
         finished_flammkuchen = next(
             row for row in pizza["products"] if "Original Wagner Flammkuchen" in row["name_original"]
