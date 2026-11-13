@@ -651,14 +651,6 @@ async def expand_ai_recipe(request: Request):
         raise HTTPException(502, f"Recipe expansion failed: {str(exc)[:300]}")
 
 
-app.router.routes = [
-    route
-    for route in app.router.routes
-    if not (
-        getattr(route, "path", None) == "/api/rewe/refresh"
-        and "POST" in (getattr(route, "methods", None) or set())
-    )
-]
 app.include_router(cloud_router)
 app.include_router(migration_router)
 
