@@ -72,19 +72,14 @@ def test_rewe_cart_dom_probe_contract():
       });
     </script>
     """
-    endpoint = os.getenv(
-        "BITEWISE_CHROME_CDP_URL",
-        os.getenv("REWE_CHROME_CDP_URL", "http://127.0.0.1:9222"),
-    ).rstrip("/")
     with sync_playwright() as playwright:
-        # Use the same already-running Google Chrome for Testing instance as
-        # Bitewise scraping. Never launch Playwright's bundled Chromium.
-        browser = playwright.chromium.connect_over_cdp(endpoint, timeout=15_000)
+        # This is an isolated DOM-behavior test, not a live REWE session test.
+        # Launch the Chromium installed by CI instead of requiring the app's
+        # external Chrome-for-Testing CDP endpoint on localhost:9222.
+        browser = playwright.chromium.launch(headless=True)
         page = None
         try:
-            if not browser.contexts:
-                raise AssertionError(f"Chrome for Testing at {endpoint} has no browser context")
-            page = browser.contexts[0].new_page()
+            page = browser.new_page()
             page.set_content(html)
             add_index = _rewe_add_button_index(page)
             assert add_index is not None
