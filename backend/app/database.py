@@ -502,6 +502,12 @@ def _repair_snapshot_unit_prices_once() -> None:
     Never overwrite a price that differs from both the raw snapshot and its
     normalized package price.
     """
+    # Isolated QA runs set BITEWISE_LOCAL_DB_PATH to a temporary database.
+    # Never compare that empty test database with the developer's committed catalog.
+    repair_override = os.getenv("BITEWISE_REPAIR_CATALOG_SNAPSHOT", "").strip().lower()
+    if _configured_local_db and repair_override not in {"1", "true", "yes", "on"}:
+        return
+
     snapshot_path = BACKEND_DIR / "data" / "catalog" / "rewe_products.csv"
     if not snapshot_path.is_file():
         return
