@@ -189,6 +189,18 @@ def main():
         assert not package_name_mismatches, (
             f"REWE snapshot contains {len(package_name_mismatches)} package sizes that disagree with product titles"
         )
+        # Guard against silent parser regressions: this REWE snapshot has
+        # only a handful of genuinely unpriced listings and no invalid pack data.
+        assert invalid_price == 0, f"Found {invalid_price} zero/negative/non-finite REWE prices"
+        assert missing_price <= 20, f"Unexpectedly many REWE products lack checkout prices: {missing_price}"
+        assert invalid_packages == 0, f"Found {invalid_packages} invalid package sizes/units"
+        assert not inconsistent_unit_prices, (
+            f"Found {len(inconsistent_unit_prices)} inconsistent package unit prices"
+        )
+        assert not package_name_mismatches, (
+            f"Found {len(package_name_mismatches)} package sizes that disagree with product titles"
+        )
+
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
         stale = sum(row.last_checked_at is None or row.last_checked_at < cutoff for row in products)
 
