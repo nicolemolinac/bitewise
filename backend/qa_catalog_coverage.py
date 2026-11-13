@@ -260,11 +260,12 @@ def main():
             "tiefkuehlkost": categories.get("tiefkuehlkost", 0),
         }
         department_minimums = {
-            "brot-cerealien-aufstriche": 1000,
-            "fleisch-wurst-fisch": 1000,
+            # Conservative 50%-of-source-count floors, below current REWE category totals.
+            "brot-cerealien-aufstriche": 2700,
+            "fleisch-wurst-fisch": 4700,
             "obst-gemuese": 1000,
-            "kaese-eier-molkerei": 1500,
-            "tiefkuehlkost": 1000,
+            "kaese-eier-molkerei": 3400,
+            "tiefkuehlkost": 1350,
         }
         incomplete_departments = {
             category: {"count": count, "minimum": department_minimums[category]}
