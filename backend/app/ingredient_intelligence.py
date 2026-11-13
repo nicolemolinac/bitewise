@@ -251,7 +251,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name in spices:
         return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
     if name in grains:
-        return category_key in {"kochen-backen", "brot-cerealien-aufstriche"}
+        return (
+            category_key in {"kochen-backen", "brot-cerealien-aufstriche"}
+            or (name == "rice" and category_key == "rice")
+        )
     if name in canned:
         return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
     if name in sauces:
