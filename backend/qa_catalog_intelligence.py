@@ -53,7 +53,7 @@ def run():
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
         assert not any("Hundefutter" in name for name in pizza_names), pizza_names
-        assert all(row["convenience_type"] in {"ready_meal", "meal_kit", "ready_to_cook", "catalog_product"} for row in pizza["products"])
+        assert all(row["convenience_type"] in {"ready_meal", "meal_kit", "ready_to_cook", "prepared_component", "catalog_product"} for row in pizza["products"])
 
         chili = search_catalog_opportunities(session, "chili con carne", limit=10)
         chili_names = [row["name_original"] for row in chili["products"]]
@@ -65,6 +65,8 @@ def run():
         assert any(name == "Chili con Carne 400g" for name in chili_names), chili_names
         assert any("Chili Eintopf" in name for name in chili_names), chili_names
         assert next(row for row in chili["products"] if row["name_original"] == "Chili con Carne 400g")["convenience_type"] == "ready_meal"
+        canned_beans = next(row for row in chili["products"] if row["name_original"] == "Kidney Bohnen rot")
+        assert canned_beans["convenience_type"] == "prepared_component", canned_beans
 
         empty = search_catalog_opportunities(session, "x", limit=10)
         assert empty["products"] == []
