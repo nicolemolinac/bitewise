@@ -74,6 +74,16 @@ class Product(Base):
     last_price: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
+class ProductSemanticEmbedding(Base):
+    __tablename__ = "product_semantic_embeddings"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    model_name: Mapped[str] = mapped_column(String(120), index=True)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    vector_json: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class ProductOverride(Base):
     __tablename__ = "product_overrides"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
