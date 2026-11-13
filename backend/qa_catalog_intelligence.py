@@ -72,6 +72,7 @@ def run():
             product("pizza-6", "ja! Pizza Teig XXL 550g", "Fertiggerichte-Konserven"),
             product("pizza-7", "Bio Spezial Mehl für Pizza Typ 00 1kg", "Kochen & Backen", package_size=1000),
             product("flammkuchen-2", "Original Wagner Flammkuchen Elsässer Art 300g", "Tiefkühlkost"),
+            product("pizza-flour-1", "Bio Spezial Mehl für Pizza Typ 00 1kg", "Kochen-Backen", ingredient="wheat flour"),
             product("pizza-snack-1", "FruchtBar Bio-Pizza-Flieger Tomate Käse 30g", "Baby & Kind", package_size=30),
             product("pizza-snack-2", "Mogli Bio Demeter Pizza Stangen 75g", "Süßes-Salziges", package_size=75),
             product("chili-1", "Chili con Carne 400g", "Konserven", price=2.49),
@@ -97,7 +98,7 @@ def run():
 
         pizza = search_catalog_opportunities(session, "pizza", limit=10)
         pizza_names = [row["name_original"] for row in pizza["products"]]
-        assert pizza["catalog_count"] == 1022
+        assert pizza["catalog_count"] == 1023
         assert any("Pizza Baguette" in name for name in pizza_names), pizza_names
         assert any("Steinofen Pizza" in name for name in pizza_names), pizza_names
         assert any("Pizzateig" in name for name in pizza_names), pizza_names
@@ -117,6 +118,8 @@ def run():
         assert pizza_flour["convenience_type"] == "prepared_component", pizza_flour
         steinofen = next(row for row in pizza["products"] if "Steinofen Pizza" in row["name_original"])
         assert steinofen["convenience_type"] == "ready_meal", steinofen
+        pizza_flour = next(row for row in pizza["products"] if "Mehl für Pizza" in row["name_original"])
+        assert pizza_flour["convenience_type"] == "prepared_component", pizza_flour
         assert not any("Hundefutter" in name or "Taco Kit" in name or "FruchtBar" in name or "Mogli" in name for name in pizza_names), pizza_names
         assert all(row["convenience_type"] in {"ready_meal", "meal_kit", "ready_to_cook", "prepared_component", "catalog_product"} for row in pizza["products"])
         pizza_types = {row["convenience_type"] for row in pizza["products"]}
