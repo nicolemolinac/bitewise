@@ -133,6 +133,12 @@ def run():
     )
     assert invalid_quantity[0]["match_status"] == "unmatched"
     assert "quantity is invalid" in invalid_quantity[0]["match_reason"].lower()
+    invalid_pantry = build_basket(
+        [{"ingredient": "rice", "quantity": 100, "unit": "g", "source_meals": ["Rice bowl"]}],
+        catalog, pantry={"rice": {"quantity": float("nan"), "unit": "g"}},
+    )
+    assert invalid_pantry[0]["match_status"] == "matched"
+    assert invalid_pantry[0]["pantry_used"] == 0
 
     substitute_basket = build_basket(
         [{"ingredient": "pine nuts", "quantity": 30, "unit": "g", "source_meals": ["Pesto pasta"]}],
