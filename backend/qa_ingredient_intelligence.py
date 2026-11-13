@@ -11,7 +11,6 @@ os.environ["DATABASE_URL"] = ""
 os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_QA_DB_DIR.name) / "qa.sqlite")
 
 from app.ingredient_intelligence import (
-    _category_compatible, _form_compatible,
     _ingredient_specific_exclusions,
     ingredient_candidate_search_terms,
     ingredient_product_match_type,
@@ -202,13 +201,6 @@ def run():
         "white fish fillet", "REWE Alaska Seelachsfilet paniert 800g",
         {"form": "fresh"}, "tiefkuehlkost"
     ) is None
-    prepared_title = normalize_text("Rotkohl ca. 1,8kg 1 Stück ca. 1800 g")
-    prepared_category = _category_compatible(
-        "red cabbage", "fertiggerichte-konserven", prepared_title, "fresh"
-    )
-    prepared_form = _form_compatible(
-        "fresh", prepared_title + " fertiggerichte konserven", "red cabbage"
-    )
     prepared_match = ingredient_product_match_type(
         "red cabbage", "Rotkohl ca. 1,8kg 1 Stück ca. 1800 g",
         {"form": "fresh"}, "fertiggerichte-konserven"
