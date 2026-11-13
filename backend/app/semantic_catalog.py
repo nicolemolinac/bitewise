@@ -74,10 +74,7 @@ def _cached_query_vector(query_text: str) -> tuple[float, ...]:
 def index_rewe_products(db, batch_size: int = 128, force: bool = False) -> dict:
     """Incrementally embed new/changed REWE products and persist their vectors."""
     products = db.query(Product).filter(Product.supermarket == "REWE").all()
-    existing = {
-        row.product_id: row
-        for row in db.query(ProductSemanticEmbedding).filter_by(model_name=MODEL_NAME).all()
-    }
+    existing = {row.product_id: row for row in db.query(ProductSemanticEmbedding).all()}
     pending = []
     for product in products:
         document = product_embedding_text(product)
