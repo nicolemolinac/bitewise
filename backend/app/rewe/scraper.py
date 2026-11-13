@@ -702,10 +702,9 @@ class ReweCatalogScraper:
         for product in found:
             if not product.get("product_url"):
                 key = normalize(product.get("name_original", ""))
-                exact = pdp_by_name.get(key)
-                if not exact and key:
-                    exact = next((link for name, link in pdp_by_name.items() if key in name or name in key), None)
-                product["product_url"] = exact
+                # Never attach a different product's URL based on substring
+                # similarity ("milk" must not resolve to "milk chocolate").
+                product["product_url"] = pdp_by_name.get(key)
             # JSON-LD often uses a SKU while the visible product card uses the
             # REWE PDP slug. Normalize both to the stable PDP identifier so one
             # physical product cannot be ingested twice from two page sources.
