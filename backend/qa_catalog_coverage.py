@@ -286,6 +286,7 @@ def main():
             print("PRICE/UNIT MISMATCH:", row)
         print(f"Availability distribution: {dict(availability)}")
         print(f"Sample coverage ({len(coverage)} common ingredients): {dict(counts)}")
+        print("Sample coverage details:", coverage)
         gaps = [row for row in coverage if row["status"] == "gap"]
         assert not gaps, f"Common REWE ingredients without a safe exact/substitute match: {gaps}"
         assert sum(counts.values()) == len(SAMPLE_INGREDIENTS), (
