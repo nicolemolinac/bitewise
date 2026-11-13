@@ -48,6 +48,8 @@ jobs:
               '/api/shopping/purchase',
               '/api/products/replace',
               '/api/catalog/opportunities',
+              '/api/catalog/semantic-index/status',
+              '/api/catalog/semantic-index',
               '/api/rewe/refresh',
               '/api/rewe/cart/add',
               '/api/plans',
