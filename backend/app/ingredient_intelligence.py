@@ -89,12 +89,13 @@ def ingredient_search_terms(ingredient: str, intelligence: Any = None) -> list[s
         value = profile.get(field)
         if isinstance(value, str):
             terms.add(normalize_text(value))
-    for field in ("aliases", "search_terms", "translations"):
+    for field in ("aliases", "search_terms", "translations", "allowed_substitutions"):
         values = profile.get(field, [])
         if isinstance(values, str):
             values = [values]
         if isinstance(values, list):
             terms.update(normalize_text(value) for value in values if isinstance(value, str))
+    terms.update(normalize_text(term) for term in _SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     return sorted((term for term in terms if len(term) >= 2), key=lambda term: (-len(term), term))
 
 
