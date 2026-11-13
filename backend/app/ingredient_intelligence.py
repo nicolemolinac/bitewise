@@ -247,6 +247,26 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     name = normalize_text(ingredient)
     title_key = normalize_text(title)
     category_key = category_key.replace(" ", "-")
+
+    # Reject products where an ingredient word is only a flavor/compound name.
+    if name == "butter" and any(
+        token in title_key for token in ("peanut butter", "erdnussbutter", "mandelbutter", "nussmus", "mandelmus")
+    ):
+        return False
+    if name == "salsa" and any(
+        token in title_key for token in ("chips", "snack", "rollchen", "knabberartikel", "mais roellchen")
+    ):
+        return False
+    if name == "white fish fillet" and any(
+        _contains_phrase(title_key, token)
+        for token in ("mus", "aufstrich", "pastete", "creme", "spread", "fischmus")
+    ):
+        return False
+    if name == "pasta" and any(
+        _contains_phrase(title_key, token)
+        for token in ("udon", "ramen", "soba", "glasnudeln", "glass noodles", "rice noodles", "reisnudeln")
+    ):
+        return False
     if category_key in {
         "drogerie-gesundheit", "tierbedarf", "kueche-haushalt",
         "haus-freizeit", "bonus", "getraenke-genussmittel",
