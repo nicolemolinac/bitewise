@@ -243,6 +243,8 @@ def main():
         adapter = server.main_module.CatalogAdapter(db)
         totals = Counter()
         per_recipe = []
+        semantic_review_count = 0
+        invalid_unit_count = 0
         for recipe in RECIPES:
             requirements = consolidate([recipe], {recipe["id"]: 2})
             basket = build_basket(requirements, adapter, "best-value", pantry={})
@@ -256,16 +258,27 @@ def main():
                 title = product.get("name_original") or product.get("name_normalized") or "—"
                 match_type = product.get("ingredient_match_type") or "—"
                 suggestions = row.get("semantic_suggestions") or []
+                semantic_review_count += len(suggestions)
+                if not (row.get("unit_validation") or {}).get("valid", True):
+                    invalid_unit_count += 1
                 suggestion_text = ""
                 if suggestions:
                     suggestion_text = " | REVIEW: " + "; ".join(
                         f"{s.get('name_original')} [{s.get('semantic_similarity', 0):.2f}]"
                         for s in suggestions[:3]
                     )
+                category = product.get("category") or "—"
+                price = product.get("price")
+                price_text = f"€{float(price):.2f}" if price is not None else "no price"
+                unit_note = ""
+                validation = row.get("unit_validation") or {}
+                if not validation.get("valid", True):
+                    unit_note = f" | INVALID UNIT: {validation.get('reason')}"
                 print(
                     f"  {'OK' if row['match_status'] in {'matched', 'substituted', 'covered'} else 'MISS'} "
                     f"{row['ingredient']} -> {title} "
-                    f"(status={row['match_status']}, type={match_type}){suggestion_text}"
+                    f"(status={row['match_status']}, type={match_type}, category={category}, price={price_text})"
+                    f"{unit_note}{suggestion_text}"
                 )
 
         total = sum(totals.values())
@@ -277,7 +290,8 @@ def main():
         print(f"Curated substitutions: {totals['substituted']}")
         print(f"Pantry-covered: {totals['covered']}")
         print(f"Unmatched: {totals['unmatched']}")
-        print(f"Review-only semantic suggestions are NOT counted as resolved.")
+        print(f"Ingredients with invalid recipe units: {invalid_unit_count}")
+        print(f"Review-only semantic product suggestions: {semantic_review_count} (NOT counted as resolved)")
         print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
         print("\n=== PER-RECIPE SUMMARY ===")
         for name, found, count in per_recipe:
