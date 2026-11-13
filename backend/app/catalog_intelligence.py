@@ -193,7 +193,13 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
         kind = _convenience_type(text, query, product)
         # Exact dish matches dominate; embeddings recover useful German/English
         # supermarket formats when wording differs from the user's query.
-        score = phrase_hits * 8 + token_hits * 1.5 + max(0.0, semantic_score - 0.45) * 16
+        query_normal = _normalise(query)
+        alias_hits = [
+            _normalise(variant) for variant in variants
+            if _normalise(variant) != query_normal and _normalise(variant) in text
+        ]
+        alias_bonus = sum(2.5 if len(alias.split()) >= 2 else 1.5 for alias in set(alias_hits))
+        score = phrase_hits * 8 + token_hits * 1.5 + alias_bonus + max(0.0, semantic_score - 0.45) * 16
         if kind == "ready_meal":
             score += 2.5
         elif kind == "meal_kit":
