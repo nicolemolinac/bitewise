@@ -16,6 +16,7 @@ os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_TEMP.name) / "coverage.sqlite")
 os.environ["DATABASE_URL"] = ""
 os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
+os.environ["BITEWISE_REPAIR_CATALOG_SNAPSHOT"] = "true"
 
 from types import SimpleNamespace
 
