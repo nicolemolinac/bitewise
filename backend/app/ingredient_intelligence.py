@@ -178,6 +178,26 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         token in title for token in ("peanut butter", "erdnussbutter", "mandelbutter", "nussbutter")
     ):
         return False
+    if ingredient_name in {"vegetable oil", "olive oil", "sesame oil", "sunflower oil"} and any(
+        token in title for token in (
+            "mayonnaise", "mayo", "dressing", "salatcreme", "remoulade",
+            "aufstrich", "margarine", "marinade", "dip",
+        )
+    ):
+        return False
+    if ingredient_name in {"chicken breast", "ground beef", "salmon", "salmon fillet", "white fish fillet"} and form == "fresh":
+        processed_protein_terms = (
+            "gepokelt", "gebacken", "gegart", "gekocht", "gerauchert",
+            "aufschnitt", "wurst", "aufstrich", "fischstabchen",
+            "fish fingers", "fish sticks", "surimi", "fischmus", "seelachsmus",
+            "panade", "bratling",
+        )
+        if any(_contains_phrase(title, term) for term in processed_protein_terms):
+            return False
+    if ingredient_name == "white fish fillet" and any(
+        _contains_phrase(title, term) for term in ("mus", "surimi", "fischpaste", "fish paste")
+    ):
+        return False
     if ingredient_name in {"pasta", "spaghetti", "trofie pasta"} and any(
         token in title for token in ("udon", "ramen", "soba", "glasnudel", "reisnudel", "instant noodles")
     ):
