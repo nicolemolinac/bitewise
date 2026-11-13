@@ -149,7 +149,7 @@ def ingredient_substitution_name(ingredient: str, product_text: str, intelligenc
     for term in sorted(substitutes, key=lambda value: -len(normalize_text(value))):
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
-            labels = {"rapsol": "rapeseed oil", "sonnenblumenol": "sunflower oil"}
+            labels = {"rapsol": "rapeseed oil", "sonnenblumenol": "sunflower oil", "kartoffeln": "fresh potatoes", "speisekartoffeln": "fresh potatoes"}
             return labels.get(normalized, str(term))
     return None
 
@@ -158,7 +158,7 @@ def validate_ingredient_unit(ingredient: str, unit: str) -> dict:
     name = normalize_text(ingredient)
     normalized_unit = normalize_text(unit)
     family = next((key for key, hints in _FAMILY_HINTS.items()
-                   if any(normalize_text(hint) in name for hint in hints)), None)
+                   if any(normalize_text(hint) in name.split() for hint in hints)), None)
     if family is None:
         return {"valid": True, "family": None, "reason": None}
     allowed = _UNIT_FAMILIES[family]
