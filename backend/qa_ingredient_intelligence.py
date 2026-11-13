@@ -84,6 +84,9 @@ def test_high_risk_false_positive_guards():
         "white fish fillet", "REWE Beste Wahl Atlantisches Kabeljaufilet 3-6 Filets 475g",
         {"form": "fresh"}, "Tiefkühlkost",
     ) == "suggested_substitution"
+    assert ingredient_substitution_name(
+        "white fish fillet", "REWE Beste Wahl Atlantisches Kabeljaufilet 3-6 Filets 475g"
+    ) == "frozen cod fillet"
     assert ingredient_product_match_type(
         "white fish fillet", "REWE Alaska Seelachsfilet paniert 800g",
         {"form": "fresh"}, "Tiefkühlkost",
