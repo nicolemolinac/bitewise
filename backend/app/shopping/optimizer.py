@@ -19,22 +19,36 @@ def consolidate(meals, servings_map):
     grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": [], "ingredient_intelligence": None, "unit_validation": None})
     canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
     for meal in meals:
-        servings = max(0.1, float(servings_map.get(meal["id"], 2) or 2))
-        base_servings = max(0.1, float(meal.get("base_servings", 2) or 2))
+        def _safe_servings(value, default=2.0):
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError):
+                return default
+            return parsed if math.isfinite(parsed) and parsed > 0 else default
+
+        servings = max(0.1, _safe_servings(servings_map.get(meal["id"], 2) or 2))
+        base_servings = max(0.1, _safe_servings(meal.get("base_servings", 2) or 2))
         factor = servings / base_servings
         for name, quantity, unit in meal["ingredients"]:
             normalized_unit = _normal_unit(unit)
+            try:
+                raw_quantity = float(quantity)
+                normalized_quantity = raw_quantity if math.isfinite(raw_quantity) else float("nan")
+            except (TypeError, ValueError):
+                normalized_quantity = float("nan")
             unit_info = _UNIT_BASE.get(normalized_unit)
             if unit_info:
                 dimension, multiplier = unit_info
                 normalized_unit = canonical_units[dimension]
-                normalized_quantity = float(quantity) * multiplier
-            else:
-                # Keep semantically different units (e.g. cloves vs pieces) separate.
-                normalized_quantity = float(quantity)
+                normalized_quantity *= multiplier
+            # Keep semantically different units (e.g. cloves vs pieces) separate.
             key = (name.lower().strip(), normalized_unit)
             row = grouped[key]
-            row["quantity"] += normalized_quantity * factor
+            scaled_quantity = normalized_quantity * factor
+            row["quantity"] = (
+                scaled_quantity if not math.isfinite(row["quantity"]) or not math.isfinite(scaled_quantity)
+                else row["quantity"] + scaled_quantity
+            )
             row["source_meals"].append(meal["name"])
             intelligence = meal.get("ingredient_intelligence") or {}
             if isinstance(intelligence, dict):
@@ -387,7 +401,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             # Exact matches win over substitutions; a substitute is used only when
             # no exact priced/available option is present.
-            if product.get("ingredient_match_type") == "substitute":
+            if product.get("ingredient_match_type") in {"substitute", "suggested_substitution"}:
                 score += 1000
             product_id = product.get("id")
             selected_by_user = override_id is not None and str(product_id) == str(override_id)
@@ -428,7 +442,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         else:
             exact_candidates = [
                 row for row in candidates
-                if row["product"].get("ingredient_match_type") != "substitute"
+                if row["product"].get("ingredient_match_type") not in {"substitute", "suggested_substitution"}
             ]
             if exact_candidates:
                 candidates = exact_candidates
@@ -440,6 +454,8 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         if chosen["selected_by_user"]:
             badge = "✓ Your choice"
         selected_match_type = chosen["product"].get("ingredient_match_type") or "exact"
+        if selected_match_type == "suggested_substitution":
+            selected_match_type = "substitute"
         availability_status = str(chosen["product"].get("availability") or "unknown").lower()
         availability_note = (
             "Stock not verified — this is a recent catalog listing, not live inventory."
