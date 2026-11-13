@@ -116,6 +116,24 @@ def run():
         "lettuce", "REWE Feine Welt Erlesener Blüten Salat 100g", {"form": "fresh"}, "obst-gemuese"
     ) is None
     assert ingredient_product_match_type(
+        "lettuce", "Wildkräuter Salat 125g", {"form": "fresh"}, "obst-gemuese"
+    ) is None
+    assert ingredient_product_match_type(
+        "chicken breast", "ja! Delikatess-Hähnchenbrustfilet gepökelt, gebacken 100g",
+        {"form": "fresh"}, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "vegetable oil", "Thomy Delikatess-Mayonnaise mit reinem Sonnenblumenöl 100ml",
+        {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) is None
+    assert ingredient_product_match_type(
+        "honey", "REWE Beste Wahl Honey Peppers mit Frischkäsecreme 150g",
+        {"form": "liquid"}, "fertiggerichte-konserven"
+    ) is None
+    assert ingredient_product_match_type(
+        "pasta", "Birkel Buchstaben-Nudeln 250g", {"form": "dry"}, "kochen-backen"
+    ) is None
+    assert ingredient_product_match_type(
         "frozen peas", "REWE Erbsen fein 450g", {"form": "frozen"}, "obst-gemuese"
     ) is None, "A frozen ingredient must not match an unmarked fresh product title/category"
     assert ingredient_product_match_type(
