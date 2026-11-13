@@ -12,9 +12,10 @@ import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+import threading
 
 import numpy as np
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 
 from .database import Product, ProductSemanticEmbedding
 from .ingredient_intelligence import _form_compatible, normalize_text
@@ -22,6 +23,8 @@ from .ingredient_intelligence import _form_compatible, normalize_text
 logger = logging.getLogger(__name__)
 MODEL_NAME = os.getenv("BITEWISE_EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+_INDEX_CACHE = None
+_INDEX_CACHE_LOCK = threading.Lock()
 
 
 def product_embedding_text(product: Product) -> str:
