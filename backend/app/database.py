@@ -1,4 +1,5 @@
 import csv
+import math
 import os
 import re
 import sqlite3
@@ -322,7 +323,8 @@ def _snapshot_float(value, default=None):
     if value is None or str(value).strip() == "":
         return default
     try:
-        return float(str(value).strip().replace(",", "."))
+        parsed = float(str(value).strip().replace(",", "."))
+        return parsed if math.isfinite(parsed) else default
     except (TypeError, ValueError):
         return default
 
