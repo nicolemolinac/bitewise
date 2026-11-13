@@ -157,7 +157,7 @@ def main():
             last_seen_at, last_checked_at, last_price
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)""",
         ("REWE", "qa-rice-500g", "rice", "REWE Beste Wahl Langkornreis 500g", "langkornreis",
-         "REWE Beste Wahl", "Rice", 500, "g", 1.49, 0.00298, "EUR",
+         "REWE Beste Wahl", "Kochen & Backen", 500, "g", 1.49, 0.00298, "EUR",
          "https://www.rewe.de/shop/p/rewe-beste-wahl-langkornreis-500g/123456", "available", "13353", 1.49))
         # Pin the test ingredient to its fixture product so a larger imported catalog
         # cannot make this assertion depend on whichever rice is cheapest today.
