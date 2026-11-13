@@ -341,13 +341,35 @@ def main():
                         f"  FULL-CATALOG AUDIT {ingredient} | terms={terms[:12]} | "
                         f"candidates={len(audit_candidates)}"
                     )
-                    for audit_score, candidate, audit_type, hits in audit_candidates[:6]:
+                    for audit_score, candidate, audit_type, hits in audit_candidates[:12]:
                         print(
                             f"    CANDIDATE {candidate.name_original} | "
                             f"category={candidate.category} | ingredient={candidate.ingredient} | "
+                            f"pack={candidate.package_size} {candidate.package_unit} | price={candidate.price} | "
                             f"match={audit_type or 'rejected'} | hits={hits[:5]} | "
                             f"score={audit_score}"
                         )
+                    alternative_patterns = {
+                        "grated cheddar cheese": (("gouda", "emmental", "gratinkase", "reibe", "gerieben"), {"kaese-eier-molkerei"}),
+                        "burger buns": (("burger", "hamburger", "brioche", "brotchen", "sesam"), {"brot-cerealien-aufstriche", "kochen-backen"}),
+                        "curry powder": (("curry", "currypaste", "curry paste"), {"oele-sossen-gewuerze", "kochen-backen"}),
+                        "rolled oats": (("hafer", "oat", "porridge"), {"brot-cerealien-aufstriche", "kochen-backen"}),
+                        "red cabbage": (("rotkohl", "rotkraut", "red cabbage"), {"obst-gemuese", "tiefkuehlkost", "fertiggerichte-konserven"}),
+                    }
+                    if ingredient in alternative_patterns:
+                        patterns, categories = alternative_patterns[ingredient]
+                        alternatives = [
+                            candidate for candidate in all_rewe_products
+                            if normalize_text(candidate.category or "") in categories
+                            and any(pattern in normalize_text(candidate.name_original) for pattern in patterns)
+                        ]
+                        print(f"  ALTERNATIVE FAMILY AUDIT {ingredient}: {len(alternatives)}")
+                        for candidate in alternatives[:15]:
+                            print(
+                                f"    ALTERNATIVE {candidate.name_original} | "
+                                f"category={candidate.category} | pack={candidate.package_size} "
+                                f"{candidate.package_unit} | price={candidate.price}"
+                            )
 
         total = sum(totals.values())
         resolved = totals["matched"] + totals["substituted"] + totals["covered"]
