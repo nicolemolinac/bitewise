@@ -71,6 +71,8 @@ _SUBSTITUTION_TERMS = {
     "parmesan cheese": ("grana padano", "grana padano gerieben"),
     "grated cheddar cheese": ("grated gouda", "geriebener gouda", "gouda gerieben", "emmentaler gerieben", "geriebener emmentaler", "gratinkäse"),
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
+    # Slaw can use fresh white cabbage when red cabbage is not stocked.
+    "red cabbage": ("white cabbage", "weisskohl", "spitzkohl"),
 }
 
 _RETAIL_QUERY_VARIANTS = {
@@ -198,6 +200,19 @@ def _contains_phrase(title: str, phrase: str) -> bool:
 
 def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     form = normalize_text(form)
+    # Recipe generators sometimes return descriptive form labels rather than
+    # the compact canonical values. Normalize those labels before enforcing
+    # form constraints so "soft tortillas" and "grated cheese" are understood.
+    if any(term in form for term in ("soft tortilla", "soft wrap", "weizen tortilla")):
+        form = "soft"
+    elif any(term in form for term in ("grated", "gerieben", "shredded cheese")):
+        form = "grated"
+    elif any(term in form for term in ("frozen", "tiefkuhl")):
+        form = "frozen"
+    elif any(term in form for term in ("fresh", "frisch")):
+        form = "fresh"
+    elif any(term in form for term in ("powder", "pulver", "ground spice")):
+        form = "powder"
     ingredient_tokens = set(normalize_text(ingredient).split())
     fresh_produce_tokens = {"garlic", "onion", "potato", "tomato", "lettuce", "cilantro", "coriander", "carrot", "olive"}
     compound_product_terms = ("wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen", "suppe", "brustfilet", "hahnchen", "chicken", "garnelen", "shrimp", "tempeh", "mettwurst", "pesto", "brot", "bread", "butter", "aufstrich")
@@ -300,6 +315,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name == "croutons" and any(
         term in title_key for term in ("crouton", "cro ton", "brotwurfel gerostet")
     ) and category_key in {"oele-sossen-gewuerze", "fertiggerichte-konserven"}:
+        return True
+    if name == "burger buns" and any(
+        term in title_key for term in ("hamburgerbrotchen", "burgerbrotchen", "burger bun")
+    ) and category_key in {"brot-cerealien-aufstriche", "kochen-backen", "fertiggerichte-konserven"}:
         return True
 
     if name in produce:
