@@ -119,6 +119,22 @@ def run():
         "white fish fillet", "REWE Alaska Seelachsfilet 300g", {"form": "fresh"}, "fleisch-wurst-fisch"
     ) == "exact"
     assert ingredient_product_match_type(
+        "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g", {"form": "soft"}, "fertiggerichte-konserven"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "croutons", "Leimer Croûtons Kräuter 100g", {"form": "unspecified"}, "oele-sossen-gewuerze"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "burger buns", "REWE Hamburgerbrötchen mit Sesam 300g", {"form": "unspecified"}, "brot-cerealien-aufstriche"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "grated cheddar cheese", "REWE Gouda gerieben 200g", {"form": "grated"}, "kaese-eier-molkerei"
+    ) == "substitute"
+    assert ingredient_product_match_type(
+        "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
+        {"form": "fresh"}, "tiefkuehlkost"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
         "bratwurst", "ja! Schweine-Bratwurst grob 4x100g", {}, "fleisch-wurst-fisch"
     ) == "exact"
     assert ingredient_product_match_type(
