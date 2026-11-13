@@ -5,6 +5,8 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, Product, ProductSemanticEmbedding, SessionLocal
 from app.catalog_intelligence import search_catalog_opportunities
 from app import semantic_catalog
+from fastapi import HTTPException
+from app import main as api_main
 
 
 def product(external_id, name, category, ingredient="meal", price=2.0, package_size=400, package_unit="g"):
@@ -165,7 +167,21 @@ def run():
 
         empty = search_catalog_opportunities(session, "x", limit=10)
         assert empty["products"] == []
+
+        # A refresh must not mutate the catalog while a full-catalog embedding
+        # pass is reading and persisting vectors.
+        assert api_main._SEMANTIC_INDEX_GUARD.acquire(blocking=False)
+        try:
+            try:
+                api_main.rewe_refresh()
+                raise AssertionError("REWE refresh should be rejected while semantic indexing holds the catalog lock")
+            except HTTPException as exc:
+                assert exc.status_code == 409, exc.status_code
+        finally:
+            api_main._SEMANTIC_INDEX_GUARD.release()
+
         print("PASS: supermarket discovery surfaces Pizza Baguette, pizza kits and canned chili from the full catalog without LLM calls")
+        print("PASS: REWE refresh is blocked while semantic indexing holds the catalog lock")
     finally:
         session.close()
         engine.dispose()
