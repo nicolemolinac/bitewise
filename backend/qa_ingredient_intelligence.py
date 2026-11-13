@@ -115,7 +115,9 @@ def run():
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
     assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
     proposed_only = {"canonical": "custom cooking fat", "suggested_substitutions": ["rapeseed oil"]}
-    assert "rapeseed oil" in ingredient_candidate_search_terms("custom cooking fat", proposed_only)
+    proposed_oil_terms = ingredient_candidate_search_terms("custom cooking fat", proposed_only)
+    assert "rapeseed oil" in proposed_oil_terms
+    assert "rapsol" in proposed_oil_terms, "Proposed substitutions must expand into REWE's German product aliases"
     assert ingredient_product_match_type("custom cooking fat", "REWE Rapsöl 1L", proposed_only) == "suggested_substitution"
     assert ingredient_suggested_substitution_name("custom cooking fat", "REWE Rapeseed Oil 1L", proposed_only) == "rapeseed oil"
     assert ingredient_suggested_substitution_name("custom cooking fat", "REWE Rapsöl 1L", proposed_only) is None
