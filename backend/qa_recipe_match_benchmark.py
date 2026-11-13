@@ -402,7 +402,8 @@ def main():
                     }:
                         assert not any(token in title_key for token in (
                             "express", "gekocht", "vorgekocht", "vorgedampft", "gedampft",
-                            "kuko", "kurzkoch",
+                            "kuko", "kurzkoch", "tilda sticky rice",
+                            "fried rice", "egg fried", "risotto steinpilz",
                             "steamed", "griechischer reis", "djuvec", "curry", "tomaten",
                             "gemuese", "mediterran", "oriental", "mexikanisch", "bowl",
                         )), f"Raw rice matched to a prepared rice product: {title}"
