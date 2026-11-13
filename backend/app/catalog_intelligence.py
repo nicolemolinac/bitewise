@@ -212,6 +212,11 @@ def search_catalog_opportunities(db, query: str, limit: int = 12) -> dict:
         item[1].price if item[1].price is not None else float("inf"),
         item[1].name_original.casefold(),
     ))
+    # This endpoint is for convenience alternatives, not a second raw
+    # ingredient search. Keep generic catalog matches only as a fallback when
+    # no meal, kit, ready-to-cook product or prepared component was found.
+    if any(item[2] != "catalog_product" for item in ranked):
+        ranked = [item for item in ranked if item[2] != "catalog_product"]
     # Reserve a small number of slots for each useful convenience format so
     # the first screen compares meals, kits and cook-at-home shortcuts rather
     # than showing ten near-identical products from one format.
