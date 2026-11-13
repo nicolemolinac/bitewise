@@ -20,7 +20,8 @@ Shopping-time work is local and deterministic:
 5. If lexical retrieval has no confident match, use local multilingual embeddings to suggest
    possible products. Semantic suggestions are review-only: they are not costed or added to REWE
    until the user explicitly chooses one.
-6. A confirmed choice is persisted through the existing product override mechanism.
+6. A confirmed choice is persisted through the existing product override mechanism. Saved recipes are
+   then reconciled locally so their ingredient list, cooking steps, product matches and costs stay in sync.
 
 ## Local semantic index
 
@@ -43,8 +44,8 @@ python index_rewe_semantics.py
 
 The first run downloads the embedding model into `backend/data/models/fastembed`. Product vectors
 are persisted in the database table `product_semantic_embeddings`; unchanged products are skipped
-on later runs. Run the indexer again after refreshing the REWE catalog to embed new or changed
-products. The model files are local runtime data and are excluded from Git.
+on later runs. After the first index has been created, successful REWE catalog refreshes incrementally
+update changed/new products and remove stale vectors. The model files are local runtime data and are excluded from Git.
 
 If the index has not been built, Bitewise continues using multilingual lexical retrieval. If local
 semantic inference is unavailable, it falls back to lexical matching without failing the basket.
@@ -54,6 +55,8 @@ semantic inference is unavailable, it falls back to lexical matching without fai
 ```bash
 python qa_ingredient_intelligence.py
 python qa_ingredient_costing.py
+python qa_recipe_history.py
+python qa_semantic_catalog.py
 ```
 
 The focused QA covers multilingual names, missing AI metadata fallbacks, form conflicts (for example canned vs frozen corn, fresh vs frozen potatoes, and soft tortillas vs tortilla chips), safe substitutions, unit validation, and the rule that semantic suggestions require explicit user confirmation before they affect the basket total. `qa_semantic_catalog.py` tests indexing, incremental updates, retrieval, form filtering, and stale-vector cleanup with a fake local embedding model; it does not download a model or call a paid API.
