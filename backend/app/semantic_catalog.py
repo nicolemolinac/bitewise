@@ -18,7 +18,7 @@ import numpy as np
 from sqlalchemy import func
 
 from .database import Product, ProductSemanticEmbedding
-from .ingredient_intelligence import _form_compatible, normalize_text
+from .ingredient_intelligence import _form_compatible, ingredient_product_match_type, normalize_text
 
 logger = logging.getLogger(__name__)
 MODEL_NAME = os.getenv("BITEWISE_EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
@@ -161,7 +161,13 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
             title = " ".join(str(value or "") for value in (
                 product.name_original, product.name_normalized, product.translated_name, product.category
             ))
-            if not _form_compatible(form, normalize_text(title + " " + str(product.category or "")), ingredient):
+            form_compatible = _form_compatible(
+                form, normalize_text(title + " " + str(product.category or "")), ingredient
+            )
+            curated_match = ingredient_product_match_type(
+                ingredient, title, intelligence, product.category or ""
+            )
+            if not form_compatible and curated_match != "substitute":
                 continue
             if product.price is None or str(product.availability or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
@@ -188,6 +194,7 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
                 "postcode_context": product.postcode_context,
                 "last_checked_at": product.last_checked_at,
                 "ingredient_match_type": "semantic_candidate",
+                "semantic_match_type": curated_match,
                 "semantic_similarity": round(score, 4),
             })
             if len(ranked) >= max(1, limit):
