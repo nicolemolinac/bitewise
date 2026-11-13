@@ -128,6 +128,9 @@ def main():
     <a href="/shop/p/rice-500g/12345">Rice 500g</a><span>1,79 €</span>
     </article></body></html>"""
     from app.rewe.scraper import ReweCatalogScraper
+    from app.rewe.scraper import _canonical_product_url
+    assert _canonical_product_url("https://www.rewe.de/shop/p/rice/12345?source=search#details") == "https://www.rewe.de/shop/p/rice/12345/"
+
     duplicate_source = ReweCatalogScraper(delay=0, browser_enabled=False).extract(
         duplicate_source_html, "https://www.rewe.de/shop/c/kochen-backen/", "Kochen & Backen"
     )
