@@ -14,7 +14,12 @@ os.environ["DATABASE_URL"] = ""
 os.environ["AUTO_RESTORE_LOCAL_REWE"] = "false"
 os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "false"
 
-from app.rewe_refresh import _merge_rewe_product_data
+from app.rewe_refresh import _is_complete_healthy_rewe_report, _merge_rewe_product_data
+from app.rewe.scraper import (
+    REWE_CATEGORY_MINIMUM_PRODUCTS,
+    REWE_CATEGORY_URLS,
+    category_slug_from_url,
+)
 from app.server import app as server_app
 
 
@@ -31,6 +36,35 @@ def product():
 
 
 def main():
+    complete_counts = {
+        category_slug_from_url(url): 1 for url in REWE_CATEGORY_URLS
+    }
+    for category, minimum in REWE_CATEGORY_MINIMUM_PRODUCTS.items():
+        complete_counts[category] = minimum
+    complete_report = {
+        "status": "healthy",
+        "categories_processed": len(REWE_CATEGORY_URLS),
+        "categories_successful": len(REWE_CATEGORY_URLS),
+        "categories_failed": 0,
+        "category_product_counts": complete_counts,
+    }
+    assert _is_complete_healthy_rewe_report(complete_report)
+
+    # A nominally successful scrape that silently misses a large department
+    # must never authorize stale-product deletion.
+    underfilled_report = {
+        **complete_report,
+        "category_product_counts": {
+            **complete_counts,
+            "brot-cerealien-aufstriche": 50,
+        },
+    }
+    assert not _is_complete_healthy_rewe_report(underfilled_report)
+    assert not _is_complete_healthy_rewe_report({
+        **complete_report,
+        "category_product_counts": {},
+    })
+
     refresh_routes = [
         route for route in server_app.routes
         if getattr(route, "path", None) == "/api/rewe/refresh"
