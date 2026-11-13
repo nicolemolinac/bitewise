@@ -167,7 +167,7 @@ def semantic_product_candidates(db, ingredient: str, intelligence: Any = None,
             curated_match = ingredient_product_match_type(
                 ingredient, title, intelligence, product.category or ""
             )
-            if not form_compatible and curated_match != "substitute":
+            if not form_compatible and curated_match not in {"substitute", "suggested_substitution"}:
                 continue
             if product.price is None or str(product.availability or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
