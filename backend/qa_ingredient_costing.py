@@ -139,6 +139,8 @@ def run():
     assert chicken["quantity"] == 500 and chicken["unit"] == "g"
     assert milk_total["quantity"] == 600 and milk_total["unit"] == "ml"
     assert len(garlic_rows) == 2, "Cloves and whole units must not be silently merged"
+    from app.shopping.optimizer import _convert_ingredient_quantity
+    assert _convert_ingredient_quantity(1, "clove", "g", "garlic")[0] == 3
 
     substitute_catalog = FakeCatalog({
         "trofie pasta": [{
