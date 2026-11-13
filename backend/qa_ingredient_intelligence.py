@@ -189,10 +189,6 @@ def run():
     assert ingredient_suggested_substitution_name(
         "curry powder", "Bamboo Garden Thai Curry Paste 100g", {"form": "powder"}
     ) == "curry paste"
-    assert ingredient_suggested_substitution_name(
-        "rolled oats", "Kellogs Special Crunchy Oat Granola Mixed Berries 320g",
-        {"form": "unspecified"}
-    ) == "granola"
     assert ingredient_product_match_type(
         "curry powder", "REWE Bio Garam Masala gemahlen 30g",
         {"form": "powder"}, "oele-sossen-gewuerze"
@@ -209,7 +205,7 @@ def run():
     assert ingredient_product_match_type(
         "rolled oats", "Kellogs Special Crunchy Oat Granola Mixed Berries 320g",
         {"form": "unspecified"}, "brot-cerealien-aufstriche"
-    ) == "suggested_substitution", "Sweetened granola must remain review-only, never auto-applied"
+    ) is None, "Sweetened granola is not a safe ingredient substitute for plain rolled oats"
     assert ingredient_product_match_type(
         "bratwurst", "ja! Schweine-Bratwurst grob 4x100g", {}, "fleisch-wurst-fisch"
     ) == "exact"
