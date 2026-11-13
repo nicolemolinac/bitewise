@@ -119,6 +119,20 @@ def price_details(text: str, package_size=None, package_unit=None):
 
     # The displayed package price is authoritative (including promotional
     # prices); a reference price can be rounded or refer to a different tier.
+    # Refundable bottle deposits are not part of the food/drink checkout price.
+    checkout_text = re.sub(
+        r"(?:zzgl\.?\s*)?(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)\s*Pfand\b",
+        " ",
+        checkout_text,
+        flags=re.I,
+    )
+    checkout_text = re.sub(
+        r"\bPfand(?:betrag)?\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+        " ",
+        checkout_text,
+        flags=re.I,
+    )
+
     for pattern in (
         r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})",
         r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
