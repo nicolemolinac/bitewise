@@ -63,7 +63,9 @@ _BASE_TERMS = {
     "shredded lettuce": ("shredded lettuce", "salatstreifen", "geschnittener eisbergsalat", "eisbergsalat geschnitten", "salatherzen geschnitten", "eisbergsalat"),
     "taco seasoning": ("taco seasoning", "taco gewurz", "taco gewurzmix", "gewurz fur tacos", "mexikanische gewurzmischung"),
     "tortillas": ("tortillas", "weizentortillas", "weizentortilla", "wraps", "tortilla wraps"),
-    "vegetable oil": ("vegetable oil", "pflanzenol", "neutrales ol"),
+    "rapeseed oil": ("rapeseed oil", "rapsöl", "rapsol", "ripsol", "colza oil"),
+    "sunflower oil": ("sunflower oil", "sonnenblumenöl", "sonnenblumenol"),
+    "vegetable oil": ("vegetable oil", "pflanzenöl", "pflanzenol", "neutrales öl", "neutrales ol"),
     "garlic": ("garlic", "knoblauch", "knoblauchzehe", "knoblauchzehen"),
     "salt": ("salt", "salz", "speisesalz", "meersalz", "jodsalz"),
     "frozen french fries": ("frozen french fries", "pommes frites", "pommes", "tiefkuhl pommes", "tiefkuhlpommes", "backofen pommes", "kartoffelstabchen", "pommes tiefgekuhlt", "tiefgekuhlte pommes"),
@@ -135,7 +137,9 @@ def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None)
     substitutes = profile.get("suggested_substitutions", profile.get("allowed_substitutions", []))
     if isinstance(substitutes, str):
         substitutes = [substitutes]
-    terms.update(normalize_text(term) for term in substitutes if isinstance(term, str))
+    for term in substitutes if isinstance(substitutes, list) else []:
+        if isinstance(term, str):
+            terms.update(ingredient_search_terms(term))
     terms.update(normalize_text(term) for term in _SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
     return sorted((term for term in terms if len(term) >= 2), key=lambda term: (-len(term), term))
 
@@ -318,8 +322,10 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     if isinstance(proposed, str):
         proposed = [proposed]
     for term in proposed if isinstance(proposed, list) else []:
-        normalized = normalize_text(term)
-        if normalized and _contains_phrase(title, normalized) and form_compatible and category_compatible:
+        # Resolve the proposed ingredient through the same multilingual alias
+        # catalogue as primary ingredients (e.g. rapeseed oil -> REWE Rapsöl).
+        proposed_terms = ingredient_search_terms(str(term)) if isinstance(term, str) else []
+        if any(_contains_phrase(title, candidate) for candidate in proposed_terms) and form_compatible and category_compatible:
             return "suggested_substitution"
     return None
 
@@ -343,8 +349,9 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
     if isinstance(proposed, str):
         proposed = [proposed]
     for term in sorted(proposed if isinstance(proposed, list) else [], key=lambda value: -len(normalize_text(value))):
-        normalized = normalize_text(term)
-        if normalized and _contains_phrase(title, normalized):
+        if isinstance(term, str) and any(
+            _contains_phrase(title, candidate) for candidate in ingredient_search_terms(term)
+        ):
             return str(term)
     return None
 
