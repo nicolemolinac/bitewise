@@ -24,8 +24,8 @@ _BASE_TERMS = {
     "fresh basil pesto": ("fresh basil pesto", "basil pesto", "basilikumpesto", "basilikum pesto", "pesto genovese", "pesto verde"),
     "pine nuts": ("pine nuts", "pinienkerne", "pinienkerne geschaelt", "pignoli"),
     "tomato": ("tomato", "tomatoes", "tomate", "tomaten", "rispentomaten", "strauchtomaten", "roma tomaten"),
-    "cherry tomato": ("cherry tomato", "cherry tomatoes", "cocktailtomaten", "kirschtomaten", "mini tomaten", "cherrytomaten"),
-    "chicken breast": ("chicken breast", "chicken breasts", "hahnchenbrust", "haehnchenbrust", "hahnchenbrustfilet", "haehnchenbrustfilet", "hahnchenfilets"),
+    "cherry tomato": ("cherry tomato", "cherry tomatoes", "cocktailtomaten", "cocktail tomaten", "kirschtomaten", "kirsch tomaten", "mini tomaten", "cherrytomaten"),
+    "chicken breast": ("chicken breast", "chicken breasts", "hahnchenbrust", "haehnchenbrust", "hahnchen brust", "haehnchen brust", "hahnchenbrustfilet", "haehnchenbrustfilet", "hahnchen brustfilet", "hahnchenfilets"),
     "ground beef": ("ground beef", "minced beef", "rinderhack", "rinderhackfleisch", "hackfleisch rind"),
     "salmon": ("salmon", "lachs", "lachsfilet", "frisches lachsfilet"),
     "flour": ("flour", "mehl", "weizenmehl", "type 405", "type 550"),
@@ -36,7 +36,7 @@ _BASE_TERMS = {
     "bell pepper": ("bell pepper", "bell peppers", "paprika", "rote paprika", "gelbe paprika", "grune paprika", "spitzpaprika"),
     "cucumber": ("cucumber", "cucumbers", "gurke", "gurken", "salatgurke", "schlangengurke"),
     "lemon": ("lemon", "lemons", "zitrone", "zitronen", "bio zitronen"),
-    "olive oil": ("olive oil", "olivenol", "natives olivenol", "extra natives olivenol", "olivenol extra vergine"),
+    "olive oil": ("olive oil", "olivenol", "oliven ol", "natives olivenol", "natives oliven ol", "extra natives olivenol", "olivenol extra vergine"),
     "soy sauce": ("soy sauce", "sojasauce", "sojasosse", "sojasosse", "tamari"),
     "tomato paste": ("tomato paste", "tomatenmark", "tomatenpaste", "tomatenmark doppelt konzentriert"),
     "chickpeas": ("chickpeas", "chickpea", "kichererbsen", "kichererbse", "kichererbsen aus der dose"),
@@ -45,7 +45,7 @@ _BASE_TERMS = {
     "oats": ("oats", "oat flakes", "hafer", "haferflocken", "kernige haferflocken", "zarte haferflocken"),
     "banana": ("banana", "bananas", "banane", "bananen"),
     "baking powder": ("baking powder", "backpulver", "backtriebmittel"),
-    "cornstarch": ("cornstarch", "corn starch", "speisestarke", "maisstarke", "maizena"),
+    "cornstarch": ("cornstarch", "corn starch", "speisestarke", "speise starke", "maisstarke", "mais starke", "maizena"),
     "coconut milk": ("coconut milk", "kokosmilch", "kokosnussmilch", "kokosmilch cremig"),
     "black olives": ("black olives", "schwarze oliven", "oliven schwarz", "olives noires"),
     "canned corn": ("canned corn", "mais aus der dose", "mais dose", "mais konserve", "zuckermais", "dosenmais", "mais konserviert"),
@@ -79,6 +79,10 @@ _SUBSTITUTION_TERMS = {
     "frozen french fries": ("fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"),
     "parmesan cheese": ("grana padano", "grana padano gerieben"),
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
+    "trofie pasta": ("pasta", "nudeln", "penne", "fusilli", "spaghetti"),
+    "cherry tomato": ("tomato", "tomatoes", "tomaten", "rispentomaten", "strauchtomaten"),
+    "olive oil": ("vegetable oil", "sunflower oil", "rapeseed oil", "pflanzenol", "sonnenblumenol", "rapsol"),
+    "cornstarch": ("potato starch", "kartoffelstarke"),
 }
 
 # Ingredient-family unit expectations. Unknown families remain permissive.
@@ -253,18 +257,21 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         )
         if any(term in title_key for term in prepared_terms):
             return False
-        allowed = {"fleisch-wurst-fisch", "fleisch"}
+        allowed = {"fleisch-wurst-fisch", "fleisch", "gefluegel", "fleisch-gefluegel"}
         if normalize_text(form) in {"frozen", "tiefkuhl"}:
             allowed.add("tiefkuehlkost")
         return category_key in allowed
     if name in dairy:
         return category_key == "kaese-eier-molkerei"
     if name in oils:
-        return category_key == "oele-sossen-gewuerze"
+        return category_key in {"oele-sossen-gewuerze", "oele-fette", "oele-und-fette"}
     if name in spices:
         return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
     if name in grains:
-        return category_key in {"kochen-backen", "brot-cerealien-aufstriche"}
+        allowed = {"kochen-backen", "brot-cerealien-aufstriche"}
+        if name == "cornstarch":
+            allowed.update({"backzutaten", "mehl-zucker"})
+        return category_key in allowed
     if name in canned:
         allowed = {"fertiggerichte-konserven", "obst-gemuese"}
         if name in {"chickpeas", "lentils", "kidney beans"}:
