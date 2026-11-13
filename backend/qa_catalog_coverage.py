@@ -39,7 +39,9 @@ def main():
         query = db.query(Product).filter(Product.supermarket == "REWE")
         products = query.all()
         total = len(products)
-        assert total >= 1000, f"REWE snapshot unexpectedly small: {total}"
+        assert total >= 11000, (
+            f"REWE catalog is incomplete: expected the full ~12k snapshot, got {total} products"
+        )
 
         missing_price = sum(row.price is None or float(row.price) <= 0 for row in products)
         availability = Counter(str(row.availability or "unknown").lower() for row in products)
