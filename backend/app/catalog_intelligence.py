@@ -90,9 +90,13 @@ def _convenience_type(text: str, query: str = "", product: Any = None) -> str:
         return "meal_kit"
     # A frozen/retail pizza is a complete meal; pizza dough and pizza kits
     # remain cook-at-home formats and are classified by the rules below.
-    if "pizza" in name and not any(marker in name for marker in (
-        "pizzateig", "pizza dough", "baguette",
-    )):
+    if any(marker in category for marker in ("baby-kind", "babynahrung", "kindernahrung", "baby food")):
+        return "catalog_product"
+    if (
+        "pizza" in name
+        and any(marker in category for marker in ("tiefkuehlkost", "fertiggerichte", "ready meals"))
+        and not any(marker in name for marker in ("pizzateig", "pizza dough", "baguette", "pizza stange"))
+    ):
         return "ready_meal"
     if "gewurze" in category:
         return "prepared_component"
