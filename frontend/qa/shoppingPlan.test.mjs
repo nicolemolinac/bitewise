@@ -30,7 +30,7 @@ test("stale shortcut replacements are excluded after a recipe is unplanned", () 
   };
   assert.deepEqual(
     activeQuickMealReplacements(replacements, liked, weeklyPlan, false),
-    {planned: {label:"planned shortcut"}},
+    {planned: {label:"planned shortcut", weeklyQuantity:2}},
   );
 });
 
