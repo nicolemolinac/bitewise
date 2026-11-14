@@ -145,8 +145,30 @@ def run():
     ], malformed_catalog)
     assert all(row["match_status"] == "unmatched" and row["packs"] == 0 for row in malformed_rows)
 
+    missing_pack_unit_catalog = FakeCatalog({
+        "ambiguous pack": [{
+            "id": 91, "name_original": "Ambiguous pack size 500",
+            "package_size": 500, "price": 2.0, "availability": "available",
+        }],
+    })
+    missing_pack_unit = build_basket(
+        [{"ingredient": "ambiguous pack", "quantity": 100, "unit": "g"}],
+        missing_pack_unit_catalog,
+    )[0]
+    assert missing_pack_unit["match_status"] == "unmatched"
+    assert missing_pack_unit["product"] is None
+
     substitute_basket = build_basket(
-        [{"ingredient": "pine nuts", "quantity": 30, "unit": "g", "source_meals": ["Pesto pasta"]}],
+        [{
+            "ingredient": "pine nuts", "quantity": 30, "unit": "g",
+            "source_meals": ["Pesto pasta"],
+            "ingredient_intelligence": {
+                "canonical": "pine nuts",
+                "substitution_options": [{
+                    "name": "sunflower seeds", "quantity_ratio": 1.0,
+                }],
+            },
+        }],
         catalog,
     )
     assert substitute_basket[0]["match_status"] == "substituted"
@@ -197,6 +219,15 @@ def run():
     assert malformed_ratio_basket[0]["product"] is None
     assert substitute_basket[0]["product"]["ingredient_substitute"] == "sunflower seeds"
     assert substitute_basket[0]["checkout_cost"] == 1.29
+
+    # Unknown or uncurated substitution ratios must not silently become 1:1.
+    uncurated_substitute = build_basket(
+        [{"ingredient": "pine nuts", "quantity": 30, "unit": "g",
+          "source_meals": ["Pesto pasta"]}],
+        catalog,
+    )[0]
+    assert uncurated_substitute["match_status"] == "unmatched"
+    assert uncurated_substitute["product"] is None
 
     pantry_basket = build_basket(
         [{"ingredient": "rice", "quantity": 1, "unit": "kg", "source_meals": ["Meal"]}],
