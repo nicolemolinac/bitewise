@@ -386,7 +386,7 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         "lime", "limes", "zucchini", "avocado", "avocados", "banana", "bananas",
         "strawberry", "strawberries", "blueberry", "blueberries", "parsley",
         "spinach", "broccoli", "cabbage", "aubergine", "eggplant", "asparagus",
-        "celery", "spring",
+        "celery",
     }
     compound_product_terms = (
         "wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen",
