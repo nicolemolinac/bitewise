@@ -379,8 +379,21 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     elif any(term in form for term in ("whole", "ganz", "unground")):
         form = "whole"
     ingredient_tokens = set(normalize_text(ingredient).split())
-    fresh_produce_tokens = {"garlic", "onion", "potato", "tomato", "lettuce", "cilantro", "coriander", "carrot", "olive"}
-    compound_product_terms = ("wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen", "suppe", "brustfilet", "hahnchen", "chicken", "garnelen", "shrimp", "tempeh", "mettwurst", "pesto", "brot", "bread", "butter", "aufstrich")
+    fresh_produce_tokens = {
+        "garlic", "onion", "onions", "potato", "potatoes", "tomato", "tomatoes",
+        "lettuce", "cilantro", "coriander", "carrot", "carrots", "olive", "olives",
+        "mushroom", "mushrooms", "cucumber", "cucumbers", "lemon", "lemons",
+        "lime", "limes", "zucchini", "avocado", "avocados", "banana", "bananas",
+        "strawberry", "strawberries", "blueberry", "blueberries", "parsley",
+        "spinach", "broccoli", "cabbage", "aubergine", "eggplant", "asparagus",
+        "celery", "spring",
+    }
+    compound_product_terms = (
+        "wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen",
+        "suppe", "brustfilet", "hahnchen", "chicken", "garnelen", "shrimp",
+        "tempeh", "mettwurst", "pesto", "brot", "bread", "butter", "aufstrich",
+        "passata", "tomatenmark", "tomato paste", "tomato puree", "tomaten puree",
+    )
     if ingredient_tokens & fresh_produce_tokens and any(token in title for token in compound_product_terms):
         return False
     if form == "fresh" and any(token in title for token in ("tiefkuhl", "frozen", "konserve", "dose", "getrocknet", "gemahlen", "gewurze", "gewurz", "spices", "seasonings")):
