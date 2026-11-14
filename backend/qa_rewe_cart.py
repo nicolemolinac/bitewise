@@ -96,7 +96,7 @@ def test_rewe_cart_dom_probe_contract():
                     "Google Chrome for Testing is required for the REWE cart DOM QA"
                 )
             browser = playwright.chromium.launch(
-                executable_path=executable, headless=True
+                channel="chrome", headless=True
             )
             context = browser.new_context()
             owns_context = True
