@@ -265,6 +265,22 @@ def run():
     assert validate_ingredient_unit("onion", "cloves")["valid"] is False
     assert validate_ingredient_unit("olive oil", "cup")["valid"] is True
 
+    # Common ingredient families must reject nonsensical units even when
+    # recipe-side AI metadata is absent.
+    for produce_name in ("spinach", "broccoli", "mushroom", "cucumber", "lemon", "banana"):
+        assert validate_ingredient_unit(produce_name, "g")["family"] == "produce"
+        assert validate_ingredient_unit(produce_name, "tsp")["valid"] is False
+    for protein_name in ("ground beef", "salmon", "shrimp", "turkey", "bacon", "tofu"):
+        assert validate_ingredient_unit(protein_name, "g")["family"] == "protein"
+        assert validate_ingredient_unit(protein_name, "tsp")["valid"] is False
+    assert validate_ingredient_unit("honey", "tbsp")["family"] == "sweetener"
+    assert validate_ingredient_unit("sugar", "tsp")["valid"] is True
+    assert validate_ingredient_unit("baking powder", "tsp")["family"] == "leavening"
+    assert validate_ingredient_unit("cornstarch", "tbsp")["family"] == "starch"
+    assert validate_ingredient_unit("pine nuts", "cup")["family"] == "nuts"
+    assert validate_ingredient_unit("tomato paste", "tbsp")["family"] == "condiment"
+    assert validate_ingredient_unit("fresh basil pesto", "tbsp")["valid"] is True
+
     # A cross-form frozen product for a fresh fish request is a reviewable
     # substitution, not an exact identity.
     assert ingredient_product_match_type(
