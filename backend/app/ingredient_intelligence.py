@@ -593,7 +593,11 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
 
     # AI-provided names and aliases remain discoverable, but require review
     # unless independently supported by the curated exact-term vocabulary.
-    metadata_terms = set(ingredient_search_terms(ingredient, intelligence)) - trusted_exact_terms
+    metadata_terms = (
+        set(ingredient_search_terms(ingredient, intelligence))
+        - trusted_exact_terms
+        - substitution_only_terms
+    )
     if (
         form_compatible and category_compatible
         and any(_contains_phrase(title, term) for term in metadata_terms if term)
