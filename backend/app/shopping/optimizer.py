@@ -104,6 +104,7 @@ _COUNT_TO_GRAMS = {
     "carrot": 70,
     "bell pepper": 150,
     "romaine lettuce": 100,
+    "lettuce": 250,
     "lemon": 100,
     "lime": 70,
     "apple": 180,
