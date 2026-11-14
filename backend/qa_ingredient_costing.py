@@ -249,6 +249,8 @@ def run():
     assert caesar_ml == 40 and "1 g/ml" in caesar_note
     flour_grams, flour_note = _convert_ingredient_quantity(250, "ml", "g", "wheat flour")
     assert flour_grams == 120 and "0.48 g/ml" in flour_note
+    cheese_grams, cheese_note = _convert_ingredient_quantity(2, "slice", "g", "cheese slices")
+    assert cheese_grams == 40 and "20 g per piece" in cheese_note
     assert romaine_pieces == 1.5 and "100 g per piece" in romaine_note
 
     # Recipe ingredient quantities are generated for 2 servings and scaled exactly once.
