@@ -309,6 +309,13 @@ def _find_chrome_for_testing(playwright):
 
     home = Path.home()
     candidates.extend([
+        # Playwright's `install chrome` installs the branded Chrome for
+        # Testing build at the platform's standard Chrome channel location.
+        Path("/opt/google/chrome/chrome"),
+        Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+        home / "Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        Path("C:/Program Files/Google/Chrome/Application/chrome.exe"),
+        Path("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"),
         Path("/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
         home / "Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
     ])
