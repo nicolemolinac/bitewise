@@ -352,6 +352,7 @@ def run():
     ], {"whole-cumin": 1, "ground-cumin": 1})
     assert len(form_split) == 2
     assert {row["ingredient_intelligence"]["form"] for row in form_split} == {"whole", "powder"}
+    assert {row["ingredient_form"] for row in form_split} == {"whole", "powder"}
     assert sum(row["quantity"] for row in form_split) == 10
     preparation_split = consolidate([
         {"id": "chopped-garlic", "name": "Chopped garlic", "base_servings": 1,
