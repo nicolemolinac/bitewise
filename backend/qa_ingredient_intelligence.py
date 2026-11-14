@@ -577,6 +577,28 @@ def run():
             f"Malformed confidence {malformed_confidence!r} must remain review-only"
         )
 
+    # The normalizer must not turn NaN/Infinity into confidence=1.0
+    # through min/max clamping. Test the complete untrusted-metadata path.
+    for malformed_confidence in ("not-a-number", "NaN", "Infinity", float("nan"), float("inf"), -1, 2, True):
+        normalized_profile = normalize_recipe_intelligence({
+            "ingredients": [["custom cooking fat", 20, "ml"]],
+            "ingredient_intelligence": {
+                "custom cooking fat": {
+                    "canonical": "custom cooking fat", "form": "liquid",
+                    "substitution_options": [{
+                        "name": "Rapsöl", "confidence": malformed_confidence,
+                        "role_preserved": True, "safe_to_auto_apply": True,
+                    }],
+                },
+            },
+        })["custom cooking fat"]
+        assert normalized_profile["substitution_options"][0]["confidence"] == 0.0
+        assert ingredient_product_match_type(
+            "custom cooking fat", "REWE Rapsöl 1L", normalized_profile
+        ) == "suggested_substitution", (
+            f"Normalized malformed confidence {malformed_confidence!r} must remain review-only"
+        )
+
     ratio_profile = {
         "canonical": "custom cooking fat", "form": "liquid",
         "substitution_options": [{
