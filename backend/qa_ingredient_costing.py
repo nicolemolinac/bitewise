@@ -97,6 +97,33 @@ def run():
     assert milk["match_status"] == "matched"
     assert milk["checkout_cost"] == 1.19 and milk["consumed_cost"] == 0.59
 
+    # Exact package multiples must not round up because of binary floating
+    # point noise (0.30000000000000004 / 0.1 is slightly above three).
+    decimal_pack = build_basket(
+        [{"ingredient": "decimal rice", "quantity": 0.30000000000000004,
+          "unit": "g", "source_meals": ["QA"]}],
+        FakeCatalog({"decimal rice": [{
+            "id": 301, "name_original": "Tiny rice pack", "package_size": 0.1,
+            "package_unit": "g", "price": 0.1, "availability": "available",
+        }]}),
+    )[0]
+    assert decimal_pack["match_status"] == "matched"
+    assert decimal_pack["packs"] == 3
+    assert decimal_pack["checkout_cost"] == 0.3
+
+    # Basket pack counts must respect the REWE cart endpoint's 99-pack limit;
+    # do not advertise a matched quantity that cart handoff silently truncates.
+    over_cart_limit = build_basket(
+        [{"ingredient": "bulk rice", "quantity": 100, "unit": "g",
+          "source_meals": ["QA"]}],
+        FakeCatalog({"bulk rice": [{
+            "id": 302, "name_original": "One gram rice pack", "package_size": 1,
+            "package_unit": "g", "price": 0.01, "availability": "available",
+        }]}),
+    )[0]
+    assert over_cart_limit["match_status"] == "unmatched"
+    assert over_cart_limit["packs"] == 0
+
     assert unknown["match_status"] == "unmatched"
     assert unknown["checkout_cost"] == 0
     assert unpriced["match_status"] == "unmatched"
