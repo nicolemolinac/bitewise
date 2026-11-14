@@ -242,6 +242,17 @@ _SPOON_GRAMS_PER_TSP = {
 
 def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
     """Convert standard units plus explicit ingredient-specific kitchen estimates."""
+    # Pantry and recipe quantities are external input. Never let NaN, infinity,
+    # or negative values flow into conversions (an infinite pantry amount would
+    # otherwise make the basket appear fully covered).
+    if isinstance(quantity, bool):
+        return None, None
+    try:
+        quantity = float(quantity)
+    except (TypeError, ValueError, OverflowError):
+        return None, None
+    if not math.isfinite(quantity) or quantity < 0:
+        return None, None
     converted = _convert_quantity(quantity, from_unit, to_unit)
     if converted is not None:
         return converted, None
