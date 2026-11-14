@@ -1,4 +1,5 @@
 import csv
+import math
 import os
 import re
 import sqlite3
@@ -322,9 +323,10 @@ def _snapshot_float(value, default=None):
     if value is None or str(value).strip() == "":
         return default
     try:
-        return float(str(value).strip().replace(",", "."))
-    except (TypeError, ValueError):
+        parsed = float(str(value).strip().replace(",", "."))
+    except (OverflowError, TypeError, ValueError):
         return default
+    return parsed if math.isfinite(parsed) else default
 
 
 def _snapshot_package_size(name: str, current_size: float, current_unit: str) -> float:
@@ -364,16 +366,31 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         re.I,
     )
     unit_price = _snapshot_float(match.group(2)) if match else None
+    if unit_price is not None and unit_price <= 0:
+        unit_price = None
     standard_unit = match.group(1).lower() if match else ""
-    if unit_price is not None and standard_unit == "kg" and package_unit == "g":
+    if (
+        unit_price is not None and math.isfinite(package_size) and package_size > 0
+        and standard_unit == "kg" and package_unit == "g"
+    ):
         return round(unit_price * package_size / 1000, 2), unit_price / 1000
-    if unit_price is not None and standard_unit == "l" and package_unit == "ml":
+    if (
+        unit_price is not None and math.isfinite(package_size) and package_size > 0
+        and standard_unit == "l" and package_unit == "ml"
+    ):
         return round(unit_price * package_size / 1000, 2), unit_price / 1000
-    if unit_price is not None and standard_unit.startswith(("stk", "stück")) and package_unit == "unit":
+    if (
+        unit_price is not None and math.isfinite(package_size) and package_size > 0
+        and standard_unit.startswith(("stk", "stück")) and package_unit == "unit"
+    ):
         return round(unit_price * package_size, 2), unit_price
     fallback = _snapshot_float(raw_price)
+    if fallback is not None and fallback <= 0:
+        fallback = None
     per_unit = _snapshot_float(raw_price_per_unit)
-    if per_unit is None and fallback is not None and package_size > 0:
+    if per_unit is not None and per_unit <= 0:
+        per_unit = None
+    if per_unit is None and fallback is not None and math.isfinite(package_size) and package_size > 0:
         per_unit = fallback / package_size
     return fallback, per_unit
 
@@ -447,7 +464,7 @@ def _auto_import_rewe_csv_snapshot() -> None:
                 if not source_id:
                     source_id = str(len(products) + 1)
                 package_size = _snapshot_float(row.get("package_size"), 1.0)
-                package_size = package_size if package_size and package_size > 0 else 1.0
+                package_size = package_size if package_size is not None and package_size > 0 else 1.0
                 package_unit = str(row.get("package_unit") or "unit").strip()[:20]
                 package_size = _snapshot_package_size(name, package_size, package_unit)
                 pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
@@ -603,7 +620,7 @@ def _repair_snapshot_unit_prices_once() -> None:
                 continue
 
             source_price = _snapshot_float(row.get("price"))
-            if source_price is None or product.price is None:
+            if source_price is None or source_price <= 0 or product.price is None or float(product.price) <= 0:
                 unmatched += 1
                 continue
             package_size = _snapshot_float(row.get("package_size"), product.package_size) or product.package_size
