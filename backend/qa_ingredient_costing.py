@@ -312,7 +312,7 @@ def run():
         {"id": "herbs", "name": "Herb recipe", "base_servings": 1,
          "ingredients": [["fresh cilantro", 1, "Bund"]]},
     ], {"herbs": 1})
-    assert bunch_requirement[0]["unit"] == "piece"
+    assert bunch_requirement[0]["unit"] == "bunch"
     assert bunch_requirement[0]["quantity"] == 1
 
     four_servings = consolidate([
