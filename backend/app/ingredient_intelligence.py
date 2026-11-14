@@ -5,9 +5,21 @@ All shopping-time normalization, retrieval hints and validation are deterministi
 """
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from typing import Any
+
+
+def _safe_confidence(value: Any) -> float:
+    """Parse untrusted model confidence without letting malformed metadata crash matching."""
+    if isinstance(value, bool):
+        return 0.0
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return 0.0
+    return confidence if math.isfinite(confidence) and 0.0 <= confidence <= 1.0 else 0.0
 
 
 def normalize_text(value: Any) -> str:
@@ -718,7 +730,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
             safe_option = (
                 option.get("safe_to_auto_apply") is True
                 and option.get("role_preserved") is True
-                and float(option.get("confidence") or 0) >= 0.85
+                and _safe_confidence(option.get("confidence")) >= 0.85
             )
             # A declared transformation may cross the requested retail form
             # (e.g. frozen fries -> fresh potatoes) only when it includes an
