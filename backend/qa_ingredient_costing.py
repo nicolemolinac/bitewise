@@ -247,6 +247,13 @@ def run():
     assert onion_basket[0]["unit_conversion_note"] == "Estimated 150 g per piece of onion."
     assert onion_basket[0]["needed_quantity"] == 2
     assert onion_basket[0]["checkout_cost"] == 1.49
+    infinite_pantry_basket = build_basket(
+        [{"ingredient": "onion", "quantity": 2, "unit": "piece", "source_meals": ["Chorrillana"]}],
+        onion_catalog, mode="cheapest",
+        pantry={"onion": {"quantity": float("inf"), "unit": "piece"}},
+    )
+    assert infinite_pantry_basket[0]["match_status"] == "matched"
+    assert infinite_pantry_basket[0]["pantry_used"] == 0
 
     fries_catalog = FakeCatalog({
         "frozen french fries": [{
