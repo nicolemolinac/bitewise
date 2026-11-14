@@ -36,11 +36,22 @@ test("stale shortcut replacements are excluded after a recipe is unplanned", () 
 
 test("unplanned shortcuts are included only when explicitly requested", () => {
   const replacements = {
-    planned: {label:"planned shortcut"},
-    "unplanned-a": {label:"unplanned shortcut"},
+    planned: {label:"planned shortcut", weeklyQuantity:1},
+    "unplanned-a": {label:"unplanned shortcut", weeklyQuantity:4},
   };
   assert.deepEqual(
     activeQuickMealReplacements(replacements, liked, weeklyPlan, true),
-    replacements,
+    {
+      planned: {label:"planned shortcut", weeklyQuantity:2},
+      "unplanned-a": {label:"unplanned shortcut", weeklyQuantity:1},
+    },
+  );
+});
+
+test("planned shortcut quantity follows the current number of calendar occurrences", () => {
+  const replacements = {planned: {label:"shortcut", weeklyQuantity:1}};
+  assert.deepEqual(
+    activeQuickMealReplacements(replacements, liked, weeklyPlan, false),
+    {planned: {label:"shortcut", weeklyQuantity:2}},
   );
 });
