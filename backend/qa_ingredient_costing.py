@@ -260,6 +260,14 @@ def run():
     ], {"single": 1})
     assert one_serving[0]["quantity"] == 75
 
+    duplicate_names = consolidate([
+        {"id": "duplicates", "name": "Duplicate ingredient QA", "base_servings": 1,
+         "ingredients": [["Red-onion", 50, "g"], ["red onion", 20, "g"], ["RED ONION", 10, "g"]]},
+    ], {"duplicates": 1})
+    assert len(duplicate_names) == 1
+    assert duplicate_names[0]["ingredient"] == "red onion"
+    assert duplicate_names[0]["quantity"] == 80
+
     bunch_requirement = consolidate([
         {"id": "herbs", "name": "Herb recipe", "base_servings": 1,
          "ingredients": [["fresh cilantro", 1, "Bund"]]},
