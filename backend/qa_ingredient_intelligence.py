@@ -105,6 +105,16 @@ def run():
     assert ingredient_product_match_type(
         "milk", "Alpro Haferdrink 1L", milk_profile, "kaffee-tee-kakao"
     ) == "suggested_substitution"
+    butter_profile = {
+        "canonical": "butter", "name_en": "butter", "name_de": "Butter",
+        "aliases": ["Butter"], "form": "solid",
+    }
+    assert ingredient_product_match_type(
+        "butter", "REWE Deutsche Markenbutter 250g", butter_profile, "kaese-eier-molkerei"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "butter", "REWE Kräuterbutter 125g", butter_profile, "kaese-eier-molkerei"
+    ) is None
 
     # Compound spice names must be classified as spices before generic
     # produce substrings; bell pepper remains produce.
