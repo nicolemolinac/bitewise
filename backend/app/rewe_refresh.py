@@ -84,9 +84,11 @@ def rewe_refresh_safe():
 
     before_count = db.query(Product).filter(Product.supermarket == "REWE").count()
     seen_external_ids: set[str] = set()
+    skipped_invalid_package = 0
 
     try:
         def upsert(data, current_postcode):
+            nonlocal skipped_invalid_package
             external_id = str(data["external_id"])
             seen_external_ids.add(external_id)
             existing = (
@@ -162,8 +164,13 @@ def rewe_refresh_safe():
                 db.flush()
                 return False
 
-            incoming.setdefault("package_size", 1.0)
-            incoming.setdefault("package_unit", "unit")
+            if not valid_package:
+                # A new catalog row without a measurable package cannot be
+                # costed safely. Do not invent "1 unit" and expose it as purchasable.
+                skipped_invalid_package += 1
+                return False
+            incoming["package_size"] = package_size
+            incoming["package_unit"] = package_unit
             db.add(Product(supermarket="REWE", postcode_context=current_postcode, **incoming))
             db.flush()
             return True
@@ -208,6 +215,7 @@ def rewe_refresh_safe():
         return {
             "ok": report["status"] != "failed",
             **report,
+            "products_skipped_invalid_package": skipped_invalid_package,
             **reconciliation,
             "semantic_index": semantic_index,
             "catalog_before": before_count,
