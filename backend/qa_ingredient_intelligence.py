@@ -92,6 +92,9 @@ def run():
         {"canonical": "soft tortillas", "form": "soft", "aliases": ["Wraps"]},
         "fertiggerichte-konserven",
     ) == "substitute"
+    assert ingredient_substitution_name(
+        "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g"
+    ) == "high protein wraps"
 
     raw = {
         "ingredients": [
