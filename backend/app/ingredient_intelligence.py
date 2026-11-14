@@ -300,8 +300,8 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     )):
         return False
     if form == "minced" and not any(token in title for token in (
-        "hackfleisch", "gehackt", "minced", "ground meat", "ground beef",
-        "hack", "faschiertes",
+        "hackfleisch", "rinderhack", "gemischtes hack", "gehackt",
+        "minced", "ground meat", "ground beef", "faschiertes",
     )):
         return False
     if form == "whole" and any(token in title for token in (
