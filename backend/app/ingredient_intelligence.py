@@ -486,8 +486,9 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
         "cucumber", "bell pepper", "carrot", "broccoli", "fresh cilantro",
         "mushroom", "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
-        "red cabbage", "strawberry", "strawberries", "blueberries", "banana", "parsley",
-        "spinach", "broccoli",
+        "red cabbage", "strawberry", "strawberries", "blueberries", "banana",
+        "parsley", "basil", "dill", "thyme", "rosemary", "mint", "chives",
+        "sage", "marjoram", "oregano", "spinach", "broccoli",
     }
     proteins = {
         "chicken breast", "pre cooked shredded chicken", "ground beef",
@@ -574,7 +575,14 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             return category_key == "tiefkuehlkost"
         if normalized_form in {"canned", "konserve"}:
             return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
-        return category_key == "obst-gemuese" or (name == "fresh cilantro" and category_key == "frische-krauter")
+        fresh_herbs = {
+            "fresh cilantro", "cilantro", "coriander", "parsley", "basil",
+            "dill", "thyme", "rosemary", "mint", "chives", "sage",
+            "marjoram", "oregano",
+        }
+        return category_key == "obst-gemuese" or (
+            name in fresh_herbs and category_key in {"frische-krauter", "krauter"}
+        )
     if name in proteins:
         prepared_terms = (
             "ofenbrot", "bolognese", "penne", "lasagne", "suppe",
