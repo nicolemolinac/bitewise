@@ -40,6 +40,7 @@ _BASE_TERMS = {
     "croutons": ("croutons", "brotcroutons", "croûtons"),
     "canned chopped tomatoes": ("canned chopped tomatoes", "stuckige tomaten", "tomaten stuecke", "tomaten in stuecken"),
     "risotto rice": ("risotto rice", "risottoreis", "risotto reis", "arborio reis", "carnaroli reis"),
+    "rice": ("rice", "reis", "langkornreis", "basmati reis", "basmatireis", "jasminreis", "jasmine rice", "long grain rice"),
     "rolled oats": ("rolled oats", "haferflocken", "kernige haferflocken"),
     "black olives": ("black olives", "schwarze oliven", "oliven schwarz", "olives noires"),
     "canned corn": ("canned corn", "mais aus der dose", "mais dose", "mais konserve", "zuckermais", "dosenmais", "mais konserviert"),
