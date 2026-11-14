@@ -169,8 +169,15 @@ def _ingredient_count_weight(ingredient):
     # Intersecting arbitrary alias tokens can misclassify compounds such as
     # "turkey bacon" as turkey (150 g) instead of bacon (15 g per slice).
     normalized = normalize_text(ingredient)
+    # "pepper" and "paprika" are ambiguous across fresh bell pepper and
+    # dried seasonings. The broad bilingual alias ontology intentionally
+    # links them for search, but that must never authorize a piece-weight
+    # estimate (e.g. 1 tsp pepper -> 150 g bell pepper).
+    if normalized in {"pepper", "paprika"}:
+        return None
     for canonical, grams in _COUNT_TO_GRAMS.items():
-        if normalized in set(ingredient_aliases(canonical)):
+        aliases = {normalize_text(alias) for alias in ingredient_aliases(canonical)}
+        if normalized in aliases:
             return grams
     return None
 
