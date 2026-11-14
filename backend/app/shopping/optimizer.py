@@ -660,7 +660,17 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             )
             if needed_in_pack_unit is None:
                 continue
-            packs = max(1, math.ceil(needed_in_pack_unit / pack_qty))
+            # The cart handoff accepts at most 99 packs per line. Reject
+            # requirements beyond that contract instead of displaying a basket
+            # that can never be added in the requested quantity.
+            raw_pack_count = needed_in_pack_unit / pack_qty
+            if not math.isfinite(raw_pack_count) or raw_pack_count > 99:
+                continue
+            # Floating-point division can turn an exact multiple (e.g. 0.3 / 0.1)
+            # into a value infinitesimally above an integer and charge for an
+            # unnecessary extra pack. Subtract a scale-aware numerical tolerance.
+            pack_count_with_tolerance = raw_pack_count - 1e-12 * max(1.0, abs(raw_pack_count))
+            packs = max(1, math.ceil(pack_count_with_tolerance))
             purchased_quantity = packs * pack_qty
             waste_in_pack_unit = max(0.0, purchased_quantity - needed_in_pack_unit)
             checkout_cost = packs * float(price)
