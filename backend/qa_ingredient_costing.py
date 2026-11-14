@@ -2,7 +2,7 @@
 
 Run from backend/: python qa_ingredient_costing.py
 """
-from app.shopping.optimizer import _convert_ingredient_quantity, build_basket, consolidate
+from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quantity, build_basket, consolidate
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -212,6 +212,9 @@ def run():
     assert cilantro_bunches["quantity"] == 2
     assert cilantro_pieces["quantity"] == 2
     assert len(herb_counts) == 2, "Bunches and loose pieces must not be silently merged"
+
+    assert _convert_quantity(1, "bunch", "piece") is None
+    assert _convert_quantity(1, "piece", "bunch") is None
 
     substitute_catalog = FakeCatalog({
         "trofie pasta": [{
