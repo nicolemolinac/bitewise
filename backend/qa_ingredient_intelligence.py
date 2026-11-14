@@ -351,12 +351,13 @@ def run():
         {"canonical": "pizza dough", "form": "fresh", "aliases": ["Pizzateig"]},
         "kochen-backen",
     ) == "suggested_substitution"
-    assert ingredient_product_match_type(
+    high_protein_wrap_match = ingredient_product_match_type(
         "soft tortillas",
         "REWE Beste Wahl High Protein Wraps 320g",
         {"canonical": "soft tortillas", "form": "soft", "aliases": ["Wraps"]},
         "fertiggerichte-konserven",
-    ) == "substitute"
+    )
+    assert high_protein_wrap_match == "substitute", high_protein_wrap_match
     assert ingredient_substitution_name(
         "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g"
     ) == "high protein wraps"
