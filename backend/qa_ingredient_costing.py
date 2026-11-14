@@ -86,6 +86,21 @@ def run():
     assert unpriced["match_status"] == "unmatched"
     assert unpriced["checkout_cost"] == 0
 
+    # Fractional count requirements must measure waste against the actual
+    # amount needed; max(needed, 1) understated half-onion leftovers.
+    half_onion_catalog = FakeCatalog({
+        "onion": [{
+            "id": 24, "name_original": "REWE Zwiebel 1 Stück", "package_size": 1,
+            "package_unit": "piece", "price": 1.0, "availability": "available",
+        }],
+    })
+    half_onion = build_basket(
+        [{"ingredient": "onion", "quantity": 0.5, "unit": "piece", "source_meals": ["QA"]}],
+        half_onion_catalog, mode="best-value",
+    )[0]
+    assert half_onion["waste"] == 0.5
+    assert half_onion["waste_ratio"] == 1.0
+
     malformed_catalog = FakeCatalog({
         "negative price": [{
             "id": 20, "name_original": "Invalid negative price", "package_size": 100,
