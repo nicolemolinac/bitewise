@@ -35,7 +35,9 @@ def consolidate(meals, servings_map):
                 and math.isfinite(raw_quantity)
                 and raw_quantity > 0
             )
-            normalized_unit = _normal_unit(unit)
+            raw_unit = str(unit or "").strip()
+            unit_valid = bool(raw_unit)
+            normalized_unit = _normal_unit(raw_unit) if unit_valid else ""
             unit_info = _UNIT_BASE.get(normalized_unit)
             if unit_info:
                 dimension, multiplier = unit_info
@@ -73,7 +75,13 @@ def consolidate(meals, servings_map):
                     or intelligence.get(name)
                     or row["ingredient_intelligence"]
                 )
-            row["unit_validation"] = validate_ingredient_unit(name, normalized_unit, row["ingredient_intelligence"])
+            row["unit_validation"] = (
+                validate_ingredient_unit(name, normalized_unit, row["ingredient_intelligence"])
+                if unit_valid else {
+                    "valid": False, "family": None,
+                    "reason": "Ingredient unit is missing; add an explicit unit before shopping.",
+                }
+            )
     return [
         {
             "ingredient": value.get("display_ingredient") or ingredient,
@@ -500,6 +508,16 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             output.append(base)
             continue
 
+        unit_validation = base["unit_validation"]
+        if not unit_validation.get("valid", True):
+            base.update({
+                "unit_validation": unit_validation,
+                "match_reason": unit_validation.get("reason") or "Ingredient unit failed validation.",
+                "why": "Recipe ingredient needs a valid unit before safe product matching.",
+            })
+            output.append(base)
+            continue
+
         if ingredient in owned or needed <= 0:
             base.update({
                 "needed_quantity": 0.0 if ingredient in owned else 0.0,
@@ -514,15 +532,6 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
 
         candidates = []
         semantic_suggestions = []
-        unit_validation = requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit, requirement.get("ingredient_intelligence"))
-        if not unit_validation.get("valid", True):
-            base.update({
-                "unit_validation": unit_validation,
-                "match_reason": unit_validation.get("reason") or "Ingredient unit failed validation.",
-                "why": "Recipe ingredient needs correction before safe product matching.",
-            })
-            output.append(base)
-            continue
         intelligence = requirement.get("ingredient_intelligence")
         try:
             raw_products = list(adapter.search(ingredient, intelligence=intelligence) or [])
