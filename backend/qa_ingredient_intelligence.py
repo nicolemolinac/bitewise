@@ -95,6 +95,24 @@ def run():
     assert ingredient_substitution_name(
         "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g"
     ) == "high protein wraps"
+    assert ingredient_product_match_type(
+        "burger buns", "Actipan Das Vollkornbrötchen 570g, 6 Stück",
+        {"form": "unspecified"}, "brot-cerealien-aufstriche"
+    ) == "substitute"
+    assert ingredient_substitution_name(
+        "burger buns", "Actipan Das Vollkornbrötchen 570g, 6 Stück"
+    ) == "bread rolls"
+    assert ingredient_product_match_type(
+        "greek yogurt", "Andechser Natur Bio Joghurt Griechischer Art 400g",
+        {"form": "unspecified"}, "kaese-eier-molkerei"
+    ) == "substitute"
+    assert ingredient_substitution_name(
+        "greek yogurt", "Andechser Natur Bio Joghurt Griechischer Art 400g"
+    ) == "Greek-style yogurt"
+    assert ingredient_product_match_type(
+        "greek yogurt", "Elinas Joghurt Griechischer Art Blutorange 4x150g",
+        {"form": "unspecified"}, "kaese-eier-molkerei"
+    ) is None
 
     raw = {
         "ingredients": [
