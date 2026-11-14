@@ -138,10 +138,18 @@ def run():
             "id": 23, "name_original": "Invalid NaN pack", "package_size": float("nan"),
             "package_unit": "g", "price": 1.0, "availability": "available",
         }],
+        "boolean pack": [{
+            "id": 25, "name_original": "Invalid boolean pack", "package_size": True,
+            "package_unit": "g", "price": 1.0, "availability": "available",
+        }],
+        "boolean price": [{
+            "id": 26, "name_original": "Invalid boolean price", "package_size": 100,
+            "package_unit": "g", "price": True, "availability": "available",
+        }],
     })
     malformed_rows = build_basket([
         {"ingredient": name, "quantity": 10, "unit": "g", "source_meals": ["QA"]}
-        for name in ("negative price", "nan price", "zero price", "zero pack", "nan pack")
+        for name in ("negative price", "nan price", "zero price", "zero pack", "nan pack", "boolean pack", "boolean price")
     ], malformed_catalog)
     assert all(row["match_status"] == "unmatched" and row["packs"] == 0 for row in malformed_rows)
 
@@ -221,6 +229,21 @@ def run():
     assert substitute_basket[0]["quantity_ratio"] == 1.5
     assert substitute_basket[0]["product_needed_quantity"] == 45
     assert substitute_basket[0]["checkout_cost"] == 1.29
+
+    # A substitute must identify the replacement ingredient as well as
+    # declare its ratio; otherwise the original quantity cannot be reused.
+    unidentified_substitute = build_basket(
+        [{"ingredient": "custom cooking fat", "quantity": 20, "unit": "ml",
+          "ingredient_intelligence": {"canonical": "custom cooking fat",
+              "substitution_options": [{"name": "rapeseed oil", "quantity_ratio": 1.0}]}}],
+        FakeCatalog({"custom cooking fat": [{
+            "id": 27, "name_original": "REWE Rapsöl 500ml", "package_size": 500,
+            "package_unit": "ml", "price": 1.5, "availability": "available",
+            "ingredient_match_type": "substitute",
+        }]}),
+    )[0]
+    assert unidentified_substitute["match_status"] == "unmatched"
+    assert unidentified_substitute["product"] is None
 
     # Unknown or uncurated substitution ratios must not silently become 1:1.
     uncurated_substitute = build_basket(
