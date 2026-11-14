@@ -153,8 +153,8 @@ _UNIT_FAMILIES = {
     "oil": {"ml", "l", "cup", "tbsp", "tsp"},
     "liquid": {"ml", "l", "g", "kg", "tbsp", "tsp", "cup"},
     "spice": {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"},
-    "produce": {"g", "kg", "piece", "unit"},
-    "count": {"piece", "unit"},
+    "produce": {"g", "kg", "piece", "unit", "bunch"},
+    "count": {"piece", "unit", "bunch"},
 }
 _FAMILY_HINTS = {
     "oil": ("oil", "pflanzenol", "sonnenblumenol", "rapsol", "olivenol"),
