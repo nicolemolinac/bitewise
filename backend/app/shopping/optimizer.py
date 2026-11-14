@@ -37,6 +37,7 @@ def consolidate(meals, servings_map):
             # separate shopping lines.
             key = (normalize_text(name), normalized_unit)
             row = grouped[key]
+            row.setdefault("display_ingredient", name.strip())
             row["quantity"] += normalized_quantity * factor
             row["source_meals"].append(meal["name"])
             intelligence = meal.get("ingredient_intelligence") or {}
@@ -53,7 +54,7 @@ def consolidate(meals, servings_map):
             row["unit_validation"] = validate_ingredient_unit(name, normalized_unit, row["ingredient_intelligence"])
     return [
         {
-            "ingredient": ingredient,
+            "ingredient": value.get("display_ingredient") or ingredient,
             "quantity": round(value["quantity"], 2),
             "unit": unit,
             "source_meals": list(dict.fromkeys(value["source_meals"])),
