@@ -1178,6 +1178,15 @@ def run():
     assert ingredient_product_match_type(
         "chicken breast", "REWE Bio Haehnchenbrust 400g", {}, "Fleisch"
     ) == "exact"
+    transliterated_alias_profile = {
+        "canonical": "chicken breast", "name_en": "chicken breast",
+        "form": "fresh", "aliases": ["Haehnchenbrust"],
+    }
+    assert ingredient_product_match_type(
+        "chicken breast", "REWE Bio Hähnchenbrust 400g",
+        transliterated_alias_profile, "Fleisch"
+    ) == "exact"
+    assert normalize_text("one   two") == "one two"
     # A transliterated German query should also retrieve the umlaut spelling.
     assert "hähnchenbrust" in ingredient_candidate_search_terms("haehnchenbrust")
 
