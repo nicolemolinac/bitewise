@@ -313,8 +313,17 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
             return False
         if any(token in title for token in ("frisch", "fresh", "konserve", "dose", "canned", "getrocknet", "dried", "obst gemuse", "fresh produce")):
             return False
-    if form in {"canned", "konserve"} and any(token in title for token in ("tiefkuhl", "frozen", "frisch", "fresh")):
-        return False
+    if form in {"canned", "konserve"}:
+        if any(token in title for token in ("tiefkuhl", "frozen", "frisch", "fresh")):
+            return False
+        # Canned requests need positive preservation/retail-aisle evidence.
+        # A bare overlap such as "Zuckermais" must not turn fresh corn into
+        # canned corn merely because the product has no explicit "fresh" label.
+        canned_markers = (
+            "dose", "konserve", "canned", "tinned", "fertiggerichte konserven",
+        )
+        if not any(marker in title for marker in canned_markers):
+            return False
     if form in {"grated", "gerieben"} and not any(token in title for token in ("gerieben", "geraspelt", "grated")):
         return False
     if form == "soft" and any(token in title for token in ("chips", "nacho", "hard shell", "taco shell", "knusprig", "crunchy", "snack", "knabberartikel", "salzig", "salted", "gesalzen")):
