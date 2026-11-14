@@ -190,9 +190,20 @@ def run():
     assert normalize_recipe_intelligence({
         "ingredients": [["ground beef", 500, "g"]]
     })["ground beef"]["form"] == "minced"
+    assert normalize_recipe_intelligence({
+        "ingredients": [["ground cumin", 2, "tsp"]]
+    })["ground cumin"]["form"] == "powder"
     assert ingredient_product_match_type(
         "ground beef", "REWE Bio Rinder Hackfleisch 500g",
-        {"canonical": "ground beef", "form": "minced"}, "fleisch-wurst"
+        {"canonical": "ground beef", "name_en": "ground beef",
+         "name_de": "Rinder Hackfleisch", "aliases": ["Rinder Hackfleisch"],
+         "form": "ground"}, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "ground beef", "REWE Bio Rinder Hackfleisch 500g",
+        {"canonical": "ground beef", "name_en": "ground beef",
+         "name_de": "Rinder Hackfleisch", "aliases": ["Rinder Hackfleisch"],
+         "form": "minced"}, "fleisch-wurst-fisch"
     ) == "exact"
     assert ingredient_product_match_type(
         "ground beef", "REWE Rindersteak 500g",
