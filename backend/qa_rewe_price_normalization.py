@@ -11,6 +11,12 @@ def main():
     )
     assert pack_price == 1.99
     assert abs(per_gram - 0.01106) < 0.000001
+    # Promotional checkout price takes precedence over a stale/reference unit price.
+    promo_price, promo_per_gram = price_details(
+        "Alete Kinderkeks 1,79 € (1 kg = 11,06 €)", size, unit
+    )
+    assert promo_price == 1.79
+    assert abs(promo_per_gram - (1.79 / 180)) < 0.000001
 
     size, unit = package("Alete Drink 2x200ml (1 l = 5,48 €)")
     assert size == 400 and unit == "ml"
