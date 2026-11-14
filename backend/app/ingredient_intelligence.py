@@ -156,6 +156,7 @@ _UNIT_FAMILIES = {
     "produce": {"g", "kg", "piece", "unit", "bunch"},
     "count": {"piece", "unit", "bunch"},
     "grains": {"g", "kg", "ml", "cup"},
+    "legumes": {"g", "kg", "ml", "cup"},
     "dairy_solid": {"g", "kg", "piece", "slice"},
 }
 _FAMILY_HINTS = {
@@ -168,6 +169,11 @@ _FAMILY_HINTS = {
         "rice", "reis", "pasta", "spaghetti", "noodles", "nudeln",
         "flour", "mehl", "oats", "haferflocken", "breadcrumbs",
         "semmelbrosel", "cereal", "cereals",
+    ),
+    "legumes": (
+        "butter beans", "kidney beans", "chickpeas", "garbanzo beans",
+        "black beans", "white beans", "cannellini beans", "baked beans",
+        "beans", "bohnen", "kichererbsen", "linsen", "lentils",
     ),
     "dairy_solid": (
         "cheese", "kaese", "butter", "mozzarella", "feta", "parmesan",
