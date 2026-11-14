@@ -26,8 +26,17 @@ def normalize_text(value: Any) -> str:
     text = unicodedata.normalize("NFKD", str(value or "").casefold().replace("ß", "ss"))
     text = "".join(char for char in text if not unicodedata.combining(char))
     text = re.sub(r"[^a-z0-9]+", " ", text)
-    return re.sub(r"\s+", " ", text).strip()
+    return re.sub(r"\\s+", " ", text).strip()
 
+
+def _german_transliteration_fold(value: str) -> str:
+    """Treat common German ae/oe/ue spellings as their umlaut equivalents."""
+    return re.sub(r"ae", "a", re.sub(r"oe", "o", re.sub(r"ue", "u", value)))
+
+
+def _german_umlaut_search_variant(value: str) -> str:
+    """Produce a retrieval-only German spelling for ASCII transliterations."""
+    return re.sub(r"ae", "ä", re.sub(r"oe", "ö", re.sub(r"ue", "ü", value)))
 
 # Small, high-confidence cross-language vocabulary. This is a seed ontology,
 # not the full catalog: recipe-side AI metadata expands it per ingredient.
@@ -335,12 +344,25 @@ def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None)
     retrieval_terms = set(terms)
     for term in terms:
         retrieval_terms.update(_RETAIL_QUERY_VARIANTS.get(term, ()))
+        # SQL searches original REWE titles too; add umlaut spellings for
+        # ASCII German transliterations. Strict matching validates the title.
+        umlaut_variant = _german_umlaut_search_variant(term)
+        if umlaut_variant != term:
+            retrieval_terms.add(umlaut_variant)
     return sorted((term for term in retrieval_terms if len(normalize_text(term)) >= 2),
                   key=lambda term: (-len(normalize_text(term)), term))
 
 
 def _contains_phrase(title: str, phrase: str) -> bool:
-    return bool(phrase and (" " + phrase + " ") in (" " + title + " "))
+    if not phrase:
+        return False
+    if (" " + phrase + " ") in (" " + title + " "):
+        return True
+    # German umlaut and ASCII-transliterated forms are equivalent, while
+    # surrounding spaces preserve whole-phrase matching (never substrings).
+    return (" " + _german_transliteration_fold(phrase) + " ") in (
+        " " + _german_transliteration_fold(title) + " "
+    )
 
 
 def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
