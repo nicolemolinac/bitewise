@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -77,13 +78,20 @@ def package(text: str):
         if item.group(3).lower() not in {"stk", "st.", "stück"}
     ]
     match = (physical_matches or matches)[-1]
-    multiplier = int(match.group(1) or 1)
-    amount = float(match.group(2).replace(",", ".")) * multiplier
+    try:
+        multiplier = int(match.group(1) or 1)
+        amount = float(match.group(2).replace(",", ".")) * multiplier
+    except (OverflowError, TypeError, ValueError):
+        return None, None
+    if not math.isfinite(amount) or amount <= 0:
+        return None, None
     unit = match.group(3).lower()
     if unit == "kg":
-        return amount * 1000, "g"
+        amount *= 1000
+        return (amount, "g") if math.isfinite(amount) else (None, None)
     if unit == "l":
-        return amount * 1000, "ml"
+        amount *= 1000
+        return (amount, "ml") if math.isfinite(amount) else (None, None)
     if unit in ("stk", "st.", "stück"):
         return amount, "unit"
     return amount, unit
@@ -100,9 +108,16 @@ def _displayed_unit_price(text: str):
         return None, None
     quantity = int(match.group(1))
     unit = match.group(2).lower()
-    amount = float(match.group(3).replace(",", "."))
+    try:
+        amount = float(match.group(3).replace(",", "."))
+    except (OverflowError, TypeError, ValueError):
+        return None, None
+    if not math.isfinite(amount) or amount <= 0:
+        return None, None
     base_quantity = 1000 if unit in {"kg", "l"} else 100
     normalized_amount = amount * 1000 / base_quantity
+    if not math.isfinite(normalized_amount) or normalized_amount <= 0:
+        return None, None
     return normalized_amount, "g" if unit in {"kg", "g"} else "ml"
 
 
@@ -144,19 +159,33 @@ def price_details(text: str, package_size=None, package_unit=None):
     ):
         match = re.search(pattern, checkout_text, re.I)
         if match:
-            pack_price = float(match.group(1).replace(",", "."))
+            try:
+                pack_price = float(match.group(1).replace(",", "."))
+                size = float(package_size) if package_size is not None else None
+            except (OverflowError, TypeError, ValueError):
+                continue
+            if not math.isfinite(pack_price) or pack_price <= 0:
+                continue
             per_unit = (
-                pack_price / float(package_size)
-                if package_size and float(package_size) > 0
+                pack_price / size
+                if size is not None and math.isfinite(size) and size > 0
                 else None
             )
             return round(pack_price, 2), per_unit
 
     # Only calculate from a displayed reference price when the pack's
     # normalized unit is known and compatible.
-    if reference_price is not None and package_size and package_size > 0 and package_unit == reference_unit:
-        pack_price = reference_price * float(package_size) / 1000.0
-        return round(pack_price, 2), reference_price / 1000.0
+    try:
+        size = float(package_size) if package_size is not None else None
+    except (OverflowError, TypeError, ValueError):
+        size = None
+    if (
+        reference_price is not None and size is not None and math.isfinite(size)
+        and size > 0 and package_unit == reference_unit
+    ):
+        pack_price = reference_price * size / 1000.0
+        if math.isfinite(pack_price) and pack_price > 0:
+            return round(pack_price, 2), reference_price / 1000.0
     return None, None
 
 def price(text: str):
@@ -265,7 +294,9 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 offer_price = offers.get("price") if isinstance(offers, dict) else None
                 try:
                     offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
-                except Exception:
+                    if offer_price is not None and (not math.isfinite(offer_price) or offer_price <= 0):
+                        offer_price = None
+                except (OverflowError, TypeError, ValueError):
                     offer_price = None
                 price_text = f"{name} {candidate.get('description') or ''}"
                 size, unit = package(price_text)
