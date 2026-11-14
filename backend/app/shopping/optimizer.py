@@ -191,7 +191,7 @@ def _ingredient_count_weight(ingredient):
     # dried seasonings. The broad bilingual alias ontology intentionally
     # links them for search, but that must never authorize a piece-weight
     # estimate (e.g. 1 tsp pepper -> 150 g bell pepper).
-    if normalized in {"pepper", "paprika"}:
+    if normalized in {"pepper", "paprika", "salat", "salad"}:
         return None
     for canonical, grams in _COUNT_TO_GRAMS.items():
         aliases = {normalize_text(alias) for alias in ingredient_aliases(canonical)}
