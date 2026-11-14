@@ -85,12 +85,12 @@ _BASE_TERMS = {
     "mushroom": ("mushroom", "mushrooms", "champignon", "champignons", "braune champignons", "pilze"),
     "cucumber": ("cucumber", "gurke", "gurken", "salatgurke", "schlangengurke"),
     "lemon": ("lemon", "zitrone", "zitronen"),
-    "tomato": ("tomato", "tomatoes", "tomate", "tomaten"),
+    "tomato": ("tomato", "tomatoes", "tomate", "tomaten", "rispentomaten", "strauchtomaten"),
     "cherry tomato": ("cherry tomato", "cherry tomatoes", "kirschtomaten", "cherrytomaten", "cocktailtomaten", "datteltomaten"),
     "ground beef": ("ground beef", "rinderhack", "rinderhackfleisch", "hackfleisch vom rind", "rind hackfleisch"),
     "salmon": ("salmon", "lachsfilet", "lachsfilets", "frisches lachsfilet"),
     "flour": ("flour", "mehl", "weizenmehl", "weizen mehl", "haushaltsmehl", "type 405", "type 550"),
-    "heavy cream": ("heavy cream", "schlagsahne", "schlagrahm", "suesse sahne", "süße sahne", "sahne 30"),
+    "heavy cream": ("heavy cream", "schlagsahne", "schlagrahm", "susse sahne", "süße sahne", "sahne 30"),
     "pasta": ("pasta", "nudeln", "teigwaren", "teig waren"),
     "fresh basil pesto": ("fresh basil pesto", "basil pesto", "basilikum pesto", "pesto genovese", "pesto alla genovese", "pesto verde"),
     "pine nuts": ("pine nuts", "pinienkerne", "pinien kerne", "pinoli"),
@@ -103,7 +103,7 @@ _BASE_TERMS = {
     "banana": ("banana", "banane", "bananen"),
     "honey": ("honey", "honig", "blutenhonig", "blütenhonig", "waldhonig"),
     "baking powder": ("baking powder", "backpulver", "weinstein backpulver"),
-    "cornstarch": ("cornstarch", "corn starch", "speisestaerke", "speisestarke", "maisstaerke", "maisstaerke"),
+    "cornstarch": ("cornstarch", "corn starch", "speisestaerke", "speisestarke", "maisstaerke", "maisstarke"),
     "coconut milk": ("coconut milk", "kokosmilch", "kokosnussmilch"),
     "onion": ("onion", "onions", "zwiebel", "zwiebeln", "speisezwiebeln"),
 }
@@ -122,6 +122,9 @@ _SUBSTITUTION_TERMS = {
     "parmesan cheese": ("grana padano", "grana padano gerieben"),
     "grated cheddar cheese": ("grated gouda", "geriebener gouda", "gouda gerieben", "emmentaler gerieben", "geriebener emmentaler", "gratinkäse"),
     "soft tortillas": ("high protein wraps", "protein wraps"),
+    # Trofie is a specific pasta shape; ordinary pasta is a visible
+    # alternative, never an exact identity for the requested shape.
+    "trofie pasta": ("pasta", "nudeln", "teigwaren"),
     "greek yogurt": ("joghurt griechischer art", "greek style yogurt"),
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
     # Slaw can use fresh white cabbage when red cabbage is not stocked.
