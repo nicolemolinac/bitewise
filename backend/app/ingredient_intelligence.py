@@ -523,6 +523,12 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         term in title_key for term in ("crouton", "cro ton", "brotwurfel gerostet")
     ) and category_key in {"oele-sossen-gewuerze", "fertiggerichte-konserven"}:
         return True
+    if name == "pizza dough" and any(
+        term in title_key for term in ("pizzateig", "pizza teig", "pizza dough")
+    ) and category_key in {"fertiggerichte-konserven", "kochen-backen"}:
+        # Plain ready-to-bake dough is sold in REWE's convenience aisle.
+        # Exclusions above keep kits, finished pizzas and sauced products out.
+        return True
     if name == "curry powder" and any(
         term in title_key for term in ("curry paste", "currypaste")
     ) and category_key in {"oele-sossen-gewuerze", "fertiggerichte-konserven"}:
@@ -651,6 +657,10 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         ),
         "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing", "honey peppers", "honey pepper", "honig pfeffer", "honig paprika", "honey roasted", "honig gerostet", "honig nuss", "honignuss", "honey nut", "muesli", "musli", "granola", "knusper", "cereal", "riegel"),
         "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln", "gnocchi"),
+        "pizza dough": (
+            "glutenfrei", "gluten free", "mit sauce", "pizza kit",
+            "fertigpizza", "pizza classica", "pizza baguette", "flammkuchenteig",
+        ),
         # Ready-to-heat rice is not interchangeable with dry rice in recipe quantities or cooking steps.
         "rice": (
             "express", "express reis", "reis express", "mikrowellenreis",
