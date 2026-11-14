@@ -96,6 +96,7 @@ def main():
         print(f"Distinct ingredient labels: {len(ingredients)}")
         print(f"Distinct categories: {len(categories)}")
         print(f"Missing/zero prices: {missing_price} ({missing_price / total:.1%})")
+        assert missing_price <= 1, f"Unexpected unpriced REWE products: {missing_price}"
         for row in products:
             if row.price is None or float(row.price) <= 0:
                 print("PRODUCT WITHOUT PRICE:", {
@@ -110,6 +111,7 @@ def main():
         print(f"Products with REWE product URL: {with_product_url} ({with_product_url / total:.1%})")
         print(f"Products with image URL: {with_image_url} ({with_image_url / total:.1%})")
         print(f"Invalid package sizes/units: {invalid_packages}")
+        assert invalid_packages == 0, f"Invalid REWE package records: {invalid_packages}"
         print(f"Availability distribution: {dict(availability)}")
         print(f"Sample coverage ({len(coverage)} common ingredients): {dict(counts)}")
         for row in coverage:
