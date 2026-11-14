@@ -398,23 +398,9 @@ def _badge(mode, waste_ratio, reuse_count, product, cheapest_total, total):
 
 
 def _substitution_profile(intelligence, ingredient):
-    if not isinstance(intelligence, dict):
-        return {}
-    if any(field in intelligence for field in (
-        "canonical", "name_en", "name_de", "name_es", "form", "aliases",
-        "search_terms", "translations", "suggested_substitutions",
-        "allowed_substitutions", "substitution_options", "culinary_role",
-        "preparation", "unit_dimension",
-    )):
-        return intelligence
-    key = normalize_text(ingredient)
-    direct = intelligence.get(ingredient) or intelligence.get(key)
-    if isinstance(direct, dict):
-        return direct
-    for raw_key, value in intelligence.items():
-        if normalize_text(raw_key) == key and isinstance(value, dict):
-            return value
-    return {}
+    # Keep substitution-ratio lookup aligned with the shared punctuation- and
+    # accent-insensitive profile resolver used by consolidation and matching.
+    return _profile_lookup(intelligence, ingredient)
 
 
 def _substitution_quantity_ratio(ingredient, product, intelligence):
@@ -477,9 +463,15 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 "valid": False,
                 "reason": quantity_validation.get("reason") or "Ingredient quantity must be a finite positive number.",
             }
-        unit = _normal_unit(requirement["unit"])
-        unit_validation = requirement.get("unit_validation") or validate_ingredient_unit(
-            ingredient, unit, requirement.get("ingredient_intelligence")
+        raw_unit = str(requirement.get("unit") or "").strip()
+        unit = _normal_unit(raw_unit) if raw_unit else ""
+        unit_validation = requirement.get("unit_validation") or (
+            validate_ingredient_unit(
+                ingredient, unit, requirement.get("ingredient_intelligence")
+            ) if raw_unit else {
+                "valid": False, "family": None,
+                "reason": "Ingredient unit is missing; add an explicit unit before shopping.",
+            }
         )
         pantry_row = pantry.get(ingredient) if unit_validation.get("valid", True) else None
         pantry_used = 0.0
