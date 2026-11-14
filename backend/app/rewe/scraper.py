@@ -551,6 +551,35 @@ def _rewe_add_button_index(page):
     except Exception: return None
 
 
+def _merge_duplicate_product(current: dict, incoming: dict) -> dict:
+    """Merge duplicate SKU observations without letting invalid values win."""
+    merged = dict(current)
+    for key, value in incoming.items():
+        if value is None or value == "":
+            continue
+        if key in {"price", "price_per_unit", "package_size"}:
+            try:
+                candidate = float(value)
+                candidate_valid = math.isfinite(candidate) and candidate > 0
+            except (OverflowError, TypeError, ValueError):
+                candidate_valid = False
+            try:
+                existing = float(merged.get(key))
+                existing_valid = math.isfinite(existing) and existing > 0
+            except (OverflowError, TypeError, ValueError):
+                existing_valid = False
+            if candidate_valid and not existing_valid:
+                merged[key] = value
+            continue
+        if key == "package_unit":
+            if not str(merged.get(key) or "").strip() and str(value).strip():
+                merged[key] = value
+            continue
+        if merged.get(key) is None or merged.get(key) == "":
+            merged[key] = value
+    return merged
+
+
 class ReweCatalogScraper:
     def __init__(self, delay=0.35, session=None, browser_enabled=None):
         self.delay = delay
@@ -716,11 +745,7 @@ class ReweCatalogScraper:
                 unique[product["external_id"]] = product
                 continue
             # Merge complementary data instead of discarding a later image-bearing card.
-            merged = dict(current)
-            for key, value in product.items():
-                if value is not None and (merged.get(key) is None or merged.get(key) == ""):
-                    merged[key] = value
-            unique[product["external_id"]] = merged
+            unique[product["external_id"]] = _merge_duplicate_product(current, product)
         return list(unique.values())
 
     def _location_scopes(self, page):
@@ -1004,9 +1029,7 @@ class ReweCatalogScraper:
                                 if current is None:
                                     by_id[product["external_id"]] = product
                                 else:
-                                    for key, value in product.items():
-                                        if value is not None and (current.get(key) is None or current.get(key) == ""):
-                                            current[key] = value
+                                    by_id[product["external_id"]] = _merge_duplicate_product(current, product)
 
                         products = list(by_id.values())
                         if not products:
@@ -1056,9 +1079,7 @@ class ReweCatalogScraper:
                         if current is None:
                             by_id[product["external_id"]] = product
                         else:
-                            for key, value in product.items():
-                                if value is not None and (current.get(key) is None or current.get(key) == ""):
-                                    current[key] = value
+                            by_id[product["external_id"]] = _merge_duplicate_product(current, product)
                 products = list(by_id.values())
                 if not products:
                     raise RuntimeError("No products found")
