@@ -113,6 +113,12 @@ def run():
         "red onion", "Zwiebel rot 500g im Netz", {"form": "fresh"}, "obst-gemuese"
     ) == "exact"
     assert ingredient_product_match_type(
+        "rice", "REWE Beste Wahl Express Basmati Reis 250g", {"form": "unspecified"}, "kochen-backen"
+    ) is None, "Ready-to-heat express rice must not match a dry-rice recipe ingredient"
+    assert ingredient_product_match_type(
+        "rice", "REWE Bio Basmati Reis 500g", {"form": "unspecified"}, "kochen-backen"
+    ) == "exact", "Plain dry rice remains an exact match"
+    assert ingredient_product_match_type(
         "chicken breast", "REWE Bio Hähnchenbrustfilet 400g", {"form": "fresh"}, "fleisch-wurst-fisch"
     ) == "exact"
     assert ingredient_product_match_type(
