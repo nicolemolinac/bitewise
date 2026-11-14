@@ -149,6 +149,7 @@ def run():
     assert validate_ingredient_unit("pepper", "tsp")["valid"] is True
     assert validate_ingredient_unit("salt", "Prise")["valid"] is True
     assert validate_ingredient_unit("salt", "Teelöffel")["valid"] is True
+    assert validate_ingredient_unit("rice", "Gramm")["valid"] is True
     assert validate_ingredient_unit("garlic", "Zehe")["valid"] is True
     assert validate_ingredient_unit("onion", "Zehe")["valid"] is False
     assert validate_ingredient_unit("fresh cilantro", "Bund")["valid"] is True
