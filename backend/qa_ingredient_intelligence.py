@@ -1090,6 +1090,10 @@ def run():
     # catalog rows whose category metadata is missing.
     assert ingredient_product_match_type("mushroom", "REWE Champignon Snack 100g", {"form": "fresh"}) is None
     assert ingredient_product_match_type("carrot", "REWE Karotten Snack 100g", {"form": "fresh"}) is None
+    assert ingredient_product_match_type("carrots", "REWE Karotten Snack 100g", {"form": "fresh"}) is None
+    assert ingredient_product_match_type(
+        "aubergine", "REWE Auberginen Antipasti 200g", {"form": "fresh"}, "Fertiggerichte & Konserven"
+    ) is None
     assert ingredient_product_match_type(
         "oregano", "REWE Oregano frisch 20g", {"form": "fresh"}, "Kräuter"
     ) == "exact"
