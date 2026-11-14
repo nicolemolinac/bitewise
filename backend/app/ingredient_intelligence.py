@@ -662,10 +662,8 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing", "honey peppers", "honey pepper", "honig pfeffer", "honig paprika", "honey roasted", "honig gerostet", "honig nuss", "honignuss", "honey nut", "muesli", "musli", "granola", "knusper", "cereal", "riegel"),
         "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln", "gnocchi"),
         "pizza dough": (
-            "glutenfrei", "glutenfreier", "glutenfreie", "glutenfreies",
-            "gluten free", "mit sauce", "pizza kit",
-            "fertigpizza", "pizza classica", "pizza baguette", "flammkuchenteig",
-            "backmischung", "teigmischung", "pizza mix", "dry mix",
+            "mit sauce", "pizza kit", "fertigpizza", "pizza classica",
+            "pizza baguette", "flammkuchenteig",
         ),
         # Ready-to-heat rice is not interchangeable with dry rice in recipe quantities or cooking steps.
         "rice": (
