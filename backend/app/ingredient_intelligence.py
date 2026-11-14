@@ -474,6 +474,9 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     name = normalize_text(ingredient)
     title_key = normalize_text(title)
     category_key = category_key.replace(" ", "-")
+    category_key = category_key.replace("obst-und-gemuse", "obst-gemuese").replace(
+        "obst-gemuse", "obst-gemuese"
+    )
     if category_key in {
         "drogerie-gesundheit", "tierbedarf", "kueche-haushalt",
         "haus-freizeit", "bonus", "getraenke-genussmittel",
@@ -903,6 +906,9 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         "mint", "chives", "sage", "marjoram", "oregano",
     }
     category_key = normalize_text(product_category).replace(" ", "-")
+    category_key = category_key.replace("obst-und-gemuse", "obst-gemuese").replace(
+        "obst-gemuse", "obst-gemuese"
+    )
     if (
         normalize_text(ingredient) in fresh_produce_names
         and normalize_text(product_form) == "fresh"
