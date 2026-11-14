@@ -98,6 +98,35 @@ def run():
     assert "dosenmais" in ingredient_search_terms("canned corn", intelligence)
     assert ingredient_product_match_type("frozen sweet corn", "REWE Zuckermais tiefgekühlt 450g", {"form": "frozen", "aliases": ["Zuckermais tiefgekühlt"]}, "Tiefkühlkost") == "exact"
     assert "rapsol" in ingredient_candidate_search_terms("vegetable oil", intelligence)
+
+    # AI metadata expands retrieval, but cannot manufacture exact identity.
+    # A hallucinated canonical name/alias must remain a review-only candidate.
+    untrusted_alias_profile = {
+        "canonical": "curry paste",
+        "name_en": "curry paste",
+        "name_de": "Currypaste",
+        "aliases": ["curry paste", "currypaste"],
+        "form": "unspecified",
+    }
+    assert ingredient_product_match_type(
+        "curry powder", "REWE Thai Curry Paste 100g",
+        untrusted_alias_profile, "oele-sossen-gewuerze"
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "curry powder", "REWE Currypulver mild 50g",
+        untrusted_alias_profile, "oele-sossen-gewuerze"
+    ) == "exact"
+    custom_alias_profile = {
+        "canonical": "fresh cilantro",
+        "name_en": "fresh cilantro",
+        "name_de": "frischer Koriander",
+        "aliases": ["Koriandergrün", "coriander leaves"],
+        "form": "fresh",
+    }
+    assert ingredient_product_match_type(
+        "custom herb", "REWE Bio Koriandergrün 20g",
+        custom_alias_profile, "frische-krauter"
+    ) == "suggested_substitution"
     assert "olivenöl" in ingredient_candidate_search_terms("olive oil", {"form": "liquid"})
     assert "rapsöl" in ingredient_candidate_search_terms("vegetable oil", {"form": "liquid"})
     assert "hähnchenbrustfilet" in ingredient_candidate_search_terms("chicken breast", {"form": "fresh"})
