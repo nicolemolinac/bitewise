@@ -284,6 +284,12 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         form = "powder"
     elif any(term in form for term in ("dried", "getrocknet", "trocken")):
         form = "dried"
+    elif form == "dry" and any(term in normalize_text(ingredient) for term in (
+        "oregano", "basil", "basilikum", "thyme", "thymian",
+        "rosemary", "rosmarin", "mint", "minze", "dill", "dillkraut",
+        "parsley", "petersilie",
+    )):
+        form = "dried"
     elif any(term in form for term in ("whole", "ganz", "unground")):
         form = "whole"
     ingredient_tokens = set(normalize_text(ingredient).split())
@@ -991,6 +997,12 @@ def _infer_ingredient_form(ingredient: str) -> str:
         "ginger", "clove", "nutmeg", "chili", "chilli", "spice",
     )):
         return "powder"
+    if "dry" in name and any(token in name for token in (
+        "oregano", "basil", "basilikum", "thyme", "thymian",
+        "rosemary", "rosmarin", "mint", "minze", "dill",
+        "parsley", "petersilie",
+    )):
+        return "dried"
     rules = (
         (("frozen", "tiefkuhl", "deep frozen"), "frozen"),
         (("canned", "tinned", "konserve", "dose"), "canned"),
