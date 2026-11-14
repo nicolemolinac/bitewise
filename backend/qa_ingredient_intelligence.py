@@ -372,6 +372,11 @@ def run():
     ) == "exact"
     assert "speisekartoffeln" in ingredient_candidate_search_terms("frozen french fries", intelligence)
     proposed_only = {"canonical": "custom cooking fat", "suggested_substitutions": ["rapeseed oil"]}
+    partial_proposed_profile = {"suggested_substitutions": ["rapeseed oil"]}
+    assert "rapeseed oil" in ingredient_candidate_search_terms("custom cooking fat", partial_proposed_profile)
+    assert ingredient_product_match_type(
+        "custom cooking fat", "REWE Rapsöl 1L", partial_proposed_profile
+    ) == "suggested_substitution"
     assert "rapeseed oil" in ingredient_candidate_search_terms("custom cooking fat", proposed_only)
     assert ingredient_product_match_type("custom cooking fat", "REWE Rapsöl 1L", proposed_only) == "suggested_substitution"
     assert ingredient_suggested_substitution_name("custom cooking fat", "REWE Rapeseed Oil 1L", proposed_only) == "rapeseed oil"
