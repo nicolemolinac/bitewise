@@ -368,7 +368,7 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
 def _number(product, *keys, default=0.0):
     for key in keys:
         value = product.get(key)
-        if value is not None:
+        if value is not None and not isinstance(value, bool):
             try:
                 return float(value)
             except (TypeError, ValueError):
@@ -431,7 +431,9 @@ def _substitution_quantity_ratio(ingredient, product, intelligence):
     profile = _substitution_profile(intelligence, ingredient)
     replacement = normalize_text(product.get("ingredient_substitute") or "")
     if not replacement:
-        return 1.0
+        # A substitute without an explicit replacement identity cannot safely
+        # inherit the original ingredient's quantity ratio.
+        return None
     options = profile.get("substitution_options", [])
     if not isinstance(options, list):
         return None
@@ -620,6 +622,8 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             if price is None or str(product.get("availability") or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
             }:
+                continue
+            if isinstance(price, bool):
                 continue
             try:
                 price = float(price)
