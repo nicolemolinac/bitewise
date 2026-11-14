@@ -84,6 +84,9 @@ def run():
     assert ingredient_product_match_type(
         "cumin", "REWE Kreuzkümmel ganz 40g", {"form": "whole"}, "oele-sossen-gewuerze"
     ) == "exact"
+    assert ingredient_product_match_type(
+        "cumin", "REWE Kreuzkümmel 40g", {"form": "whole"}, "oele-sossen-gewuerze"
+    ) is None, "Unspecified cumin form must not be assumed whole"
 
     # Compound spice names must be classified as spices before generic
     # produce substrings; bell pepper remains produce.
