@@ -129,6 +129,14 @@ def run():
         {"form": "unspecified"}, "fertiggerichte-konserven"
     ) is None, "Croutons mentioned inside a complete prepared meal are not a standalone ingredient match"
     assert ingredient_product_match_type(
+        "croutons", "REWE Kartoffelauflauf mit Röstzwiebeln und Croûtons 400g",
+        {"form": "unspecified"}, "fertiggerichte-konserven"
+    ) is None, "Croutons inside a prepared casserole are not a standalone ingredient match"
+    assert ingredient_product_match_type(
+        "croutons", "REWE Mikrowellen-Fertigmahlzeit mit Croûtons 350g",
+        {"form": "unspecified"}, "fertiggerichte-konserven"
+    ) is None, "Croutons inside a microwave meal are not a standalone ingredient match"
+    assert ingredient_product_match_type(
         "lettuce", "REWE Beste Wahl Eisbergsalat mit Kräutern 175g",
         {"form": "fresh"}, "obst-gemuese"
     ) is None, "Seasoned convenience salad must not be silently selected as plain lettuce"
