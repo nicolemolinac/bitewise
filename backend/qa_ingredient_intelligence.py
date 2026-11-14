@@ -92,6 +92,19 @@ def run():
     assert ingredient_product_match_type(
         "cumin", "REWE Kreuzkümmel 40g", {"form": "whole"}, "oele-sossen-gewuerze"
     ) is None, "Unspecified cumin form must not be assumed whole"
+    milk_profile = {
+        "canonical": "milk", "name_en": "milk", "name_de": "Milch",
+        "aliases": ["Vollmilch"], "form": "liquid",
+    }
+    assert ingredient_product_match_type(
+        "milk", "REWE Frische Vollmilch 3,8% 1L", milk_profile, "kaese-eier-molkerei"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "milk", "REWE Schokomilch 500ml", milk_profile, "kaese-eier-molkerei"
+    ) is None
+    assert ingredient_product_match_type(
+        "milk", "Alpro Haferdrink 1L", milk_profile, "kaffee-tee-kakao"
+    ) == "suggested_substitution"
 
     # Compound spice names must be classified as spices before generic
     # produce substrings; bell pepper remains produce.
