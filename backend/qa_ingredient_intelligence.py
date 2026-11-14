@@ -70,6 +70,39 @@ def run():
         actual = ingredient_product_match_type(ingredient, title, profile, category)
         assert actual == "exact", (ingredient, title, actual)
 
+    # The no-AI fallback ontology must cover ordinary REWE ingredients in
+    # English and German. These are generic retail aliases, not SKU-specific rules.
+    catalog_alias_cases = [
+        ("pasta", "REWE Bio Spaghetti 500g", "kochen-backen", "exact"),
+        ("trofie pasta", "REWE Pasta Penne 500g", "kochen-backen", "substitute"),
+        ("fresh basil pesto", "REWE Pesto alla Genovese 190g", "oele-sossen-gewuerze", "exact"),
+        ("pine nuts", "Seeberger Pinienkerne 50g", "kochen-backen", "exact"),
+        ("tomato", "REWE Rispentomaten 500g", "obst-gemuese", "exact"),
+        ("cherry tomato", "REWE Cocktailtomaten 250g", "obst-gemuese", "exact"),
+        ("ground beef", "REWE Bio Rinderhackfleisch 500g", "fleisch-wurst-fisch", "exact"),
+        ("salmon", "REWE Bio Lachsfilet 250g", "fleisch-wurst-fisch", "exact"),
+        ("flour", "REWE Weizenmehl Type 405 1kg", "kochen-backen", "exact"),
+        ("heavy cream", "REWE Schlagsahne 30% 200g", "kaese-eier-molkerei", "exact"),
+        ("potato", "REWE Speisekartoffeln 2kg", "obst-gemuese", "exact"),
+        ("mushroom", "REWE Champignons 250g", "obst-gemuese", "exact"),
+        ("cucumber", "REWE Salatgurke 1 Stück", "obst-gemuese", "exact"),
+        ("lemon", "REWE Zitronen 500g", "obst-gemuese", "exact"),
+        ("soy sauce", "Kikkoman Sojasauce 150ml", "oele-sossen-gewuerze", "exact"),
+        ("tomato paste", "REWE Tomatenmark 200g", "fertiggerichte-konserven", "exact"),
+        ("chickpeas", "REWE Bio Kichererbsen 400g", "fertiggerichte-konserven", "exact"),
+        ("lentils", "Alnatura Bio Berglinsen 500g", "kochen-backen", "exact"),
+        ("kidney beans", "REWE Beste Wahl Kidney-Bohnen 285g", "fertiggerichte-konserven", "exact"),
+        ("oats", "REWE Bio Haferflocken kernig 500g", "kochen-backen", "exact"),
+        ("banana", "Bio Banane 1 Stück", "obst-gemuese", "exact"),
+        ("honey", "REWE Bio Blütenhonig 500g", "brot-cerealien-aufstriche", "exact"),
+        ("baking powder", "REWE Backpulver 3x15g", "kochen-backen", "exact"),
+        ("cornstarch", "REWE Speisestärke 400g", "kochen-backen", "exact"),
+        ("coconut milk", "REWE Kokosmilch 400ml", "fertiggerichte-konserven", "exact"),
+    ]
+    for ingredient, title, category, expected in catalog_alias_cases:
+        actual = ingredient_product_match_type(ingredient, title, None, category)
+        assert actual == expected, (ingredient, title, expected, actual)
+
     # Form intent is a hard constraint: dried herbs cannot silently resolve
     # to fresh herbs, and whole spices cannot resolve to ground equivalents.
     assert ingredient_product_match_type(
