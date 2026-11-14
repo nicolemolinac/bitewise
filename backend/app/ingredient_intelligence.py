@@ -175,6 +175,9 @@ _RETAIL_QUERY_VARIANTS = {
     "croutons": ("croûtons",),
     "zwiebel rot": ("zwiebel rot", "zwiebeln rot"),
     "paprika edelsuss": ("paprika edelsüß",),
+    "speisestarke": ("speisestärke",),
+    "maisstarke": ("maisstärke",),
+    "haferflocken": ("hafer flocken",),
 }
 
 
