@@ -180,6 +180,14 @@ _MASS_VOLUME_DENSITY_G_PER_ML = {
     "breadcrumbs": 0.48,
     "cocoa powder": 0.40,
     "grated cheese": 0.40,
+    "honey": 1.42,
+    "cornstarch": 0.55,
+    "tomato paste": 1.05,
+    "fresh basil pesto": 1.0,
+    "pine nuts": 0.58,
+    "ketchup": 1.1,
+    "mustard": 1.05,
+    "jam": 1.3,
 }
 
 
