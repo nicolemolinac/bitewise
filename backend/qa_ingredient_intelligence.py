@@ -630,6 +630,26 @@ def run():
     assert ingredient_product_match_type(
         "white fish fillet", "Nadler Alaska Seelachs Mus 125g", {}, "fleisch-wurst-fisch"
     ) is None
+
+    # Real-catalog audit: flavored milk, herb-seasoned sour cream, gnocchi,
+    # branded ready rice and walnut croutons are not exact ingredient matches.
+    assert ingredient_product_match_type(
+        "milk", "Ehrmann Milk Twist Choco 400ml", {"form": "liquid"}, "kaese-eier-molkerei"
+    ) is None
+    assert ingredient_product_match_type(
+        "sour cream", "Milram Sour Cream mit Frühlingskräutern 185g",
+        {"form": "unspecified"}, "kaese-eier-molkerei"
+    ) is None
+    assert ingredient_product_match_type(
+        "pasta", "Delverde Gnocchi Pasta 500g", {"form": "dried"}, "kochen-backen"
+    ) is None
+    assert ingredient_product_match_type(
+        "rice", "reis-fit Griechischer Reis 250g", {"form": "unspecified"}, "kochen-backen"
+    ) is None
+    assert ingredient_product_match_type(
+        "croutons", "Knorr Salatkrönung Croutinos mit Walnuss Croutons 25g",
+        {}, "oele-sossen-gewuerze"
+    ) is None
     assert ingredient_product_match_type(
         "bell pepper", "REWE Paprika rot 1 Stück", {"form": "fresh", "name_de": "Paprika"}, "obst-gemuese"
     ) == "exact"
