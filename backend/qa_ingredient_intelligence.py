@@ -1167,6 +1167,14 @@ def run():
         "burger buns", "Coppenrath & Wiese 20 Weizen-Brötchen 1kg"
     ) == "bread rolls"
 
+    # Token-boundary audit: retrieval may be broad, but a shared substring
+    # must never establish ingredient identity (e.g. apple/pineapple).
+    assert ingredient_product_match_type("apple", "REWE Ananas 1 Stück", {}, "obst-gemuese") is None
+    assert ingredient_product_match_type("ham", "REWE Shampoo Repair 250ml", {}, "drogerie-gesundheit") is None
+    assert ingredient_product_match_type("milk", "Ritter Sport Milk Chocolate 100g", {}, "suesses-salziges") is None
+    assert ingredient_product_match_type("milk", "REWE Bio Kokosmilch 400ml", {"form": "liquid"}, "fertiggerichte-konserven") is None
+    assert ingredient_product_match_type("tomato", "REWE Bio Tomatensauce 400g", {}, "fertiggerichte-konserven") is None
+
     # Real-catalog audit: flavored milk, herb-seasoned sour cream, gnocchi,
     # branded ready rice and walnut croutons are not exact ingredient matches.
     assert ingredient_product_match_type(
