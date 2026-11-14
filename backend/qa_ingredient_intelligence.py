@@ -70,6 +70,30 @@ def run():
         actual = ingredient_product_match_type(ingredient, title, profile, category)
         assert actual == "exact", (ingredient, title, actual)
 
+    # Form intent is a hard constraint: dried herbs cannot silently resolve
+    # to fresh herbs, and whole spices cannot resolve to ground equivalents.
+    assert ingredient_product_match_type(
+        "oregano", "REWE Bio Oregano frisch 15g", {"form": "dried"}, "obst-gemuese"
+    ) is None
+    assert ingredient_product_match_type(
+        "oregano", "REWE Bio Oregano gerebelt 8g", {"form": "dried"}, "oele-sossen-gewuerze"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "cumin", "REWE Kreuzkümmel gemahlen 40g", {"form": "whole"}, "oele-sossen-gewuerze"
+    ) is None
+    assert ingredient_product_match_type(
+        "cumin", "REWE Kreuzkümmel ganz 40g", {"form": "whole"}, "oele-sossen-gewuerze"
+    ) == "exact"
+
+    # Compound spice names must be classified as spices before generic
+    # produce substrings; bell pepper remains produce.
+    for pepper_name in ("black pepper", "ground black pepper"):
+        for pepper_unit in ("tsp", "tbsp", "pinch"):
+            result = validate_ingredient_unit(pepper_name, pepper_unit)
+            assert result["valid"] and result["family"] == "spice", (pepper_name, pepper_unit, result)
+    assert validate_ingredient_unit("bell pepper", "piece")["family"] == "produce"
+    assert validate_ingredient_unit("bell pepper", "tsp")["valid"] is False
+
     # A cross-form frozen product for a fresh fish request is a reviewable
     # substitution, not an exact identity.
     assert ingredient_product_match_type(
