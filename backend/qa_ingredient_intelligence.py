@@ -336,13 +336,14 @@ def run():
 
     # A cross-form frozen product for a fresh fish request is a reviewable
     # substitution, not an exact identity.
-    assert ingredient_product_match_type(
+    frozen_white_fish_match = ingredient_product_match_type(
         "white fish fillet",
         "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
         {"canonical": "white fish fillet", "form": "fresh",
          "aliases": ["Seelachsfilet", "Alaska Seelachs"]},
         "tiefkuehlkost",
-    ) == "suggested_substitution"
+    )
+    assert frozen_white_fish_match == "suggested_substitution", frozen_white_fish_match
     # Composition/form modifiers must not be hidden behind broad aliases.
     assert ingredient_product_match_type(
         "pizza dough",
