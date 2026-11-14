@@ -227,13 +227,16 @@ _FAMILY_HINTS = {
     "produce": (
         "bell pepper", "red onion", "pepper", "paprika", "onion", "onions",
         "garlic", "potato", "potatoes", "tomato", "tomatoes", "lettuce",
-        "cilantro", "carrot", "carrots", "olive", "olives", "spinach", "spinat",
+        "cilantro", "coriander", "carrot", "carrots", "olive", "olives", "spinach", "spinat",
         "broccoli", "brokkoli", "mushroom", "champignon", "pilz", "cucumber",
         "gurke", "lemon", "zitrone", "lime", "limette", "zucchini", "avocado",
         "banana", "banane", "strawberry", "erdbeere", "blueberry", "blaubeere",
-        "parsley", "petersilie", "basil", "basilikum", "cabbage", "kohl",
-        "celery", "sellerie", "asparagus", "spargel", "aubergine", "eggplant",
-        "zwiebel", "zwiebeln", "knoblauch", "kartoffel", "kartoffeln",
+        "parsley", "petersilie", "basil", "basilikum", "oregano", "thyme",
+        "thymian", "rosemary", "rosmarin", "mint", "minze", "dill", "dillkraut",
+        "chives", "schnittlauch", "sage", "salbei", "marjoram", "majoran",
+        "cabbage", "kohl", "celery", "sellerie", "asparagus", "spargel",
+        "aubergine", "eggplant", "zwiebel", "zwiebeln", "knoblauch",
+        "kartoffel", "kartoffeln",
     ),
     "count": ("egg", "eggs", "eier", "tortilla", "tortillas", "shell", "shells", "bun", "buns", "wurstchen", "sausage", "sausages"),
     "grains": (
@@ -1107,6 +1110,8 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
     allowed = set(_UNIT_FAMILIES[family])
     profile = _profile_lookup(intelligence, ingredient)
     form = normalize_text(profile.get("form") or "")
+    if form in {"", "unspecified", "unknown"}:
+        form = _infer_ingredient_form(ingredient)
     preparation = normalize_text(profile.get("preparation") or "")
     if family == "dairy_solid":
         if "butter" in name:
@@ -1117,7 +1122,22 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
         allowed.update({"tbsp", "tsp"})
     if family == "produce" and any(term in name.split() for term in ("garlic", "knoblauch")):
         allowed.add("cloves")
-    if family == "produce" and form == "powder":
+    herb_names = {
+        "basil", "basil leaves", "parsley", "dill", "thyme", "rosemary",
+        "mint", "cilantro", "coriander", "chives", "sage", "marjoram",
+        "oregano", "petersilie", "basilikum", "koriander", "thymian",
+        "rosmarin", "minze", "dillkraut", "schnittlauch", "salbei", "majoran",
+    }
+    is_herb = any(_contains_phrase(name, herb) for herb in herb_names) and not any(
+        token in name for token in ("pesto", "oil", "ol", "sauce", "sosse")
+    )
+    if family == "produce" and is_herb and (
+        form in {"dried", "dry"}
+        or (form not in {"fresh", "frisch"} and normalized_unit in {"tsp", "tbsp", "pinch"})
+    ):
+        family = "spice"
+        allowed = set(_UNIT_FAMILIES[family])
+    elif family == "produce" and form == "powder":
         allowed = {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"}
     elif family == "produce" and (
         form in {"grated", "chopped", "diced", "sliced", "minced", "crushed"}
