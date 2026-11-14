@@ -429,7 +429,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 continue
             # Never turn malformed catalog values into a tiny 0.0001-unit pack
             # or allow NaN/negative prices to contaminate basket ranking.
-            if not math.isfinite(price) or price < 0:
+            if not math.isfinite(price) or price <= 0:
                 continue
             if not math.isfinite(raw_pack_qty) or raw_pack_qty <= 0:
                 continue
