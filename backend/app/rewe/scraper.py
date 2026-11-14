@@ -301,7 +301,7 @@ def _visible_postcode_input(scope):
 
 
 def _find_chrome_for_testing(playwright):
-    """Find an installed Chrome for Testing / Playwright Chromium executable."""
+    """Find the branded Google Chrome for Testing executable only."""
     candidates = []
     configured = os.getenv("CHROME_FOR_TESTING_PATH", "").strip()
     if configured:
@@ -311,21 +311,17 @@ def _find_chrome_for_testing(playwright):
     candidates.extend([
         Path("/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
         home / "Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
-        Path("/Applications/Chromium.app/Contents/MacOS/Chromium"),
-        home / "Applications/Chromium.app/Contents/MacOS/Chromium",
     ])
+    # Playwright's `chrome` channel installs Google's branded Chrome for
+    # Testing build in its managed browser cache. Do not silently fall back
+    # to the separate open-source Chromium browser.
     for pattern in (
-        "Library/Caches/ms-playwright/chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+        "Library/Caches/ms-playwright/chromium-*/chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
         "Library/Caches/ms-playwright/chromium-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
-        ".cache/ms-playwright/chromium-*/chrome-linux/chrome",
         ".cache/ms-playwright/chromium-*/chrome-linux64/chrome",
+        "AppData/Local/ms-playwright/chromium-*/chrome-win64/chrome.exe",
     ):
         candidates.extend(home.glob(pattern))
-
-    try:
-        candidates.append(Path(playwright.chromium.executable_path))
-    except Exception:
-        pass
 
     for candidate in candidates:
         if candidate.is_file():
