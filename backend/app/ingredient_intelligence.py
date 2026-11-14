@@ -932,6 +932,11 @@ def _infer_ingredient_form(ingredient: str) -> str:
     # ground cumin is a powder. Never infer a spice form from a meat name.
     if any(token in name for token in ("ground beef", "ground turkey", "ground chicken", "ground pork", "hackfleisch", "minced meat")):
         return "minced"
+    if "ground" in name and any(token in name for token in (
+        "cumin", "pepper", "coriander", "cinnamon", "paprika",
+        "ginger", "clove", "nutmeg", "chili", "chilli", "spice",
+    )):
+        return "powder"
     rules = (
         (("frozen", "tiefkuhl", "deep frozen"), "frozen"),
         (("canned", "tinned", "konserve", "dose"), "canned"),
