@@ -74,6 +74,7 @@ _UNIT_ALIASES = {
     "cup": "cup", "cups": "cup",
     "pinch": "pinch", "prise": "pinch", "prisen": "pinch",
     "bunch": "bunch", "bunches": "bunch", "bund": "bunch",
+    "slice": "slice", "slices": "slice", "scheibe": "slice", "scheiben": "slice",
     "esslöffel": "tbsp", "essloeffel": "tbsp",
     "teelöffel": "tsp", "teeloeffel": "tsp",
 }
