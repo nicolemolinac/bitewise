@@ -254,7 +254,12 @@ def _badge(mode, waste_ratio, reuse_count, product, cheapest_total, total):
 def _substitution_profile(intelligence, ingredient):
     if not isinstance(intelligence, dict):
         return {}
-    if any(field in intelligence for field in ("canonical", "name_en", "name_de", "form", "aliases", "substitution_options")):
+    if any(field in intelligence for field in (
+        "canonical", "name_en", "name_de", "name_es", "form", "aliases",
+        "search_terms", "translations", "suggested_substitutions",
+        "allowed_substitutions", "substitution_options", "culinary_role",
+        "preparation", "unit_dimension",
+    )):
         return intelligence
     key = normalize_text(ingredient)
     direct = intelligence.get(ingredient) or intelligence.get(key)
