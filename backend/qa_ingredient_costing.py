@@ -277,6 +277,8 @@ def run():
     # can mean seasoning and must not inherit a whole bell-pepper weight.
     assert _convert_ingredient_quantity(1, "piece", "g", "pepper") == (None, None)
     assert _convert_ingredient_quantity(1, "piece", "g", "paprika") == (None, None)
+    assert _convert_ingredient_quantity(1, "piece", "g", "salat") == (None, None)
+    assert _convert_ingredient_quantity(1, "piece", "g", "salad") == (None, None)
 
     chicken_grams, chicken_note = _convert_ingredient_quantity(2, "piece", "g", "chicken breast")
     broccoli_grams, broccoli_note = _convert_ingredient_quantity(1, "piece", "g", "broccoli")
