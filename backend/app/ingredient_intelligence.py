@@ -254,6 +254,8 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         form = "frozen"
     elif any(term in form for term in ("fresh", "frisch")):
         form = "fresh"
+    elif any(term in form for term in ("minced", "gehackt", "hackfleisch", "ground meat")):
+        form = "minced"
     elif any(term in form for term in ("powder", "pulver", "ground spice")):
         form = "powder"
     elif any(term in form for term in ("dried", "getrocknet")):
@@ -287,6 +289,11 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         return False
     if form == "dried" and not any(token in title for token in (
         "getrocknet", "dried", "trocken", "gerebelt", "dehydriert",
+    )):
+        return False
+    if form == "minced" and not any(token in title for token in (
+        "hackfleisch", "gehackt", "minced", "ground meat", "ground beef",
+        "hack", "faschiertes",
     )):
         return False
     if form == "whole" and any(token in title for token in (
@@ -878,11 +885,15 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
 
 def _infer_ingredient_form(ingredient: str) -> str:
     name = normalize_text(ingredient)
+    # "Ground" is context-sensitive: ground beef is minced meat, while
+    # ground cumin is a powder. Never infer a spice form from a meat name.
+    if any(token in name for token in ("ground beef", "ground turkey", "ground chicken", "ground pork", "hackfleisch", "minced meat")):
+        return "minced"
     rules = (
         (("frozen", "tiefkuhl", "deep frozen"), "frozen"),
         (("canned", "tinned", "konserve", "dose"), "canned"),
         (("grated", "gerieben", "geraspelt"), "grated"),
-        (("powder", "pulver", "ground"), "powder"),
+        (("powder", "pulver"), "powder"),
         (("pre cooked", "precooked", "cooked", "gegart", "gekocht"), "pre_cooked"),
         (("dried", "getrocknet", "dry"), "dried"),
         (("fresh", "frisch"), "fresh"),
