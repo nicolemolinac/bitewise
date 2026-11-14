@@ -323,7 +323,7 @@ def run():
     fish_test_match = ingredient_product_match_type(
         "white fish fillet", fish_test_title, {"form": "fresh"}, "tiefkuehlkost"
     )
-    assert fish_test_match == "suggested_substitution"
+    assert fish_test_match == "suggested_substitution", f"Fresh fish must keep frozen candidates review-only; got {fish_test_match!r}"
     assert ingredient_product_match_type(
         "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
         {"form": "fresh"}, "Tiefkühlkost"
