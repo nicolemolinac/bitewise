@@ -91,6 +91,31 @@ def run():
         catalog,
     )
     assert substitute_basket[0]["match_status"] == "substituted"
+
+    # An invalid explicit AI ratio must not degrade to a 1:1 substitution.
+    malformed_ratio_catalog = FakeCatalog({
+        "custom cooking fat": [{
+            "id": 6, "name_original": "REWE Rapsöl 500ml", "package_size": 500,
+            "package_unit": "ml", "price": 1.50, "price_per_unit": 0.003,
+            "availability": "available", "ingredient_match_type": "substitute",
+            "ingredient_substitute": "rapeseed oil",
+        }],
+    })
+    malformed_ratio_basket = build_basket(
+        [{
+            "ingredient": "custom cooking fat", "quantity": 20, "unit": "ml",
+            "source_meals": ["Test"],
+            "ingredient_intelligence": {
+                "canonical": "custom cooking fat",
+                "substitution_options": [{
+                    "name": "rapeseed oil", "quantity_ratio": 0,
+                }],
+            },
+        }],
+        malformed_ratio_catalog, mode="cheapest",
+    )
+    assert malformed_ratio_basket[0]["match_status"] == "unmatched"
+    assert malformed_ratio_basket[0]["product"] is None
     assert substitute_basket[0]["product"]["ingredient_substitute"] == "sunflower seeds"
     assert substitute_basket[0]["checkout_cost"] == 1.29
 
