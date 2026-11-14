@@ -95,32 +95,29 @@ def _displayed_unit_price(text: str):
 
 
 def price_details(text: str, package_size=None, package_unit=None):
-    """Return (pack checkout price, price per normalized g/ml/unit).
+    """Return (checkout pack price, price per normalized g/ml/unit).
 
-    REWE cards often show only a reference price such as '1 kg = 11,06 €'.
-    Treating that as the package price inflates checkout totals by 1,000x.
+    Prefer an explicit checkout price over a calculated reference price. A
+    reference price is only a fallback when package size and unit are known.
     """
     reference_price, reference_unit = _displayed_unit_price(text)
-    if reference_price is not None:
-        if package_size and package_unit == reference_unit:
-            pack_price = reference_price * float(package_size) / 1000.0
-            return round(pack_price, 2), reference_price / 1000.0
-        # A reference price is not the checkout price. If package metadata is
-        # missing or uses another unit, remove that reference-price fragment
-        # before looking for a separate explicit pack price.
-        reference_match = re.search(
-            r"\b1\s*(?:kg|l)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
-            text,
-            re.I,
-        )
-        if reference_match:
-            text = text[:reference_match.start()] + " " + text[reference_match.end():]
+    reference_match = re.search(
+        r"\\b1\\s*(?:kg|l)\\s*=\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?",
+        str(text or ""),
+        re.I,
+    )
+    checkout_text = (
+        str(text or "")[:reference_match.start()] + " " + str(text or "")[reference_match.end():]
+        if reference_match else str(text or "")
+    )
 
+    # First use an actual package checkout price, excluding the reference
+    # price fragment so €/kg or €/l can never masquerade as the pack price.
     for pattern in (
-        r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})",
-        r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
+        r"(?:€|EUR|Euro)\\s*(\\d+[,.]\\d{2})",
+        r"(\\d+[,.]\\d{2})\\s*(?:€|EUR|Euro)",
     ):
-        match = re.search(pattern, text, re.I)
+        match = re.search(pattern, checkout_text, re.I)
         if match:
             pack_price = float(match.group(1).replace(",", "."))
             per_unit = (
@@ -129,8 +126,13 @@ def price_details(text: str, package_size=None, package_unit=None):
                 else None
             )
             return round(pack_price, 2), per_unit
-    return None, None
 
+    # Only calculate from a displayed reference price when the pack's
+    # normalized unit is known and compatible.
+    if reference_price is not None and package_size and package_size > 0 and package_unit == reference_unit:
+        pack_price = reference_price * float(package_size) / 1000.0
+        return round(pack_price, 2), reference_price / 1000.0
+    return None, None
 
 def price(text: str):
     # Backwards-compatible helper: price now means checkout price per package.
