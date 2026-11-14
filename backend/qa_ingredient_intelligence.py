@@ -1185,6 +1185,12 @@ def run():
     assert ingredient_product_match_type(
         "bell pepper", "REWE Paprika rot 1 Stück", {"form": "fresh", "name_de": "Paprika"}, "obst-gemuese"
     ) == "exact"
+    assert ingredient_product_match_type(
+        "bell pepper", "REWE Paprika rot 1 Stück", {"form": "fresh", "name_de": "Paprika"}, "Obst & Gemüse"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "bell pepper", "REWE Paprika rot 1 Stück", {"form": "fresh", "name_de": "Paprika"}, "Obst und Gemüse"
+    ) == "exact"
     assert validate_ingredient_unit("bell pepper", "piece")["valid"] is True
     assert validate_ingredient_unit("bell pepper", "piece")["family"] == "produce"
     assert ingredient_product_match_type(
