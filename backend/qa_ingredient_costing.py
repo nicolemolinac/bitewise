@@ -247,6 +247,8 @@ def run():
     romaine_pieces, romaine_note = _convert_ingredient_quantity(150, "g", "piece", "romaine lettuce")
     assert round(mayo_ml, 1) == 31.6 and "0.95 g/ml" in mayo_note
     assert caesar_ml == 40 and "1 g/ml" in caesar_note
+    flour_grams, flour_note = _convert_ingredient_quantity(250, "ml", "g", "wheat flour")
+    assert flour_grams == 120 and "0.48 g/ml" in flour_note
     assert romaine_pieces == 1.5 and "100 g per piece" in romaine_note
 
     # Recipe ingredient quantities are generated for 2 servings and scaled exactly once.
