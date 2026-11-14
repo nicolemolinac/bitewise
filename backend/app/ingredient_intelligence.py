@@ -446,6 +446,8 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "butter": ("peanut butter", "erdnussbutter", "mandelmus", "nuss nougat", "brotaufstrich", "aufstrich", "butterkeks", "butterwaffel"),
         "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing", "honey peppers", "honey pepper", "honig pfeffer", "honig paprika", "honey roasted", "honig gerostet", "honig nuss", "honignuss", "honey nut", "muesli", "musli", "granola", "knusper", "cereal", "riegel"),
         "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln"),
+        # Ready-to-heat rice is not interchangeable with dry rice in recipe quantities or cooking steps.
+        "rice": ("express reis", "reis express", "mikrowellenreis", "mikrowellen reis", "vorgekochter reis", "vorgekocht", "ready rice", "ready-to-eat rice", "fertigreis"),
         "spaghetti": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln"),
         "bell pepper": ("paprikapulver", "paprika pulver", "paprika chips", "paprika lyoner", "paprika wurst"),
         "red onion": ("red onion chips", "rote zwiebel chips", "zwiebel chips"),
