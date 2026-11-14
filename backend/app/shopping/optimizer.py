@@ -251,6 +251,45 @@ def _badge(mode, waste_ratio, reuse_count, product, cheapest_total, total):
     return "⭐ Best Value"
 
 
+def _substitution_profile(intelligence, ingredient):
+    if not isinstance(intelligence, dict):
+        return {}
+    if any(field in intelligence for field in ("canonical", "name_en", "name_de", "form", "aliases", "substitution_options")):
+        return intelligence
+    key = normalize_text(ingredient)
+    direct = intelligence.get(ingredient) or intelligence.get(key)
+    if isinstance(direct, dict):
+        return direct
+    for raw_key, value in intelligence.items():
+        if normalize_text(raw_key) == key and isinstance(value, dict):
+            return value
+    return {}
+
+
+def _substitution_quantity_ratio(ingredient, product, intelligence):
+    profile = _substitution_profile(intelligence, ingredient)
+    replacement = normalize_text(product.get("ingredient_substitute") or "")
+    if not replacement:
+        return 1.0
+    options = profile.get("substitution_options", [])
+    if not isinstance(options, list):
+        return 1.0
+    for option in options:
+        if not isinstance(option, dict):
+            continue
+        names = [option.get("name"), option.get("name_de")]
+        aliases = option.get("aliases", [])
+        if isinstance(aliases, list):
+            names.extend(aliases)
+        if any(normalize_text(name) == replacement for name in names if isinstance(name, str)):
+            try:
+                ratio = float(option.get("quantity_ratio", 1) or 1)
+            except (TypeError, ValueError):
+                return 1.0
+            return ratio if 0.1 <= ratio <= 5 else 1.0
+    return 1.0
+
+
 def build_basket(requirements, adapter, mode="best-value", owned=None, overrides=None, pantry=None):
     owned = {x.lower().strip() for x in (owned or [])}
     overrides = overrides or {}
@@ -272,6 +311,8 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         base = {
             **requirement,
             "needed_quantity": round(needed, 2),
+            "product_needed_quantity": round(needed, 2),
+            "quantity_ratio": 1.0,
             "pantry_used": round(pantry_used, 2),
             "pantry_unit": unit,
             "product": None,
@@ -350,7 +391,14 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             }:
                 continue
             pack_qty, product_unit = _package(product)
-            needed_in_pack_unit, unit_conversion_note = _convert_ingredient_quantity(needed, unit, product_unit, ingredient)
+            quantity_ratio = (
+                _substitution_quantity_ratio(ingredient, product, intelligence)
+                if product.get("ingredient_match_type") == "substitute" else 1.0
+            )
+            product_needed = needed * quantity_ratio
+            needed_in_pack_unit, unit_conversion_note = _convert_ingredient_quantity(
+                product_needed, unit, product_unit, ingredient
+            )
             if needed_in_pack_unit is None:
                 continue
             packs = max(1, math.ceil(needed_in_pack_unit / pack_qty))
@@ -376,6 +424,8 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 "product": product, "selected_by_user": selected_by_user,
                 "package_quantity": purchased_quantity, "package_unit": product_unit,
                 "needed_in_pack_unit": needed_in_pack_unit,
+                "product_needed_quantity": product_needed,
+                "quantity_ratio": quantity_ratio,
                 "unit_conversion_note": unit_conversion_note,
             })
 
@@ -410,6 +460,8 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         )
         base.update({
             "product": chosen["product"],
+            "product_needed_quantity": round(chosen["product_needed_quantity"], 2),
+            "quantity_ratio": chosen["quantity_ratio"],
             "packs": chosen["packs"],
             "total": round(chosen["checkout_cost"], 2),
             "checkout_cost": round(chosen["checkout_cost"], 2),
