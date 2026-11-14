@@ -698,8 +698,9 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "omelette", "omelet", "ruehrei", "rührei", "eiersalat",
         ),
         "salmon": (
-            "gerauchertes", "geräuchertes", "rauchlachs", "smoked",
-            "gravlax", "graved", "beize", "mariniert", "marinade",
+            "gerauchertes", "geräuchertes", "geraucherte", "geräucherte",
+            "rauchlachs", "smoked", "gravlax", "graved", "beize",
+            "mariniert", "marinade",
         ),
         "shrimp": (
             "gekochte", "gegarte", "boiled", "cooked", "mariniert",
@@ -708,6 +709,7 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "tofu": (
             "wurstchen", "würstchen", "sausage", "wiener", "burger",
             "schnitzel", "gerauchert", "geräuchert", "geräuchertes",
+            "geräucherte", "geräucherter", "geraucherte", "geraucherter",
             "smoked", "mariniert", "marinierte", "marinade", "teriyaki",
             "knusper", "crispy", "sticks", "nuggets",
         ),
