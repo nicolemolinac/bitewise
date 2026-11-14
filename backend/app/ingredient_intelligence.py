@@ -79,6 +79,7 @@ _SUBSTITUTION_TERMS = {
     "frozen french fries": ("fresh potato", "potato", "potatoes", "kartoffeln", "speisekartoffeln"),
     "parmesan cheese": ("grana padano", "grana padano gerieben"),
     "grated cheddar cheese": ("grated gouda", "geriebener gouda", "gouda gerieben", "emmentaler gerieben", "geriebener emmentaler", "gratinkäse"),
+    "soft tortillas": ("high protein wraps", "protein wraps"),
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
     # Slaw can use fresh white cabbage when red cabbage is not stocked.
     "red cabbage": ("white cabbage", "weisskohl", "spitzkohl"),
