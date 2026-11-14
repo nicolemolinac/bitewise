@@ -110,6 +110,12 @@ def run():
         "vegetable oil", "REWE Rapsöl 1L", {"form": "liquid"}, "oele-sossen-gewuerze"
     ) == "substitute"
     assert ingredient_product_match_type(
+        "vegetable oil", "REWE Bio Sonnenblumenöl nativ 500ml", {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution", "Native sunflower oil must be reviewed rather than auto-selected as neutral cooking oil"
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Sonnenblumenöl raffiniert 1L", {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) == "substitute", "Refined neutral sunflower oil remains a safe cooking-oil substitute"
+    assert ingredient_product_match_type(
         "red onion", "Zwiebel rot 500g im Netz", {"form": "fresh"}, "obst-gemuese"
     ) == "exact"
     assert ingredient_product_match_type(
