@@ -129,11 +129,23 @@ def _ingredient_count_weight(ingredient):
     return None
 
 
-# Approximate densities are explicit and restricted to these common
-# emulsified dressings; do not apply a generic mass/volume conversion to foods.
+# Explicit ingredient-specific average densities support common recipe
+# volume measures when REWE sells the product by mass. These are estimates,
+# surfaced to the user as conversion notes rather than hidden exact conversions.
 _MASS_VOLUME_DENSITY_G_PER_ML = {
     "mayonnaise": 0.95,
     "caesar dressing": 1.0,
+    "wheat flour": 0.48,
+    "all purpose flour": 0.48,
+    "flour": 0.48,
+    "granulated sugar": 0.80,
+    "sugar": 0.80,
+    "brown sugar": 0.85,
+    "rolled oats": 0.36,
+    "rice": 0.80,
+    "breadcrumbs": 0.48,
+    "cocoa powder": 0.40,
+    "grated cheese": 0.40,
 }
 
 
