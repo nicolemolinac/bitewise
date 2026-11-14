@@ -32,7 +32,10 @@ def consolidate(meals, servings_map):
             else:
                 # Keep semantically different units (e.g. cloves vs pieces) separate.
                 normalized_quantity = float(quantity)
-            key = (name.lower().strip(), normalized_unit)
+            # Normalize punctuation, accents and case before grouping so
+            # "red-onion", "Red Onion" and "red onion" do not become
+            # separate shopping lines.
+            key = (normalize_text(name), normalized_unit)
             row = grouped[key]
             row["quantity"] += normalized_quantity * factor
             row["source_meals"].append(meal["name"])
