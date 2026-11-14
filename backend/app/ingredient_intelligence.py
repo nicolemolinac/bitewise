@@ -531,6 +531,8 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         if name == "chicken breast" and any(term in title_key for term in ("gegart", "gekocht", "gebraten", "cooked", "roasted")):
             return False
         allowed = {"fleisch-wurst-fisch", "fleisch"}
+        if name == "tuna":
+            allowed.add("fertiggerichte-konserven")
         if normalize_text(form) in {"frozen", "tiefkuhl"}:
             allowed.add("tiefkuehlkost")
         return category_key in allowed
