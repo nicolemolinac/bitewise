@@ -102,7 +102,7 @@ def price_details(text: str, package_size=None, package_unit=None):
     """
     reference_price, reference_unit = _displayed_unit_price(text)
     reference_match = re.search(
-        r"\\b1\\s*(?:kg|l)\\s*=\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?",
+        r"\b1\s*(?:kg|l)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
         str(text or ""),
         re.I,
     )
@@ -114,8 +114,8 @@ def price_details(text: str, package_size=None, package_unit=None):
     # First use an actual package checkout price, excluding the reference
     # price fragment so €/kg or €/l can never masquerade as the pack price.
     for pattern in (
-        r"(?:€|EUR|Euro)\\s*(\\d+[,.]\\d{2})",
-        r"(\\d+[,.]\\d{2})\\s*(?:€|EUR|Euro)",
+        r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})",
+        r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
     ):
         match = re.search(pattern, checkout_text, re.I)
         if match:
