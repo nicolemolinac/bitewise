@@ -503,7 +503,16 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing", "honey peppers", "honey pepper", "honig pfeffer", "honig paprika", "honey roasted", "honig gerostet", "honig nuss", "honignuss", "honey nut", "muesli", "musli", "granola", "knusper", "cereal", "riegel"),
         "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln", "gnocchi"),
         # Ready-to-heat rice is not interchangeable with dry rice in recipe quantities or cooking steps.
-        "rice": ("express", "express reis", "reis express", "mikrowellenreis", "mikrowellen reis", "vorgekochter reis", "vorgekocht", "ready rice", "ready-to-eat rice", "fertigreis", "reis fit", "reisfit"),
+        "rice": (
+            "express", "express reis", "reis express", "mikrowellenreis",
+            "mikrowellen reis", "vorgekochter reis", "vorgekocht",
+            "ready rice", "ready-to-eat rice", "fertigreis", "reis fit", "reisfit",
+            # Other rice-derived products are not interchangeable with dry rice.
+            "rice flour", "reismehl", "rice pudding", "milchreis",
+            "rice cake", "rice cakes", "reiswaffel", "reiswaffeln",
+            "rice noodle", "rice noodles", "reisnudel", "reisnudeln",
+            "rice cracker", "rice crackers",
+        ),
         "spaghetti": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln", "gnocchi"),
         "bell pepper": ("paprikapulver", "paprika pulver", "paprika chips", "paprika lyoner", "paprika wurst"),
         "red onion": ("red onion chips", "rote zwiebel chips", "zwiebel chips"),
