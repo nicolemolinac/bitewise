@@ -400,6 +400,17 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 "unavailable", "out_of_stock", "not_available", "discontinued"
             }:
                 continue
+            try:
+                price = float(price)
+                raw_pack_qty = _number(product, "pack_qty", "package_size", default=float("nan"))
+            except (TypeError, ValueError, OverflowError):
+                continue
+            # Never turn malformed catalog values into a tiny 0.0001-unit pack
+            # or allow NaN/negative prices to contaminate basket ranking.
+            if not math.isfinite(price) or price < 0:
+                continue
+            if not math.isfinite(raw_pack_qty) or raw_pack_qty <= 0:
+                continue
             pack_qty, product_unit = _package(product)
             quantity_ratio = (
                 _substitution_quantity_ratio(ingredient, product, intelligence)
@@ -425,7 +436,9 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             checkout_cost = packs * float(price)
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
             waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1.0)
-            unit_price = _number(product, "unit_price", "price_per_unit", default=float(price) / pack_qty)
+            unit_price = _number(product, "unit_price", "price_per_unit", default=price / pack_qty)
+            if not math.isfinite(unit_price) or unit_price < 0:
+                unit_price = price / pack_qty
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             # Exact matches win over substitutions; a substitute is used only when
             # no exact priced/available option is present.
