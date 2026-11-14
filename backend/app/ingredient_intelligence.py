@@ -248,6 +248,14 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     # form constraints so "soft tortillas" and "grated cheese" are understood.
     if any(term in form for term in ("soft tortilla", "soft wrap", "weizen tortilla")):
         form = "soft"
+    elif "ground" in form:
+        ingredient_key = normalize_text(ingredient)
+        meat_terms = ("beef", "turkey", "chicken", "pork", "meat", "hackfleisch", "faschiertes")
+        spice_terms = ("pepper", "cumin", "cinnamon", "paprika", "spice", "gewurz", "pfeffer", "kreuzkummel")
+        if any(term in ingredient_key for term in meat_terms):
+            form = "minced"
+        elif any(term in ingredient_key for term in spice_terms):
+            form = "powder"
     elif any(term in form for term in ("grated", "gerieben", "shredded cheese")):
         form = "grated"
     elif any(term in form for term in ("frozen", "tiefkuhl")):
@@ -258,7 +266,7 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         form = "minced"
     elif any(term in form for term in ("powder", "pulver", "ground spice")):
         form = "powder"
-    elif any(term in form for term in ("dried", "getrocknet")):
+    elif any(term in form for term in ("dried", "getrocknet", "dry", "trocken")):
         form = "dried"
     elif any(term in form for term in ("whole", "ganz", "unground")):
         form = "whole"
