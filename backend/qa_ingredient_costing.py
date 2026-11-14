@@ -373,6 +373,16 @@ def run():
     assert {row["ingredient_intelligence"]["form"] for row in form_split} == {"whole", "powder"}
     assert {row["ingredient_form"] for row in form_split} == {"whole", "powder"}
     assert sum(row["quantity"] for row in form_split) == 10
+    # Metadata lookup must normalize punctuation exactly like the matcher.
+    punctuation_profile = consolidate([{
+        "id": "punctuation-profile", "name": "Herb QA", "base_servings": 1,
+        "ingredients": [["fresh cilantro", 1, "bunch"]],
+        "ingredient_intelligence": {
+            "fresh-cilantro": {"form": "fresh", "preparation": "chopped"}
+        },
+    }], {"punctuation-profile": 1})
+    assert punctuation_profile[0]["ingredient_form"] == "fresh"
+    assert punctuation_profile[0]["ingredient_preparation"] == "chopped"
     preparation_split = consolidate([
         {"id": "chopped-garlic", "name": "Chopped garlic", "base_servings": 1,
          "ingredients": [["garlic", 1, "tbsp"]],
