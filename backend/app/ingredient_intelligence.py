@@ -1049,7 +1049,13 @@ def _normalize_validation_unit(unit: str) -> str:
 def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = None) -> dict:
     name = normalize_text(ingredient)
     normalized_unit = _normalize_validation_unit(unit)
-    if name in {"bell pepper", "red pepper", "green pepper", "yellow pepper", "sweet pepper", "paprika"}:
+    if name in {
+        "bell pepper", "red pepper", "green pepper", "yellow pepper",
+        "sweet pepper", "paprika", "sugar snap peas", "sugar snap pea",
+        "snap peas", "mangetout",
+    }:
+        # Compound ingredient names must override generic seasoning/sweetener
+        # tokens (e.g. sugar snap peas are produce, not sugar).
         family = "produce"
     elif name in {
         "pepper", "ground pepper", "white pepper", "ground white pepper",
