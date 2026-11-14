@@ -155,6 +155,8 @@ _UNIT_FAMILIES = {
     "spice": {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"},
     "produce": {"g", "kg", "piece", "unit", "bunch"},
     "count": {"piece", "unit", "bunch"},
+    "grains": {"g", "kg", "ml", "cup"},
+    "dairy_solid": {"g", "kg", "piece", "slice"},
 }
 _FAMILY_HINTS = {
     "oil": ("oil", "pflanzenol", "sonnenblumenol", "rapsol", "olivenol"),
@@ -162,6 +164,14 @@ _FAMILY_HINTS = {
     "spice": ("salt", "black pepper", "peppercorn", "paprika", "paprika powder", "cumin", "cinnamon", "spice", "seasoning", "gewürz", "gewürzmischung", "salz", "pfeffer"),
     "produce": ("bell pepper", "red onion", "pepper", "paprika", "onion", "onions", "garlic", "potato", "potatoes", "tomato", "tomatoes", "lettuce", "cilantro", "carrot", "carrots", "olive", "olives", "zwiebel", "zwiebeln", "knoblauch", "kartoffel", "kartoffeln"),
     "count": ("egg", "eggs", "eier", "tortilla", "tortillas", "shell", "shells", "bun", "buns", "wurstchen", "sausage", "sausages"),
+    "grains": (
+        "rice", "reis", "pasta", "spaghetti", "noodles", "nudeln",
+        "flour", "mehl", "oats", "haferflocken", "breadcrumbs",
+        "semmelbrosel", "cereal", "cereals",
+    ),
+    "dairy_solid": (
+        "cheese", "kaese", "butter", "mozzarella", "feta", "parmesan",
+    ),
 }
 
 
@@ -902,6 +912,7 @@ _UNIT_VALIDATION_ALIASES = {
     "clove": "cloves", "cloves": "cloves", "zehe": "cloves", "zehen": "cloves",
     "pinch": "pinch", "prise": "pinch", "prisen": "pinch",
     "bunch": "bunch", "bunches": "bunch", "bund": "bunch",
+    "slice": "slice", "slices": "slice", "scheibe": "slice", "scheiben": "slice",
     "essloffel": "tbsp", "teeloffel": "tsp",
 }
 
