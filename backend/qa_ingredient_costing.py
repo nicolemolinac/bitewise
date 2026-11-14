@@ -301,6 +301,19 @@ def run():
     )
     assert infinite_pantry_basket[0]["match_status"] == "matched"
     assert infinite_pantry_basket[0]["pantry_used"] == 0
+    ambiguous_pantry_basket = build_basket(
+        [{"ingredient": "red onion", "quantity": 3, "unit": "piece", "source_meals": ["QA"]}],
+        onion_catalog, mode="cheapest",
+        pantry={
+            "red onion": {"quantity": 1, "unit": "piece"},
+            "Red-onion": {"quantity": 2, "unit": "piece"},
+        },
+    )
+    # Normalized duplicate keys are ambiguous; neither entry may silently
+    # overwrite the other or make the recipe appear covered.
+    assert ambiguous_pantry_basket[0]["pantry_used"] == 0
+    assert ambiguous_pantry_basket[0]["needed_quantity"] == 3
+    assert ambiguous_pantry_basket[0]["match_status"] == "matched"
 
     fries_catalog = FakeCatalog({
         "frozen french fries": [{
