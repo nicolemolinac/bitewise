@@ -85,6 +85,11 @@ def run():
         "cumin", "REWE Kreuzkümmel ganz 40g", {"form": "whole"}, "oele-sossen-gewuerze"
     ) == "exact"
     assert ingredient_product_match_type(
+        "rice", "REWE Beste Wahl Langkornreis 500g",
+        {"canonical": "rice", "name_en": "rice", "name_de": "Reis",
+         "aliases": ["Langkornreis"], "form": "dry"}, "Rice"
+    ) == "exact", "Generic dry pantry form must not be treated as dried produce/herbs"
+    assert ingredient_product_match_type(
         "cumin", "REWE Kreuzkümmel 40g", {"form": "whole"}, "oele-sossen-gewuerze"
     ) is None, "Unspecified cumin form must not be assumed whole"
 
