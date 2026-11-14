@@ -340,6 +340,20 @@ def run():
     assert duplicate_names[0]["ingredient"] == "Red-onion"
     assert duplicate_names[0]["quantity"] == 80
 
+    # Identical ingredient names and units must remain separate when recipe
+    # intent differs materially (whole vs ground spice form).
+    form_split = consolidate([
+        {"id": "whole-cumin", "name": "Whole cumin", "base_servings": 1,
+         "ingredients": [["cumin", 5, "g"]],
+         "ingredient_intelligence": {"cumin": {"form": "whole"}}},
+        {"id": "ground-cumin", "name": "Ground cumin", "base_servings": 1,
+         "ingredients": [["cumin", 5, "g"]],
+         "ingredient_intelligence": {"cumin": {"form": "powder"}}},
+    ], {"whole-cumin": 1, "ground-cumin": 1})
+    assert len(form_split) == 2
+    assert {row["ingredient_intelligence"]["form"] for row in form_split} == {"whole", "powder"}
+    assert sum(row["quantity"] for row in form_split) == 10
+
     bunch_requirement = consolidate([
         {"id": "herbs", "name": "Herb recipe", "base_servings": 1,
          "ingredients": [["fresh cilantro", 1, "Bund"]]},
