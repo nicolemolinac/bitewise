@@ -14,6 +14,7 @@ from .database import (
     ShoppingState,
 )
 from .rewe.scraper import (
+    MINIMUM_REWE_PACKAGE_COVERAGE,
     MINIMUM_REWE_PRICE_COVERAGE,
     REWE_CATEGORY_MINIMUM_PRODUCTS,
     REWE_CATEGORY_URLS,
@@ -47,6 +48,12 @@ def _is_complete_healthy_rewe_report(report: dict) -> bool:
     except (TypeError, ValueError):
         return False
     if not math.isfinite(price_coverage) or price_coverage < MINIMUM_REWE_PRICE_COVERAGE:
+        return False
+    try:
+        package_coverage = float(report.get("package_coverage_ratio"))
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(package_coverage) or package_coverage < MINIMUM_REWE_PACKAGE_COVERAGE:
         return False
     expected_categories = {category_slug_from_url(url) for url in REWE_CATEGORY_URLS}
     if not expected_categories.issubset(counts):
