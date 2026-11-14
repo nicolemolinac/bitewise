@@ -100,6 +100,18 @@ def run():
         ("baking powder", "REWE Backpulver 3x15g", "kochen-backen", "exact"),
         ("cornstarch", "REWE Speisestärke 400g", "kochen-backen", "exact"),
         ("coconut milk", "REWE Kokosmilch 400ml", "fertiggerichte-konserven", "exact"),
+        ("parmesan", "REWE Bio Parmigiano Reggiano 150g", "kaese-eier-molkerei", "exact"),
+        ("egg", "REWE Freilandeier 10 Stück", "kaese-eier-molkerei", "exact"),
+        ("spinach", "REWE Babyspinat 100g", "obst-gemuese", "exact"),
+        ("broccoli", "REWE Brokkoli 500g", "obst-gemuese", "exact"),
+        ("strawberry", "REWE Erdbeeren 500g", "obst-gemuese", "exact"),
+        ("shrimp", "REWE Garnelen 200g", "fleisch-wurst-fisch", "exact"),
+        ("tuna", "REWE Thunfisch in eigenem Saft 195g", "fertiggerichte-konserven", "exact"),
+        ("bacon", "REWE Frühstücksspeck 100g", "fleisch-wurst-fisch", "exact"),
+        ("turkey", "REWE Putenbrust 400g", "fleisch-wurst-fisch", "exact"),
+        ("bread", "REWE Vollkornbrot 500g", "brot-cerealien-aufstriche", "exact"),
+        ("sugar", "REWE Haushaltszucker 1kg", "kochen-backen", "exact"),
+        ("tofu", "REWE Bio Tofu Natur 200g", "fleisch-wurst-fisch", "exact"),
     ]
     for ingredient, title, category, expected in catalog_alias_cases:
         actual = ingredient_product_match_type(ingredient, title, None, category)
