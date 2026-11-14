@@ -947,6 +947,11 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
     profile = _profile_lookup(intelligence, ingredient)
     form = normalize_text(profile.get("form") or "")
     preparation = normalize_text(profile.get("preparation") or "")
+    if family == "dairy_solid":
+        if "butter" in name:
+            allowed.update({"tbsp", "tsp"})
+        if form == "grated" or any(term in name.split() for term in ("grated", "gerieben", "raspelt")):
+            allowed.add("cup")
     if family == "produce" and any(term in name.split() for term in ("garlic", "knoblauch")):
         allowed.add("cloves")
     if family == "produce" and form == "powder":
