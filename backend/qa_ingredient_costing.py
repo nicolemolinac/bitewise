@@ -146,10 +146,15 @@ def run():
             "id": 26, "name_original": "Invalid boolean price", "package_size": 100,
             "package_unit": "g", "price": True, "availability": "available",
         }],
+        "overflow pack": [{
+            "id": 28, "name_original": "Invalid overflowing pack",
+            "package_size": 10 ** 10000, "package_unit": "g",
+            "price": 1.0, "availability": "available",
+        }],
     })
     malformed_rows = build_basket([
         {"ingredient": name, "quantity": 10, "unit": "g", "source_meals": ["QA"]}
-        for name in ("negative price", "nan price", "zero price", "zero pack", "nan pack", "boolean pack", "boolean price")
+        for name in ("negative price", "nan price", "zero price", "zero pack", "nan pack", "boolean pack", "boolean price", "overflow pack")
     ], malformed_catalog)
     assert all(row["match_status"] == "unmatched" and row["packs"] == 0 for row in malformed_rows)
 
