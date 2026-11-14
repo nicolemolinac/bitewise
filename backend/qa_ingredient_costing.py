@@ -199,6 +199,20 @@ def run():
     assert curry_spoon["quantity"] == 5 and curry_spoon["unit"] == "ml"
     assert garlic_cloves["quantity"] == 3 and garlic_cloves["unit"] == "cloves"
 
+    herb_counts = consolidate([
+        {"id": "herbs-a", "name": "Herb salad", "ingredients": [
+            ["fresh cilantro", 1, "bunch"], ["fresh cilantro", 2, "piece"],
+        ]},
+        {"id": "herbs-b", "name": "Herb rice", "ingredients": [
+            ["fresh cilantro", 1, "Bund"],
+        ]},
+    ], {"herbs-a": 2, "herbs-b": 2})
+    cilantro_bunches = next(row for row in herb_counts if row["unit"] == "bunch")
+    cilantro_pieces = next(row for row in herb_counts if row["unit"] == "piece")
+    assert cilantro_bunches["quantity"] == 2
+    assert cilantro_pieces["quantity"] == 2
+    assert len(herb_counts) == 2, "Bunches and loose pieces must not be silently merged"
+
     substitute_catalog = FakeCatalog({
         "trofie pasta": [{
             "id": 5, "name_original": "REWE Fusilli 500g", "package_size": 500,
