@@ -200,6 +200,9 @@ def run():
     assert "pommes frites" in fallback["frozen french fries"]["aliases"]
     assert fallback["pre cooked shredded chicken"]["form"] == "pre_cooked"
     assert fallback["vegetable oil"]["unit_dimension"] == "volume"
+    assert normalize_recipe_intelligence({
+        "ingredients": [["dry rice", 150, "g"]]
+    })["dry rice"]["form"] == "unspecified"
     # "Ground" is context-sensitive: minced meat must not be treated as spice powder.
     assert normalize_recipe_intelligence({
         "ingredients": [["ground beef", 500, "g"]]
