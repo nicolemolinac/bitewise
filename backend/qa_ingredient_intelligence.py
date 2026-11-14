@@ -244,7 +244,7 @@ def run():
     ) == "suggested_substitution"
 
     assert ingredient_product_match_type(
-        "pine nuts", "REWE Pesto Genovese mit Pinienkernen 190g",
+        "pine nuts", "REWE Pesto Genovese with Pine Nuts 190g",
         None, "oele-sossen-gewuerze"
     ) is None
     assert ingredient_product_match_type(
