@@ -324,6 +324,21 @@ def run():
     assert bunch_requirement[0]["unit"] == "bunch"
     assert bunch_requirement[0]["quantity"] == 1
 
+    # Invalid generated quantities must never be mistaken for pantry-covered
+    # ingredients or silently converted into a zero-quantity shopping row.
+    for invalid_quantity in (-2, 0, float("nan"), float("inf"), "not-a-number", True):
+        invalid_requirements = consolidate([
+            {"id": "invalid", "name": "Invalid quantity", "base_servings": 1,
+             "ingredients": [["onion", invalid_quantity, "piece"]]},
+        ], {"invalid": 1})
+        assert invalid_requirements[0]["quantity"] == 0
+        assert invalid_requirements[0]["quantity_validation"]["valid"] is False
+        invalid_basket = build_basket(
+            invalid_requirements, FakeCatalog({"onion": []}), owned=["onion"]
+        )
+        assert invalid_basket[0]["match_status"] == "unmatched"
+        assert invalid_basket[0]["quantity_validation"]["valid"] is False
+
     four_servings = consolidate([
         {"id": "four", "name": "Four portions", "base_servings": 2,
          "ingredients": [["rice", 150, "g"]]},
