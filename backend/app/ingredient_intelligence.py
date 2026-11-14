@@ -31,7 +31,7 @@ _BASE_TERMS = {
     "sesame oil": ("sesame oil", "sesamol", "gerostetes sesamol"),
     "soft tortillas": ("soft tortillas", "weizentortillas", "weizentortilla", "weizen tortillas", "weizen tortilla", "tortilla wraps", "wraps"),
     "firm tofu": ("firm tofu", "naturtofu", "tofu natur", "fester tofu"),
-    "curry powder": ("curry powder", "currypulver", "curry pulver", "curry gewurz", "curry gewurzmischung", "curry paste", "currypaste", "madras curry paste"),
+    "curry powder": ("curry powder", "currypulver", "curry pulver", "curry gewurz", "curry gewurzmischung"),
     "cumin": ("cumin", "kreuzkummel", "kreuzkuemmel", "kreuz kummel"),
     "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemuse bruhe", "bruhwurfel gemuse", "bruhwuerfel gemuse", "bruhwurfel"),
     "cooking cream": ("cooking cream", "kochcreme", "kochsahne", "sahne zum kochen"),
@@ -476,12 +476,15 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     title = normalize_text(product_text)
     if not title or _ingredient_specific_exclusions(ingredient, title):
         return None
-    # Native/cold-pressed sunflower oil has a stronger flavor and different
-    # high-heat behavior than neutral refined cooking oil; keep it review-only.
+    # Neutral cooking-oil requests should not silently accept oils whose
+    # processing leaves a strong flavor or materially changes high-heat use.
+    # This applies across candidate oil types, not to one retailer SKU.
     if (
         normalize_text(ingredient) == "vegetable oil"
-        and "sonnenblumenol" in title
-        and any(marker in title for marker in (" nativ", " kaltgepresst", " virgin"))
+        and any(marker in title for marker in (
+            " nativ", " kaltgepresst", " cold pressed", " virgin",
+            " unraffiniert", " nicht raffiniert", " gerostet", " toasted",
+        ))
     ):
         return "suggested_substitution"
     if (
