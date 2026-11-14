@@ -32,11 +32,13 @@ def run():
     ReweCatalogScraper(browser_enabled=False)._ingest_products(
         _ingest_report,
         [{"price": 0}, {"price": -1}, {"price": "nan"}, {"price": "inf"}, {"price": "bad"}, {"price": 1.25}],
-        lambda product, postcode: True,
+        lambda product, postcode: None if product.get("price") == 0 else True,
         "13353",
     )
     assert _ingest_report["products_found"] == 6
     assert _ingest_report["products_with_price"] == 1
+    assert _ingest_report["products_skipped"] == 1
+    assert _ingest_report["products_created"] == 5
     # Live REWE parsing must reject non-finite/zero package quantities and
     # prices before they can enter the product catalog.
     assert package("Product 0g") == (None, None)
