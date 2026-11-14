@@ -112,6 +112,9 @@ def run():
         "milk", "REWE Milchpulver 500g", {"form": "unspecified"}, "kochen-backen"
     ) is None
     assert ingredient_product_match_type(
+        "milk", "REWE Vollmilchpulver 500g", {"form": "unspecified"}, "kochen-backen"
+    ) is None
+    assert ingredient_product_match_type(
         "milk", "REWE Kokosmilch 400ml", {"form": "unspecified"}, "konserven"
     ) is None
     assert ingredient_product_match_type(
