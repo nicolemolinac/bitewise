@@ -47,7 +47,8 @@ def main():
         "categories_successful": len(REWE_CATEGORY_URLS),
         "categories_failed": 0,
         "category_product_counts": complete_counts,
-        "price_coverage_ratio": 0.85,
+        "price_coverage_ratio": 0.95,
+        "package_coverage_ratio": 0.95,
     }
     assert _is_complete_healthy_rewe_report(complete_report)
 
@@ -67,7 +68,19 @@ def main():
     })
     assert not _is_complete_healthy_rewe_report({
         **complete_report,
-        "price_coverage_ratio": 0.10,
+        "price_coverage_ratio": 0.79,
+    })
+    assert not _is_complete_healthy_rewe_report({
+        **complete_report,
+        "package_coverage_ratio": 0.79,
+    })
+    assert not _is_complete_healthy_rewe_report({
+        **complete_report,
+        "package_coverage_ratio": float("nan"),
+    })
+    assert not _is_complete_healthy_rewe_report({
+        **complete_report,
+        "package_coverage_ratio": None,
     })
 
     refresh_routes = [
