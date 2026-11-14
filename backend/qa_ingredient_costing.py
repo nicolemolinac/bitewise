@@ -165,7 +165,7 @@ def run():
             "ingredient_intelligence": {
                 "canonical": "pine nuts",
                 "substitution_options": [{
-                    "name": "sunflower seeds", "quantity_ratio": 1.0,
+                    "name": "sunflower seeds", "quantity_ratio": 1.5,
                 }],
             },
         }],
@@ -218,6 +218,8 @@ def run():
     assert malformed_ratio_basket[0]["match_status"] == "unmatched"
     assert malformed_ratio_basket[0]["product"] is None
     assert substitute_basket[0]["product"]["ingredient_substitute"] == "sunflower seeds"
+    assert substitute_basket[0]["quantity_ratio"] == 1.5
+    assert substitute_basket[0]["product_needed_quantity"] == 45
     assert substitute_basket[0]["checkout_cost"] == 1.29
 
     # Unknown or uncurated substitution ratios must not silently become 1:1.
