@@ -274,6 +274,8 @@ def run():
         assert validate_ingredient_unit(protein_name, "g")["family"] == "protein"
         assert validate_ingredient_unit(protein_name, "tsp")["valid"] is False
     assert validate_ingredient_unit("honey", "tbsp")["family"] == "sweetener"
+    assert validate_ingredient_unit("sugar snap peas", "g")["family"] == "produce"
+    assert validate_ingredient_unit("sugar snap peas", "tsp")["valid"] is False
     assert validate_ingredient_unit("sugar", "tsp")["valid"] is True
     assert validate_ingredient_unit("baking powder", "tsp")["family"] == "leavening"
     assert validate_ingredient_unit("cornstarch", "tbsp")["family"] == "starch"
