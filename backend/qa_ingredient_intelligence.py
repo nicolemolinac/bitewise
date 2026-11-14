@@ -35,6 +35,41 @@ class IntelligenceCatalog:
 
 
 def run():
+    # Real REWE titles from the 22-recipe catalog benchmark must be recognized
+    # as exact when the recipe's canonical identity, German name and form agree.
+    # This protects common pantry/produce ingredients from being downgraded to
+    # review-only merely because their German retail label is not an English alias.
+    exact_catalog_identity_cases = [
+        ("banana", "Bio Banane ca. 200g 1 Stück", {
+            "canonical": "banana", "name_en": "banana", "name_de": "Banane",
+            "aliases": ["Banane"], "form": "fresh",
+        }, "obst-gemuese"),
+        ("carrot", "Karotten 1kg", {
+            "canonical": "carrot", "name_en": "carrot", "name_de": "Karotte",
+            "aliases": ["Karotten"], "form": "fresh",
+        }, "obst-gemuese"),
+        ("spring onion", "Bio Lauchzwiebel im Bund", {
+            "canonical": "spring onion", "name_en": "spring onion", "name_de": "Lauchzwiebel",
+            "aliases": ["Lauchzwiebel"], "form": "fresh",
+        }, "obst-gemuese"),
+        ("lettuce", "Eisbergsalat 1 Stück", {
+            "canonical": "lettuce", "name_en": "lettuce", "name_de": "Eisbergsalat",
+            "aliases": ["Eisbergsalat"], "form": "fresh",
+        }, "obst-gemuese"),
+        ("rolled oats", "REWE Bio Haferflocken kernig 500g", {
+            "canonical": "rolled oats", "name_en": "rolled oats", "name_de": "Haferflocken",
+            "aliases": ["Haferflocken"], "form": "dry",
+        }, "kochen-backen"),
+        ("white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g", {
+            "canonical": "white fish fillet", "name_en": "white fish fillet",
+            "name_de": "Alaska Seelachsfilet", "aliases": ["Seelachsfilet"],
+            "form": "frozen",
+        }, "tiefkuehlkost"),
+    ]
+    for ingredient, title, profile, category in exact_catalog_identity_cases:
+        actual = ingredient_product_match_type(ingredient, title, profile, category)
+        assert actual == "exact", (ingredient, title, actual)
+
     raw = {
         "ingredients": [
             ["vegetable oil", 2, "cloves"],
