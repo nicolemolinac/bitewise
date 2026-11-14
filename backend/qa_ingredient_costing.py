@@ -110,6 +110,10 @@ def run():
             "id": 21, "name_original": "Invalid NaN price", "package_size": 100,
             "package_unit": "g", "price": float("nan"), "availability": "available",
         }],
+        "zero price": [{
+            "id": 24, "name_original": "Invalid zero price", "package_size": 100,
+            "package_unit": "g", "price": 0.0, "availability": "available",
+        }],
         "zero pack": [{
             "id": 22, "name_original": "Invalid zero pack", "package_size": 0,
             "package_unit": "g", "price": 1.0, "availability": "available",
@@ -121,7 +125,7 @@ def run():
     })
     malformed_rows = build_basket([
         {"ingredient": name, "quantity": 10, "unit": "g", "source_meals": ["QA"]}
-        for name in ("negative price", "nan price", "zero pack", "nan pack")
+        for name in ("negative price", "nan price", "zero price", "zero pack", "nan pack")
     ], malformed_catalog)
     assert all(row["match_status"] == "unmatched" and row["packs"] == 0 for row in malformed_rows)
 
