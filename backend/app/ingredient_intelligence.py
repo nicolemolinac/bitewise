@@ -304,11 +304,27 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         "minced", "ground meat", "ground beef", "faschiertes",
     )):
         return False
-    if form == "whole" and any(token in title for token in (
-        "gemahlen", "pulver", "powder", "ground", "geschrotet",
-        "crushed", "zerkleinert", "mahlzeit",
-    )):
-        return False
+    if form == "whole":
+        if any(token in title for token in (
+            "gemahlen", "pulver", "powder", "ground", "geschrotet",
+            "crushed", "zerkleinert",
+        )):
+            return False
+        spice_identity = (
+            "cumin", "kreuzkummel", "kreuzkuemmel", "coriander",
+            "koriander", "pepper", "pfeffer", "mustard seed",
+            "senfsaat", "fenugreek", "bockshornklee", "fennel seed",
+            "fenchelsamen", "caraway", "kuemmel", "kümmel",
+        )
+        if any(_contains_phrase(normalize_text(ingredient), normalize_text(term))
+               for term in spice_identity):
+            whole_markers = (
+                "ganz", "whole", "unground", "whole seed", "samen",
+                "saat", "korn", "korner", "peppercorn", "pfefferkorner",
+                "sticks", "stangen",
+            )
+            if not any(_contains_phrase(title, normalize_text(marker)) for marker in whole_markers):
+                return False
     if form in {"pre cooked", "precooked"}:
         if any(token in title for token in ("roh", "raw")):
             return False
