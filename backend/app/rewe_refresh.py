@@ -168,7 +168,7 @@ def rewe_refresh_safe():
                 # A new catalog row without a measurable package cannot be
                 # costed safely. Do not invent "1 unit" and expose it as purchasable.
                 skipped_invalid_package += 1
-                return False
+                return None
             incoming["package_size"] = package_size
             incoming["package_unit"] = package_unit
             db.add(Product(supermarket="REWE", postcode_context=current_postcode, **incoming))
