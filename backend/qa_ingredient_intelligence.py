@@ -199,6 +199,31 @@ def run():
         "canned corn", "REWE Beste Wahl Zuckermais 340g", None,
         "Fertiggerichte & Konserven"
     ) == "exact"
+    assert ingredient_product_match_type(
+        "egg", "REWE Freilandeier 10 Stück", None, "kaese-eier-molkerei"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "egg", "REWE gekochte Eier 2 Stück", None, "kaese-eier-molkerei"
+    ) is None
+    assert ingredient_product_match_type(
+        "salmon", "REWE Bio Lachsfilet 250g", None, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "salmon", "REWE geräuchertes Lachsfilet 100g", None, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "shrimp", "REWE Garnelen 200g", None, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "shrimp", "REWE Garnelen gekochte 200g", None, "fleisch-wurst-fisch"
+    ) is None
+    assert ingredient_product_match_type(
+        "tofu", "REWE Bio Tofu Natur 200g", None, "fleisch-wurst-fisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "tofu", "REWE Bio Tofu-Würstchen 200g", None, "fleisch-wurst-fisch"
+    ) is None
+
     butter_profile = {
         "canonical": "butter", "name_en": "butter", "name_de": "Butter",
         "aliases": ["Butter"], "form": "solid",
