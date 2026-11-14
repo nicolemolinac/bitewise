@@ -101,7 +101,7 @@ def price_details(text: str, package_size=None, package_unit=None):
         # missing or uses another unit, remove that reference-price fragment
         # before looking for a separate explicit pack price.
         reference_match = re.search(
-            r"\\b1\\s*(?:kg|l)\\s*=\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?",
+            r"\b1\s*(?:kg|l)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
             text,
             re.I,
         )
