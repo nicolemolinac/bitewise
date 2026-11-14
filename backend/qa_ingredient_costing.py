@@ -451,6 +451,25 @@ def run():
     )
     assert missing_unit_basket[0]["match_status"] == "unmatched"
 
+    # Invalid serving counts must not crash consolidation or create a
+    # plausible-looking zero/incorrect shopping quantity.
+    for bad_servings in ("not-a-number", float("nan"), float("inf"), 0, True):
+        invalid_scaling = consolidate([
+            {"id": "bad-serving", "name": "Bad serving count", "base_servings": 2,
+             "ingredients": [["rice", 100, "g"]]},
+        ], {"bad-serving": bad_servings})
+        assert invalid_scaling[0]["quantity"] == 0
+        assert invalid_scaling[0]["quantity_validation"]["valid"] is False
+        assert "Serving count" in invalid_scaling[0]["quantity_validation"]["reason"]
+
+    for bad_base in ("not-a-number", float("nan"), float("inf"), 0, True):
+        invalid_base = consolidate([
+            {"id": "bad-base", "name": "Bad base servings", "base_servings": bad_base,
+             "ingredients": [["rice", 100, "g"]]},
+        ], {"bad-base": 2})
+        assert invalid_base[0]["quantity"] == 0
+        assert invalid_base[0]["quantity_validation"]["valid"] is False
+
     four_servings = consolidate([
         {"id": "four", "name": "Four portions", "base_servings": 2,
          "ingredients": [["rice", 150, "g"]]},
