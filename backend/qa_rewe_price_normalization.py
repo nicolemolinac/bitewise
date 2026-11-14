@@ -26,6 +26,14 @@ def main():
     assert pack_price == 2.19
     assert abs(per_ml - 0.00548) < 0.000001
 
+    # REWE can also display reference prices per 100g/100ml; normalize those
+    # to the same €/kg or €/l basis before calculating pack checkout prices.
+    size, unit = package("REWE Gewürz 50g (100 g = 3,98 €)")
+    assert size == 50 and unit == "g"
+    pack_price, per_gram = price_details("REWE Gewürz 50g (100 g = 3,98 €)", size, unit)
+    assert pack_price == 1.99
+    assert abs(per_gram - 0.0398) < 0.000001
+
     # A reference price without a known pack size must never be mistaken for
     # the checkout price; a separate explicit pack price may still be parsed.
     assert price_details("Alete Kinderkeks (1 kg = 11,06 €)") == (None, None)
