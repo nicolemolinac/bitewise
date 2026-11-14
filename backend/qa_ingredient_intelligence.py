@@ -748,6 +748,13 @@ def run():
     assert ingredient_substitution_name(
         "vegetable oil", "REWE Rapsöl 1L", intelligence
     ) == "rapeseed oil"
+    # Direct unit validation accepts the same natural-language aliases
+    # that the basket consolidator already normalizes.
+    assert validate_ingredient_unit("curry powder", "tablespoon")["valid"] is True
+    assert validate_ingredient_unit("curry powder", "teaspoons")["valid"] is True
+    assert validate_ingredient_unit("garlic", "clove")["valid"] is True
+    assert validate_ingredient_unit("eggs", "pcs")["valid"] is True
+    assert validate_ingredient_unit("vegetable oil", "tablespoons")["valid"] is True
     assert validate_ingredient_unit("vegetable oil", "cloves")["valid"] is False
     assert validate_ingredient_unit("garlic powder", "ml", {"form": "powder"})["valid"] is True
     assert validate_ingredient_unit("garlic powder", "cloves", {"form": "powder"})["valid"] is False
