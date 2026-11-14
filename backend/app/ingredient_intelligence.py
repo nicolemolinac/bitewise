@@ -608,13 +608,18 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     # explicit. This keeps hallucinated aliases review-only while allowing
     # genuine retail synonyms (e.g. Karotten for fresh carrot).
     profile_form = normalize_text(profile.get("form") or "")
-    canonical_identity = {
+    curated_identity_terms = {
+        normalized_ingredient,
+        *(normalize_text(value) for value in _BASE_TERMS.get(normalized_ingredient, ())),
+    }
+    profile_identity = {
         normalize_text(profile.get("canonical") or ""),
         normalize_text(profile.get("name_en") or ""),
+        normalize_text(profile.get("name_de") or ""),
     }
     aliases = profile.get("aliases", [])
     if (
-        normalized_ingredient in canonical_identity
+        profile_identity.intersection(curated_identity_terms)
         and profile_form not in {"", "unspecified"}
         and isinstance(aliases, list)
     ):
