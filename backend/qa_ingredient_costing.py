@@ -254,7 +254,7 @@ def run():
     flour_grams, flour_note = _convert_ingredient_quantity(250, "ml", "g", "wheat flour")
     assert flour_grams == 120 and "0.48 g/ml" in flour_note
     cheese_grams, cheese_note = _convert_ingredient_quantity(2, "slice", "g", "cheese slices")
-    assert cheese_grams == 40 and "20 g per piece" in cheese_note
+    assert cheese_grams == 40 and "20 g per slice" in cheese_note
     assert romaine_pieces == 1.5 and "100 g per piece" in romaine_note
 
     chicken_grams, chicken_note = _convert_ingredient_quantity(2, "piece", "g", "chicken breast")
@@ -263,8 +263,8 @@ def run():
     bacon_grams, bacon_note = _convert_ingredient_quantity(3, "slice", "g", "bacon")
     assert chicken_grams == 300 and "150 g per piece" in chicken_note
     assert broccoli_grams == 300 and "300 g per piece" in broccoli_note
-    assert cilantro_grams == 30 and "30 g per piece" in cilantro_note
-    assert bacon_grams == 45 and "15 g per piece" in bacon_note
+    assert cilantro_grams == 30 and "30 g per bunch" in cilantro_note
+    assert bacon_grams == 45 and "15 g per slice" in bacon_note
 
     honey_grams, honey_note = _convert_ingredient_quantity(15, "ml", "g", "honey")
     cornstarch_grams, starch_note = _convert_ingredient_quantity(15, "ml", "g", "cornstarch")
