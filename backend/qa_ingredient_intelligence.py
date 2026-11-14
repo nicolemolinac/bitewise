@@ -124,6 +124,18 @@ def run():
     assert ingredient_product_match_type(
         "butter", "REWE Butterkäse 200g", butter_profile, "kaese-eier-molkerei"
     ) is None
+    olive_oil_profile = {
+        "canonical": "olive oil", "name_en": "olive oil", "name_de": "Olivenöl",
+        "aliases": ["Olivenöl"], "form": "liquid",
+    }
+    assert ingredient_product_match_type(
+        "olive oil", "REWE Bio Natives Olivenöl Extra 500ml",
+        olive_oil_profile, "oele-sossen-gewuerze"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "olive oil", "REWE Olivenöl Spray 200ml",
+        olive_oil_profile, "oele-sossen-gewuerze"
+    ) is None
 
     # Compound spice names must be classified as spices before generic
     # produce substrings; bell pepper remains produce.
