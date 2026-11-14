@@ -74,8 +74,8 @@ _UNIT_ALIASES = {
     "cup": "cup", "cups": "cup",
     "pinch": "pinch", "prise": "pinch", "prisen": "pinch",
     "bunch": "bunch", "bunches": "bunch", "bund": "bunch",
-    "tablespoon": "tbsp", "tablespoons": "tbsp", "esslöffel": "tbsp", "essloeffel": "tbsp",
-    "teaspoon": "tsp", "teaspoons": "tsp", "teelöffel": "tsp", "teeloeffel": "tsp",
+    "esslöffel": "tbsp", "essloeffel": "tbsp",
+    "teelöffel": "tsp", "teeloeffel": "tsp",
 }
 _UNIT_BASE = {"g": ("mass", 1.0), "kg": ("mass", 1000.0),
               "ml": ("volume", 1.0), "l": ("volume", 1000.0),
