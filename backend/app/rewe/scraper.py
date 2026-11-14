@@ -122,6 +122,19 @@ def price_details(text: str, package_size=None, package_unit=None):
         str(text or "")[:reference_match.start()] + " " + str(text or "")[reference_match.end():]
         if reference_match else str(text or "")
     )
+    # Bottle deposits are refundable Pfand, not the product's checkout price.
+    checkout_text = re.sub(
+        r"\\bzzgl\\.?\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?\\s*pfand\\b",
+        " ",
+        checkout_text,
+        flags=re.I,
+    )
+    checkout_text = re.sub(
+        r"\\bpfand\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?",
+        " ",
+        checkout_text,
+        flags=re.I,
+    )
 
     # First use an actual package checkout price, excluding the reference
     # price fragment so €/kg or €/l can never masquerade as the pack price.
