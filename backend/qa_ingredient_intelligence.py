@@ -344,6 +344,12 @@ def run():
         "tiefkuehlkost",
     )
     assert frozen_white_fish_match == "suggested_substitution", frozen_white_fish_match
+    assert ingredient_product_match_type(
+        "white fish fillet", "REWE Geräuchertes Seelachsfilet 200g",
+        {"canonical": "white fish fillet", "form": "fresh",
+         "aliases": ["Seelachsfilet"]},
+        "fleisch-wurst-fisch",
+    ) is None
     # Composition/form modifiers must not be hidden behind broad aliases.
     assert ingredient_product_match_type(
         "pizza dough",
