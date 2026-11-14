@@ -113,6 +113,18 @@ _BASE_TERMS = {
     "cornstarch": ("cornstarch", "corn starch", "speisestaerke", "speisestarke", "maisstaerke", "maisstarke"),
     "coconut milk": ("coconut milk", "kokosmilch", "kokosnussmilch"),
     "onion": ("onion", "onions", "zwiebel", "zwiebeln", "speisezwiebeln"),
+    "parmesan": ("parmesan", "parmigiano reggiano", "parmigiano", "parmesan gerieben"),
+    "egg": ("egg", "eggs", "ei", "eier", "freilandeier", "bodenhaltungseier"),
+    "spinach": ("spinach", "spinat", "blattspinat", "babyspinat"),
+    "broccoli": ("broccoli", "brokkoli"),
+    "strawberry": ("strawberry", "strawberries", "erdbeere", "erdbeeren"),
+    "shrimp": ("shrimp", "shrimps", "prawn", "prawns", "garnele", "garnelen", "crevetten"),
+    "tuna": ("tuna", "thunfisch", "thunfischfilet", "thunfisch in eigenem saft"),
+    "bacon": ("bacon", "fruhstucksspeck", "frühstücksspeck", "bauchspeck", "speck"),
+    "turkey": ("turkey", "putenfleisch", "pute", "putenbrust", "truthahn"),
+    "bread": ("bread", "brot", "mischbrot", "vollkornbrot", "toastbrot", "toast"),
+    "sugar": ("sugar", "zucker", "haushaltszucker", "rohrzucker"),
+    "tofu": ("tofu", "naturtofu", "tofu natur", "seidentofu"),
 }
 
 # These can be useful in a recipe, but are not equivalent enough to
@@ -427,21 +439,24 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
         "cucumber", "bell pepper", "carrot", "broccoli", "fresh cilantro",
         "mushroom", "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
-        "red cabbage", "strawberries", "blueberries", "banana", "parsley",
+        "red cabbage", "strawberry", "strawberries", "blueberries", "banana", "parsley",
+        "spinach", "broccoli",
     }
     proteins = {
         "chicken breast", "pre cooked shredded chicken", "ground beef",
-        "salmon", "salmon fillet", "bratwurst", "white fish fillet", "bacon",
+        "salmon", "salmon fillet", "shrimp", "tuna", "turkey", "bacon",
+        "bratwurst", "white fish fillet",
     }
     dairy = {
         "milk", "feta cheese", "sour cream", "cheese slices", "butter", "mozzarella",
-        "greek yogurt", "plain yogurt", "cooking cream", "heavy cream", "eggs",
+        "greek yogurt", "plain yogurt", "cooking cream", "heavy cream", "egg", "eggs",
+        "parmesan",
         "grated cheddar cheese", "parmesan cheese",
     }
     grains = {
         "rice", "risotto rice", "spaghetti", "pasta", "trofie pasta",
         "wheat flour", "flour", "rolled oats", "oats", "pizza dough", "burger buns", "soft tortillas",
-        "tortillas", "croutons",
+        "tortillas", "croutons", "bread", "sugar",
     }
     spices = {
         "curry powder", "cumin", "paprika powder", "oregano",
