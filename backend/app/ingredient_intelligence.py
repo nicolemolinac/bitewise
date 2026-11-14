@@ -661,6 +661,7 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "pizza dough": (
             "glutenfrei", "gluten free", "mit sauce", "pizza kit",
             "fertigpizza", "pizza classica", "pizza baguette", "flammkuchenteig",
+            "backmischung", "teigmischung", "pizza mix", "dry mix",
         ),
         # Ready-to-heat rice is not interchangeable with dry rice in recipe quantities or cooking steps.
         "rice": (
