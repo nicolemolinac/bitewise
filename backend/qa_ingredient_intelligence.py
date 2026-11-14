@@ -341,6 +341,16 @@ def run():
     assert ingredient_product_match_type(
         "rice", "REWE Bio Basmati Reis 500g", {"form": "unspecified"}, "kochen-backen"
     ) == "exact", "Plain dry rice remains an exact match"
+    for rice_derived in (
+        "REWE Bio Rice Flour 500g",
+        "REWE Reismehl 500g",
+        "REWE Rice Pudding 400g",
+        "REWE Reiswaffeln 100g",
+        "REWE Rice Noodles 250g",
+    ):
+        assert ingredient_product_match_type(
+            "rice", rice_derived, {"form": "unspecified"}, "kochen-backen"
+        ) is None, f"Rice-derived product must not match dry rice: {rice_derived}"
     assert ingredient_product_match_type(
         "chicken breast", "REWE Bio Hähnchenbrustfilet 400g", {"form": "fresh"}, "fleisch-wurst-fisch"
     ) == "exact"
