@@ -928,10 +928,7 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
                 ratio = 1
             if not 0.1 <= ratio <= 5:
                 continue
-            try:
-                confidence = float(option.get("confidence", 0) or 0)
-            except (TypeError, ValueError):
-                confidence = 0
+            confidence = _safe_confidence(option.get("confidence", 0))
             substitution_options.append({
                 "name": option_name,
                 "name_de": option_name_de,
