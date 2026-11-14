@@ -128,6 +128,30 @@ _COUNT_TO_GRAMS = {
     "hot dog buns": 50,
     "cheese slices": 20,
     "eggs": 60,
+    # Conservative average piece weights for common recipe ingredients.
+    # These are estimates and are surfaced in basket conversion notes.
+    "broccoli": 300,
+    "cucumber": 350,
+    "mushroom": 20,
+    "avocado": 180,
+    "strawberry": 15,
+    "aubergine": 300,
+    "cabbage": 1000,
+    "asparagus": 20,
+    "celery": 40,
+    "pineapple": 1000,
+    "fresh cilantro": 30,
+    "parsley": 30,
+    "basil": 30,
+    "spinach": 100,
+    "chicken breast": 150,
+    "salmon": 150,
+    "white fish fillet": 150,
+    "shrimp": 12,
+    "turkey": 150,
+    "bacon": 15,
+    "bratwurst": 100,
+    "tofu": 200,
 }
 
 
