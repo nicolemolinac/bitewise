@@ -455,6 +455,30 @@ def run():
     _adapt_recipe_to_catalog(ratio_recipe, ratio_basket)
     assert ratio_recipe["ingredients"] == [["rapeseed oil", 30.0, "ml"]]
 
+    # Recipe metadata may be keyed with punctuation and the selected product
+    # may carry a German alias. Adaptation must still apply the declared ratio
+    # and persist the canonical replacement name.
+    german_alias_recipe = {
+        "base_servings": 2,
+        "ingredients": [["custom cooking fat", 20, "ml"]],
+        "ingredient_intelligence": {
+            "custom-cooking-fat": {
+                "substitution_options": [{
+                    "name": "rapeseed oil", "name_de": "Rapsöl",
+                    "aliases": ["Rapsöl kaltgepresst"],
+                    "quantity_ratio": 1.5,
+                }],
+            },
+        },
+        "steps": [{"text": "Add custom cooking fat."}],
+    }
+    _adapt_recipe_to_catalog(german_alias_recipe, [{
+        "ingredient": "custom cooking fat", "match_status": "substituted",
+        "needed_quantity": 20, "pantry_used": 0,
+        "product": {"ingredient_substitute": "Rapsöl", "name_original": "REWE Rapsöl 10ml"},
+    }])
+    assert german_alias_recipe["ingredients"] == [["rapeseed oil", 30.0, "ml"]]
+
     # The same end-to-end ratio must be applied only to the amount not already
     # covered by pantry stock, while preserving the original pantry ingredient.
     pantry_ratio_basket = build_basket([{
