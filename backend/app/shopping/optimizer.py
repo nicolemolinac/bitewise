@@ -51,12 +51,25 @@ def consolidate(meals, servings_map):
             else:
                 # Keep semantically different units (e.g. cloves vs pieces) separate.
                 normalized_quantity = raw_quantity if quantity_valid else 0.0
-            # Normalize punctuation, accents and case before grouping so
-            # "red-onion", "Red Onion" and "red onion" do not become
-            # separate shopping lines.
-            key = (normalize_text(name), normalized_unit)
+            intelligence = meal.get("ingredient_intelligence") or {}
+            profile = {}
+            if isinstance(intelligence, dict):
+                # Recipe metadata keys are normalized with normalize_text(), so use
+                # the same normalization here (hyphens, accents and punctuation matter).
+                intelligence_key = normalize_text(name)
+                profile = (
+                    intelligence.get(intelligence_key)
+                    or intelligence.get(str(name).lower().strip())
+                    or intelligence.get(name)
+                    or {}
+                )
+            form_key = normalize_text(profile.get("form") or "unspecified") if isinstance(profile, dict) else "unspecified"
+            # Same ingredient/unit can still represent different retail forms
+            # (e.g. whole vs ground cumin). Never merge quantities and then let
+            # whichever recipe happened to be last choose the form for all meals.
+            key = (normalize_text(name), normalized_unit, form_key)
             row = grouped[key]
-            row.setdefault("display_ingredient", name.strip())
+            row.setdefault("display_ingredient", str(name or "").strip())
             row["quantity"] += normalized_quantity * factor
             if not quantity_valid:
                 row["quantity_validation"] = {
@@ -64,17 +77,8 @@ def consolidate(meals, servings_map):
                     "reason": f"Ingredient quantity must be a finite positive number; received {quantity!r}.",
                 }
             row["source_meals"].append(meal["name"])
-            intelligence = meal.get("ingredient_intelligence") or {}
-            if isinstance(intelligence, dict):
-                # Recipe metadata keys are normalized with normalize_text(), so use
-                # the same normalization here (hyphens, accents and punctuation matter).
-                intelligence_key = normalize_text(name)
-                row["ingredient_intelligence"] = (
-                    intelligence.get(intelligence_key)
-                    or intelligence.get(name.lower().strip())
-                    or intelligence.get(name)
-                    or row["ingredient_intelligence"]
-                )
+            if isinstance(profile, dict) and profile:
+                row["ingredient_intelligence"] = profile
             row["unit_validation"] = (
                 validate_ingredient_unit(name, normalized_unit, row["ingredient_intelligence"])
                 if unit_valid else {
@@ -92,7 +96,7 @@ def consolidate(meals, servings_map):
             "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit, value.get("ingredient_intelligence")),
             "quantity_validation": value.get("quantity_validation") or {"valid": True, "reason": None},
         }
-        for (ingredient, unit), value in grouped.items()
+        for (ingredient, unit, _form), value in grouped.items()
     ]
 
 
