@@ -557,7 +557,7 @@ def _merge_duplicate_product(current: dict, incoming: dict) -> dict:
     for key, value in incoming.items():
         if value is None or value == "":
             continue
-        if key in {"price", "price_per_unit", "package_size"}:
+        if key in {"price", "price_per_unit"}:
             try:
                 candidate = float(value)
                 candidate_valid = math.isfinite(candidate) and candidate > 0
@@ -571,9 +571,22 @@ def _merge_duplicate_product(current: dict, incoming: dict) -> dict:
             if candidate_valid and not existing_valid:
                 merged[key] = value
             continue
+        if key == "package_size":
+            try:
+                candidate = float(value)
+                candidate_valid = math.isfinite(candidate) and candidate > 0 and bool(str(incoming.get("package_unit") or "").strip())
+            except (OverflowError, TypeError, ValueError):
+                candidate_valid = False
+            try:
+                existing = float(merged.get("package_size"))
+                existing_valid = math.isfinite(existing) and existing > 0 and bool(str(merged.get("package_unit") or "").strip())
+            except (OverflowError, TypeError, ValueError):
+                existing_valid = False
+            if candidate_valid and not existing_valid:
+                merged["package_size"] = value
+                merged["package_unit"] = incoming["package_unit"]
+            continue
         if key == "package_unit":
-            if not str(merged.get(key) or "").strip() and str(value).strip():
-                merged[key] = value
             continue
         if merged.get(key) is None or merged.get(key) == "":
             merged[key] = value
