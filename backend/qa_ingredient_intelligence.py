@@ -125,6 +125,14 @@ def run():
         "croutons", "Leimer Croûtons Kräuter 100g", {"form": "unspecified"}, "oele-sossen-gewuerze"
     ) == "exact"
     assert ingredient_product_match_type(
+        "croutons", "ja! Kartoffelpüree mit Röstzwiebeln und Croûtons 59g",
+        {"form": "unspecified"}, "fertiggerichte-konserven"
+    ) is None, "Croutons mentioned inside a complete prepared meal are not a standalone ingredient match"
+    assert ingredient_product_match_type(
+        "lettuce", "REWE Beste Wahl Eisbergsalat mit Kräutern 175g",
+        {"form": "fresh"}, "obst-gemuese"
+    ) is None, "Seasoned convenience salad must not be silently selected as plain lettuce"
+    assert ingredient_product_match_type(
         "burger buns", "REWE Hamburgerbrötchen mit Sesam 300g", {"form": "unspecified"}, "brot-cerealien-aufstriche"
     ) == "exact"
     kaiser_match = ingredient_product_match_type(
