@@ -852,7 +852,12 @@ class ReweCatalogScraper:
     def _ingest_products(self, report, products, upsert, postcode):
         priced = 0
         for product in products:
-            if product.get("price") is not None:
+            try:
+                checkout_price = float(product.get("price"))
+                has_valid_price = math.isfinite(checkout_price) and checkout_price > 0
+            except (OverflowError, TypeError, ValueError):
+                has_valid_price = False
+            if has_valid_price:
                 priced += 1
             created = upsert(product, postcode)
             report["products_created" if created else "products_updated"] += 1
