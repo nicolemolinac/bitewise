@@ -303,6 +303,7 @@ def run():
     assert validate_ingredient_unit("sugar snap peas", "tsp")["valid"] is False
     assert validate_ingredient_unit("sugar", "tsp")["valid"] is True
     assert validate_ingredient_unit("baking powder", "tsp")["family"] == "leavening"
+    assert validate_ingredient_unit("baking powder", "ml")["valid"] is True
     assert validate_ingredient_unit("cornstarch", "tbsp")["family"] == "starch"
     assert validate_ingredient_unit("pine nuts", "cup")["family"] == "nuts"
     assert validate_ingredient_unit("tomato paste", "tbsp")["family"] == "condiment"
