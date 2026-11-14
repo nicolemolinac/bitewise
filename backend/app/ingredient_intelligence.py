@@ -99,6 +99,7 @@ _BASE_TERMS = {
         "penne", "fusilli", "farfalle", "rigatoni", "maccheroni",
         "tagliatelle", "lasagneplatten",
     ),
+    "pizza dough": ("pizza dough", "pizzateig", "pizza teig", "pizzaboden"),
     "fresh basil pesto": ("fresh basil pesto", "basil pesto", "basilikum pesto", "pesto genovese", "pesto alla genovese", "pesto verde"),
     "pine nuts": ("pine nuts", "pinienkerne", "pinien kerne", "pinoli"),
     "soy sauce": ("soy sauce", "sojasauce", "sojasosse", "sojasoße", "soja sauce"),
