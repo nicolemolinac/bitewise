@@ -151,6 +151,26 @@ def run():
     )
     assert substitute_basket[0]["match_status"] == "substituted"
 
+    # Exact identity is a hard preference tier, not a finite score bonus:
+    # an unusually expensive exact product must not lose to a cheap substitute.
+    exact_priority_catalog = FakeCatalog({
+        "special ingredient": [
+            {"id": 81, "name_original": "Exact special ingredient 100g",
+             "package_size": 100, "package_unit": "g", "price": 2000,
+             "availability": "available", "ingredient_match_type": "exact"},
+            {"id": 82, "name_original": "Cheap substitute 100g",
+             "package_size": 100, "package_unit": "g", "price": 1,
+             "availability": "available", "ingredient_match_type": "substitute",
+             "ingredient_substitute": "replacement ingredient"},
+        ],
+    })
+    exact_priority = build_basket(
+        [{"ingredient": "special ingredient", "quantity": 10, "unit": "g"}],
+        exact_priority_catalog, mode="cheapest",
+    )[0]
+    assert exact_priority["product"]["id"] == 81
+    assert exact_priority["match_status"] == "matched"
+
     # An invalid explicit AI ratio must not degrade to a 1:1 substitution.
     malformed_ratio_catalog = FakeCatalog({
         "custom cooking fat": [{
