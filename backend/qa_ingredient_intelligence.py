@@ -328,10 +328,13 @@ def run():
         "white fish fillet", "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
         {"form": "fresh"}, "Tiefkühlkost"
     ) == "suggested_substitution"
-    assert ingredient_product_match_type(
+    high_protein_wrap_type = ingredient_product_match_type(
         "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g",
         {"form": "soft tortillas"}, "fertiggerichte-konserven"
-    ) == "substitute"
+    )
+    assert high_protein_wrap_type == "substitute", (
+        f"High-protein wraps should be a role-preserving substitute; got {high_protein_wrap_type!r}"
+    )
     assert ingredient_product_match_type(
         "croutons", "Leimer Croûtons Kräuter 100g",
         {"form": "prepared bread cubes"}, "oele-sossen-gewuerze"
