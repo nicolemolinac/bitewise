@@ -18,6 +18,7 @@ from app.rewe_refresh import _is_complete_healthy_rewe_report, _merge_rewe_produ
 from app.rewe.scraper import (
     REWE_CATEGORY_MINIMUM_PRODUCTS,
     REWE_CATEGORY_URLS,
+    ReweCatalogScraper,
     category_slug_from_url,
 )
 from app.server import app as server_app
@@ -82,6 +83,22 @@ def main():
         **complete_report,
         "package_coverage_ratio": None,
     })
+
+    # Full-refresh health metrics must count checkout prices and parsed pack
+    # metadata independently; a price alone cannot make a SKU purchasable.
+    scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
+    report = scraper._base_report("13353", "qa")
+    scraper._ingest_products(report, [
+        {"price": 2.49, "package_size": 500, "package_unit": "g"},
+        {"price": None, "package_size": 250, "package_unit": "ml"},
+        {"price": 1.29, "package_size": 1, "package_unit": "unknown"},
+        {"price": -1, "package_size": 6, "package_unit": "unit"},
+    ], lambda product, postcode: False, "13353")
+    assert report["products_found"] == 4
+    assert report["products_with_price"] == 2
+    assert report["products_with_package"] == 3
+    assert abs(report["products_with_price"] / report["products_found"] - 0.5) < 1e-9
+    assert abs(report["products_with_package"] / report["products_found"] - 0.75) < 1e-9
 
     refresh_routes = [
         route for route in server_app.routes
