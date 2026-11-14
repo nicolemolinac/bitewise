@@ -5,6 +5,7 @@ from app.rewe.scraper import package, price_details
 def main():
     size, unit = package("Alete Kinderkeks 180g (1 kg = 11,06 €)")
     assert size == 180 and unit == "g"
+    assert package("Alete Kinderkeks (1 kg = 11,06 €)") == (None, None)
     pack_price, per_gram = price_details(
         "Alete Kinderkeks 180g (1 kg = 11,06 €)", size, unit
     )
