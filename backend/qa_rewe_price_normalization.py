@@ -46,6 +46,14 @@ def main():
     )
     assert size == 750 and unit == "ml"
 
+    pack_price, per_ml = price_details(
+        "Granini Fresh Leichte Schorle Apfel-Limette 0,75ml (EINWEG) 0,75l (1 l = 2,12 €)",
+        size,
+        unit,
+    )
+    assert pack_price == 1.59
+    assert abs(per_ml - 0.00212) < 0.000001
+
     size, unit = package("Rice 500g")
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49
