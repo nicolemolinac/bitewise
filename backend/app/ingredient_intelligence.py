@@ -893,15 +893,20 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     fresh_produce_names = {
         "garlic", "onion", "red onion", "potato", "potatoes", "tomato",
         "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
-        "cucumber", "bell pepper", "carrot", "broccoli", "fresh cilantro",
-        "mushroom", "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
-        "red cabbage", "strawberries", "blueberries", "banana", "parsley",
+        "cucumber", "cucumbers", "bell pepper", "carrot", "carrots",
+        "broccoli", "fresh cilantro", "cilantro", "coriander",
+        "mushroom", "mushrooms", "lemon", "lemons", "lime", "limes",
+        "zucchini", "avocado", "avocados", "spring onion", "red cabbage",
+        "strawberry", "strawberries", "blueberry", "blueberries", "banana",
+        "bananas", "parsley", "spinach", "aubergine", "eggplant",
+        "asparagus", "celery", "basil", "dill", "thyme", "rosemary",
+        "mint", "chives", "sage", "marjoram", "oregano",
     }
     category_key = normalize_text(product_category).replace(" ", "-")
     if (
         normalize_text(ingredient) in fresh_produce_names
         and normalize_text(product_form) == "fresh"
-        and category_key not in {"obst-gemuese", "frische-krauter"}
+        and category_key not in {"obst-gemuese", "frische-krauter", "krauter"}
     ):
         return None
     form_compatible = _form_compatible(
