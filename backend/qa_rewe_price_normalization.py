@@ -39,6 +39,13 @@ def main():
     assert price_details("Alete Kinderkeks (1 kg = 11,06 €)") == (None, None)
     assert price_details("Alete Kinderkeks 2,49 € (1 kg = 11,06 €)")[0] == 2.49
 
+    # A malformed early size token must not override the later, actual
+    # REWE package size in the same title.
+    size, unit = package(
+        "Granini Fresh Leichte Schorle Apfel-Limette 0,75ml (EINWEG) 0,75l (1 l = 2,12 €)"
+    )
+    assert size == 750 and unit == "ml"
+
     size, unit = package("Rice 500g")
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49
