@@ -70,6 +70,29 @@ def run():
         actual = ingredient_product_match_type(ingredient, title, profile, category)
         assert actual == "exact", (ingredient, title, actual)
 
+    # A cross-form frozen product for a fresh fish request is a reviewable
+    # substitution, not an exact identity.
+    assert ingredient_product_match_type(
+        "white fish fillet",
+        "REWE Beste Wahl Alaska Seelachsfilets tiefgefroren 400g",
+        {"canonical": "white fish fillet", "form": "fresh",
+         "aliases": ["Seelachsfilet", "Alaska Seelachs"]},
+        "tiefkuehlkost",
+    ) == "suggested_substitution"
+    # Composition/form modifiers must not be hidden behind broad aliases.
+    assert ingredient_product_match_type(
+        "pizza dough",
+        "Bauck Mühle Bio PizzaTeig glutenfrei 350g",
+        {"canonical": "pizza dough", "form": "fresh", "aliases": ["Pizzateig"]},
+        "kochen-backen",
+    ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "soft tortillas",
+        "REWE Beste Wahl High Protein Wraps 320g",
+        {"canonical": "soft tortillas", "form": "soft", "aliases": ["Wraps"]},
+        "fertiggerichte-konserven",
+    ) == "suggested_substitution"
+
     raw = {
         "ingredients": [
             ["vegetable oil", 2, "cloves"],
