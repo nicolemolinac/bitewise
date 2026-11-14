@@ -859,8 +859,11 @@ class ReweCatalogScraper:
                 has_valid_price = False
             if has_valid_price:
                 priced += 1
-            created = upsert(product, postcode)
-            report["products_created" if created else "products_updated"] += 1
+            outcome = upsert(product, postcode)
+            if outcome is None:
+                report["products_skipped"] = report.get("products_skipped", 0) + 1
+            else:
+                report["products_created" if outcome else "products_updated"] += 1
         report["products_found"] += len(products)
         report["products_with_price"] += priced
 
