@@ -182,20 +182,36 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
         ).strip()
         if not original or not replacement:
             continue
-        profile = intelligence.get(normalize_text(original), {}) if isinstance(intelligence, dict) else {}
-        if not isinstance(profile, dict):
-            profile = {}
+        profile = {}
+        if isinstance(intelligence, dict):
+            profile = next(
+                (value for raw_key, value in intelligence.items()
+                 if normalize_text(raw_key) == normalize_text(original)
+                 and isinstance(value, dict)),
+                {},
+            )
         options = profile.get("substitution_options") or []
         selected_option = next(
             (option for option in options
              if isinstance(option, dict)
-             and normalize_text(option.get("name")) == normalize_text(replacement)),
+             and any(
+                 normalize_text(term) == normalize_text(replacement)
+                 for term in [
+                     option.get("name"), option.get("name_de"),
+                     *(option.get("aliases") if isinstance(option.get("aliases"), list) else []),
+                 ]
+                 if isinstance(term, str) and term.strip()
+             )),
             None,
         )
         if selected_option is None:
             # Deterministic, curated substitutions can still be applied without
             # recipe-side metadata. Unknown semantic suggestions are not auto-applied.
             selected_option = {}
+        elif isinstance(selected_option.get("name"), str) and selected_option["name"].strip():
+            # Always persist the canonical replacement name, even when the
+            # matched catalog label was German or another declared alias.
+            replacement = selected_option["name"].strip()
         ratio = selected_option.get("quantity_ratio", 1)
         try:
             ratio = float(ratio)
