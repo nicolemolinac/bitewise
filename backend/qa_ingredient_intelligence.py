@@ -104,6 +104,18 @@ def run():
         actual = ingredient_product_match_type(ingredient, title, None, category)
         assert actual == expected, (ingredient, title, expected, actual)
 
+    assert ingredient_product_match_type(
+        "oats", "REWE Bio Haferflocken kernig 500g", None,
+        "brot-cerealien-aufstriche"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "cornstarch", "Mondamin Feine Speisestärke 400g", None,
+        "kochen-backen"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "oats", "Alpro Haferdrink 1L", None, "kaffee-tee-kakao"
+    ) is None
+
     # Form intent is a hard constraint: dried herbs cannot silently resolve
     # to fresh herbs, and whole spices cannot resolve to ground equivalents.
     assert ingredient_product_match_type(
