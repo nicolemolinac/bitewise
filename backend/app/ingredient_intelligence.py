@@ -878,10 +878,18 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
     allowed = set(_UNIT_FAMILIES[family])
     profile = _profile_lookup(intelligence, ingredient)
     form = normalize_text(profile.get("form") or "")
+    preparation = normalize_text(profile.get("preparation") or "")
     if family == "produce" and form == "powder":
         allowed = {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"}
-    elif family == "produce" and form == "grated":
-        allowed = {"g", "kg"}
+    elif family == "produce" and (
+        form in {"grated", "chopped", "diced", "sliced", "minced", "crushed"}
+        or any(term in preparation for term in ("chopped", "diced", "sliced", "minced", "grated", "crushed"))
+        or any(term in name.split() for term in ("chopped", "diced", "sliced", "minced", "grated", "crushed"))
+    ):
+        # Cut produce is commonly measured by volume in recipes (e.g. cups
+        # of diced onion or tablespoons of minced garlic). Whole produce is
+        # still restricted to count/mass units.
+        allowed = {"g", "kg", "ml", "cup", "tbsp", "tsp"}
     if normalized_unit in allowed:
         return {"valid": True, "family": family, "reason": None}
     return {
