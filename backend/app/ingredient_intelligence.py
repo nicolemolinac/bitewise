@@ -202,7 +202,7 @@ _UNIT_FAMILIES = {
     "oil": {"ml", "l", "cup", "tbsp", "tsp"},
     "liquid": {"ml", "l", "g", "kg", "tbsp", "tsp", "cup"},
     "spice": {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"},
-    "leavening": {"g", "kg", "tsp", "tbsp", "pinch"},
+    "leavening": {"g", "kg", "ml", "tsp", "tbsp", "pinch"},
     "starch": {"g", "kg", "ml", "cup", "tbsp", "tsp"},
     "sweetener": {"g", "kg", "ml", "l", "cup", "tbsp", "tsp"},
     "condiment": {"g", "kg", "ml", "l", "cup", "tbsp", "tsp"},
