@@ -589,6 +589,7 @@ export default function AppV3(){
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <div className="font-black">{x.ingredient} <span className="font-normal text-[#18392b]/45">· {x.needed_quantity??x.quantity} {x.unit} needed</span></div>
+        {(x.ingredient_form||x.ingredient_preparation)&&<div className="mt-0.5 text-[10px] text-[#18392b]/45">{[x.ingredient_form,x.ingredient_preparation].filter(Boolean).join(" · ")}</div>}
         <div className="mt-1 text-[#18392b]/60">{x.product?x.product.name_original:(x.match_status==="covered"?"Covered by pantry":"No compatible priced REWE product found")}</div>
         {x.unit_conversion_note&&<div className="mt-1 text-[10px] text-[#9a5b24]">{x.unit_conversion_note}</div>}{x.unit_validation?.valid===false&&<div className="mt-1 text-[10px] text-red-700">{x.unit_validation.reason||"Invalid ingredient unit"}</div>}
         {x.quantity_validation?.valid===false&&<div className="mt-1 text-[10px] text-red-700">{x.quantity_validation.reason||"Invalid ingredient quantity"}</div>}
