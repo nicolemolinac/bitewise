@@ -580,9 +580,16 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             "dill", "thyme", "rosemary", "mint", "chives", "sage",
             "marjoram", "oregano",
         }
-        return category_key == "obst-gemuese" or (
-            name in fresh_herbs and category_key in {"frische-krauter", "krauter"}
-        )
+        if name in fresh_herbs:
+            if normalized_form in {"dried", "dry", "powder"}:
+                return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
+            if normalized_form in {"fresh", "frisch"}:
+                return category_key in {"obst-gemuese", "frische-krauter", "krauter"}
+            return category_key in {
+                "obst-gemuese", "frische-krauter", "krauter",
+                "oele-sossen-gewuerze", "kochen-backen",
+            }
+        return category_key == "obst-gemuese"
     if name in proteins:
         prepared_terms = (
             "ofenbrot", "bolognese", "penne", "lasagne", "suppe",
