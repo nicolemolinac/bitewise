@@ -62,8 +62,8 @@ def consolidate(meals, servings_map):
 
 
 _UNIT_ALIASES = {
-    "gram": "g", "grams": "g", "gr": "g", "g": "g",
-    "kilogram": "kg", "kilograms": "kg", "kilo": "kg", "kg": "kg",
+    "gram": "g", "grams": "g", "gramm": "g", "gr": "g", "g": "g",
+    "kilogram": "kg", "kilograms": "kg", "kilogramm": "kg", "kilo": "kg", "kg": "kg",
     "milliliter": "ml", "milliliters": "ml", "millilitre": "ml", "ml": "ml",
     "liter": "l", "litre": "l", "liters": "l", "litres": "l", "l": "l",
     "stück": "piece", "stuck": "piece", "pcs": "piece", "pc": "piece",
