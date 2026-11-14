@@ -232,7 +232,7 @@ def run():
     assert ingredient_product_match_type(
         "pizza dough", "Knack & Back Glutenfreier Pizzateig vegan 260g",
         None, "fertiggerichte-konserven"
-    ) is None
+    ) == "suggested_substitution"
     assert ingredient_product_match_type(
         "pizza dough", "Knack & Back Pizza-Kit 600g",
         None, "fertiggerichte-konserven"
@@ -241,7 +241,7 @@ def run():
     assert ingredient_product_match_type(
         "pizza dough", "REWE Bio Pizza-Teig Backmischung 350g",
         None, "kochen-backen"
-    ) is None
+    ) == "suggested_substitution"
 
     butter_profile = {
         "canonical": "butter", "name_en": "butter", "name_de": "Butter",
