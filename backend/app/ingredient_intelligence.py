@@ -899,7 +899,10 @@ _UNIT_VALIDATION_ALIASES = {
     "teaspoon": "tsp", "teaspoons": "tsp", "tl": "tsp",
     "piece": "piece", "pieces": "piece", "pcs": "piece", "pc": "piece",
     "stuck": "piece", "stueck": "piece", "unit": "piece", "units": "piece",
-    "clove": "cloves", "cloves": "cloves",
+    "clove": "cloves", "cloves": "cloves", "zehe": "cloves", "zehen": "cloves",
+    "pinch": "pinch", "prise": "pinch", "prisen": "pinch",
+    "bunch": "bunch", "bunches": "bunch", "bund": "bunch",
+    "essloffel": "tbsp", "teeloffel": "tsp",
 }
 
 
