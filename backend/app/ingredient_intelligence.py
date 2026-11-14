@@ -530,11 +530,6 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing", "honey peppers", "honey pepper", "honig pfeffer", "honig paprika", "honey roasted", "honig gerostet", "honig nuss", "honignuss", "honey nut", "muesli", "musli", "granola", "knusper", "cereal", "riegel"),
         "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln", "gnocchi"),
         # Ready-to-heat rice is not interchangeable with dry rice in recipe quantities or cooking steps.
-        "milk": (
-            "chocolate milk", "schokomilch", "kakaomilch", "milkshake",
-            "milk shake", "milk drink", "milchmix", "kondensmilch",
-            "condensed milk", "evaporated milk", "buttermilk",
-        ),
         "rice": (
             "express", "express reis", "reis express", "mikrowellenreis",
             "mikrowellen reis", "vorgekochter reis", "vorgekocht",
@@ -549,7 +544,11 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "bell pepper": ("paprikapulver", "paprika pulver", "paprika chips", "paprika lyoner", "paprika wurst"),
         "red onion": ("red onion chips", "rote zwiebel chips", "zwiebel chips"),
         "chicken breast": ("hahnchen wurst", "haehnchen wurst", "hahnchen aufschnitt", "haehnchen aufschnitt", "brotaufstrich", "gepokelt", "gebacken", "gerauchert", "hauchzart", "delikatess", "paprika", "mariniert", "marinade", "gegrillt", "gewurzt", "gewurzmischung", "joghurt", "knoblauch", "curry", "brandenburg", "bernard matthews", "gutfried", "herta", "finesse", "wiltmann", "filetstucke", "filetstuecke", "hahnchenbrust natur", "haehnchenbrust natur", "hahnchenbrust mit curry"),
-        "milk": ("milk twist", "choco", "schoko", "kakao", "vanille", "erdbeer", "milkshake", "aroma"),
+        "milk": (
+            "milk twist", "choco", "schoko", "kakao", "vanille", "erdbeer",
+            "milkshake", "milk shake", "milk drink", "milchmix", "aroma",
+            "kondensmilch", "condensed milk", "evaporated milk", "buttermilk",
+        ),
         "sour cream": ("mit krautern", "fruhlingskrautern", "krauter", "herbs", "chives"),
         "olive oil": ("olivenol dusche", "olivenol creme", "olivenol shampoo", "olivenol nachtcreme"),
         "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol", "mayonnaise", "mayo", "salatcreme", "dressing", "sauce", "spray", "spruhol"),
