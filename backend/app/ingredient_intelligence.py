@@ -892,8 +892,12 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
     normalized_unit = _normalize_validation_unit(unit)
     if name in {"bell pepper", "red pepper", "green pepper", "yellow pepper", "sweet pepper", "paprika"}:
         family = "produce"
-    elif name in {"pepper", "ground pepper", "white pepper", "ground white pepper"}:
-        # Bare "pepper" in recipe quantities normally means a seasoning;
+    elif name in {
+        "pepper", "ground pepper", "white pepper", "ground white pepper",
+        "red pepper flakes", "chili flakes", "chilli flakes",
+        "crushed red pepper", "cayenne pepper", "chili powder", "chilli powder",
+    }:
+        # Bare pepper and pepper flakes in recipe quantities are seasonings;
         # explicit colored/bell pepper names are handled as produce above.
         family = "spice"
     else:
