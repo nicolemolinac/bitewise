@@ -396,8 +396,12 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 if product.get("ingredient_match_type") == "substitute" else 1.0
             )
             product_needed = needed * quantity_ratio
+            conversion_ingredient = (
+                product.get("ingredient_substitute") or ingredient
+                if product.get("ingredient_match_type") == "substitute" else ingredient
+            )
             needed_in_pack_unit, unit_conversion_note = _convert_ingredient_quantity(
-                product_needed, unit, product_unit, ingredient
+                product_needed, unit, product_unit, conversion_ingredient
             )
             if needed_in_pack_unit is None:
                 continue
