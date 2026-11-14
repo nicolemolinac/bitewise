@@ -75,6 +75,7 @@ def run():
     catalog_alias_cases = [
         ("pasta", "REWE Bio Spaghetti 500g", "kochen-backen", "exact"),
         ("pasta", "REWE Bio Penne 500g", "kochen-backen", "exact"),
+        ("pizza dough", "Henglein Pizzateig XXL 550g", "fertiggerichte-konserven", "exact"),
         ("pasta", "REWE Bio Spaghetti 500g", "Nudeln & Reis", "exact"),
         ("trofie pasta", "REWE Pasta Penne 500g", "kochen-backen", "substitute"),
         ("fresh basil pesto", "REWE Pesto alla Genovese 190g", "oele-sossen-gewuerze", "exact"),
@@ -222,6 +223,19 @@ def run():
     ) == "exact"
     assert ingredient_product_match_type(
         "tofu", "REWE Bio Tofu-Würstchen 200g", None, "fleisch-wurst-fisch"
+    ) is None
+
+    assert ingredient_product_match_type(
+        "pizza dough", "ja! Backfertiger Pizzateig mit Sauce 600g",
+        None, "fertiggerichte-konserven"
+    ) is None
+    assert ingredient_product_match_type(
+        "pizza dough", "Knack & Back Glutenfreier Pizzateig vegan 260g",
+        None, "fertiggerichte-konserven"
+    ) is None
+    assert ingredient_product_match_type(
+        "pizza dough", "Knack & Back Pizza-Kit 600g",
+        None, "fertiggerichte-konserven"
     ) is None
 
     butter_profile = {
