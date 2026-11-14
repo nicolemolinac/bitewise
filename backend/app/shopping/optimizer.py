@@ -679,7 +679,11 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             # a fractional count (e.g. half an onion) or less than one gram.
             waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1e-9)
             unit_price = _number(product, "unit_price", "price_per_unit", default=price / pack_qty)
-            if not math.isfinite(unit_price) or unit_price < 0:
+            # A zero or negative reference unit price is malformed when the
+            # package itself has a positive checkout price. Do not let it
+            # distort value/premium ranking; derive the normalized price from
+            # the actual package price and package quantity instead.
+            if not math.isfinite(unit_price) or unit_price <= 0:
                 unit_price = price / pack_qty
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             # Exact matches win over substitutions; a substitute is used only when
