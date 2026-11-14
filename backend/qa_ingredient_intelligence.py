@@ -135,6 +135,39 @@ def run():
         "custom herb", "REWE Bio Koriandergrün 20g",
         custom_alias_profile, "frische-krauter"
     ) == "suggested_substitution"
+
+    # Canonically grounded, form-specific retail aliases can establish exact
+    # matches; aliases from a mismatched AI canonical identity stay review-only.
+    assert ingredient_product_match_type(
+        "carrot", "Karotten 1kg",
+        {"canonical": "carrot", "name_en": "carrot", "name_de": "Möhre",
+         "aliases": ["Karotten"], "form": "fresh"},
+        "obst-gemuese"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "banana", "Bio Banane ca. 200g",
+        {"canonical": "banana", "name_en": "banana", "name_de": "Bananen",
+         "aliases": ["Banane"], "form": "fresh"},
+        "obst-gemuese"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "lettuce", "REWE Beste Wahl Romana Salatherzen 3 Stück",
+        {"canonical": "lettuce", "name_en": "lettuce", "name_de": "Eisbergsalat",
+         "aliases": ["Salatherzen", "Salat"], "form": "fresh"},
+        "obst-gemuese"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "spring onion", "Bio Lauchzwiebel im Bund",
+        {"canonical": "spring onion", "name_en": "spring onion",
+         "name_de": "Frühlingszwiebel", "aliases": ["Lauchzwiebel"], "form": "fresh"},
+        "obst-gemuese"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "white fish fillet", "REWE Atlantisches Kabeljaufilet 475g",
+        {"canonical": "white fish fillet", "name_en": "white fish fillet",
+         "name_de": "Seelachsfilet", "aliases": ["Kabeljaufilet"], "form": "fresh"},
+        "fleisch-wurst-fisch"
+    ) == "exact"
     assert "olivenöl" in ingredient_candidate_search_terms("olive oil", {"form": "liquid"})
     assert "rapsöl" in ingredient_candidate_search_terms("vegetable oil", {"form": "liquid"})
     assert "hähnchenbrustfilet" in ingredient_candidate_search_terms("chicken breast", {"form": "fresh"})
