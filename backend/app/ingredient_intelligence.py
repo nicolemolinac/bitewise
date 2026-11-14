@@ -500,6 +500,12 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         ))
     ):
         return "suggested_substitution"
+    # Spelt pasta is a distinct grain and can matter for allergies and texture;
+    # expose it for review instead of silently calling it ordinary wheat pasta.
+    if normalize_text(ingredient) in {"pasta", "spaghetti"} and any(
+        marker in title for marker in ("dinkel", "spelt")
+    ):
+        return "suggested_substitution"
     if normalize_text(ingredient) in {"lettuce", "romaine lettuce", "shredded lettuce"}:
         lettuce_identity_terms = (
             "eisbergsalat", "kopfsalat", "romersalat", "romana", "romaine",
