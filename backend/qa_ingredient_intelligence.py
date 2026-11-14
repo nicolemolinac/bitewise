@@ -113,6 +113,9 @@ def run():
         "vegetable oil", "REWE Bio Sonnenblumenöl nativ 500ml", {"form": "liquid"}, "oele-sossen-gewuerze"
     ) == "suggested_substitution", "Native sunflower oil must be reviewed rather than auto-selected as neutral cooking oil"
     assert ingredient_product_match_type(
+        "vegetable oil", "REWE Bio Rapsöl kaltgepresst 500ml", {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution", "Cold-pressed rapeseed oil must also remain review-only for neutral cooking oil"
+    assert ingredient_product_match_type(
         "vegetable oil", "REWE Sonnenblumenöl raffiniert 1L", {"form": "liquid"}, "oele-sossen-gewuerze"
     ) == "substitute", "Refined neutral sunflower oil remains a safe cooking-oil substitute"
     assert ingredient_product_match_type(
@@ -226,6 +229,10 @@ def run():
         "curry powder", "Bamboo Garden Thai Curry Paste 100g",
         {"form": "powder"}, "oele-sossen-gewuerze"
     ) == "suggested_substitution"
+    assert ingredient_product_match_type(
+        "curry powder", "Bamboo Garden Thai Curry Paste 100g",
+        {}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution", "A paste must never become an exact powder match when recipe form metadata is missing"
     assert "curry paste" in ingredient_candidate_search_terms("curry powder", {"form": "powder"})
     assert ingredient_suggested_substitution_name(
         "curry powder", "Bamboo Garden Thai Curry Paste 100g", {"form": "powder"}
