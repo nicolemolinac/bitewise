@@ -561,6 +561,22 @@ def run():
     # Basket package counts must use the replacement ratio, not the original
     # ingredient quantity; otherwise the adapted recipe can require more than
     # the shopping basket actually buys.
+    # Malformed model confidence is untrusted metadata: it must downgrade
+    # the option to review-only rather than crash the shopping request.
+    for malformed_confidence in ("not-a-number", "NaN", "Infinity", -1, 2, True):
+        malformed_profile = {
+            "canonical": "custom cooking fat", "form": "liquid",
+            "substitution_options": [{
+                "name": "Rapsöl", "confidence": malformed_confidence,
+                "role_preserved": True, "safe_to_auto_apply": True,
+            }],
+        }
+        assert ingredient_product_match_type(
+            "custom cooking fat", "REWE Rapsöl 1L", malformed_profile
+        ) == "suggested_substitution", (
+            f"Malformed confidence {malformed_confidence!r} must remain review-only"
+        )
+
     ratio_profile = {
         "canonical": "custom cooking fat", "form": "liquid",
         "substitution_options": [{
