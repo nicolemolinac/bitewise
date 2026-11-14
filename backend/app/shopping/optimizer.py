@@ -2,7 +2,7 @@ import math
 from collections import defaultdict
 
 from ..ingredient_aliases import ingredient_aliases
-from ..ingredient_intelligence import ingredient_substitution_name, ingredient_suggested_substitution_name, normalize_text, validate_ingredient_unit
+from ..ingredient_intelligence import _profile_lookup, ingredient_substitution_name, ingredient_suggested_substitution_name, normalize_text, validate_ingredient_unit
 
 
 STRATEGIES = {
@@ -52,17 +52,10 @@ def consolidate(meals, servings_map):
                 # Keep semantically different units (e.g. cloves vs pieces) separate.
                 normalized_quantity = raw_quantity if quantity_valid else 0.0
             intelligence = meal.get("ingredient_intelligence") or {}
-            profile = {}
-            if isinstance(intelligence, dict):
-                # Recipe metadata keys are normalized with normalize_text(), so use
-                # the same normalization here (hyphens, accents and punctuation matter).
-                intelligence_key = normalize_text(name)
-                profile = (
-                    intelligence.get(intelligence_key)
-                    or intelligence.get(str(name).lower().strip())
-                    or intelligence.get(name)
-                    or {}
-                )
+            # Reuse the shared lookup so punctuation/accents and both supported
+            # metadata shapes (ingredient-keyed map or a single profile) behave
+            # identically in matching, unit validation and weekly consolidation.
+            profile = _profile_lookup(intelligence, str(name or ""))
             form_key = normalize_text(profile.get("form") or "unspecified") if isinstance(profile, dict) else "unspecified"
             preparation_key = normalize_text(profile.get("preparation") or "") if isinstance(profile, dict) else ""
             # Same ingredient/unit can still represent different retail forms
