@@ -110,6 +110,12 @@ def run():
         "vegetable oil", "REWE Rapsöl 1L", {"form": "liquid"}, "oele-sossen-gewuerze"
     ) == "substitute"
     assert ingredient_product_match_type(
+        "vegetable stock", "Knorr Hühner Brühe Würfel 6x", {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) is None, "Generic stock-cube wording must not turn chicken stock into vegetable stock"
+    assert ingredient_product_match_type(
+        "vegetable stock", "REWE Bio Gemüse Brühe Würfel 6x", {"form": "liquid"}, "oele-sossen-gewuerze"
+    ) == "suggested_substitution", "Vegetable stock cubes require dilution and must not be treated as ready-to-use liquid stock"
+    assert ingredient_product_match_type(
         "vegetable oil", "REWE Bio Sonnenblumenöl nativ 500ml", {"form": "liquid"}, "oele-sossen-gewuerze"
     ) == "suggested_substitution", "Native sunflower oil must be reviewed rather than auto-selected as neutral cooking oil"
     assert ingredient_product_match_type(
