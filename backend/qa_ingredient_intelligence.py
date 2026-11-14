@@ -238,6 +238,11 @@ def run():
         None, "fertiggerichte-konserven"
     ) is None
 
+    assert ingredient_product_match_type(
+        "pizza dough", "REWE Bio Pizza-Teig Backmischung 350g",
+        None, "kochen-backen"
+    ) is None
+
     butter_profile = {
         "canonical": "butter", "name_en": "butter", "name_de": "Butter",
         "aliases": ["Butter"], "form": "solid",
