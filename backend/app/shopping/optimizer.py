@@ -64,10 +64,12 @@ def consolidate(meals, servings_map):
                     or {}
                 )
             form_key = normalize_text(profile.get("form") or "unspecified") if isinstance(profile, dict) else "unspecified"
+            preparation_key = normalize_text(profile.get("preparation") or "") if isinstance(profile, dict) else ""
             # Same ingredient/unit can still represent different retail forms
-            # (e.g. whole vs ground cumin). Never merge quantities and then let
-            # whichever recipe happened to be last choose the form for all meals.
-            key = (normalize_text(name), normalized_unit, form_key)
+            # (e.g. whole vs ground cumin) or preparation states (whole vs
+            # chopped garlic). Never merge quantities and let the last recipe
+            # choose the matching/unit-validation rules for all meals.
+            key = (normalize_text(name), normalized_unit, form_key, preparation_key)
             row = grouped[key]
             row.setdefault("display_ingredient", str(name or "").strip())
             row["quantity"] += normalized_quantity * factor
@@ -96,7 +98,7 @@ def consolidate(meals, servings_map):
             "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit, value.get("ingredient_intelligence")),
             "quantity_validation": value.get("quantity_validation") or {"valid": True, "reason": None},
         }
-        for (ingredient, unit, _form), value in grouped.items()
+        for (ingredient, unit, _form, _preparation), value in grouped.items()
     ]
 
 
