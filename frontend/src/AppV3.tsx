@@ -410,7 +410,7 @@ export default function AppV3(){
     if(action==='like')setLiked(x=>x.some(a=>a.id===meal.id)?x:[...x,meal]);
     else setSkipped(x=>[...new Set([...x,meal.id])]);
   }
-  function servingTotals(includeUnplannedPicks=false){const totals:Record<string,number>={};weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(s.meal)totals[s.meal.id]=(totals[s.meal.id]||0)+factor*(dayContexts[idx]?.people||1)}));if(!Object.keys(totals).length&&includeUnplannedPicks)liked.forEach(m=>totals[m.id]=factor);return totals}
+  function servingTotals(includeUnplannedPicks=false){const totals:Record<string,number>={};weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(s.meal)totals[s.meal.id]=(totals[s.meal.id]||0)+factor*(dayContexts[idx]?.people||1)}));if(includeUnplannedPicks)liked.forEach(m=>{if(!totals[m.id])totals[m.id]=factor});return totals}
   async function removePick(meal:Meal){
     setLiked(current=>current.filter(item=>item.id!==meal.id));
     setQuickMealReplacements(current=>{const next={...current};delete next[meal.id];return next;});
