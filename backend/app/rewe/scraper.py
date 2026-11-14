@@ -49,7 +49,8 @@ def category_slug_from_url(url: str) -> str:
 SHOP_DELIVERY_URL = "https://www.rewe.de/shop/?serviceTypes=delivery"
 STATE_FILE = Path(__file__).resolve().parents[2] / "data" / "rewe_storage_state.json"
 MAX_CATEGORY_PAGES = 500
-MINIMUM_REWE_PRICE_COVERAGE = 0.25
+MINIMUM_REWE_PRICE_COVERAGE = 0.80
+MINIMUM_REWE_PACKAGE_COVERAGE = 0.80
 REWE_CATEGORY_MINIMUM_PRODUCTS = {
     # Conservative 50%-of-source-count floors. These are safety checks for
     # destructive reconciliation, not targets for ranking or assortment.
@@ -1089,6 +1090,7 @@ class ReweCatalogScraper:
             "pages_processed": 0,
             "products_found": 0,
             "products_with_price": 0,
+            "products_with_package": 0,
             "products_created": 0,
             "products_updated": 0,
             "category_product_counts": {},
@@ -1101,6 +1103,7 @@ class ReweCatalogScraper:
 
     def _ingest_products(self, report, products, upsert, postcode):
         priced = 0
+        packaged = 0
         for product in products:
             try:
                 candidate_price = float(product.get("price")) if product.get("price") is not None else None
@@ -1108,10 +1111,21 @@ class ReweCatalogScraper:
                 candidate_price = None
             if candidate_price is not None and math.isfinite(candidate_price) and candidate_price > 0:
                 priced += 1
+            try:
+                candidate_size = float(product.get("package_size")) if product.get("package_size") is not None else None
+            except (TypeError, ValueError):
+                candidate_size = None
+            candidate_unit = str(product.get("package_unit") or "").strip().lower()
+            if (
+                candidate_size is not None and math.isfinite(candidate_size) and candidate_size > 0
+                and candidate_unit not in {"", "unknown"}
+            ):
+                packaged += 1
             created = upsert(product, postcode)
             report["products_created" if created else "products_updated"] += 1
         report["products_found"] += len(products)
         report["products_with_price"] += priced
+        report["products_with_package"] += packaged
 
 
     def add_products_to_cart(self, products):
@@ -1296,18 +1310,28 @@ class ReweCatalogScraper:
             report["products_with_price"] / report["products_found"]
             if report["products_found"] else 0.0
         )
+        package_coverage = (
+            report["products_with_package"] / report["products_found"]
+            if report["products_found"] else 0.0
+        )
         report["price_coverage_ratio"] = round(price_coverage, 4)
+        report["package_coverage_ratio"] = round(package_coverage, 4)
         low_price_coverage = full_catalog_run and price_coverage < MINIMUM_REWE_PRICE_COVERAGE
+        low_package_coverage = full_catalog_run and package_coverage < MINIMUM_REWE_PACKAGE_COVERAGE
         report["price_coverage_warning"] = (
             f"Only {price_coverage:.1%} of product cards exposed a valid checkout price"
             if low_price_coverage else None
+        )
+        report["package_coverage_warning"] = (
+            f"Only {package_coverage:.1%} of product cards exposed a valid package size and unit"
+            if low_package_coverage else None
         )
         has_coverage_gap = bool(report["category_undercoverage"])
         report["status"] = (
             "failed" if not report["categories_successful"]
             else (
                 "partial"
-                if report["categories_failed"] or has_coverage_gap or low_price_coverage
+                if report["categories_failed"] or has_coverage_gap or low_price_coverage or low_package_coverage
                 else "healthy"
             )
         )
@@ -1352,18 +1376,28 @@ class ReweCatalogScraper:
             report["products_with_price"] / report["products_found"]
             if report["products_found"] else 0.0
         )
+        package_coverage = (
+            report["products_with_package"] / report["products_found"]
+            if report["products_found"] else 0.0
+        )
         report["price_coverage_ratio"] = round(price_coverage, 4)
+        report["package_coverage_ratio"] = round(package_coverage, 4)
         low_price_coverage = full_catalog_run and price_coverage < MINIMUM_REWE_PRICE_COVERAGE
+        low_package_coverage = full_catalog_run and package_coverage < MINIMUM_REWE_PACKAGE_COVERAGE
         report["price_coverage_warning"] = (
             f"Only {price_coverage:.1%} of product cards exposed a valid checkout price"
             if low_price_coverage else None
+        )
+        report["package_coverage_warning"] = (
+            f"Only {package_coverage:.1%} of product cards exposed a valid package size and unit"
+            if low_package_coverage else None
         )
         has_coverage_gap = bool(report["category_undercoverage"])
         report["status"] = (
             "failed" if not report["categories_successful"]
             else (
                 "partial"
-                if report["categories_failed"] or has_coverage_gap or low_price_coverage
+                if report["categories_failed"] or has_coverage_gap or low_price_coverage or low_package_coverage
                 else "healthy"
             )
         )
