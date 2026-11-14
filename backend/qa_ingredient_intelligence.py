@@ -167,6 +167,13 @@ def run():
         "canned corn", "REWE Zuckermais 2 Stück",
         canned_corn_profile, "obst-gemuese"
     ) is None
+    assert ingredient_product_match_type(
+        "canned corn", "REWE Zuckermais 2 Stück", None, "obst-gemuese"
+    ) is None, "Ingredient-name fallback must preserve canned form intent"
+    assert ingredient_product_match_type(
+        "canned corn", "REWE Beste Wahl Zuckermais 340g", None,
+        "Fertiggerichte & Konserven"
+    ) == "exact"
     butter_profile = {
         "canonical": "butter", "name_en": "butter", "name_de": "Butter",
         "aliases": ["Butter"], "form": "solid",
