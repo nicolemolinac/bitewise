@@ -258,6 +258,13 @@ def run():
     ], {"single": 1})
     assert one_serving[0]["quantity"] == 75
 
+    bunch_requirement = consolidate([
+        {"id": "herbs", "name": "Herb recipe", "base_servings": 1,
+         "ingredients": [["fresh cilantro", 1, "Bund"]]},
+    ], {"herbs": 1})
+    assert bunch_requirement[0]["unit"] == "piece"
+    assert bunch_requirement[0]["quantity"] == 1
+
     four_servings = consolidate([
         {"id": "four", "name": "Four portions", "base_servings": 2,
          "ingredients": [["rice", 150, "g"]]},
