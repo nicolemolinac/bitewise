@@ -316,9 +316,16 @@ def _find_chrome_for_testing(playwright):
     # Testing build in its managed browser cache. Do not silently fall back
     # to the separate open-source Chromium browser.
     for pattern in (
+        # Playwright stores branded Chrome channel downloads under chrome-*;
+        # Chromium builds use chromium-* and are intentionally not searched.
+        "Library/Caches/ms-playwright/chrome-*/chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        "Library/Caches/ms-playwright/chrome-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
         "Library/Caches/ms-playwright/chromium-*/chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
         "Library/Caches/ms-playwright/chromium-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        ".cache/ms-playwright/chrome-*/chrome-linux64/chrome",
+        ".cache/ms-playwright/chrome-*/chrome-linux/chrome",
         ".cache/ms-playwright/chromium-*/chrome-linux64/chrome",
+        "AppData/Local/ms-playwright/chrome-*/chrome-win64/chrome.exe",
         "AppData/Local/ms-playwright/chromium-*/chrome-win64/chrome.exe",
     ):
         candidates.extend(home.glob(pattern))
