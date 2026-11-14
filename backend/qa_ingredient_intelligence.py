@@ -115,6 +115,9 @@ def run():
     assert ingredient_product_match_type(
         "butter", "REWE Kräuterbutter 125g", butter_profile, "kaese-eier-molkerei"
     ) is None
+    assert ingredient_product_match_type(
+        "butter", "REWE Butterkäse 200g", butter_profile, "kaese-eier-molkerei"
+    ) is None
 
     # Compound spice names must be classified as spices before generic
     # produce substrings; bell pepper remains produce.
