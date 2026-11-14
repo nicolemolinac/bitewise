@@ -131,6 +131,15 @@ def rewe_refresh_safe():
                     incoming["price_per_unit"] = unit_price
                 elif valid_package:
                     incoming["price_per_unit"] = incoming_price / package_size
+                elif existing is not None:
+                    try:
+                        existing_size = float(existing.package_size)
+                        if math.isfinite(existing_size) and existing_size > 0:
+                            incoming["price_per_unit"] = incoming_price / existing_size
+                        else:
+                            incoming.pop("price_per_unit", None)
+                    except (OverflowError, TypeError, ValueError):
+                        incoming.pop("price_per_unit", None)
                 else:
                     incoming.pop("price_per_unit", None)
             else:
