@@ -54,6 +54,15 @@ def main():
     assert pack_price == 1.59
     assert abs(per_ml - 0.00212) < 0.000001
 
+    # A refundable bottle deposit must not be mistaken for the product price
+    # when the page exposes only the €/l reference price.
+    deposit_only_price, _ = price_details(
+        "Granini Schorle 0,75l (1 l = 2,12 €) zzgl. 0,25 € Pfand",
+        750,
+        "ml",
+    )
+    assert deposit_only_price == 1.59
+
     size, unit = package("Rice 500g")
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49
