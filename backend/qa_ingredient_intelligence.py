@@ -116,6 +116,14 @@ def run():
         "curry powder", "REWE Currypulver mild 50g",
         untrusted_alias_profile, "oele-sossen-gewuerze"
     ) == "exact"
+    oil_alias_profile = {
+        "canonical": "vegetable oil", "form": "liquid",
+        "aliases": ["Rapsöl", "rapeseed oil"],
+    }
+    assert ingredient_product_match_type(
+        "vegetable oil", "REWE Rapsöl 1L",
+        oil_alias_profile, "oele-sossen-gewuerze"
+    ) == "substitute", "An AI alias must not downgrade a curated substitute into an untyped review candidate"
     custom_alias_profile = {
         "canonical": "fresh cilantro",
         "name_en": "fresh cilantro",
