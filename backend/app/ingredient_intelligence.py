@@ -571,6 +571,7 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "milkshake", "milk shake", "milk drink", "milchmix", "aroma",
             "kondensmilch", "condensed milk", "evaporated milk", "buttermilk",
             "milk powder", "powdered milk", "dry milk", "milchpulver",
+            "vollmilchpulver", "magermilchpulver",
             "coconut milk", "kokosmilch", "kokosnussmilch",
         ),
         "sour cream": ("mit krautern", "fruhlingskrautern", "krauter", "herbs", "chives"),
