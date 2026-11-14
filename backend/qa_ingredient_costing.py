@@ -422,6 +422,14 @@ def run():
     ], {"missing-unit": 1})
     assert missing_unit_requirement[0]["unit"] == ""
     assert missing_unit_requirement[0]["unit_validation"]["valid"] is False
+    direct_missing_unit = build_basket(
+        [{"ingredient": "onion", "quantity": 1, "source_meals": ["Direct input"]}],
+        FakeCatalog({"onion": [{"id": 99, "name_original": "REWE Zwiebel 1 Stück",
+                                "package_size": 1, "package_unit": "piece",
+                                "price": 0.99, "availability": "available"}]}),
+    )[0]
+    assert direct_missing_unit["match_status"] == "unmatched"
+    assert direct_missing_unit["unit_validation"]["valid"] is False
     missing_unit_basket = build_basket(
         missing_unit_requirement, FakeCatalog({"onion": []}), owned=["onion"]
     )
