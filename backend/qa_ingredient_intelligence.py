@@ -96,6 +96,9 @@ def run():
     assert validate_ingredient_unit("chopped onion", "cup", {"form": "chopped"})["valid"] is True
     assert validate_ingredient_unit("minced garlic", "tbsp")["valid"] is True
     assert validate_ingredient_unit("onion", "cup")["valid"] is False
+    assert validate_ingredient_unit("garlic", "cloves")["valid"] is True
+    assert validate_ingredient_unit("onion", "cloves")["valid"] is False
+    assert validate_ingredient_unit("olive oil", "cup")["valid"] is True
 
     # A cross-form frozen product for a fresh fish request is a reviewable
     # substitution, not an exact identity.
