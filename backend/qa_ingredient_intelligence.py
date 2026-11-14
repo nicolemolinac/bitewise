@@ -207,6 +207,9 @@ def run():
         "egg", "REWE gekochte Eier 2 Stück", None, "kaese-eier-molkerei"
     ) is None
     assert ingredient_product_match_type(
+        "egg", "REWE hartgekochte Eier 2 Stück", None, "kaese-eier-molkerei"
+    ) is None
+    assert ingredient_product_match_type(
         "salmon", "REWE Bio Lachsfilet 250g", None, "fleisch-wurst-fisch"
     ) == "exact"
     assert ingredient_product_match_type(
@@ -216,7 +219,7 @@ def run():
         "shrimp", "REWE Garnelen 200g", None, "fleisch-wurst-fisch"
     ) == "exact"
     assert ingredient_product_match_type(
-        "shrimp", "REWE Garnelen gekochte 200g", None, "fleisch-wurst-fisch"
+        "shrimp", "REWE Garnelen gekocht 200g", None, "fleisch-wurst-fisch"
     ) is None
     assert ingredient_product_match_type(
         "tofu", "REWE Bio Tofu Natur 200g", None, "fleisch-wurst-fisch"
