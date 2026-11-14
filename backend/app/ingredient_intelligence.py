@@ -548,6 +548,21 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         ))
     ):
         return "suggested_substitution"
+    # A gluten-free pizza base or dry baking mix is not identical to a
+    # generic fresh pizza dough request. Keep it visible, but require review.
+    if normalize_text(ingredient) == "pizza dough" and any(
+        marker in title for marker in (
+            "glutenfrei", "gluten free", "backmischung", "teigmischung",
+            "teig mix", "dough mix", "pizza mix",
+        )
+    ):
+        return "suggested_substitution"
+    # Protein-enriched wraps remain usable as a tortilla alternative, but
+    # their composition is materially different from ordinary wheat tortillas.
+    if normalize_text(ingredient) in {"soft tortillas", "tortillas"} and any(
+        marker in title for marker in ("high protein", "protein wrap", "protein wraps")
+    ):
+        return "suggested_substitution"
     # Spelt pasta is a distinct grain and can matter for allergies and texture;
     # expose it for review instead of silently calling it ordinary wheat pasta.
     if normalize_text(ingredient) in {"pasta", "spaghetti"} and any(
