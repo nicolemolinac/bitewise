@@ -664,6 +664,14 @@ def run():
         "white fish fillet", "Nadler Alaska Seelachs Mus 125g", {}, "fleisch-wurst-fisch"
     ) is None
 
+    assert ingredient_product_match_type(
+        "burger buns", "Coppenrath & Wiese 20 Weizen-Brötchen 1kg",
+        {"form": "unspecified"}, "brot-cerealien-aufstriche"
+    ) == "substitute"
+    assert ingredient_substitution_name(
+        "burger buns", "Coppenrath & Wiese 20 Weizen-Brötchen 1kg"
+    ) == "bread rolls"
+
     # Real-catalog audit: flavored milk, herb-seasoned sour cream, gnocchi,
     # branded ready rice and walnut croutons are not exact ingredient matches.
     assert ingredient_product_match_type(
