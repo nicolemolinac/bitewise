@@ -109,6 +109,14 @@ _UNIT_ALIASES = {
     "kilogram": "kg", "kilograms": "kg", "kilogramm": "kg", "kilo": "kg", "kg": "kg",
     "milliliter": "ml", "milliliters": "ml", "millilitre": "ml", "ml": "ml",
     "liter": "l", "litre": "l", "liters": "l", "litres": "l", "l": "l",
+    "ounce": "oz", "ounces": "oz", "oz": "oz",
+    "pound": "lb", "pounds": "lb", "lb": "lb", "lbs": "lb",
+    "fluid ounce": "fl oz", "fluid ounces": "fl oz", "fl oz": "fl oz",
+    "centiliter": "cl", "centiliters": "cl", "centilitre": "cl", "cl": "cl",
+    "deciliter": "dl", "deciliters": "dl", "decilitre": "dl", "dl": "dl",
+    "pint": "pt", "pints": "pt", "pt": "pt",
+    "quart": "qt", "quarts": "qt", "qt": "qt",
+    "gallon": "gal", "gallons": "gal", "gal": "gal",
     "stück": "piece", "stuck": "piece", "pcs": "piece", "pc": "piece",
     "pieces": "piece", "piece": "piece", "unit": "piece", "units": "piece",
     "tbsp": "tbsp", "tablespoon": "tbsp", "tablespoons": "tbsp", "el": "tbsp",
@@ -121,11 +129,17 @@ _UNIT_ALIASES = {
     "esslöffel": "tbsp", "essloeffel": "tbsp",
     "teelöffel": "tsp", "teeloeffel": "tsp",
 }
-_UNIT_BASE = {"g": ("mass", 1.0), "kg": ("mass", 1000.0),
-              "ml": ("volume", 1.0), "l": ("volume", 1000.0),
-              "tbsp": ("volume", 15.0), "tsp": ("volume", 5.0),
-              "pinch": ("volume", 0.3), "cup": ("volume", 250.0),
-              "piece": ("count", 1.0), "bunch": ("count", 1.0)}
+_UNIT_BASE = {
+    "g": ("mass", 1.0), "kg": ("mass", 1000.0),
+    "oz": ("mass", 28.349523125), "lb": ("mass", 453.59237),
+    "ml": ("volume", 1.0), "l": ("volume", 1000.0),
+    "cl": ("volume", 10.0), "dl": ("volume", 100.0),
+    "fl oz": ("volume", 29.5735295625), "pt": ("volume", 473.176473),
+    "qt": ("volume", 946.352946), "gal": ("volume", 3785.411784),
+    "tbsp": ("volume", 15.0), "tsp": ("volume", 5.0),
+    "pinch": ("volume", 0.3), "cup": ("volume", 250.0),
+    "piece": ("count", 1.0), "bunch": ("count", 1.0),
+}
 
 
 def _normal_unit(value):
