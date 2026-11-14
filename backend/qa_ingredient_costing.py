@@ -15,6 +15,22 @@ class FakeCatalog:
 
 
 def run():
+    # A TypeError inside an intelligence-aware adapter is a real failure, not
+    # evidence that it uses the legacy one-argument search signature.
+    class BrokenCatalog:
+        def search(self, ingredient, intelligence=None):
+            raise TypeError("internal catalog normalization failed")
+
+    try:
+        build_basket(
+            [{"ingredient": "onion", "quantity": 1, "unit": "piece"}],
+            BrokenCatalog(),
+        )
+    except TypeError as exc:
+        assert "internal catalog normalization failed" in str(exc)
+    else:
+        raise AssertionError("Internal catalog TypeError must not be swallowed")
+
     # The actual product title, not a broad catalog label, must confirm the ingredient.
     assert ingredient_name_matches("trofie pasta", "REWE Trofie") is True
     assert ingredient_name_matches("trofie pasta", "REWE Fusilli") is False
