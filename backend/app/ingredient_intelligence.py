@@ -905,8 +905,8 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
 
 
 _UNIT_VALIDATION_ALIASES = {
-    "gram": "g", "grams": "g", "gr": "g",
-    "kilogram": "kg", "kilograms": "kg", "kilo": "kg",
+    "gram": "g", "grams": "g", "gramm": "g", "gr": "g",
+    "kilogram": "kg", "kilograms": "kg", "kilogramm": "kg", "kilo": "kg",
     "milliliter": "ml", "milliliters": "ml", "millilitre": "ml",
     "millilitres": "ml", "liter": "l", "litre": "l", "liters": "l", "litres": "l",
     "tablespoon": "tbsp", "tablespoons": "tbsp", "el": "tbsp",
