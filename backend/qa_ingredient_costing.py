@@ -3,6 +3,7 @@
 Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quantity, build_basket, consolidate
+from app.database import _snapshot_package_size
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -15,6 +16,13 @@ class FakeCatalog:
 
 
 def run():
+    # Snapshot imports must choose the same final physical size as the live
+    # scraper, rather than an earlier partial size embedded in a product title.
+    assert _snapshot_package_size("Drink 0,75ml bottle 0,75l", 0.75, "ml") == 750
+    assert _snapshot_package_size("Juice 0,75ml pack 2x200ml", 0.75, "ml") == 400
+    assert _snapshot_package_size("Yogurt 4x50g family pack 200g", 200, "g") == 200
+    assert _snapshot_package_size("Water 2x500ml", 500, "ml") == 1000
+    assert _snapshot_package_size("Water 2x500ml", 1, "l") == 1
     # A TypeError inside an intelligence-aware adapter is a real failure, not
     # evidence that it uses the legacy one-argument search signature.
     class BrokenCatalog:
