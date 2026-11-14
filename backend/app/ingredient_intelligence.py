@@ -80,6 +80,7 @@ _SUBSTITUTION_TERMS = {
     "parmesan cheese": ("grana padano", "grana padano gerieben"),
     "grated cheddar cheese": ("grated gouda", "geriebener gouda", "gouda gerieben", "emmentaler gerieben", "geriebener emmentaler", "gratinkäse"),
     "soft tortillas": ("high protein wraps", "protein wraps"),
+    "greek yogurt": ("joghurt griechischer art", "greek style yogurt"),
     "fresh cilantro": ("coriander leaves", "koriandergrun"),
     # Slaw can use fresh white cabbage when red cabbage is not stocked.
     "red cabbage": ("white cabbage", "weisskohl", "spitzkohl"),
@@ -89,6 +90,8 @@ _SUBSTITUTION_TERMS = {
         "weizen broetchen", "weizenbrotchen", "kaiserbrötchen",
         "kaiserbrotchen", "sesambrötchen", "sesambrotchen",
         "dinkelbrotchen", "mehrkornbrotchen", "laugenbrotchen",
+        "vollkornbrötchen", "vollkornbrotchen", "kartoffelbrötchen",
+        "kartoffelbrotchen",
     ),
 }
 
@@ -356,6 +359,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
             "hamburgerbrotchen", "burgerbrotchen", "burger bun",
             "kaiserbrotchen", "weizenbrotchen", "weizen brotchen", "weizen broetchen", "sesambrotchen",
             "dinkelbrotchen", "mehrkornbrotchen", "laugenbrotchen",
+            "vollkornbrotchen", "kartoffelbrotchen",
         )
     ) and category_key in {
         "brot-cerealien-aufstriche", "kochen-backen",
@@ -473,6 +477,10 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "burger buns": (
             "proteinmehl", "brotbackmischung", "backmischung", "brot mix", "brotmix", "mehl",
             "franzbrotchen", "waffeleis", "schoko", "zimt",
+        ),
+        "greek yogurt": (
+            "blutorange", "brombeere", "honig", "erdbeere", "heidelbeere",
+            "vanille", "frucht", "mango", "zitrone", "pfirsich",
         ),
         "salsa": ("mais rollchen", "mais roellchen", "snack", "chips"),
         "lettuce": ("crispy mix", "salat mix", "salatmischung", "salatmix", "bluten salat", "blutensalat", "baby leaf", "babyleaf", "salat bouquet", "wildkrauter salat", "wildkrautersalat", "feiner salat", "der feine salat", "mit krautern"),
@@ -754,7 +762,11 @@ def ingredient_substitution_name(ingredient: str, product_text: str, intelligenc
                 "dinkelbrotchen": "bread rolls",
                 "mehrkornbrotchen": "bread rolls",
                 "laugenbrotchen": "bread rolls",
+                "vollkornbrotchen": "bread rolls",
+                "kartoffelbrotchen": "bread rolls",
                 "brotchen": "bread rolls",
+                "joghurt griechischer art": "Greek-style yogurt",
+                "greek style yogurt": "Greek-style yogurt",
             }
             return labels.get(normalized, str(term))
     return None
