@@ -256,6 +256,10 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         form = "fresh"
     elif any(term in form for term in ("powder", "pulver", "ground spice")):
         form = "powder"
+    elif any(term in form for term in ("dried", "getrocknet")):
+        form = "dried"
+    elif any(term in form for term in ("whole", "ganz", "unground")):
+        form = "whole"
     ingredient_tokens = set(normalize_text(ingredient).split())
     fresh_produce_tokens = {"garlic", "onion", "potato", "tomato", "lettuce", "cilantro", "coriander", "carrot", "olive"}
     compound_product_terms = ("wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen", "suppe", "brustfilet", "hahnchen", "chicken", "garnelen", "shrimp", "tempeh", "mettwurst", "pesto", "brot", "bread", "butter", "aufstrich")
@@ -280,6 +284,15 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     if form == "hard" and not any(token in title for token in ("shell", "schale", "knusprig", "crunchy", "hard taco")):
         return False
     if form in {"powder", "pulver"} and not any(token in title for token in ("pulver", "powder", "gemahlen")):
+        return False
+    if form == "dried" and not any(token in title for token in (
+        "getrocknet", "dried", "trocken", "gerebelt", "dehydriert",
+    )):
+        return False
+    if form == "whole" and any(token in title for token in (
+        "gemahlen", "pulver", "powder", "ground", "geschrotet",
+        "crushed", "zerkleinert", "mahlzeit",
+    )):
         return False
     if form in {"pre cooked", "precooked"}:
         if any(token in title for token in ("roh", "raw")):
@@ -840,8 +853,11 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
     if name in {"bell pepper", "red pepper", "green pepper", "yellow pepper", "sweet pepper", "paprika"}:
         family = "produce"
     else:
+        # Match normalized phrases, not individual whitespace tokens. This is
+        # required for compound spice names such as "black pepper" and avoids
+        # falling through to the generic produce hint "pepper".
         family = next((key for key, hints in _FAMILY_HINTS.items()
-                       if any(normalize_text(hint) in name.split() for hint in hints)), None)
+                       if any(_contains_phrase(name, normalize_text(hint)) for hint in hints)), None)
     if family is None:
         return {"valid": True, "family": None, "reason": None}
     allowed = set(_UNIT_FAMILIES[family])
