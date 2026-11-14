@@ -328,6 +328,12 @@ def run():
     assert validate_ingredient_unit("tomato paste", "tbsp")["family"] == "condiment"
     assert validate_ingredient_unit("fresh basil pesto", "tbsp")["valid"] is True
 
+    assert validate_ingredient_unit("dried basil", "tsp")["family"] == "spice"
+    assert validate_ingredient_unit("dry oregano", "tsp")["valid"] is True
+    assert validate_ingredient_unit("oregano", "tsp")["valid"] is True
+    assert validate_ingredient_unit("fresh basil", "bunch")["family"] == "produce"
+    assert validate_ingredient_unit("fresh basil", "tsp")["valid"] is False
+
     # A cross-form frozen product for a fresh fish request is a reviewable
     # substitution, not an exact identity.
     assert ingredient_product_match_type(
