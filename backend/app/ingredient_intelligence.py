@@ -1103,6 +1103,14 @@ _UNIT_VALIDATION_ALIASES = {
     "kilogram": "kg", "kilograms": "kg", "kilogramm": "kg", "kilo": "kg",
     "milliliter": "ml", "milliliters": "ml", "millilitre": "ml",
     "millilitres": "ml", "liter": "l", "litre": "l", "liters": "l", "litres": "l",
+    "ounce": "g", "ounces": "g", "oz": "g",
+    "pound": "kg", "pounds": "kg", "lb": "kg", "lbs": "kg",
+    "fluid ounce": "ml", "fluid ounces": "ml", "fl oz": "ml",
+    "centiliter": "ml", "centiliters": "ml", "centilitre": "ml", "cl": "ml",
+    "deciliter": "ml", "deciliters": "ml", "decilitre": "ml", "dl": "ml",
+    "pint": "ml", "pints": "ml", "pt": "ml",
+    "quart": "ml", "quarts": "ml", "qt": "ml",
+    "gallon": "l", "gallons": "l", "gal": "l",
     "tablespoon": "tbsp", "tablespoons": "tbsp", "el": "tbsp",
     "teaspoon": "tsp", "teaspoons": "tsp", "tl": "tsp",
     "piece": "piece", "pieces": "piece", "pcs": "piece", "pc": "piece",
@@ -1321,7 +1329,7 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
         unit_key = _normalize_validation_unit(unit)
         if unit_key in {"g", "kg"}:
             inferred_dimension = "mass"
-        elif unit_key in {"ml", "l", "tsp", "tbsp"}:
+        elif unit_key in {"ml", "l", "tsp", "tbsp", "cup", "pinch"}:
             inferred_dimension = "volume"
         elif unit_key in {"unit", "piece", "cloves"}:
             inferred_dimension = "count"
