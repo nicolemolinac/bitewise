@@ -407,6 +407,45 @@ def run():
     assert generic_recipe["ingredients"] == [["rapeseed oil", 20.0, "ml"]]
     assert generic_recipe["adaptations"][0]["replacement"] == "rapeseed oil"
 
+    # Basket package counts must use the replacement ratio, not the original
+    # ingredient quantity; otherwise the adapted recipe can require more than
+    # the shopping basket actually buys.
+    ratio_profile = {
+        "canonical": "custom cooking fat", "form": "liquid",
+        "substitution_options": [{
+            "name": "rapeseed oil", "confidence": 0.96,
+            "role_preserved": True, "safe_to_auto_apply": True,
+            "quantity_ratio": 1.5,
+        }],
+    }
+    ratio_catalog = IntelligenceCatalog({"custom cooking fat": [{
+        "id": 21, "name_original": "REWE Rapsöl 10ml",
+        "package_size": 10, "package_unit": "ml", "price": 1.0,
+        "availability": "available", "ingredient_match_type": "substitute",
+        "ingredient_substitute": "rapeseed oil",
+    }]})
+    ratio_basket = build_basket([{
+        "ingredient": "custom cooking fat", "quantity": 20, "unit": "ml",
+        "source_meals": ["Ratio test"], "ingredient_intelligence": ratio_profile,
+        "unit_validation": {"valid": True},
+    }], ratio_catalog)
+    assert ratio_basket[0]["quantity_ratio"] == 1.5
+    assert ratio_basket[0]["product_needed_quantity"] == 30
+    assert ratio_basket[0]["packs"] == 3
+
+    ratio_recipe = {
+        "base_servings": 2,
+        "ingredients": [["custom cooking fat", 20, "ml"]],
+        "ingredient_intelligence": {"custom cooking fat": ratio_profile},
+        "steps": [{"text": "Add custom cooking fat."}],
+    }
+    _adapt_recipe_to_catalog(ratio_recipe, [{
+        "ingredient": "custom cooking fat", "match_status": "substituted",
+        "needed_quantity": 30, "pantry_used": 0,
+        "product": {"ingredient_substitute": "rapeseed oil", "name_original": "REWE Rapsöl 10ml"},
+    }])
+    assert ratio_recipe["ingredients"] == [["rapeseed oil", 30.0, "ml"]]
+
     # A structured cross-form transformation may replace a frozen component
     # with a raw ingredient only when it supplies the missing preparation step.
     fries_recipe = {
