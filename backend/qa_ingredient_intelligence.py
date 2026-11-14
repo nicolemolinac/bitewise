@@ -120,6 +120,19 @@ def run():
     assert ingredient_product_match_type(
         "milk", "Alpro Haferdrink 1L", milk_profile, "kaffee-tee-kakao"
     ) == "suggested_substitution"
+    canned_corn_profile = {
+        "canonical": "canned corn", "name_en": "canned corn",
+        "name_de": "Mais aus der Dose", "aliases": ["Dosenmais"],
+        "form": "canned",
+    }
+    assert ingredient_product_match_type(
+        "canned corn", "REWE Beste Wahl Zuckermais 340g",
+        canned_corn_profile, "Fertiggerichte & Konserven"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "canned corn", "REWE Zuckermais 2 Stück",
+        canned_corn_profile, "obst-gemuese"
+    ) is None
     butter_profile = {
         "canonical": "butter", "name_en": "butter", "name_de": "Butter",
         "aliases": ["Butter"], "form": "solid",
