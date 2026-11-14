@@ -1167,6 +1167,20 @@ def run():
         "burger buns", "Coppenrath & Wiese 20 Weizen-Brötchen 1kg"
     ) == "bread rolls"
 
+    # German umlaut spellings and ASCII transliterations must resolve to
+    # the same complete ingredient phrase in both retrieval and validation.
+    chicken_breast_terms = ingredient_candidate_search_terms("chicken breast")
+    assert "hähnchenbrust" in chicken_breast_terms
+    assert "haehnchenbrust" in chicken_breast_terms
+    assert ingredient_product_match_type(
+        "chicken breast", "REWE Bio Hähnchenbrust 400g", {}, "Fleisch"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "chicken breast", "REWE Bio Haehnchenbrust 400g", {}, "Fleisch"
+    ) == "exact"
+    # A transliterated German query should also retrieve the umlaut spelling.
+    assert "hähnchenbrust" in ingredient_candidate_search_terms("haehnchenbrust")
+
     # Token-boundary audit: retrieval may be broad, but a shared substring
     # must never establish ingredient identity (e.g. apple/pineapple).
     assert ingredient_product_match_type("apple", "REWE Ananas 1 Stück", {}, "obst-gemuese") is None
