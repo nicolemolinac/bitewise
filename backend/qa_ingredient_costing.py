@@ -257,6 +257,15 @@ def run():
     assert cheese_grams == 40 and "20 g per piece" in cheese_note
     assert romaine_pieces == 1.5 and "100 g per piece" in romaine_note
 
+    chicken_grams, chicken_note = _convert_ingredient_quantity(2, "piece", "g", "chicken breast")
+    broccoli_grams, broccoli_note = _convert_ingredient_quantity(1, "piece", "g", "broccoli")
+    cilantro_grams, cilantro_note = _convert_ingredient_quantity(1, "bunch", "g", "fresh cilantro")
+    bacon_grams, bacon_note = _convert_ingredient_quantity(3, "slice", "g", "bacon")
+    assert chicken_grams == 300 and "150 g per piece" in chicken_note
+    assert broccoli_grams == 300 and "300 g per piece" in broccoli_note
+    assert cilantro_grams == 30 and "30 g per piece" in cilantro_note
+    assert bacon_grams == 45 and "15 g per piece" in bacon_note
+
     # Recipe ingredient quantities are generated for 2 servings and scaled exactly once.
     one_serving = consolidate([
         {"id": "single", "name": "Single portion", "base_servings": 2,
