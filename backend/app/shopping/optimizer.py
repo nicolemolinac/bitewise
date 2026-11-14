@@ -16,13 +16,25 @@ STRATEGIES = {
 
 
 def consolidate(meals, servings_map):
-    grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": [], "ingredient_intelligence": None, "unit_validation": None})
+    grouped = defaultdict(lambda: {
+        "quantity": 0.0, "source_meals": [], "ingredient_intelligence": None,
+        "unit_validation": None, "quantity_validation": {"valid": True, "reason": None},
+    })
     canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
     for meal in meals:
         servings = max(0.1, float(servings_map.get(meal["id"], 2) or 2))
         base_servings = max(0.1, float(meal.get("base_servings", 2) or 2))
         factor = servings / base_servings
         for name, quantity, unit in meal["ingredients"]:
+            try:
+                raw_quantity = float(quantity)
+            except (TypeError, ValueError, OverflowError):
+                raw_quantity = float("nan")
+            quantity_valid = (
+                not isinstance(quantity, bool)
+                and math.isfinite(raw_quantity)
+                and raw_quantity > 0
+            )
             normalized_unit = _normal_unit(unit)
             unit_info = _UNIT_BASE.get(normalized_unit)
             if unit_info:
@@ -33,10 +45,10 @@ def consolidate(meals, servings_map):
                     normalized_unit if dimension == "count"
                     else canonical_units[dimension]
                 )
-                normalized_quantity = float(quantity) * multiplier
+                normalized_quantity = raw_quantity * multiplier if quantity_valid else 0.0
             else:
                 # Keep semantically different units (e.g. cloves vs pieces) separate.
-                normalized_quantity = float(quantity)
+                normalized_quantity = raw_quantity if quantity_valid else 0.0
             # Normalize punctuation, accents and case before grouping so
             # "red-onion", "Red Onion" and "red onion" do not become
             # separate shopping lines.
@@ -44,6 +56,11 @@ def consolidate(meals, servings_map):
             row = grouped[key]
             row.setdefault("display_ingredient", name.strip())
             row["quantity"] += normalized_quantity * factor
+            if not quantity_valid:
+                row["quantity_validation"] = {
+                    "valid": False,
+                    "reason": f"Ingredient quantity must be a finite positive number; received {quantity!r}.",
+                }
             row["source_meals"].append(meal["name"])
             intelligence = meal.get("ingredient_intelligence") or {}
             if isinstance(intelligence, dict):
@@ -65,6 +82,7 @@ def consolidate(meals, servings_map):
             "source_meals": list(dict.fromkeys(value["source_meals"])),
             "ingredient_intelligence": value.get("ingredient_intelligence"),
             "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit, value.get("ingredient_intelligence")),
+            "quantity_validation": value.get("quantity_validation") or {"valid": True, "reason": None},
         }
         for (ingredient, unit), value in grouped.items()
     ]
@@ -400,7 +418,24 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
 
     for requirement in requirements:
         ingredient = requirement["ingredient"].lower().strip()
-        requested = float(requirement["quantity"])
+        raw_requested = requirement.get("quantity")
+        try:
+            requested = float(raw_requested)
+        except (TypeError, ValueError, OverflowError):
+            requested = float("nan")
+        quantity_validation = requirement.get("quantity_validation") or {"valid": True, "reason": None}
+        quantity_valid = (
+            not isinstance(raw_requested, bool)
+            and math.isfinite(requested)
+            and requested > 0
+            and quantity_validation.get("valid", True) is True
+        )
+        if not quantity_valid:
+            requested = 0.0
+            quantity_validation = {
+                "valid": False,
+                "reason": quantity_validation.get("reason") or "Ingredient quantity must be a finite positive number.",
+            }
         unit = _normal_unit(requirement["unit"])
         pantry_row = pantry.get(ingredient)
         pantry_used = 0.0
@@ -414,6 +449,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             **requirement,
             "needed_quantity": round(needed, 2),
             "product_needed_quantity": round(needed, 2),
+            "quantity_validation": quantity_validation,
             "quantity_ratio": 1.0,
             "pantry_used": round(pantry_used, 2),
             "pantry_unit": unit,
@@ -436,6 +472,15 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "badge": "Availability unknown",
             "selected_by_user": False,
         }
+
+        if not quantity_valid:
+            base.update({
+                "match_status": "unmatched",
+                "match_reason": quantity_validation.get("reason"),
+                "why": "Recipe ingredient quantity needs correction before shopping.",
+            })
+            output.append(base)
+            continue
 
         if ingredient in owned or needed <= 0:
             base.update({
