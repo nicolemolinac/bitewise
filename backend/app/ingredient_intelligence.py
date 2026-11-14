@@ -83,7 +83,12 @@ _SUBSTITUTION_TERMS = {
     # Slaw can use fresh white cabbage when red cabbage is not stocked.
     "red cabbage": ("white cabbage", "weisskohl", "spitzkohl"),
     # A plain bread roll can stand in for a burger bun when the catalog has no labelled bun.
-    "burger buns": ("bread rolls", "brötchen", "weizenbrötchen", "kaiserbrötchen", "sesambrötchen"),
+    "burger buns": (
+        "bread rolls", "brötchen", "weizenbrötchen", "weizen brotchen",
+        "weizen broetchen", "weizenbrotchen", "kaiserbrötchen",
+        "kaiserbrotchen", "sesambrötchen", "sesambrotchen",
+        "dinkelbrotchen", "mehrkornbrotchen", "laugenbrotchen",
+    ),
 }
 
 _RETAIL_QUERY_VARIANTS = {
@@ -718,7 +723,21 @@ def ingredient_substitution_name(ingredient: str, product_text: str, intelligenc
     for term in sorted(substitutes, key=lambda value: -len(normalize_text(value))):
         normalized = normalize_text(term)
         if normalized and _contains_phrase(title, normalized):
-            labels = {"rapsol": "rapeseed oil", "sonnenblumenol": "sunflower oil", "kartoffeln": "fresh potatoes", "speisekartoffeln": "fresh potatoes"}
+            labels = {
+                "rapsol": "rapeseed oil",
+                "sonnenblumenol": "sunflower oil",
+                "kartoffeln": "fresh potatoes",
+                "speisekartoffeln": "fresh potatoes",
+                "weizenbrotchen": "bread rolls",
+                "weizen brotchen": "bread rolls",
+                "weizen broetchen": "bread rolls",
+                "kaiserbrotchen": "bread rolls",
+                "sesambrotchen": "bread rolls",
+                "dinkelbrotchen": "bread rolls",
+                "mehrkornbrotchen": "bread rolls",
+                "laugenbrotchen": "bread rolls",
+                "brotchen": "bread rolls",
+            }
             return labels.get(normalized, str(term))
     return None
 
