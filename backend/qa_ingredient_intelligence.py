@@ -135,6 +135,10 @@ def run():
     assert validate_ingredient_unit("bell pepper", "tsp")["valid"] is False
     assert validate_ingredient_unit("pepper", "tsp")["family"] == "spice"
     assert validate_ingredient_unit("pepper", "tsp")["valid"] is True
+    assert validate_ingredient_unit("salt", "Prise")["valid"] is True
+    assert validate_ingredient_unit("garlic", "Zehe")["valid"] is True
+    assert validate_ingredient_unit("onion", "Zehe")["valid"] is False
+    assert validate_ingredient_unit("fresh cilantro", "Bund")["valid"] is True
     assert validate_ingredient_unit("red pepper flakes", "tsp")["family"] == "spice"
     assert validate_ingredient_unit("red pepper", "piece")["family"] == "produce"
     assert validate_ingredient_unit("chopped onion", "cup", {"form": "chopped"})["valid"] is True
