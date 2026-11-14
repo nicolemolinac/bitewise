@@ -434,7 +434,7 @@ def _substitution_quantity_ratio(ingredient, product, intelligence):
         return 1.0
     options = profile.get("substitution_options", [])
     if not isinstance(options, list):
-        return 1.0
+        return None
     for option in options:
         if not isinstance(option, dict):
             continue
@@ -443,7 +443,11 @@ def _substitution_quantity_ratio(ingredient, product, intelligence):
         if isinstance(aliases, list):
             names.extend(aliases)
         if any(normalize_text(name) == replacement for name in names if isinstance(name, str)):
-            raw_ratio = option.get("quantity_ratio", 1)
+            # A substitute is not quantity-equivalent by default. Require an
+            # explicit curated ratio instead of silently assuming 1:1.
+            if "quantity_ratio" not in option:
+                return None
+            raw_ratio = option.get("quantity_ratio")
             if isinstance(raw_ratio, bool):
                 return None
             try:
@@ -451,7 +455,7 @@ def _substitution_quantity_ratio(ingredient, product, intelligence):
             except (TypeError, ValueError, OverflowError):
                 return None
             return ratio if math.isfinite(ratio) and 0.1 <= ratio <= 5 else None
-    return 1.0
+    return None
 
 
 def build_basket(requirements, adapter, mode="best-value", owned=None, overrides=None, pantry=None):
@@ -627,6 +631,11 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             if not math.isfinite(price) or price <= 0:
                 continue
             if not math.isfinite(raw_pack_qty) or raw_pack_qty <= 0:
+                continue
+            raw_pack_unit = product.get("unit") or product.get("package_unit")
+            if not isinstance(raw_pack_unit, str) or not raw_pack_unit.strip():
+                # Package size without a unit is ambiguous (e.g. 500 could be
+                # grams, millilitres or pieces); never silently assume pieces.
                 continue
             pack_qty, product_unit = _package(product)
             quantity_ratio = (
