@@ -115,6 +115,22 @@ def run():
     assert milk_total["quantity"] == 600 and milk_total["unit"] == "ml"
     assert len(garlic_rows) == 2, "Cloves and whole units must not be silently merged"
 
+    # German spoon abbreviations and singular clove are valid recipe units.
+    # Spoon measures must convert to ml for real REWE pack-size calculations;
+    # cloves remain a distinct count unit and must not merge with whole pieces.
+    spoon_units = consolidate([
+        {"id": "spoons", "name": "Seasoning", "ingredients": [
+            ["olive oil", 1, "EL"], ["curry powder", 1, "TL"],
+            ["garlic", 1, "clove"], ["garlic", 2, "cloves"],
+        ]},
+    ], {"spoons": 2})
+    oil_spoon = next(row for row in spoon_units if row["ingredient"] == "olive oil")
+    curry_spoon = next(row for row in spoon_units if row["ingredient"] == "curry powder")
+    garlic_cloves = next(row for row in spoon_units if row["ingredient"] == "garlic")
+    assert oil_spoon["quantity"] == 30 and oil_spoon["unit"] == "ml"
+    assert curry_spoon["quantity"] == 10 and curry_spoon["unit"] == "ml"
+    assert garlic_cloves["quantity"] == 6 and garlic_cloves["unit"] == "cloves"
+
     substitute_catalog = FakeCatalog({
         "trofie pasta": [{
             "id": 5, "name_original": "REWE Fusilli 500g", "package_size": 500,
