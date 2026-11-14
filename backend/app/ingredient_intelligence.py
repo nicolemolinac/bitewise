@@ -603,6 +603,24 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         normalize_text(profile.get("name_en") or ""),
         normalize_text(profile.get("name_de") or ""),
     }
+    # Retail aliases are exact only when the profile's canonical identity
+    # independently agrees with the requested ingredient and its form is
+    # explicit. This keeps hallucinated aliases review-only while allowing
+    # genuine retail synonyms (e.g. Karotten for fresh carrot).
+    profile_form = normalize_text(profile.get("form") or "")
+    canonical_identity = {
+        normalize_text(profile.get("canonical") or ""),
+        normalize_text(profile.get("name_en") or ""),
+    }
+    aliases = profile.get("aliases", [])
+    if (
+        normalized_ingredient in canonical_identity
+        and profile_form not in {"", "unspecified"}
+        and isinstance(aliases, list)
+    ):
+        trusted_exact_terms.update(
+            normalize_text(alias) for alias in aliases if isinstance(alias, str)
+        )
     substitution_only_terms = {
         normalize_text(value)
         for value in (
