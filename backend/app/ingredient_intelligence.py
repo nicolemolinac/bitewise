@@ -461,7 +461,12 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "salsa": ("mais rollchen", "mais roellchen", "snack", "chips"),
         "lettuce": ("crispy mix", "salat mix", "salatmischung", "salatmix", "bluten salat", "blutensalat", "baby leaf", "babyleaf", "salat bouquet", "wildkrauter salat", "wildkrautersalat", "feiner salat", "der feine salat", "mit krautern"),
         # A keyword inside a finished convenience product is not a standalone ingredient.
-        "croutons": ("kartoffelpuree", "kartoffel puree", "kartoffelbrei", "mashed potato", "fertiggericht", "menuschale", "instant mahlzeit"),
+        "croutons": (
+            "kartoffelpuree", "kartoffel puree", "kartoffelbrei", "mashed potato",
+            "fertiggericht", "fertigmenue", "fertigmahlzeit", "ready meal",
+            "menuschale", "instant mahlzeit", "mikrowellen", "eintopf",
+            "auflauf", "pfannengericht",
+        ),
     }
     return any(_contains_phrase(t, normalize_text(term)) for term in exclusions.get(name, ()))
 
