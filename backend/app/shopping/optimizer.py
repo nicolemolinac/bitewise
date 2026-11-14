@@ -21,17 +21,29 @@ def consolidate(meals, servings_map):
         "unit_validation": None, "quantity_validation": {"valid": True, "reason": None},
     })
     canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
+
+    def _positive_finite(value):
+        if isinstance(value, bool):
+            return None
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        return parsed if math.isfinite(parsed) and parsed > 0 else None
+
     for meal in meals:
-        servings = max(0.1, float(servings_map.get(meal["id"], 2) or 2))
-        base_servings = max(0.1, float(meal.get("base_servings", 2) or 2))
-        factor = servings / base_servings
+        servings = _positive_finite(servings_map.get(meal["id"], 2) or 2)
+        base_servings = _positive_finite(meal.get("base_servings", 2) or 2)
+        scaling_valid = servings is not None and base_servings is not None
+        factor = servings / base_servings if scaling_valid else 0.0
         for name, quantity, unit in meal["ingredients"]:
             try:
                 raw_quantity = float(quantity)
             except (TypeError, ValueError, OverflowError):
                 raw_quantity = float("nan")
             quantity_valid = (
-                not isinstance(quantity, bool)
+                scaling_valid
+                and not isinstance(quantity, bool)
                 and math.isfinite(raw_quantity)
                 and raw_quantity > 0
             )
@@ -69,7 +81,11 @@ def consolidate(meals, servings_map):
             if not quantity_valid:
                 row["quantity_validation"] = {
                     "valid": False,
-                    "reason": f"Ingredient quantity must be a finite positive number; received {quantity!r}.",
+                    "reason": (
+                        f"Ingredient quantity must be a finite positive number; received {quantity!r}."
+                        if scaling_valid else
+                        "Serving count and base servings must be finite positive numbers before scaling ingredients."
+                    ),
                 }
             row["source_meals"].append(meal["name"])
             if isinstance(profile, dict) and profile:
