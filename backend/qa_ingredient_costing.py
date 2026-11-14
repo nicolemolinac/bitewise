@@ -362,6 +362,17 @@ def run():
         assert invalid_basket[0]["match_status"] == "unmatched"
         assert invalid_basket[0]["quantity_validation"]["valid"] is False
 
+    missing_unit_requirement = consolidate([
+        {"id": "missing-unit", "name": "Missing unit", "base_servings": 1,
+         "ingredients": [["onion", 100, None]]},
+    ], {"missing-unit": 1})
+    assert missing_unit_requirement[0]["unit"] == ""
+    assert missing_unit_requirement[0]["unit_validation"]["valid"] is False
+    missing_unit_basket = build_basket(
+        missing_unit_requirement, FakeCatalog({"onion": []}), owned=["onion"]
+    )
+    assert missing_unit_basket[0]["match_status"] == "unmatched"
+
     four_servings = consolidate([
         {"id": "four", "name": "Four portions", "base_servings": 2,
          "ingredients": [["rice", 150, "g"]]},
