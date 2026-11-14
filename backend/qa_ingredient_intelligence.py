@@ -267,6 +267,12 @@ def run():
     assert normalize_recipe_intelligence({
         "ingredients": [["dry rice", 150, "g"]]
     })["dry rice"]["form"] == "unspecified"
+    assert normalize_recipe_intelligence({
+        "ingredients": [["dry oregano", 1, "tsp"]]
+    })["dry oregano"]["form"] == "dried"
+    assert ingredient_product_match_type(
+        "oregano", "REWE Oregano frisch 15g", {"form": "dry"}, "obst-gemuese"
+    ) is None
     # "Ground" is context-sensitive: minced meat must not be treated as spice powder.
     assert normalize_recipe_intelligence({
         "ingredients": [["ground beef", 500, "g"]]
