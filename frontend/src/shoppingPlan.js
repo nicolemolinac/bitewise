@@ -21,8 +21,16 @@ export function activeQuickMealReplacements(replacements, liked, weeklyPlan, inc
     weeklyPlan.flatMap(day => (day.slots || []).map(slot => slot.meal?.id).filter(Boolean))
   );
   return Object.fromEntries(
-    Object.entries(replacements).filter(([mealId]) =>
-      likedIds.has(mealId) && (includeUnplannedPicks || plannedIds.has(mealId))
-    )
+    Object.entries(replacements)
+      .filter(([mealId]) => likedIds.has(mealId) && (includeUnplannedPicks || plannedIds.has(mealId)))
+      .map(([mealId, replacement]) => {
+        const occurrences = weeklyPlan.reduce(
+          (count, day) => count + (day.slots || []).filter(slot => slot.meal?.id === mealId).length,
+          0
+        );
+        // Keep shortcut quantities synchronized with the live plan. An
+        // unplanned pick included explicitly contributes one pick.
+        return [mealId, {...replacement, weeklyQuantity: occurrences || 1}];
+      })
   );
 }
