@@ -81,7 +81,7 @@ _UNIT_BASE = {"g": ("mass", 1.0), "kg": ("mass", 1000.0),
               "ml": ("volume", 1.0), "l": ("volume", 1000.0),
               "tbsp": ("volume", 15.0), "tsp": ("volume", 5.0),
               "pinch": ("volume", 0.3), "cup": ("volume", 250.0),
-              "piece": ("count", 1.0)}
+              "piece": ("count", 1.0), "bunch": ("count", 1.0)}
 
 
 def _normal_unit(value):
