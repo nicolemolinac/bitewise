@@ -81,6 +81,30 @@ _BASE_TERMS = {
     "salt": ("salt", "salz", "speisesalz", "meersalz", "jodsalz"),
     "frozen french fries": ("frozen french fries", "pommes frites", "pommes", "tiefkuhl pommes", "tiefkuhlpommes", "backofen pommes", "kartoffelstabchen", "pommes tiefgekuhlt", "tiefgekuhlte pommes"),
     "fresh potato": ("fresh potato", "potato", "potatoes", "kartoffel", "kartoffeln", "speisekartoffeln"),
+    "potato": ("potato", "potatoes", "kartoffel", "kartoffeln", "speisekartoffel", "speisekartoffeln", "festkochende kartoffeln", "mehligkochende kartoffeln"),
+    "mushroom": ("mushroom", "mushrooms", "champignon", "champignons", "braune champignons", "pilze"),
+    "cucumber": ("cucumber", "gurke", "gurken", "salatgurke", "schlangengurke"),
+    "lemon": ("lemon", "zitrone", "zitronen"),
+    "tomato": ("tomato", "tomatoes", "tomate", "tomaten"),
+    "cherry tomato": ("cherry tomato", "cherry tomatoes", "kirschtomaten", "cherrytomaten", "cocktailtomaten", "datteltomaten"),
+    "ground beef": ("ground beef", "rinderhack", "rinderhackfleisch", "hackfleisch vom rind", "rind hackfleisch"),
+    "salmon": ("salmon", "lachsfilet", "lachsfilets", "frisches lachsfilet"),
+    "flour": ("flour", "mehl", "weizenmehl", "weizen mehl", "haushaltsmehl", "type 405", "type 550"),
+    "heavy cream": ("heavy cream", "schlagsahne", "schlagrahm", "suesse sahne", "süße sahne", "sahne 30"),
+    "pasta": ("pasta", "nudeln", "teigwaren", "teig waren"),
+    "fresh basil pesto": ("fresh basil pesto", "basil pesto", "basilikum pesto", "pesto genovese", "pesto alla genovese", "pesto verde"),
+    "pine nuts": ("pine nuts", "pinienkerne", "pinien kerne", "pinoli"),
+    "soy sauce": ("soy sauce", "sojasauce", "sojasosse", "sojasoße", "soja sauce"),
+    "tomato paste": ("tomato paste", "tomatenmark", "tomaten mark", "tomatenmark konzentriert"),
+    "chickpeas": ("chickpeas", "garbanzo beans", "kichererbsen", "kichererbsen aus der dose"),
+    "lentils": ("lentils", "linsen", "rote linsen", "berg linsen", "berglinsen", "tellerlinsen"),
+    "kidney beans": ("kidney beans", "kidneybohnen", "kidney bohnen", "rote kidneybohnen", "rote kidney bohnen"),
+    "oats": ("oats", "haferflocken", "kernige haferflocken", "zarte haferflocken"),
+    "banana": ("banana", "banane", "bananen"),
+    "honey": ("honey", "honig", "blutenhonig", "blütenhonig", "waldhonig"),
+    "baking powder": ("baking powder", "backpulver", "weinstein backpulver"),
+    "cornstarch": ("cornstarch", "corn starch", "speisestaerke", "speisestarke", "maisstaerke", "maisstaerke"),
+    "coconut milk": ("coconut milk", "kokosmilch", "kokosnussmilch"),
     "onion": ("onion", "onions", "zwiebel", "zwiebeln", "speisezwiebeln"),
 }
 
@@ -392,21 +416,21 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "garlic", "onion", "red onion", "potato", "potatoes", "tomato",
         "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
         "cucumber", "bell pepper", "carrot", "broccoli", "fresh cilantro",
-        "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
+        "mushroom", "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
         "red cabbage", "strawberries", "blueberries", "banana", "parsley",
     }
     proteins = {
         "chicken breast", "pre cooked shredded chicken", "ground beef",
-        "salmon fillet", "bratwurst", "white fish fillet", "bacon",
+        "salmon", "salmon fillet", "bratwurst", "white fish fillet", "bacon",
     }
     dairy = {
         "milk", "feta cheese", "sour cream", "cheese slices", "butter", "mozzarella",
-        "greek yogurt", "plain yogurt", "cooking cream", "eggs",
+        "greek yogurt", "plain yogurt", "cooking cream", "heavy cream", "eggs",
         "grated cheddar cheese", "parmesan cheese",
     }
     grains = {
-        "rice", "risotto rice", "spaghetti", "pasta", "wheat flour",
-        "rolled oats", "pizza dough", "burger buns", "soft tortillas",
+        "rice", "risotto rice", "spaghetti", "pasta", "trofie pasta",
+        "wheat flour", "flour", "rolled oats", "oats", "pizza dough", "burger buns", "soft tortillas",
         "tortillas", "croutons",
     }
     spices = {
@@ -418,9 +442,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "black beans", "canned tuna", "canned corn", "canned chopped tomatoes",
         "black olives", "pickles",
     }
+    legumes = {"chickpeas", "lentils", "kidney beans"}
     sauces = {
-        "tomato passata", "mayonnaise", "soy sauce", "salsa",
-        "caesar dressing", "vegetable stock", "coconut milk",
+        "tomato passata", "tomato paste", "mayonnaise", "soy sauce", "salsa",
+        "caesar dressing", "vegetable stock", "coconut milk", "fresh basil pesto",
     }
 
     if name == "honey" and any(term in title_key for term in ("senf", "mustard", "dressing", "sauce")):
@@ -502,6 +527,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         )
     if name in canned:
         return category_key in {"fertiggerichte-konserven", "obst-gemuese"}
+    if name in legumes:
+        return category_key in {
+            "fertiggerichte-konserven", "kochen-backen", "obst-gemuese",
+        }
     if name == "honey":
         # Honey must be a jar of honey, not a honey-flavoured prepared food.
         return category_key in {"brot-cerealien-aufstriche", "kochen-backen"}
