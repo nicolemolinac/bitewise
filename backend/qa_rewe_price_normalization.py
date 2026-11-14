@@ -19,6 +19,11 @@ def main():
     assert pack_price == 2.19
     assert abs(per_ml - 0.00548) < 0.000001
 
+    # A reference price without a known pack size must never be mistaken for
+    # the checkout price; a separate explicit pack price may still be parsed.
+    assert price_details("Alete Kinderkeks (1 kg = 11,06 €)") == (None, None)
+    assert price_details("Alete Kinderkeks 2,49 € (1 kg = 11,06 €)")[0] == 2.49
+
     size, unit = package("Rice 500g")
     pack_price, per_gram = price_details("Rice 2,49 €", size, unit)
     assert pack_price == 2.49
