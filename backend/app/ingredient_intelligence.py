@@ -721,7 +721,8 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "white fish fillet": (
             "fischmus", "seelachs mus", "fischburger", "fischstabchen",
             "surimi", "fischzubereitung", "paniert", "backteig",
-            "gerauchert", "geräuchert", "smoked", "mariniert", "marinade",
+            "gerauchert", "geräuchert", "gerauchertes", "geräuchertes",
+            "geraucherte", "geräucherte", "smoked", "mariniert", "marinade",
         ),
         "rolled oats": ("riegel", "granola bar", "protein bar", "snack bar"),
         "burger buns": (
