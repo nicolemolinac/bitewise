@@ -452,12 +452,28 @@ def run():
         "ingredient_intelligence": {"custom cooking fat": ratio_profile},
         "steps": [{"text": "Add custom cooking fat."}],
     }
-    _adapt_recipe_to_catalog(ratio_recipe, [{
-        "ingredient": "custom cooking fat", "match_status": "substituted",
-        "needed_quantity": 30, "pantry_used": 0,
-        "product": {"ingredient_substitute": "rapeseed oil", "name_original": "REWE Rapsöl 10ml"},
-    }])
+    _adapt_recipe_to_catalog(ratio_recipe, ratio_basket)
     assert ratio_recipe["ingredients"] == [["rapeseed oil", 30.0, "ml"]]
+
+    # The same end-to-end ratio must be applied only to the amount not already
+    # covered by pantry stock, while preserving the original pantry ingredient.
+    pantry_ratio_basket = build_basket([{
+        "ingredient": "custom cooking fat", "quantity": 20, "unit": "ml",
+        "source_meals": ["Pantry ratio test"], "ingredient_intelligence": ratio_profile,
+        "unit_validation": {"valid": True},
+    }], ratio_catalog, pantry={"custom cooking fat": {"quantity": 5, "unit": "ml"}})
+    assert pantry_ratio_basket[0]["needed_quantity"] == 15
+    assert pantry_ratio_basket[0]["product_needed_quantity"] == 22.5
+    pantry_ratio_recipe = {
+        "base_servings": 2,
+        "ingredients": [["custom cooking fat", 20, "ml"]],
+        "ingredient_intelligence": {"custom cooking fat": ratio_profile},
+        "steps": [{"text": "Add custom cooking fat."}],
+    }
+    _adapt_recipe_to_catalog(pantry_ratio_recipe, pantry_ratio_basket)
+    assert pantry_ratio_recipe["ingredients"] == [
+        ["custom cooking fat", 5.0, "ml"], ["rapeseed oil", 22.5, "ml"]
+    ]
 
     # A structured cross-form transformation may replace a frozen component
     # with a raw ingredient only when it supplies the missing preparation step.
