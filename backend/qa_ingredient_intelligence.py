@@ -52,6 +52,10 @@ def run():
             "canonical": "spring onion", "name_en": "spring onion", "name_de": "Lauchzwiebel",
             "aliases": ["Lauchzwiebel"], "form": "fresh",
         }, "obst-gemuese"),
+        ("parsley", "REWE Petersilie im Bund", {
+            "canonical": "parsley", "name_en": "parsley", "name_de": "Petersilie",
+            "aliases": ["Petersilie"], "form": "fresh",
+        }, "frische-krauter"),
         ("lettuce", "Eisbergsalat 1 Stück", {
             "canonical": "lettuce", "name_en": "lettuce", "name_de": "Eisbergsalat",
             "aliases": ["Eisbergsalat"], "form": "fresh",
