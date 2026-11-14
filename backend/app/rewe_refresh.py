@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+import math
 
 from fastapi import APIRouter, HTTPException
 
@@ -94,12 +95,52 @@ def rewe_refresh_safe():
                 .first()
             )
             now = datetime.utcnow()
+            incoming = dict(data)
+
+            # Unknown package sizes are represented as None by the scraper.
+            # Keep a known existing package instead of replacing it with a fake
+            # 1-unit package; only brand-new rows need a harmless placeholder.
+            try:
+                package_size = float(incoming.get("package_size"))
+                package_unit = str(incoming.get("package_unit") or "").strip()
+                valid_package = math.isfinite(package_size) and package_size > 0 and bool(package_unit)
+            except (OverflowError, TypeError, ValueError):
+                valid_package = False
+            if valid_package:
+                incoming["package_size"] = package_size
+                incoming["package_unit"] = package_unit
+            else:
+                incoming.pop("package_size", None)
+                incoming.pop("package_unit", None)
+
+            # A missing/invalid live price is not a price change. Preserve the
+            # last usable checkout price and its unit price instead of erasing it.
+            try:
+                incoming_price = float(incoming.get("price"))
+                valid_price = math.isfinite(incoming_price) and incoming_price > 0
+            except (OverflowError, TypeError, ValueError):
+                valid_price = False
+            if valid_price:
+                incoming["price"] = incoming_price
+                try:
+                    unit_price = float(incoming.get("price_per_unit"))
+                    valid_unit_price = math.isfinite(unit_price) and unit_price > 0
+                except (OverflowError, TypeError, ValueError):
+                    valid_unit_price = False
+                if valid_unit_price:
+                    incoming["price_per_unit"] = unit_price
+                elif valid_package:
+                    incoming["price_per_unit"] = incoming_price / package_size
+                else:
+                    incoming.pop("price_per_unit", None)
+            else:
+                incoming.pop("price", None)
+                incoming.pop("price_per_unit", None)
 
             if existing:
-                incoming_price = data.get("price")
-                if existing.price != incoming_price:
+                if valid_price and existing.price != incoming_price:
                     existing.last_price = existing.price
-                for key, value in data.items():
+                for key, value in incoming.items():
                     if not hasattr(existing, key):
                         continue
                     # Missing fields from a partial card must never erase saved catalog data.
@@ -112,7 +153,9 @@ def rewe_refresh_safe():
                 db.flush()
                 return False
 
-            db.add(Product(supermarket="REWE", postcode_context=current_postcode, **data))
+            incoming.setdefault("package_size", 1.0)
+            incoming.setdefault("package_unit", "unit")
+            db.add(Product(supermarket="REWE", postcode_context=current_postcode, **incoming))
             db.flush()
             return True
 
