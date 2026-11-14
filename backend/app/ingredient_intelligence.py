@@ -594,20 +594,6 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     # to exact. Otherwise a bad alias such as "curry paste" can redefine
     # "curry powder" at shopping time.
     normalized_ingredient = normalize_text(ingredient)
-    trusted_exact_terms = {
-        normalized_ingredient,
-        *(normalize_text(value) for value in _BASE_TERMS.get(normalized_ingredient, ())),
-        # The recipe generator's canonical English and German display names
-        # describe the ingredient itself. They may establish exact identity
-        # when independent form and retail-category guards also agree.
-        normalize_text(profile.get("name_en") or ""),
-        normalize_text(profile.get("name_de") or ""),
-    }
-    # Retail aliases are exact only when the profile's canonical identity
-    # independently agrees with the requested ingredient and its form is
-    # explicit. This keeps hallucinated aliases review-only while allowing
-    # genuine retail synonyms (e.g. Karotten for fresh carrot).
-    profile_form = normalize_text(profile.get("form") or "")
     curated_identity_terms = {
         normalized_ingredient,
         *(normalize_text(value) for value in _BASE_TERMS.get(normalized_ingredient, ())),
@@ -617,9 +603,23 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         normalize_text(profile.get("name_en") or ""),
         normalize_text(profile.get("name_de") or ""),
     }
+    canonical_identity_valid = bool(profile_identity.intersection(curated_identity_terms))
+    trusted_exact_terms = set(curated_identity_terms)
+    # Canonical recipe translations may establish exact identity only after
+    # at least one identity field independently agrees with the requested
+    # ingredient or the curated bilingual ontology.
+    if canonical_identity_valid:
+        trusted_exact_terms.update({
+            normalize_text(profile.get("name_en") or ""),
+            normalize_text(profile.get("name_de") or ""),
+        })
+    # Retail aliases are exact only when canonical identity is validated and
+    # the requested form is explicit. This keeps hallucinated aliases review-only
+    # while allowing genuine retail synonyms (e.g. Karotten for fresh carrot).
+    profile_form = normalize_text(profile.get("form") or "")
     aliases = profile.get("aliases", [])
     if (
-        profile_identity.intersection(curated_identity_terms)
+        canonical_identity_valid
         and profile_form not in {"", "unspecified"}
         and isinstance(aliases, list)
     ):
