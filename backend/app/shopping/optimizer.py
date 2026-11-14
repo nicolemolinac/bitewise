@@ -202,12 +202,12 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
     grams_per_piece = _ingredient_count_weight(ingredient)
     if grams_per_piece is None:
         return None, None
-    if source in {"piece", "cloves"} and target in {"g", "kg"}:
+    if source in {"piece", "cloves", "slice"} and target in {"g", "kg"}:
         grams = float(quantity) * grams_per_piece
         return (grams / 1000 if target == "kg" else grams), (
             f"Estimated {grams_per_piece} g per piece of {ingredient.rstrip('s')}."
         )
-    if source in {"g", "kg"} and target in {"piece", "cloves"}:
+    if source in {"g", "kg"} and target in {"piece", "cloves", "slice"}:
         grams = float(quantity) * (1000 if source == "kg" else 1)
         return grams / grams_per_piece, (
             f"Estimated {grams_per_piece} g per piece of {ingredient.rstrip('s')}."
