@@ -435,7 +435,9 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             waste_in_pack_unit = max(0.0, purchased_quantity - needed_in_pack_unit)
             checkout_cost = packs * float(price)
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
-            waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1.0)
+            # Waste is relative to the actual requirement, even when it is
+            # a fractional count (e.g. half an onion) or less than one gram.
+            waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1e-9)
             unit_price = _number(product, "unit_price", "price_per_unit", default=price / pack_qty)
             if not math.isfinite(unit_price) or unit_price < 0:
                 unit_price = price / pack_qty
