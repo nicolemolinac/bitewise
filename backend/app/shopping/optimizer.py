@@ -27,7 +27,12 @@ def consolidate(meals, servings_map):
             unit_info = _UNIT_BASE.get(normalized_unit)
             if unit_info:
                 dimension, multiplier = unit_info
-                normalized_unit = canonical_units[dimension]
+                # Mass and volume units can safely share a canonical unit.
+                # Count-like units cannot: one bunch is not one loose piece.
+                normalized_unit = (
+                    normalized_unit if dimension == "count"
+                    else canonical_units[dimension]
+                )
                 normalized_quantity = float(quantity) * multiplier
             else:
                 # Keep semantically different units (e.g. cloves vs pieces) separate.
