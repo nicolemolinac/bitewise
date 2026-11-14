@@ -830,6 +830,22 @@ def run():
     assert adapted_recipe["ingredients"][0][0] == "fresh potatoes"
     assert any("Fresh potatoes need longer than frozen fries" in step["text"] for step in adapted_recipe["steps"])
 
+    # A 100g lettuce portion must be purchasable from a REWE pack sold by count.
+    lettuce_conversion, lettuce_note = _convert_ingredient_quantity(100, "g", "piece", "lettuce")
+    assert lettuce_conversion == 0.4
+    assert "250 g per piece" in lettuce_note
+    lettuce_catalog = IntelligenceCatalog({"lettuce": [{
+        "id": 16, "name_original": "REWE Beste Wahl Romana Salatherzen 3 Stück",
+        "package_size": 3, "package_unit": "piece", "price": 1.99,
+        "availability": "unknown", "ingredient_match_type": "exact",
+    }]})
+    lettuce_basket = build_basket([{
+        "ingredient": "lettuce", "quantity": 100, "unit": "g",
+        "source_meals": ["Lettuce conversion"], "unit_validation": {"valid": True},
+    }], lettuce_catalog)
+    assert lettuce_basket[0]["match_status"] == "matched"
+    assert lettuce_basket[0]["packs"] == 1
+
     print("INGREDIENT INTELLIGENCE QA PASS: cached multilingual intent, form-aware matching, safe substitutions, and unit validation")
 
 
