@@ -91,7 +91,7 @@ def run():
         "REWE Beste Wahl High Protein Wraps 320g",
         {"canonical": "soft tortillas", "form": "soft", "aliases": ["Wraps"]},
         "fertiggerichte-konserven",
-    ) == "suggested_substitution"
+    ) == "substitute"
 
     raw = {
         "ingredients": [
@@ -277,8 +277,8 @@ def run():
         "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g",
         {"form": "soft"}, "fertiggerichte-konserven"
     )
-    assert high_protein_wrap_match == "suggested_substitution", (
-        "Protein-enriched wraps are not exact equivalents of ordinary soft tortillas; "
+    assert high_protein_wrap_match == "substitute", (
+        "Protein-enriched wraps are safe culinary substitutions, not exact identities; "
         f"got {high_protein_wrap_match!r}"
     )
     assert ingredient_product_match_type(
