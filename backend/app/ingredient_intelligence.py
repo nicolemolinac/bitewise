@@ -47,6 +47,7 @@ _BASE_TERMS = {
     "cumin": ("cumin", "kreuzkummel", "kreuzkuemmel", "kreuz kummel"),
     "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemuse bruhe", "bruhwurfel gemuse", "bruhwuerfel gemuse"),
     "cooking cream": ("cooking cream", "kochcreme", "kochsahne", "sahne zum kochen"),
+    "milk": ("milk", "milch", "vollmilch", "frische milch", "fresh milk"),
     "burger buns": ("burger buns", "burger bun", "brioche burger buns", "brioche buns", "hamburger brotchen", "hamburgerbrotchen", "hamburgerbroetchen", "burger brotchen", "burgerbrotchen", "burgerbroetchen", "sesam brotchen", "sesambrötchen", "sesambroetchen", "weizen brotchen", "weizen broetchen", "brötchen", "broetchen"),
     "caesar dressing": ("caesar dressing", "caesar salat dressing", "caesar sauce", "salatdressing caesar"),
     "croutons": ("croutons", "brotcroutons", "croûtons"),
@@ -363,7 +364,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "salmon fillet", "bratwurst", "white fish fillet", "bacon",
     }
     dairy = {
-        "feta cheese", "sour cream", "cheese slices", "butter", "mozzarella",
+        "milk", "feta cheese", "sour cream", "cheese slices", "butter", "mozzarella",
         "greek yogurt", "plain yogurt", "cooking cream", "eggs",
         "grated cheddar cheese", "parmesan cheese",
     }
@@ -519,6 +520,11 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
         "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing", "honey peppers", "honey pepper", "honig pfeffer", "honig paprika", "honey roasted", "honig gerostet", "honig nuss", "honignuss", "honey nut", "muesli", "musli", "granola", "knusper", "cereal", "riegel"),
         "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln", "gnocchi"),
         # Ready-to-heat rice is not interchangeable with dry rice in recipe quantities or cooking steps.
+        "milk": (
+            "chocolate milk", "schokomilch", "kakaomilch", "milkshake",
+            "milk shake", "milk drink", "milchmix", "kondensmilch",
+            "condensed milk", "evaporated milk", "buttermilk",
+        ),
         "rice": (
             "express", "express reis", "reis express", "mikrowellenreis",
             "mikrowellen reis", "vorgekochter reis", "vorgekocht",
@@ -570,6 +576,12 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     title = normalize_text(product_text)
     if not title or _ingredient_specific_exclusions(ingredient, title):
         return None
+    if normalize_text(ingredient) == "milk" and any(marker in title for marker in (
+        "haferdrink", "oat drink", "mandeldrink", "almond drink",
+        "sojadrink", "soy drink", "reisdrink", "rice drink",
+        "kokosdrink", "coconut drink",
+    )):
+        return "suggested_substitution"
     # Stock cubes are concentrates, not ready-to-use liquid stock. Keep them
     # visible for review when the recipe asks for liquid stock.
     stock_cube_markers = (
