@@ -266,7 +266,7 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         form = "minced"
     elif any(term in form for term in ("powder", "pulver", "ground spice")):
         form = "powder"
-    elif any(term in form for term in ("dried", "getrocknet", "dry", "trocken")):
+    elif any(term in form for term in ("dried", "getrocknet", "trocken")):
         form = "dried"
     elif any(term in form for term in ("whole", "ganz", "unground")):
         form = "whole"
