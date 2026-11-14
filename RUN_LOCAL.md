@@ -7,7 +7,7 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m playwright install chromium
+python -m playwright install chrome
 uvicorn app.server:app --reload --host 127.0.0.1 --port 8000
 ```
 
