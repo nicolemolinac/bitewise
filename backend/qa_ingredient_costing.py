@@ -308,6 +308,12 @@ def run():
     )
     assert infinite_pantry_basket[0]["match_status"] == "matched"
     assert infinite_pantry_basket[0]["pantry_used"] == 0
+    malformed_pantry_basket = build_basket(
+        [{"ingredient": "onion", "quantity": 2, "unit": "piece", "source_meals": ["QA"]}],
+        onion_catalog, mode="cheapest", pantry={"onion": "two onions"},
+    )
+    assert malformed_pantry_basket[0]["pantry_used"] == 0
+    assert malformed_pantry_basket[0]["needed_quantity"] == 2
     ambiguous_pantry_basket = build_basket(
         [{"ingredient": "red onion", "quantity": 3, "unit": "piece", "source_meals": ["QA"]}],
         onion_catalog, mode="cheapest",
