@@ -119,6 +119,9 @@ def run():
         "spaghetti", "Biozentrale Bio Dinkel Spaghetti 250g", {"form": "unspecified"}, "kochen-backen"
     ) == "suggested_substitution", "Spelt pasta must be shown for review, not silently treated as ordinary spaghetti"
     assert ingredient_product_match_type(
+        "pasta", "REWE Bio Fusilli aus Vollkornreis glutenfrei 250g", {"form": "unspecified"}, "kochen-backen"
+    ) == "suggested_substitution", "Gluten-free rice pasta must be offered for review rather than silently treated as ordinary pasta"
+    assert ingredient_product_match_type(
         "rice", "REWE Bio Basmati Reis 500g", {"form": "unspecified"}, "kochen-backen"
     ) == "exact", "Plain dry rice remains an exact match"
     assert ingredient_product_match_type(
