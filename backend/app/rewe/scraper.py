@@ -62,13 +62,21 @@ def package(text: str):
         flags=re.I,
     )
     # Preserve multipack quantity: 2x200ml is 400ml, not 200ml.
-    match = re.search(
+    # Product titles can contain an erroneous/partial size before the actual
+    # pack size (e.g. "0,75ml ... 0,75l"). Prefer the final mass/volume size,
+    # falling back to count units only when no physical size is present.
+    matches = list(re.finditer(
         r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)",
         text,
         re.I,
-    )
-    if not match:
+    ))
+    if not matches:
         return None, None
+    physical_matches = [
+        item for item in matches
+        if item.group(3).lower() not in {"stk", "st.", "stück"}
+    ]
+    match = (physical_matches or matches)[-1]
     multiplier = int(match.group(1) or 1)
     amount = float(match.group(2).replace(",", ".")) * multiplier
     unit = match.group(3).lower()
