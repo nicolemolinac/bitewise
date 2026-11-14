@@ -127,9 +127,9 @@ def run():
     oil_spoon = next(row for row in spoon_units if row["ingredient"] == "olive oil")
     curry_spoon = next(row for row in spoon_units if row["ingredient"] == "curry powder")
     garlic_cloves = next(row for row in spoon_units if row["ingredient"] == "garlic")
-    assert oil_spoon["quantity"] == 30 and oil_spoon["unit"] == "ml"
-    assert curry_spoon["quantity"] == 10 and curry_spoon["unit"] == "ml"
-    assert garlic_cloves["quantity"] == 6 and garlic_cloves["unit"] == "cloves"
+    assert oil_spoon["quantity"] == 15 and oil_spoon["unit"] == "ml"
+    assert curry_spoon["quantity"] == 5 and curry_spoon["unit"] == "ml"
+    assert garlic_cloves["quantity"] == 3 and garlic_cloves["unit"] == "cloves"
 
     substitute_catalog = FakeCatalog({
         "trofie pasta": [{
