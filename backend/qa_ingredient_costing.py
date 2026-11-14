@@ -199,6 +199,25 @@ def run():
     assert curry_spoon["quantity"] == 5 and curry_spoon["unit"] == "ml"
     assert garlic_cloves["quantity"] == 3 and garlic_cloves["unit"] == "cloves"
 
+    # Common US recipe units and additional metric volume units must normalize
+    # to the same canonical mass/volume dimensions before basket costing.
+    international_units = consolidate([
+        {"id": "us-units", "name": "US recipe units", "base_servings": 1,
+         "ingredients": [
+             ["chicken breast", 8, "oz"], ["milk", 1, "cup"],
+             ["olive oil", 2, "fl oz"], ["flour", 1, "lb"],
+             ["vegetable stock", 2, "dl"],
+         ]},
+    ], {"us-units": 1})
+    international = {row["ingredient"]: row for row in international_units}
+    assert round(international["chicken breast"]["quantity"], 2) == 226.8
+    assert international["chicken breast"]["unit"] == "g"
+    assert international["milk"]["quantity"] == 250
+    assert international["milk"]["unit"] == "ml"
+    assert round(international["olive oil"]["quantity"], 2) == 59.15
+    assert round(international["flour"]["quantity"], 2) == 453.59
+    assert international["vegetable stock"]["quantity"] == 200
+
     herb_counts = consolidate([
         {"id": "herbs-a", "name": "Herb salad", "ingredients": [
             ["fresh cilantro", 1, "bunch"], ["fresh cilantro", 2, "piece"],
