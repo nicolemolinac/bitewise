@@ -4,7 +4,7 @@ Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quantity, build_basket, consolidate
 from app.database import _snapshot_float, _snapshot_package_size, _snapshot_pack_pricing
-from app.rewe.scraper import _displayed_unit_price, package, price_details
+from app.rewe.scraper import _displayed_unit_price, package, price_details, ReweCatalogScraper
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -26,6 +26,17 @@ def run():
     assert _snapshot_pack_pricing("Product", 500, "g", "-1.00", "0")[0] is None
     assert _snapshot_pack_pricing("Product", 500, "g", "2.50", "-0.1") == (2.5, 0.005)
     assert _snapshot_pack_pricing("Product 1kg = 0,00 €", 500, "g", "2.50", None) == (2.5, 0.005)
+    # Catalog health must count only usable checkout prices. Zero, negative,
+    # NaN, infinity and malformed strings must not satisfy the HTTP fallback ratio.
+    _ingest_report = {"products_created": 0, "products_updated": 0, "products_found": 0, "products_with_price": 0}
+    ReweCatalogScraper(browser_enabled=False)._ingest_products(
+        _ingest_report,
+        [{"price": 0}, {"price": -1}, {"price": "nan"}, {"price": "inf"}, {"price": "bad"}, {"price": 1.25}],
+        lambda product, postcode: True,
+        "13353",
+    )
+    assert _ingest_report["products_found"] == 6
+    assert _ingest_report["products_with_price"] == 1
     # Live REWE parsing must reject non-finite/zero package quantities and
     # prices before they can enter the product catalog.
     assert package("Product 0g") == (None, None)
