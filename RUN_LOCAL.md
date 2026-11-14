@@ -59,7 +59,7 @@ cd ../frontend && npm run build
 
 The REWE browser fallback attaches to Chrome for Testing over CDP. If no browser is already listening on port 9222, Bitewise now tries to start an isolated local Chrome for Testing profile automatically.
 
-- Install the Playwright-managed Chrome for Testing browser once if you do not already have it: `cd backend && .venv/bin/python -m playwright install chromium`.
+- Install the Playwright-managed Chrome for Testing browser once if you do not already have it: `cd backend && .venv/bin/python -m playwright install chrome`.
 - If Chrome for Testing is installed in a non-standard location, set `CHROME_FOR_TESTING_PATH` in `backend/.env` to its executable path.
 - The browser uses a separate profile in `backend/data/chrome-for-testing-profile`; it does not reuse or alter your personal Chrome profile.
 - REWE delivery postcode and consent are saved in `backend/data/rewe_storage_state.json`.
