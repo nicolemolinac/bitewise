@@ -484,10 +484,18 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         return None
     # Stock cubes are concentrates, not ready-to-use liquid stock. Keep them
     # visible for review when the recipe asks for liquid stock.
+    stock_cube_markers = (
+        "bruhwurfel", "bruhwuerfel", "bruhe wurfel", "bruehe wurfel",
+        "bruehe wuerfel", "bruhe wuerfel", "bouillon cube", "stock cube",
+    )
+    vegetable_stock_markers = (
+        "gemuse", "gemues", "vegetable", "vegetarisch", "vegan",
+    )
     if (
         normalize_text(ingredient) == "vegetable stock"
         and normalize_text(_profile_lookup(intelligence, ingredient).get("form") or "") == "liquid"
-        and any(marker in title for marker in ("bruhwurfel", "bruhwuerfel", "bouillon cube", "stock cube"))
+        and any(marker in title for marker in stock_cube_markers)
+        and any(marker in title for marker in vegetable_stock_markers)
     ):
         return "suggested_substitution"
     # Neutral cooking-oil requests should not silently accept oils whose
