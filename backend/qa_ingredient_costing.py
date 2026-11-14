@@ -353,6 +353,16 @@ def run():
     assert len(form_split) == 2
     assert {row["ingredient_intelligence"]["form"] for row in form_split} == {"whole", "powder"}
     assert sum(row["quantity"] for row in form_split) == 10
+    preparation_split = consolidate([
+        {"id": "chopped-garlic", "name": "Chopped garlic", "base_servings": 1,
+         "ingredients": [["garlic", 1, "tbsp"]],
+         "ingredient_intelligence": {"garlic": {"form": "fresh", "preparation": "chopped"}}},
+        {"id": "whole-garlic", "name": "Whole garlic", "base_servings": 1,
+         "ingredients": [["garlic", 1, "tbsp"]],
+         "ingredient_intelligence": {"garlic": {"form": "fresh", "preparation": "whole"}}},
+    ], {"chopped-garlic": 1, "whole-garlic": 1})
+    assert len(preparation_split) == 2
+    assert {row["unit_validation"]["valid"] for row in preparation_split} == {True, False}
 
     bunch_requirement = consolidate([
         {"id": "herbs", "name": "Herb recipe", "base_servings": 1,
