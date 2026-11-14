@@ -371,7 +371,7 @@ def _number(product, *keys, default=0.0):
         if value is not None and not isinstance(value, bool):
             try:
                 return float(value)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 pass
     return default
 
