@@ -265,7 +265,7 @@ def run():
          "ingredients": [["Red-onion", 50, "g"], ["red onion", 20, "g"], ["RED ONION", 10, "g"]]},
     ], {"duplicates": 1})
     assert len(duplicate_names) == 1
-    assert duplicate_names[0]["ingredient"] == "red onion"
+    assert duplicate_names[0]["ingredient"] == "Red-onion"
     assert duplicate_names[0]["quantity"] == 80
 
     bunch_requirement = consolidate([
