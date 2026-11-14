@@ -713,7 +713,11 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "olive oil spray", "aerosol",
         ),
         "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol", "mayonnaise", "mayo", "salatcreme", "dressing", "sauce", "spray", "spruhol"),
-        "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung", "paniert", "backteig"),
+        "white fish fillet": (
+            "fischmus", "seelachs mus", "fischburger", "fischstabchen",
+            "surimi", "fischzubereitung", "paniert", "backteig",
+            "gerauchert", "geräuchert", "smoked", "mariniert", "marinade",
+        ),
         "rolled oats": ("riegel", "granola bar", "protein bar", "snack bar"),
         "burger buns": (
             "proteinmehl", "brotbackmischung", "backmischung", "brot mix", "brotmix", "mehl",
