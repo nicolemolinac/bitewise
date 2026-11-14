@@ -282,6 +282,13 @@ def run():
     assert onion_basket[0]["unit_conversion_note"] == "Estimated 150 g per piece of onion."
     assert onion_basket[0]["needed_quantity"] == 2
     assert onion_basket[0]["checkout_cost"] == 1.49
+    stale_override_basket = build_basket(
+        [{"ingredient": "onions", "quantity": 2, "unit": "piece", "source_meals": ["Chorrillana"]}],
+        onion_catalog, mode="cheapest", overrides={"onions": 999},
+    )
+    assert stale_override_basket[0]["match_status"] == "unmatched"
+    assert stale_override_basket[0]["product"] is None
+    assert "previously selected product" in stale_override_basket[0]["match_reason"]
     punctuation_pantry_basket = build_basket(
         [{"ingredient": "Red-onion", "quantity": 2, "unit": "piece", "source_meals": ["Chorrillana"]}],
         onion_catalog, mode="cheapest",
