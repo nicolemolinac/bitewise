@@ -943,7 +943,7 @@ def _infer_ingredient_form(ingredient: str) -> str:
         (("grated", "gerieben", "geraspelt"), "grated"),
         (("powder", "pulver"), "powder"),
         (("pre cooked", "precooked", "cooked", "gegart", "gekocht"), "pre_cooked"),
-        (("dried", "getrocknet", "dry"), "dried"),
+        (("dried", "getrocknet", "trocken"), "dried"),
         (("fresh", "frisch"), "fresh"),
         (("soft", "weich"), "soft"),
         (("hard", "knusprig", "crunchy"), "hard"),
