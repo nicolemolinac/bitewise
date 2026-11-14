@@ -422,13 +422,20 @@ def _substitution_quantity_ratio(ingredient, product, intelligence):
 
 
 def build_basket(requirements, adapter, mode="best-value", owned=None, overrides=None, pantry=None):
-    owned = {x.lower().strip() for x in (owned or [])}
-    overrides = overrides or {}
-    pantry = pantry or {}
+    # Use the same accent/punctuation-insensitive key for recipe names, pantry,
+    # saved overrides and user-owned ingredients. Consolidation already groups
+    # names this way, so lookup must not reintroduce spelling-based mismatches.
+    owned = {normalize_text(value) for value in (owned or [])}
+    overrides = {normalize_text(key): value for key, value in (overrides or {}).items()}
+    pantry = {
+        normalize_text(key): value
+        for key, value in (pantry or {}).items()
+        if normalize_text(key)
+    }
     output = []
 
     for requirement in requirements:
-        ingredient = requirement["ingredient"].lower().strip()
+        ingredient = normalize_text(requirement["ingredient"])
         raw_requested = requirement.get("quantity")
         try:
             requested = float(raw_requested)
