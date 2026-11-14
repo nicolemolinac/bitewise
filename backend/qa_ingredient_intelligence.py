@@ -377,6 +377,24 @@ def run():
     assert ingredient_product_match_type(
         "custom cooking fat", "REWE Rapsöl 1L", partial_proposed_profile
     ) == "suggested_substitution"
+
+    # Canonical German translations can establish exact identity only when
+    # the requested form and supermarket aisle independently agree.
+    ground_beef_translation = {
+        "name_en": "ground beef", "name_de": "Rinderhackfleisch", "form": "fresh",
+    }
+    assert ingredient_product_match_type(
+        "ground beef", "REWE Bio Rinderhackfleisch 400g",
+        ground_beef_translation, "Fleisch"
+    ) == "exact"
+    curry_powder_translation = {
+        "name_en": "curry powder", "name_de": "Currypulver",
+        "form": "powder", "aliases": ["curry paste"],
+    }
+    assert ingredient_product_match_type(
+        "curry powder", "REWE Madras Curry Paste 100g",
+        curry_powder_translation, "oele-sossen-gewuerze"
+    ) == "suggested_substitution"
     assert "rapeseed oil" in ingredient_candidate_search_terms("custom cooking fat", proposed_only)
     assert ingredient_product_match_type("custom cooking fat", "REWE Rapsöl 1L", proposed_only) == "suggested_substitution"
     assert ingredient_suggested_substitution_name("custom cooking fat", "REWE Rapeseed Oil 1L", proposed_only) == "rapeseed oil"
