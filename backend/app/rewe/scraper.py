@@ -124,13 +124,13 @@ def price_details(text: str, package_size=None, package_unit=None):
     )
     # Bottle deposits are refundable Pfand, not the product's checkout price.
     checkout_text = re.sub(
-        r"\\bzzgl\\.?\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?\\s*pfand\\b",
+        r"\bzzgl\.?\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?\s*pfand\b",
         " ",
         checkout_text,
         flags=re.I,
     )
     checkout_text = re.sub(
-        r"\\bpfand\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?",
+        r"\bpfand\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
         " ",
         checkout_text,
         flags=re.I,
