@@ -48,8 +48,8 @@ def main():
         "categories_successful": len(REWE_CATEGORY_URLS),
         "categories_failed": 0,
         "category_product_counts": complete_counts,
-        "price_coverage_ratio": 0.95,
-        "package_coverage_ratio": 0.95,
+        "price_coverage_ratio": 0.80,
+        "package_coverage_ratio": 0.80,
     }
     assert _is_complete_healthy_rewe_report(complete_report)
 
