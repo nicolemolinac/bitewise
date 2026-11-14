@@ -247,6 +247,20 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
             f"Estimated {grams_per_tsp:g} g per teaspoon of {ingredient}."
         )
 
+    # A bunch is a distinct retail unit, not a synonym for one piece.
+    # Only herbs with an explicit per-bunch estimate may cross between bunches
+    # and mass; never reuse that estimate for loose pieces or other produce.
+    bunch_herbs = {
+        alias
+        for canonical in ("fresh cilantro", "parsley", "basil")
+        for alias in ingredient_aliases(canonical)
+    }
+    is_bunch_herb = normalize_text(ingredient) in bunch_herbs
+    if (source == "bunch" or target == "bunch") and not is_bunch_herb:
+        return None, None
+    if (source == "piece" or target == "piece") and is_bunch_herb:
+        return None, None
+
     grams_per_piece = _ingredient_count_weight(ingredient)
     if grams_per_piece is None:
         return None, None
