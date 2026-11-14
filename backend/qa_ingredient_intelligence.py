@@ -74,12 +74,13 @@ def run():
     # English and German. These are generic retail aliases, not SKU-specific rules.
     catalog_alias_cases = [
         ("pasta", "REWE Bio Spaghetti 500g", "kochen-backen", "exact"),
+        ("pasta", "REWE Bio Penne 500g", "kochen-backen", "exact"),
         ("trofie pasta", "REWE Pasta Penne 500g", "kochen-backen", "substitute"),
         ("fresh basil pesto", "REWE Pesto alla Genovese 190g", "oele-sossen-gewuerze", "exact"),
         ("pine nuts", "Seeberger Pinienkerne 50g", "kochen-backen", "exact"),
         ("tomato", "REWE Rispentomaten 500g", "obst-gemuese", "exact"),
         ("cherry tomato", "REWE Cocktailtomaten 250g", "obst-gemuese", "exact"),
-        ("ground beef", "REWE Bio Rinderhackfleisch 500g", "fleisch-wurst-fisch", "exact"),
+        ("ground beef", "REWE Bio Rinder Hackfleisch 500g", "fleisch-wurst-fisch", "exact"),
         ("salmon", "REWE Bio Lachsfilet 250g", "fleisch-wurst-fisch", "exact"),
         ("flour", "REWE Weizenmehl Type 405 1kg", "kochen-backen", "exact"),
         ("heavy cream", "REWE Schlagsahne 30% 200g", "kaese-eier-molkerei", "exact"),
