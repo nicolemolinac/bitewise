@@ -48,6 +48,11 @@ _BASE_TERMS = {
     "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemuse bruhe", "bruhwurfel gemuse", "bruhwuerfel gemuse"),
     "cooking cream": ("cooking cream", "kochcreme", "kochsahne", "sahne zum kochen"),
     "milk": ("milk", "milch", "vollmilch", "frische milch", "fresh milk"),
+    "butter": (
+        "butter", "markenbutter", "deutsche markenbutter",
+        "sussrahmbutter", "suessrahmbutter", "mildgesauerte butter",
+        "mildgesaeuerte butter",
+    ),
     "burger buns": ("burger buns", "burger bun", "brioche burger buns", "brioche buns", "hamburger brotchen", "hamburgerbrotchen", "hamburgerbroetchen", "burger brotchen", "burgerbrotchen", "burgerbroetchen", "sesam brotchen", "sesambrötchen", "sesambroetchen", "weizen brotchen", "weizen broetchen", "brötchen", "broetchen"),
     "caesar dressing": ("caesar dressing", "caesar salat dressing", "caesar sauce", "salatdressing caesar"),
     "croutons": ("croutons", "brotcroutons", "croûtons"),
