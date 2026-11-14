@@ -444,7 +444,19 @@ def main():
         print(f"Unmatched: {totals['unmatched']}")
         print(f"Ingredients with invalid recipe units: {invalid_unit_count}")
         print(f"Review-only product suggestions: {semantic_review_count} (NOT counted as resolved)")
-        print(f"Resolved total: {resolved}/{total} ({resolved / max(1, total):.1%})")
+        resolution_rate = resolved / max(1, total)
+        print(f"Resolved total: {resolved}/{total} ({resolution_rate:.1%})")
+        # CI benchmarks the committed full-catalog snapshot, so protect the
+        # demonstrated quality floor instead of merely printing a percentage.
+        if os.getenv("BITEWISE_BENCHMARK_ISOLATED", "").strip().lower() in {"1", "true", "yes", "on"}:
+            if invalid_unit_count:
+                raise AssertionError(
+                    f"Benchmark contains {invalid_unit_count} invalid recipe ingredient units"
+                )
+            if resolution_rate < 0.95:
+                raise AssertionError(
+                    f"Full-catalog ingredient resolution fell below 95%: {resolved}/{total}"
+                )
         print("\n=== PER-RECIPE SUMMARY ===")
         for name, found, count in per_recipe:
             print(f"{found:>2}/{count:<2}  {found / max(1, count):>6.1%}  {name}")
