@@ -512,8 +512,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             else None
         )
         pantry_used = 0.0
-        if pantry_row:
-            converted_pantry, _ = _convert_ingredient_quantity(pantry_row.get("quantity", 0), pantry_row.get("unit"), unit, ingredient)
+        if isinstance(pantry_row, dict):
+            converted_pantry, _ = _convert_ingredient_quantity(
+                pantry_row.get("quantity", 0), pantry_row.get("unit"), unit, ingredient
+            )
             if converted_pantry is not None:
                 pantry_used = min(requested, max(0.0, converted_pantry))
         needed = max(0.0, requested - pantry_used)
