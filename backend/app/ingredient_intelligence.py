@@ -560,7 +560,11 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "kondensmilch", "condensed milk", "evaporated milk", "buttermilk",
         ),
         "sour cream": ("mit krautern", "fruhlingskrautern", "krauter", "herbs", "chives"),
-        "olive oil": ("olivenol dusche", "olivenol creme", "olivenol shampoo", "olivenol nachtcreme"),
+        "olive oil": (
+            "olivenol dusche", "olivenol creme", "olivenol shampoo",
+            "olivenol nachtcreme", "olivenol spray", "olivenol spruhol",
+            "olive oil spray", "aerosol",
+        ),
         "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol", "mayonnaise", "mayo", "salatcreme", "dressing", "sauce", "spray", "spruhol"),
         "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung", "paniert", "backteig"),
         "rolled oats": ("riegel", "granola bar", "protein bar", "snack bar"),
