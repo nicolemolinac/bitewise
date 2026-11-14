@@ -557,12 +557,13 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         )
     ):
         return "suggested_substitution"
-    # Protein-enriched wraps remain usable as a tortilla alternative, but
-    # their composition is materially different from ordinary wheat tortillas.
+    # Protein-enriched wraps have a different nutritional profile, but keep
+    # the same soft-wrap format and culinary role. Mark them as substitutions,
+    # never exact matches, while allowing safe recipe use.
     if normalize_text(ingredient) in {"soft tortillas", "tortillas"} and any(
         marker in title for marker in ("high protein", "protein wrap", "protein wraps")
     ):
-        return "suggested_substitution"
+        return "substitute"
     # Spelt pasta is a distinct grain and can matter for allergies and texture;
     # expose it for review instead of silently calling it ordinary wheat pasta.
     if normalize_text(ingredient) in {"pasta", "spaghetti"} and any(
