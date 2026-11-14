@@ -247,6 +247,18 @@ def run():
     assert onion_basket[0]["unit_conversion_note"] == "Estimated 150 g per piece of onion."
     assert onion_basket[0]["needed_quantity"] == 2
     assert onion_basket[0]["checkout_cost"] == 1.49
+    punctuation_pantry_basket = build_basket(
+        [{"ingredient": "Red-onion", "quantity": 2, "unit": "piece", "source_meals": ["Chorrillana"]}],
+        onion_catalog, mode="cheapest",
+        pantry={"red onion": {"quantity": 1, "unit": "piece"}},
+    )
+    assert punctuation_pantry_basket[0]["pantry_used"] == 1
+    assert punctuation_pantry_basket[0]["needed_quantity"] == 1
+    punctuation_owned_basket = build_basket(
+        [{"ingredient": "Red-onion", "quantity": 2, "unit": "piece", "source_meals": ["Chorrillana"]}],
+        onion_catalog, mode="cheapest", owned=["red onion"],
+    )
+    assert punctuation_owned_basket[0]["match_status"] == "covered"
     infinite_pantry_basket = build_basket(
         [{"ingredient": "onion", "quantity": 2, "unit": "piece", "source_meals": ["Chorrillana"]}],
         onion_catalog, mode="cheapest",
