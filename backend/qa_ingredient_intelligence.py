@@ -161,6 +161,11 @@ def run():
     assert validate_ingredient_unit("cheddar cheese", "tsp")["valid"] is False
     assert validate_ingredient_unit("cheese slices", "slices")["valid"] is True
     assert validate_ingredient_unit("butter", "tbsp")["valid"] is True
+    assert validate_ingredient_unit("butter beans", "g")["family"] == "legumes"
+    assert validate_ingredient_unit("butter beans", "g")["valid"] is True
+    assert validate_ingredient_unit("butter beans", "tsp")["valid"] is False
+    assert validate_ingredient_unit("kidney beans", "cup")["valid"] is True
+    assert validate_ingredient_unit("peanut butter", "tbsp")["valid"] is True
     assert validate_ingredient_unit("cheddar cheese", "tbsp")["valid"] is False
     assert validate_ingredient_unit("grated cheddar cheese", "cup")["valid"] is True
     assert validate_ingredient_unit("red pepper flakes", "tsp")["family"] == "spice"
