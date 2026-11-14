@@ -56,7 +56,7 @@ def package(text: str):
     # Do not mistake a displayed reference price ("1 kg = 11,06 €") for
     # the product's own package size.
     text = re.sub(
-        r"\b1\s*(?:kg|l)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+        r"\b(?:1\s*(?:kg|l)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
         " ",
         str(text or ""),
         flags=re.I,
@@ -82,16 +82,20 @@ def package(text: str):
 
 
 def _displayed_unit_price(text: str):
-    """Read REWE's reference price (€/kg or €/l), not the checkout pack price."""
+    """Read REWE reference prices and normalize them to €/kg or €/l."""
     match = re.search(
-        r"\b1\s*(kg|l)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
+        r"\b(1|100)\s*(kg|g|l|ml)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
         text,
         re.I,
     )
     if not match:
         return None, None
-    amount = float(match.group(2).replace(",", "."))
-    return amount, "g" if match.group(1).lower() == "kg" else "ml"
+    quantity = int(match.group(1))
+    unit = match.group(2).lower()
+    amount = float(match.group(3).replace(",", "."))
+    base_quantity = 1000 if unit in {"kg", "l"} else 100
+    normalized_amount = amount * 1000 / base_quantity
+    return normalized_amount, "g" if unit in {"kg", "g"} else "ml"
 
 
 def price_details(text: str, package_size=None, package_unit=None):
@@ -102,7 +106,7 @@ def price_details(text: str, package_size=None, package_unit=None):
     """
     reference_price, reference_unit = _displayed_unit_price(text)
     reference_match = re.search(
-        r"\b1\s*(?:kg|l)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+        r"\b(?:1\s*(?:kg|l)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
         str(text or ""),
         re.I,
     )
