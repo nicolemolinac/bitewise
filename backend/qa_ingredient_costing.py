@@ -3,7 +3,7 @@
 Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quantity, build_basket, consolidate
-from app.database import _snapshot_package_size
+from app.database import _snapshot_float, _snapshot_package_size, _snapshot_pack_pricing
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -16,6 +16,15 @@ class FakeCatalog:
 
 
 def run():
+    # Snapshot numeric parsing must reject infinities/NaN and non-positive
+    # checkout prices instead of persisting unusable catalog values.
+    assert _snapshot_float("nan", 7) == 7
+    assert _snapshot_float("inf", 7) == 7
+    assert _snapshot_float("1e999", 7) == 7
+    assert _snapshot_float("2,50") == 2.5
+    assert _snapshot_pack_pricing("Product", 500, "g", "-1.00", "0")[0] is None
+    assert _snapshot_pack_pricing("Product", 500, "g", "2.50", "-0.1") == (2.5, 0.005)
+    assert _snapshot_pack_pricing("Product 1kg = 0,00 €", 500, "g", "2.50", None) == (2.5, 0.005)
     # Snapshot imports must choose the same final physical size as the live
     # scraper, rather than an earlier partial size embedded in a product title.
     assert _snapshot_package_size("Drink 0,75ml bottle 0,75l", 0.75, "ml") == 750
