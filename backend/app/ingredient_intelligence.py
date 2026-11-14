@@ -536,6 +536,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     # to fresh fillets; do not silently change the recipe's thawing/preparation.
     if (
         normalize_text(ingredient) == "white fish fillet"
+        and normalize_text(_profile_lookup(intelligence, ingredient).get("form") or "") != "frozen"
         and any(
             marker in title + " " + normalize_text(product_category)
             for marker in ("tiefkuhl", "tiefkuehl", "tiefgefroren", "frozen")
