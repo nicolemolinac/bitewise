@@ -956,6 +956,8 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
             allowed.update({"tbsp", "tsp"})
         if form == "grated" or any(term in name.split() for term in ("grated", "gerieben", "raspelt")):
             allowed.add("cup")
+    if family == "grains" and any(term in name.split() for term in ("flour", "mehl")):
+        allowed.update({"tbsp", "tsp"})
     if family == "produce" and any(term in name.split() for term in ("garlic", "knoblauch")):
         allowed.add("cloves")
     if family == "produce" and form == "powder":
