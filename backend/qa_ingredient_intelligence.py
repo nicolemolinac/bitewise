@@ -186,6 +186,18 @@ def run():
     assert "pommes frites" in fallback["frozen french fries"]["aliases"]
     assert fallback["pre cooked shredded chicken"]["form"] == "pre_cooked"
     assert fallback["vegetable oil"]["unit_dimension"] == "volume"
+    # "Ground" is context-sensitive: minced meat must not be treated as spice powder.
+    assert normalize_recipe_intelligence({
+        "ingredients": [["ground beef", 500, "g"]]
+    })["ground beef"]["form"] == "minced"
+    assert ingredient_product_match_type(
+        "ground beef", "REWE Bio Rinder Hackfleisch 500g",
+        {"canonical": "ground beef", "form": "minced"}, "fleisch-wurst"
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "ground beef", "REWE Rindersteak 500g",
+        {"canonical": "ground beef", "form": "minced"}, "fleisch-wurst"
+    ) is None
     # Hyphenated ingredient names must still receive normalized metadata in consolidate().
     hyphenated_recipe = {
         "id": "hyphenated-chicken", "name": "Chicken wrap", "base_servings": 2,
