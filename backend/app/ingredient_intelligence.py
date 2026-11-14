@@ -476,6 +476,14 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     title = normalize_text(product_text)
     if not title or _ingredient_specific_exclusions(ingredient, title):
         return None
+    # Native/cold-pressed sunflower oil has a stronger flavor and different
+    # high-heat behavior than neutral refined cooking oil; keep it review-only.
+    if (
+        normalize_text(ingredient) == "vegetable oil"
+        and "sonnenblumenol" in title
+        and any(marker in title for marker in (" nativ", " kaltgepresst", " virgin"))
+    ):
+        return "suggested_substitution"
     if (
         normalize_text(ingredient) == "burger buns"
         and normalize_text(product_category) in {"tiefkuhlkost", "tiefkuehlkost"}
