@@ -566,7 +566,7 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         if normalize_text(form) in {"frozen", "tiefkuhl"}:
             allowed.add("tiefkuehlkost")
         return category_key in allowed
-    if name == "firm tofu":
+    if name in {"firm tofu", "tofu"}:
         return category_key in {
             "fleisch-wurst-fisch", "fertiggerichte-konserven",
             "kaese-eier-molkerei", "obst-gemuese",
@@ -673,6 +673,24 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "milk powder", "powdered milk", "dry milk", "milchpulver",
             "vollmilchpulver", "magermilchpulver",
             "coconut milk", "kokosmilch", "kokosnussmilch",
+        ),
+        "egg": (
+            "gekochte", "hartgekochte", "boiled", "hard boiled",
+            "omelette", "omelet", "ruehrei", "rührei", "eiersalat",
+        ),
+        "salmon": (
+            "gerauchertes", "geräuchertes", "rauchlachs", "smoked",
+            "gravlax", "graved", "beize", "mariniert", "marinade",
+        ),
+        "shrimp": (
+            "gekochte", "gegarte", "boiled", "cooked", "mariniert",
+            "marinierte", "marinade", "cocktail", "in knoblauchol",
+        ),
+        "tofu": (
+            "wurstchen", "würstchen", "sausage", "wiener", "burger",
+            "schnitzel", "gerauchert", "geräuchert", "geräuchertes",
+            "smoked", "mariniert", "marinierte", "marinade", "teriyaki",
+            "knusper", "crispy", "sticks", "nuggets",
         ),
         "sour cream": ("mit krautern", "fruhlingskrautern", "krauter", "herbs", "chives"),
         "olive oil": (
