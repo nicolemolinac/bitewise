@@ -95,6 +95,8 @@ def consolidate(meals, servings_map):
             "unit": unit,
             "source_meals": list(dict.fromkeys(value["source_meals"])),
             "ingredient_intelligence": value.get("ingredient_intelligence"),
+            "ingredient_form": _form if _form != "unspecified" else None,
+            "ingredient_preparation": _preparation or None,
             "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit, value.get("ingredient_intelligence")),
             "quantity_validation": value.get("quantity_validation") or {"valid": True, "reason": None},
         }
