@@ -451,13 +451,15 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
     exclusions = {
         "butter": ("peanut butter", "erdnussbutter", "mandelmus", "nuss nougat", "brotaufstrich", "aufstrich", "butterkeks", "butterwaffel"),
         "honey": ("honig senf", "honigsenf", "honig senfsauce", "honig senf sauce", "honig dressing", "honey peppers", "honey pepper", "honig pfeffer", "honig paprika", "honey roasted", "honig gerostet", "honig nuss", "honignuss", "honey nut", "muesli", "musli", "granola", "knusper", "cereal", "riegel"),
-        "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln"),
+        "pasta": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "instant noodles", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln", "gnocchi"),
         # Ready-to-heat rice is not interchangeable with dry rice in recipe quantities or cooking steps.
-        "rice": ("express", "express reis", "reis express", "mikrowellenreis", "mikrowellen reis", "vorgekochter reis", "vorgekocht", "ready rice", "ready-to-eat rice", "fertigreis"),
-        "spaghetti": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln"),
+        "rice": ("express", "express reis", "reis express", "mikrowellenreis", "mikrowellen reis", "vorgekochter reis", "vorgekocht", "ready rice", "ready-to-eat rice", "fertigreis", "reis fit", "reisfit"),
+        "spaghetti": ("udon", "ramen", "glasnudeln", "reisnudeln", "instant nudeln", "mie nudeln", "buchstaben nudeln", "suppennudeln", "suppen nudeln", "faden nudeln", "gnocchi"),
         "bell pepper": ("paprikapulver", "paprika pulver", "paprika chips", "paprika lyoner", "paprika wurst"),
         "red onion": ("red onion chips", "rote zwiebel chips", "zwiebel chips"),
         "chicken breast": ("hahnchen wurst", "haehnchen wurst", "hahnchen aufschnitt", "haehnchen aufschnitt", "brotaufstrich", "gepokelt", "gebacken", "gerauchert", "hauchzart", "delikatess", "paprika", "mariniert", "marinade", "gegrillt", "gewurzt", "gewurzmischung", "joghurt", "knoblauch", "curry", "brandenburg", "bernard matthews", "gutfried", "herta", "finesse", "wiltmann", "filetstucke", "filetstuecke", "hahnchenbrust natur", "haehnchenbrust natur", "hahnchenbrust mit curry"),
+        "milk": ("milk twist", "choco", "schoko", "kakao", "vanille", "erdbeer", "milkshake", "aroma"),
+        "sour cream": ("mit krautern", "fruhlingskrautern", "krauter", "herbs", "chives"),
         "olive oil": ("olivenol dusche", "olivenol creme", "olivenol shampoo", "olivenol nachtcreme"),
         "vegetable oil": ("olivenol", "massageol", "pflegeol", "haarol", "mayonnaise", "mayo", "salatcreme", "dressing", "sauce", "spray", "spruhol"),
         "white fish fillet": ("fischmus", "seelachs mus", "fischburger", "fischstabchen", "surimi", "fischzubereitung", "paniert", "backteig"),
@@ -473,7 +475,7 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "kartoffelpuree", "kartoffel puree", "kartoffelbrei", "mashed potato",
             "fertiggericht", "fertigmenue", "fertigmahlzeit", "ready meal",
             "menuschale", "instant mahlzeit", "mikrowellen", "eintopf",
-            "auflauf", "pfannengericht",
+            "auflauf", "pfannengericht", "walnuss",
         ),
     }
     if any(_contains_phrase(t, normalize_text(term)) for term in exclusions.get(name, ())):
