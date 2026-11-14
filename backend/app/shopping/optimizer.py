@@ -708,7 +708,17 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             continue
 
         cheapest_total = min(row["checkout_cost"] for row in candidates)
-        chosen = min(candidates, key=lambda row: row["score"])
+        # Apply hard preference tiers before cost scoring: exact matches must
+        # always beat substitutions, regardless of extreme price differences.
+        # An explicit valid user choice is the sole exception and is honored.
+        chosen = min(
+            candidates,
+            key=lambda row: (
+                not row["selected_by_user"],
+                row["product"].get("ingredient_match_type") == "substitute",
+                row["score"],
+            ),
+        )
         badge = _badge(mode, chosen["waste_ratio"], len(requirement.get("source_meals", [])),
                        chosen["product"], cheapest_total, chosen["checkout_cost"])
         if chosen["selected_by_user"]:
