@@ -816,9 +816,27 @@ def ingredient_suggested_substitution_name(ingredient: str, product_text: str, i
     return None
 
 
+_UNIT_VALIDATION_ALIASES = {
+    "gram": "g", "grams": "g", "gr": "g",
+    "kilogram": "kg", "kilograms": "kg", "kilo": "kg",
+    "milliliter": "ml", "milliliters": "ml", "millilitre": "ml",
+    "millilitres": "ml", "liter": "l", "litre": "l", "liters": "l", "litres": "l",
+    "tablespoon": "tbsp", "tablespoons": "tbsp", "el": "tbsp",
+    "teaspoon": "tsp", "teaspoons": "tsp", "tl": "tsp",
+    "piece": "piece", "pieces": "piece", "pcs": "piece", "pc": "piece",
+    "stuck": "piece", "stueck": "piece", "unit": "piece", "units": "piece",
+    "clove": "cloves", "cloves": "cloves",
+}
+
+
+def _normalize_validation_unit(unit: str) -> str:
+    normalized = normalize_text(unit)
+    return _UNIT_VALIDATION_ALIASES.get(normalized, normalized)
+
+
 def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = None) -> dict:
     name = normalize_text(ingredient)
-    normalized_unit = normalize_text(unit)
+    normalized_unit = _normalize_validation_unit(unit)
     if name in {"bell pepper", "red pepper", "green pepper", "yellow pepper", "sweet pepper", "paprika"}:
         family = "produce"
     else:
@@ -942,7 +960,7 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
                 "reason": str(option.get("reason") or "")[:240],
             })
             substitutions.append(option_name)
-        unit_key = normalize_text(unit)
+        unit_key = _normalize_validation_unit(unit)
         if unit_key in {"g", "kg"}:
             inferred_dimension = "mass"
         elif unit_key in {"ml", "l", "tsp", "tbsp"}:
