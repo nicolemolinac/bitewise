@@ -133,6 +133,23 @@ def main():
                 ][:20]
                 print("CATALOG NEAR-MATCH TITLES:", row["ingredient"], suggestions)
                 print("CATALOG NEAR-MATCH DETAILS:", row["ingredient"], details)
+                if row["ingredient"] == "oats":
+                    oat_identity_rows = [
+                        product for product in products
+                        if any(
+                            token in str(product.name_original or "").casefold()
+                            for token in ("haferflock", "oat flake", "rolled oat")
+                        )
+                    ]
+                    print("CATALOG OAT IDENTITY PRODUCTS:", [
+                        {
+                            "name": product.name_original,
+                            "category": product.category,
+                            "price": product.price,
+                            "availability": product.availability,
+                        }
+                        for product in oat_identity_rows
+                    ])
     finally:
         db.close()
 
