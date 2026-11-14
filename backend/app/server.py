@@ -3,6 +3,7 @@ import copy
 from pathlib import Path
 import hmac
 import json
+import math
 import os
 import uuid
 from datetime import date, datetime
@@ -212,13 +213,17 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
             # Always persist the canonical replacement name, even when the
             # matched catalog label was German or another declared alias.
             replacement = selected_option["name"].strip()
-        ratio = selected_option.get("quantity_ratio", 1)
+        raw_ratio = selected_option.get("quantity_ratio", 1)
+        if isinstance(raw_ratio, bool):
+            continue
         try:
-            ratio = float(ratio)
-        except (TypeError, ValueError):
-            ratio = 1.0
-        if not 0.1 <= ratio <= 5:
-            ratio = 1.0
+            ratio = float(raw_ratio)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if not math.isfinite(ratio) or not 0.1 <= ratio <= 5:
+            # Keep the original ingredient unchanged; never silently apply
+            # a 1:1 replacement when AI supplied an invalid quantity ratio.
+            continue
         preparation = str(selected_option.get("preparation_adjustment") or "").strip()
         adaptation = {
             "ingredient": original,
