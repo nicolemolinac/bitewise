@@ -109,6 +109,12 @@ def run():
         "milk", "REWE Buttermilch 500ml", milk_profile, "kaese-eier-molkerei"
     ) is None
     assert ingredient_product_match_type(
+        "milk", "REWE Milchpulver 500g", {"form": "unspecified"}, "kochen-backen"
+    ) is None
+    assert ingredient_product_match_type(
+        "milk", "REWE Kokosmilch 400ml", {"form": "unspecified"}, "konserven"
+    ) is None
+    assert ingredient_product_match_type(
         "milk", "Alpro Haferdrink 1L", milk_profile, "kaffee-tee-kakao"
     ) == "suggested_substitution"
     butter_profile = {
