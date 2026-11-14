@@ -694,7 +694,8 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "coconut milk", "kokosmilch", "kokosnussmilch",
         ),
         "egg": (
-            "gekochte", "hartgekochte", "boiled", "hard boiled",
+            "gekocht", "gekochte", "hartgekocht", "hartgekochte",
+            "boiled", "hard boiled",
             "omelette", "omelet", "ruehrei", "rührei", "eiersalat",
         ),
         "salmon": (
@@ -703,7 +704,8 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "mariniert", "marinade",
         ),
         "shrimp": (
-            "gekochte", "gegarte", "boiled", "cooked", "mariniert",
+            "gekocht", "gekochte", "gegart", "gegarte",
+            "boiled", "cooked", "mariniert",
             "marinierte", "marinade", "cocktail", "in knoblauchol",
         ),
         "tofu": (
