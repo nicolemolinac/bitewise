@@ -45,7 +45,11 @@ def test_url_and_status_contract():
 
 def test_rewe_cart_dom_probe_contract():
     from playwright.sync_api import sync_playwright, Error as PlaywrightError
-    from app.rewe.scraper import _rewe_add_button_index, _rewe_cart_stepper_snapshot
+    from app.rewe.scraper import (
+        _find_chrome_for_testing,
+        _rewe_add_button_index,
+        _rewe_cart_stepper_snapshot,
+    )
 
     html = """
     <header>
@@ -76,8 +80,9 @@ def test_rewe_cart_dom_probe_contract():
         os.getenv("REWE_CHROME_CDP_URL", "http://127.0.0.1:9222"),
     ).rstrip("/")
     with sync_playwright() as playwright:
-        # Prefer the developer's Chrome for Testing session locally. GitHub
-        # Actions has no user CDP process, so use its installed headless Chromium.
+        # Prefer the developer's Chrome for Testing session locally. In CI,
+        # launch the installed Google Chrome for Testing executable directly;
+        # never fall back to Playwright's separate Chromium browser.
         owns_context = False
         try:
             browser = playwright.chromium.connect_over_cdp(endpoint, timeout=1_500)
@@ -85,7 +90,14 @@ def test_rewe_cart_dom_probe_contract():
                 raise AssertionError(f"Chrome for Testing at {endpoint} has no browser context")
             context = browser.contexts[0]
         except PlaywrightError:
-            browser = playwright.chromium.launch(headless=True)
+            executable = _find_chrome_for_testing(playwright)
+            if not executable:
+                raise AssertionError(
+                    "Google Chrome for Testing is required for the REWE cart DOM QA"
+                )
+            browser = playwright.chromium.launch(
+                executable_path=executable, headless=True
+            )
             context = browser.new_context()
             owns_context = True
         page = None
