@@ -97,6 +97,16 @@ def price_details(text: str, package_size=None, package_unit=None):
         if package_size and package_unit == reference_unit:
             pack_price = reference_price * float(package_size) / 1000.0
             return round(pack_price, 2), reference_price / 1000.0
+        # A reference price is not the checkout price. If package metadata is
+        # missing or uses another unit, remove that reference-price fragment
+        # before looking for a separate explicit pack price.
+        reference_match = re.search(
+            r"\\b1\\s*(?:kg|l)\\s*=\\s*(?:€\\s*)?\\d+[,.]\\d{2}\\s*(?:€|EUR|Euro)?",
+            text,
+            re.I,
+        )
+        if reference_match:
+            text = text[:reference_match.start()] + " " + text[reference_match.end():]
 
     for pattern in (
         r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})",
