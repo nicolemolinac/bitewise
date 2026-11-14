@@ -564,20 +564,40 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     category_compatible = _category_compatible(
         ingredient, product_category, title, product_form
     )
-    terms = ingredient_search_terms(ingredient, intelligence)
+    # Only the ingredient request itself and the curated bilingual ontology
+    # are allowed to establish an exact identity. Recipe-side AI metadata
+    # (canonical/name/aliases/translations) is useful for retrieval, but is
+    # untrusted semantic evidence and must never silently promote a candidate
+    # to exact. Otherwise a bad alias such as "curry paste" can redefine
+    # "curry powder" at shopping time.
+    normalized_ingredient = normalize_text(ingredient)
+    trusted_exact_terms = {
+        normalized_ingredient,
+        *(normalize_text(value) for value in _BASE_TERMS.get(normalized_ingredient, ())),
+    }
     substitution_only_terms = {
         normalize_text(value)
         for value in (
-            *(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ())),
-            *(_REVIEW_ONLY_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ())),
+            *(_SUBSTITUTION_TERMS.get(normalized_ingredient, ())),
+            *(_REVIEW_ONLY_SUBSTITUTION_TERMS.get(normalized_ingredient, ())),
         )
     }
     exact_hit = form_compatible and category_compatible and any(
-        _contains_phrase(title, term) for term in terms
-        if normalize_text(term) not in substitution_only_terms
+        _contains_phrase(title, term)
+        for term in trusted_exact_terms
+        if term and term not in substitution_only_terms
     )
     if exact_hit:
         return "exact"
+
+    # AI-provided names and aliases remain discoverable, but require review
+    # unless independently supported by the curated exact-term vocabulary.
+    metadata_terms = set(ingredient_search_terms(ingredient, intelligence)) - trusted_exact_terms
+    if (
+        form_compatible and category_compatible
+        and any(_contains_phrase(title, term) for term in metadata_terms if term)
+    ):
+        return "suggested_substitution"
     # Curated equivalents remain substitutions even when the recipe-side AI
     # repeats them in its alias list; metadata must not silently upgrade them.
     substitutes = list(_SUBSTITUTION_TERMS.get(normalize_text(ingredient), ()))
