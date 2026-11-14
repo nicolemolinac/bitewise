@@ -124,7 +124,11 @@ def _multilingual_catalog_search(self, ingredient, intelligence=None):
                     )
                 ) if match_types.get(row.id) in {"substitute", "suggested_substitution"} else None,
             }
-            for row in rows[:40]
+            # Keep every strict lexical candidate. The basket optimizer
+            # must see the complete compatible pool so a user-pinned product
+            # cannot disappear merely because more than 40 alternatives rank
+            # ahead of it.
+            for row in rows
         ]
         try:
             from .semantic_catalog import semantic_product_candidates
