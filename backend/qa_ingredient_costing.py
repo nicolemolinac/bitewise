@@ -266,6 +266,15 @@ def run():
     assert cilantro_grams == 30 and "30 g per piece" in cilantro_note
     assert bacon_grams == 45 and "15 g per piece" in bacon_note
 
+    honey_grams, honey_note = _convert_ingredient_quantity(15, "ml", "g", "honey")
+    cornstarch_grams, starch_note = _convert_ingredient_quantity(15, "ml", "g", "cornstarch")
+    tomato_paste_grams, paste_note = _convert_ingredient_quantity(15, "ml", "g", "tomato paste")
+    pesto_grams, pesto_note = _convert_ingredient_quantity(15, "ml", "g", "fresh basil pesto")
+    assert round(honey_grams, 1) == 21.3 and "1.42 g/ml" in honey_note
+    assert round(cornstarch_grams, 2) == 8.25 and "0.55 g/ml" in starch_note
+    assert round(tomato_paste_grams, 2) == 15.75 and "1.05 g/ml" in paste_note
+    assert pesto_grams == 15 and "1 g/ml" in pesto_note
+
     # Recipe ingredient quantities are generated for 2 servings and scaled exactly once.
     one_serving = consolidate([
         {"id": "single", "name": "Single portion", "base_servings": 2,
