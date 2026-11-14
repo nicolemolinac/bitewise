@@ -144,10 +144,10 @@ def _proposed_term_visible(title: str, term: str) -> bool:
 
 # Ingredient-family unit expectations. Unknown families remain permissive.
 _UNIT_FAMILIES = {
-    "oil": {"ml", "l", "tbsp", "tsp"},
+    "oil": {"ml", "l", "cup", "tbsp", "tsp"},
     "liquid": {"ml", "l", "g", "kg", "tbsp", "tsp", "cup"},
     "spice": {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"},
-    "produce": {"g", "kg", "piece", "unit", "cloves"},
+    "produce": {"g", "kg", "piece", "unit"},
     "count": {"piece", "unit"},
 }
 _FAMILY_HINTS = {
@@ -879,6 +879,8 @@ def validate_ingredient_unit(ingredient: str, unit: str, intelligence: Any = Non
     profile = _profile_lookup(intelligence, ingredient)
     form = normalize_text(profile.get("form") or "")
     preparation = normalize_text(profile.get("preparation") or "")
+    if family == "produce" and any(term in name.split() for term in ("garlic", "knoblauch")):
+        allowed.add("cloves")
     if family == "produce" and form == "powder":
         allowed = {"g", "kg", "ml", "l", "tsp", "tbsp", "pinch"}
     elif family == "produce" and (
