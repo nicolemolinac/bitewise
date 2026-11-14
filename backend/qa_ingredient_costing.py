@@ -279,6 +279,7 @@ def run():
     cilantro_grams, cilantro_note = _convert_ingredient_quantity(1, "bunch", "g", "fresh cilantro")
     bacon_grams, bacon_note = _convert_ingredient_quantity(3, "slice", "g", "bacon")
     assert chicken_grams == 300 and "150 g per piece" in chicken_note
+    assert _convert_ingredient_quantity(1, "piece", "g", "turkey bacon") == (None, None)
     assert broccoli_grams == 300 and "300 g per piece" in broccoli_note
     assert cilantro_grams == 30 and "30 g per bunch" in cilantro_note
     assert bacon_grams == 45 and "15 g per slice" in bacon_note
