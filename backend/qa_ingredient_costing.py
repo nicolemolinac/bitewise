@@ -4,7 +4,7 @@ Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quantity, build_basket, consolidate
 from app.database import _snapshot_float, _snapshot_package_size, _snapshot_pack_pricing
-from app.rewe.scraper import _displayed_unit_price, package, price_details, ReweCatalogScraper
+from app.rewe.scraper import _displayed_unit_price, _merge_duplicate_product, package, price_details, ReweCatalogScraper
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -26,6 +26,25 @@ def run():
     assert _snapshot_pack_pricing("Product", 500, "g", "-1.00", "0")[0] is None
     assert _snapshot_pack_pricing("Product", 500, "g", "2.50", "-0.1") == (2.5, 0.005)
     assert _snapshot_pack_pricing("Product 1kg = 0,00 €", 500, "g", "2.50", None) == (2.5, 0.005)
+    # Duplicate SKU observations allow later valid values to replace invalid
+    # earlier values, while preserving descriptive data from the first card.
+    _merged_duplicate = _merge_duplicate_product(
+        {"external_id": "sku-1", "price": 0, "price_per_unit": float("nan"), "package_size": None, "package_unit": None, "name_original": "First title"},
+        {"external_id": "sku-1", "price": 2.49, "price_per_unit": 0.00498, "package_size": 500, "package_unit": "g", "name_original": "Second title"},
+    )
+    assert _merged_duplicate["price"] == 2.49
+    assert _merged_duplicate["price_per_unit"] == 0.00498
+    assert _merged_duplicate["package_size"] == 500
+    assert _merged_duplicate["package_unit"] == "g"
+    assert _merged_duplicate["name_original"] == "First title"
+    _invalid_duplicate = _merge_duplicate_product(
+        {"price": 2.49, "price_per_unit": 0.00498, "package_size": 500, "package_unit": "g"},
+        {"price": -1, "price_per_unit": 0, "package_size": float("inf"), "package_unit": ""},
+    )
+    assert _invalid_duplicate["price"] == 2.49
+    assert _invalid_duplicate["price_per_unit"] == 0.00498
+    assert _invalid_duplicate["package_size"] == 500
+    assert _invalid_duplicate["package_unit"] == "g"
     # Catalog health must count only usable checkout prices. Zero, negative,
     # NaN, infinity and malformed strings must not satisfy the HTTP fallback ratio.
     _ingest_report = {"products_created": 0, "products_updated": 0, "products_found": 0, "products_with_price": 0}
