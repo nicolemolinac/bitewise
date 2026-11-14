@@ -289,11 +289,14 @@ def _substitution_quantity_ratio(ingredient, product, intelligence):
         if isinstance(aliases, list):
             names.extend(aliases)
         if any(normalize_text(name) == replacement for name in names if isinstance(name, str)):
+            raw_ratio = option.get("quantity_ratio", 1)
+            if isinstance(raw_ratio, bool):
+                return None
             try:
-                ratio = float(option.get("quantity_ratio", 1) or 1)
-            except (TypeError, ValueError):
-                return 1.0
-            return ratio if 0.1 <= ratio <= 5 else 1.0
+                ratio = float(raw_ratio)
+            except (TypeError, ValueError, OverflowError):
+                return None
+            return ratio if math.isfinite(ratio) and 0.1 <= ratio <= 5 else None
     return 1.0
 
 
@@ -402,6 +405,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 _substitution_quantity_ratio(ingredient, product, intelligence)
                 if product.get("ingredient_match_type") == "substitute" else 1.0
             )
+            # An explicitly malformed AI ratio is not a 1:1 substitution.
+            # Reject this candidate instead of silently changing recipe quantities.
+            if quantity_ratio is None:
+                continue
             product_needed = needed * quantity_ratio
             conversion_ingredient = (
                 product.get("ingredient_substitute") or ingredient
