@@ -328,12 +328,23 @@ def _snapshot_float(value, default=None):
 
 
 def _snapshot_package_size(name: str, current_size: float, current_unit: str) -> float:
-    """Correct multi-packs such as 2x200ml and 4x50g in older scraper exports."""
-    match = re.search(r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b", name or "", re.I)
-    if not match:
+    """Align legacy snapshot sizing with the scraper's final physical size match.
+
+    Product titles can contain partial/incorrect earlier sizes. The scraper uses
+    the last mass/volume match, so the snapshot importer must do the same and
+    apply that match's multipack count (if present).
+    """
+    matches = list(re.finditer(
+        r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
+        name or "",
+        re.I,
+    ))
+    if not matches:
         return current_size
-    count = int(match.group(1))
+
+    match = matches[-1]
     amount = float(match.group(2).replace(",", "."))
+    multiplier = int(match.group(1) or 1)
     source_unit = match.group(3).lower()
     if source_unit == "kg":
         amount *= 1000
@@ -341,7 +352,8 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
     elif source_unit == "l":
         amount *= 1000
         source_unit = "ml"
-    return count * amount if source_unit == current_unit else current_size
+
+    return amount * multiplier if source_unit == current_unit else current_size
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
