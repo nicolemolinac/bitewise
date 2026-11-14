@@ -282,6 +282,11 @@ def run():
     assert _convert_ingredient_quantity(1, "piece", "g", "turkey bacon") == (None, None)
     assert broccoli_grams == 300 and "300 g per piece" in broccoli_note
     assert cilantro_grams == 30 and "30 g per bunch" in cilantro_note
+    # Bunches must not inherit the per-piece estimate for unrelated produce,
+    # and a single loose herb piece must not be treated as a whole bunch.
+    assert _convert_ingredient_quantity(1, "bunch", "g", "potato") == (None, None)
+    assert _convert_ingredient_quantity(1, "piece", "g", "fresh cilantro") == (None, None)
+    assert _convert_ingredient_quantity(30, "g", "piece", "fresh cilantro") == (None, None)
     assert bacon_grams == 45 and "15 g per slice" in bacon_note
 
     honey_grams, honey_note = _convert_ingredient_quantity(15, "ml", "g", "honey")
