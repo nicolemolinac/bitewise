@@ -531,6 +531,11 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     if name in spices:
         return category_key in {"oele-sossen-gewuerze", "kochen-backen"}
     if name in grains:
+        if name in {"pasta", "spaghetti", "trofie pasta"}:
+            # REWE places dry pasta in dedicated "Nudeln" / "Teigwaren"
+            # departments as well as the broader baking/pantry aisle.
+            if any(token in category_key for token in ("nudel", "teigware", "pasta")):
+                return True
         return (
             category_key in {"kochen-backen", "brot-cerealien-aufstriche"}
             or (name == "rice" and category_key == "rice")
