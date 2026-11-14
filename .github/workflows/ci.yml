@@ -128,6 +128,8 @@ jobs:
         run: npm audit --audit-level=high
       - name: Frontend fractional serving regression QA
         run: node --test qa/servings.test.mjs
+      - name: Weekly shopping plan and shortcut replacement regression QA
+        run: node --test qa/shoppingPlan.test.mjs
       - name: Frontend API error handling regression QA
         run: node --test qa/apiResponse.test.mjs
       - name: Frontend REWE URL allowlist regression QA
