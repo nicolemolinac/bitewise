@@ -940,11 +940,17 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
                 option_aliases = [option_aliases]
             if not isinstance(option_aliases, list):
                 option_aliases = []
+            raw_ratio = option.get("quantity_ratio", 1)
+            # Only an omitted ratio gets the documented default. Explicit
+            # booleans, empty strings, zero, NaN and infinities are malformed
+            # model metadata and must not silently become a 1:1 substitution.
+            if isinstance(raw_ratio, bool):
+                continue
             try:
-                ratio = float(option.get("quantity_ratio", 1) or 1)
-            except (TypeError, ValueError):
-                ratio = 1
-            if not 0.1 <= ratio <= 5:
+                ratio = float(raw_ratio)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if not math.isfinite(ratio) or not 0.1 <= ratio <= 5:
                 continue
             confidence = _safe_confidence(option.get("confidence", 0))
             substitution_options.append({
