@@ -494,7 +494,8 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
     }
     spices = {
         "curry powder", "cumin", "paprika powder", "oregano",
-        "baking powder", "taco seasoning", "salt", "pepper",
+        "baking powder", "cornstarch", "cocoa powder",
+        "taco seasoning", "salt", "pepper",
     }
     oils = {"vegetable oil", "olive oil", "sesame oil", "sunflower oil"}
     canned = {
@@ -509,6 +510,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
 
     if name == "honey" and any(term in title_key for term in ("senf", "mustard", "dressing", "sauce")):
         return False
+    if name == "honey":
+        return category_key in {"brot-cerealien-aufstriche", "kochen-backen"}
+    if name == "pine nuts":
+        return category_key in {"kochen-backen", "suesses-salziges"}
     if name == "butter" and any(term in title_key for term in ("peanut", "erdnuss", "mandel", "brotaufstrich", "aufstrich")):
         return False
     if name in {"pasta", "spaghetti"} and any(term in title_key for term in ("udon", "ramen", "glasnudel", "reisnudel", "instant nudel", "mie nudel")):
