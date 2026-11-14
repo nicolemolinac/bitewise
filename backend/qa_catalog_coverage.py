@@ -106,13 +106,27 @@ def main():
                 hint_terms = {
                     "cherry tomato": ("tomat", "cocktail", "kirsche"),
                     "greek yogurt": ("joghurt", "yoghurt", "skyr", "quark"),
+                    "oats": ("haferflock", "hafer"),
+                    "cornstarch": ("speisestark", "maisstark", "mondamin", "starke"),
                 }.get(row["ingredient"], tuple(row["ingredient"].split()))
                 suggestions = [
                     product.name_original
                     for product in products
                     if any(term in str(product.name_original or "").lower() for term in hint_terms)
                 ][:20]
+                details = [
+                    {
+                        "name": product.name_original,
+                        "category": product.category,
+                        "price": product.price,
+                        "package_size": product.package_size,
+                        "package_unit": product.package_unit,
+                    }
+                    for product in products
+                    if any(term in str(product.name_original or "").lower() for term in hint_terms)
+                ][:20]
                 print("CATALOG NEAR-MATCH TITLES:", row["ingredient"], suggestions)
+                print("CATALOG NEAR-MATCH DETAILS:", row["ingredient"], details)
     finally:
         db.close()
 
