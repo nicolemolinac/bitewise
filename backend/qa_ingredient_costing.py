@@ -86,6 +86,30 @@ def run():
     assert unpriced["match_status"] == "unmatched"
     assert unpriced["checkout_cost"] == 0
 
+    malformed_catalog = FakeCatalog({
+        "negative price": [{
+            "id": 20, "name_original": "Invalid negative price", "package_size": 100,
+            "package_unit": "g", "price": -1.0, "availability": "available",
+        }],
+        "nan price": [{
+            "id": 21, "name_original": "Invalid NaN price", "package_size": 100,
+            "package_unit": "g", "price": float("nan"), "availability": "available",
+        }],
+        "zero pack": [{
+            "id": 22, "name_original": "Invalid zero pack", "package_size": 0,
+            "package_unit": "g", "price": 1.0, "availability": "available",
+        }],
+        "nan pack": [{
+            "id": 23, "name_original": "Invalid NaN pack", "package_size": float("nan"),
+            "package_unit": "g", "price": 1.0, "availability": "available",
+        }],
+    })
+    malformed_rows = build_basket([
+        {"ingredient": name, "quantity": 10, "unit": "g", "source_meals": ["QA"]}
+        for name in ("negative price", "nan price", "zero pack", "nan pack")
+    ], malformed_catalog)
+    assert all(row["match_status"] == "unmatched" and row["packs"] == 0 for row in malformed_rows)
+
     substitute_basket = build_basket(
         [{"ingredient": "pine nuts", "quantity": 30, "unit": "g", "source_meals": ["Pesto pasta"]}],
         catalog,
