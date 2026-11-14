@@ -463,7 +463,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 "reason": quantity_validation.get("reason") or "Ingredient quantity must be a finite positive number.",
             }
         unit = _normal_unit(requirement["unit"])
-        pantry_row = pantry.get(ingredient)
+        unit_validation = requirement.get("unit_validation") or validate_ingredient_unit(
+            ingredient, unit, requirement.get("ingredient_intelligence")
+        )
+        pantry_row = pantry.get(ingredient) if unit_validation.get("valid", True) else None
         pantry_used = 0.0
         if pantry_row:
             converted_pantry, _ = _convert_ingredient_quantity(pantry_row.get("quantity", 0), pantry_row.get("unit"), unit, ingredient)
@@ -490,7 +493,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "package_unit": None,
             "unit_cost": None,
             "unit_conversion_note": None,
-            "unit_validation": requirement.get("unit_validation") or validate_ingredient_unit(ingredient, unit, requirement.get("ingredient_intelligence")),
+            "unit_validation": unit_validation,
             "semantic_suggestions": [],
             "match_status": "unmatched",
             "match_reason": None,
@@ -508,7 +511,6 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             output.append(base)
             continue
 
-        unit_validation = base["unit_validation"]
         if not unit_validation.get("valid", True):
             base.update({
                 "unit_validation": unit_validation,
