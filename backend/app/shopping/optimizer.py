@@ -693,6 +693,18 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             output.append(base)
             continue
 
+        if override_id is not None and not any(row["selected_by_user"] for row in candidates):
+            # A persisted user choice must never be silently replaced by the
+            # optimizer when it is absent, unavailable or no longer compatible.
+            base.update({
+                "semantic_suggestions": semantic_suggestions[:5],
+                "match_reason": "Your previously selected product is no longer available or compatible. Please review and choose again.",
+                "why": "The saved product choice could not be validated; no automatic replacement was selected.",
+                "selected_by_user": False,
+            })
+            output.append(base)
+            continue
+
         cheapest_total = min(row["checkout_cost"] for row in candidates)
         chosen = min(candidates, key=lambda row: row["score"])
         badge = _badge(mode, chosen["waste_ratio"], len(requirement.get("source_meals", [])),
