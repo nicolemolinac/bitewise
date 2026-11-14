@@ -599,6 +599,26 @@ def run():
             f"Normalized malformed confidence {malformed_confidence!r} must remain review-only"
         )
 
+    # Explicit malformed quantity ratios must be discarded, not silently
+    # converted to a 1:1 substitution by truthiness/default handling.
+    for malformed_ratio in ("", "not-a-number", "NaN", "Infinity", float("nan"), float("inf"), 0, -1, 6, True, False):
+        normalized_profile = normalize_recipe_intelligence({
+            "ingredients": [["custom cooking fat", 20, "ml"]],
+            "ingredient_intelligence": {
+                "custom cooking fat": {
+                    "canonical": "custom cooking fat", "form": "liquid",
+                    "substitution_options": [{
+                        "name": "rapeseed oil", "quantity_ratio": malformed_ratio,
+                        "confidence": 0.99, "role_preserved": True,
+                        "safe_to_auto_apply": True,
+                    }],
+                },
+            },
+        })["custom cooking fat"]
+        assert normalized_profile["substitution_options"] == [], (
+            f"Malformed quantity ratio {malformed_ratio!r} must be discarded"
+        )
+
     ratio_profile = {
         "canonical": "custom cooking fat", "form": "liquid",
         "substitution_options": [{
