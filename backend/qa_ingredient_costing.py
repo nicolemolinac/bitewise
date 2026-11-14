@@ -273,6 +273,10 @@ def run():
     cheese_grams, cheese_note = _convert_ingredient_quantity(2, "slice", "g", "cheese slices")
     assert cheese_grams == 40 and "20 g per slice" in cheese_note
     assert romaine_pieces == 1.5 and "100 g per piece" in romaine_note
+    # Search aliases are broader than safe quantity aliases: bare pepper/paprika
+    # can mean seasoning and must not inherit a whole bell-pepper weight.
+    assert _convert_ingredient_quantity(1, "piece", "g", "pepper") == (None, None)
+    assert _convert_ingredient_quantity(1, "piece", "g", "paprika") == (None, None)
 
     chicken_grams, chicken_note = _convert_ingredient_quantity(2, "piece", "g", "chicken breast")
     broccoli_grams, broccoli_note = _convert_ingredient_quantity(1, "piece", "g", "broccoli")
