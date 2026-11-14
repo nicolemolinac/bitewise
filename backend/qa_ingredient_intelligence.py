@@ -116,6 +116,9 @@ def run():
         "rice", "REWE Beste Wahl Express Basmati Reis 250g", {"form": "unspecified"}, "kochen-backen"
     ) is None, "Ready-to-heat express rice must not match a dry-rice recipe ingredient"
     assert ingredient_product_match_type(
+        "spaghetti", "Biozentrale Bio Dinkel Spaghetti 250g", {"form": "unspecified"}, "kochen-backen"
+    ) == "suggested_substitution", "Spelt pasta must be shown for review, not silently treated as ordinary spaghetti"
+    assert ingredient_product_match_type(
         "rice", "REWE Bio Basmati Reis 500g", {"form": "unspecified"}, "kochen-backen"
     ) == "exact", "Plain dry rice remains an exact match"
     assert ingredient_product_match_type(
