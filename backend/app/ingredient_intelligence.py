@@ -595,6 +595,11 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     trusted_exact_terms = {
         normalized_ingredient,
         *(normalize_text(value) for value in _BASE_TERMS.get(normalized_ingredient, ())),
+        # The recipe generator's canonical English and German display names
+        # describe the ingredient itself. They may establish exact identity
+        # when independent form and retail-category guards also agree.
+        normalize_text(profile.get("name_en") or ""),
+        normalize_text(profile.get("name_de") or ""),
     }
     substitution_only_terms = {
         normalize_text(value)
