@@ -894,7 +894,7 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         "garlic", "onion", "red onion", "potato", "potatoes", "tomato",
         "tomatoes", "lettuce", "shredded lettuce", "romaine lettuce",
         "cucumber", "bell pepper", "carrot", "broccoli", "fresh cilantro",
-        "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
+        "mushroom", "mushrooms", "lemon", "lime", "zucchini", "avocado", "spring onion",
         "red cabbage", "strawberries", "blueberries", "banana", "parsley",
     }
     category_key = normalize_text(product_category).replace(" ", "-")
