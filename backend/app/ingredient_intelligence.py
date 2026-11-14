@@ -24,7 +24,7 @@ _BASE_TERMS = {
     "red onion": ("red onion", "rote zwiebel", "rote speisezwiebel", "rote zwiebeln", "zwiebel rot", "zwiebeln rot"),
     "red cabbage": ("red cabbage", "rotkohl", "rotkraut", "blaukraut"),
     "romaine lettuce": ("romaine lettuce", "romanasalat", "romersalat", "romana salat", "romer salat", "romana salatherzen", "romanasalatherzen", "romana herzen", "romana salat herzen"),
-    "white fish fillet": ("white fish fillet", "seelachsfilet", "alaska seelachsfilet", "kabeljaufilet", "pollack fillet"),
+    "white fish fillet": ("white fish fillet", "seelachsfilet", "seelachsfilets", "alaska seelachsfilet", "alaska seelachsfilets", "kabeljaufilet", "kabeljaufilets", "pollack fillet", "pollack fillets"),
     "frozen peas": ("frozen peas", "erbsen", "tiefkuhlerbsen", "tiefkuhl erbsen", "erbsen tiefgekuhlt", "tk erbsen"),
     "chicken breast": ("chicken breast", "hahnchenbrust", "haehnchenbrust", "hahnchenbrustfilet", "haehnchenbrustfilet", "hahnchen brustfilet", "haehnchen brustfilet"),
     "olive oil": ("olive oil", "olivenol", "natives olivenol", "extra natives olivenol"),
