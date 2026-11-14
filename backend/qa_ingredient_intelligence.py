@@ -75,6 +75,7 @@ def run():
     catalog_alias_cases = [
         ("pasta", "REWE Bio Spaghetti 500g", "kochen-backen", "exact"),
         ("pasta", "REWE Bio Penne 500g", "kochen-backen", "exact"),
+        ("pasta", "REWE Bio Spaghetti 500g", "Nudeln & Reis", "exact"),
         ("trofie pasta", "REWE Pasta Penne 500g", "kochen-backen", "substitute"),
         ("fresh basil pesto", "REWE Pesto alla Genovese 190g", "oele-sossen-gewuerze", "exact"),
         ("pine nuts", "Seeberger Pinienkerne 50g", "kochen-backen", "exact"),
