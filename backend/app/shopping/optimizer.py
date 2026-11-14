@@ -107,6 +107,10 @@ def _convert_quantity(quantity, from_unit, to_unit):
     source_info, target_info = _UNIT_BASE.get(source), _UNIT_BASE.get(target)
     if not source_info or not target_info or source_info[0] != target_info[0]:
         return None
+    # Both are count dimensions, but their semantics are not interchangeable:
+    # one bunch of herbs is not one loose piece of produce.
+    if source_info[0] == "count":
+        return None
     return float(quantity) * source_info[1] / target_info[1]
 
 # Approximate edible weights are used only when a recipe gives a whole produce
