@@ -273,9 +273,14 @@ def run():
     assert ingredient_product_match_type(
         "white fish fillet", "REWE Alaska Seelachsfilet 300g", {"form": "fresh"}, "fleisch-wurst-fisch"
     ) == "exact"
-    assert ingredient_product_match_type(
-        "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g", {"form": "soft"}, "fertiggerichte-konserven"
-    ) == "suggested_substitution", "Protein-enriched wraps are not exact equivalents of ordinary soft tortillas"
+    high_protein_wrap_match = ingredient_product_match_type(
+        "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g",
+        {"form": "soft"}, "fertiggerichte-konserven"
+    )
+    assert high_protein_wrap_match == "suggested_substitution", (
+        "Protein-enriched wraps are not exact equivalents of ordinary soft tortillas; "
+        f"got {high_protein_wrap_match!r}"
+    )
     assert ingredient_product_match_type(
         "croutons", "Leimer Croûtons Kräuter 100g", {"form": "unspecified"}, "oele-sossen-gewuerze"
     ) == "exact"
