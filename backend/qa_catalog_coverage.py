@@ -80,6 +80,18 @@ def main():
             })
 
         counts = Counter(row["status"] for row in coverage)
+        # Keep this broad no-AI sample as a regression gate. Oats is the one
+        # documented catalog gap in the committed snapshot: available results
+        # are prepared/baby products, not plain oats suitable for recipes.
+        known_catalog_gaps = {"oats"}
+        unexpected_gaps = [
+            row for row in coverage
+            if row["status"] == "gap" and row["ingredient"] not in known_catalog_gaps
+        ]
+        assert not unexpected_gaps, (
+            "Unexpected common-ingredient catalog gaps: "
+            + ", ".join(row["ingredient"] for row in unexpected_gaps)
+        )
         print(f"REWE products: {total}")
         print(f"Distinct ingredient labels: {len(ingredients)}")
         print(f"Distinct categories: {len(categories)}")
