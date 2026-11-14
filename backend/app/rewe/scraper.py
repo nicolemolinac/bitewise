@@ -352,7 +352,7 @@ def _ensure_chrome_for_testing(playwright, endpoint):
     if not executable:
         raise RuntimeError(
             "Chrome for Testing was not found. Install it with "
-            "'python -m playwright install chromium' or set CHROME_FOR_TESTING_PATH "
+            "'python -m playwright install chrome' or set CHROME_FOR_TESTING_PATH "
             "to the Chrome for Testing executable."
         )
 
