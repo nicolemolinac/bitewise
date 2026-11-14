@@ -112,7 +112,10 @@ def main():
                 suggestions = [
                     product.name_original
                     for product in products
-                    if any(term in str(product.name_original or "").lower() for term in hint_terms)
+                    if any(
+                        server.normalize_text(term) in server.normalize_text(product.name_original or "")
+                        for term in hint_terms
+                    )
                 ][:20]
                 details = [
                     {
@@ -123,7 +126,10 @@ def main():
                         "package_unit": product.package_unit,
                     }
                     for product in products
-                    if any(term in str(product.name_original or "").lower() for term in hint_terms)
+                    if any(
+                        server.normalize_text(term) in server.normalize_text(product.name_original or "")
+                        for term in hint_terms
+                    )
                 ][:20]
                 print("CATALOG NEAR-MATCH TITLES:", row["ingredient"], suggestions)
                 print("CATALOG NEAR-MATCH DETAILS:", row["ingredient"], details)
