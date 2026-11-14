@@ -544,7 +544,12 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         intelligence = requirement.get("ingredient_intelligence")
         try:
             raw_products = list(adapter.search(ingredient, intelligence=intelligence) or [])
-        except TypeError:
+        except TypeError as exc:
+            # Support legacy test/custom adapters that do not accept the optional
+            # intelligence keyword, but never swallow a TypeError raised inside
+            # the adapter's actual search implementation.
+            if "unexpected keyword argument 'intelligence'" not in str(exc):
+                raise
             raw_products = list(adapter.search(ingredient) or [])
         override_id = overrides.get(ingredient)
         for product in raw_products:
