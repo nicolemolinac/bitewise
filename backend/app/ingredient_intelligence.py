@@ -26,7 +26,7 @@ def normalize_text(value: Any) -> str:
     text = unicodedata.normalize("NFKD", str(value or "").casefold().replace("ß", "ss"))
     text = "".join(char for char in text if not unicodedata.combining(char))
     text = re.sub(r"[^a-z0-9]+", " ", text)
-    return re.sub(r"\\s+", " ", text).strip()
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _german_transliteration_fold(value: str) -> str:
