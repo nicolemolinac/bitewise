@@ -165,9 +165,12 @@ _COUNT_TO_GRAMS = {
 
 
 def _ingredient_count_weight(ingredient):
-    terms = set(ingredient_aliases(ingredient))
+    # Require the full ingredient phrase to be an alias of the mapped item.
+    # Intersecting arbitrary alias tokens can misclassify compounds such as
+    # "turkey bacon" as turkey (150 g) instead of bacon (15 g per slice).
+    normalized = normalize_text(ingredient)
     for canonical, grams in _COUNT_TO_GRAMS.items():
-        if terms.intersection(ingredient_aliases(canonical)):
+        if normalized in set(ingredient_aliases(canonical)):
             return grams
     return None
 
