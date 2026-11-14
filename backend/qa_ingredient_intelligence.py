@@ -275,7 +275,7 @@ def run():
     ) == "exact"
     assert ingredient_product_match_type(
         "soft tortillas", "REWE Beste Wahl High Protein Wraps 320g", {"form": "soft"}, "fertiggerichte-konserven"
-    ) == "exact"
+    ) == "suggested_substitution", "Protein-enriched wraps are not exact equivalents of ordinary soft tortillas"
     assert ingredient_product_match_type(
         "croutons", "Leimer Croûtons Kräuter 100g", {"form": "unspecified"}, "oele-sossen-gewuerze"
     ) == "exact"
