@@ -476,7 +476,14 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "auflauf", "pfannengericht",
         ),
     }
-    return any(_contains_phrase(t, normalize_text(term)) for term in exclusions.get(name, ()))
+    if any(_contains_phrase(t, normalize_text(term)) for term in exclusions.get(name, ())):
+        return True
+    # German compound nouns often join a meal-type word to its main ingredient
+    # (e.g. Kartoffelauflauf). Detect these prepared-meal suffixes without
+    # weakening phrase boundaries for ordinary ingredient aliases.
+    if name == "croutons" and any(marker in t for marker in ("auflauf", "eintopf")):
+        return True
+    return False
 
 def ingredient_product_match_type(ingredient: str, product_text: str, intelligence: Any = None, product_category: str = "") -> str | None:
     title = normalize_text(product_text)
