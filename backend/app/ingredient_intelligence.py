@@ -493,6 +493,14 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "parsley", "basil", "dill", "thyme", "rosemary", "mint", "chives",
         "sage", "marjoram", "oregano", "spinach", "broccoli",
     }
+    # Keep category validation in sync with the broader fresh-produce guard
+    # above. Without this, plural/less-common produce names bypass aisle checks
+    # and can be accepted from snacks, sauces or prepared-food categories.
+    produce.update({
+        "cucumbers", "carrots", "cilantro", "coriander", "lemons", "limes",
+        "avocados", "blueberry", "blueberries", "strawberry", "strawberries",
+        "bananas", "aubergine", "eggplant", "asparagus", "celery",
+    })
     proteins = {
         "chicken breast", "pre cooked shredded chicken", "ground beef",
         "salmon", "salmon fillet", "shrimp", "tuna", "turkey", "bacon",
