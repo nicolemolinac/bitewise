@@ -32,8 +32,16 @@ def consolidate(meals, servings_map):
         return parsed if math.isfinite(parsed) and parsed > 0 else None
 
     for meal in meals:
-        servings = _positive_finite(servings_map.get(meal["id"], 2) or 2)
-        base_servings = _positive_finite(meal.get("base_servings", 2) or 2)
+        # Apply defaults only when a value is genuinely absent. Using "or 2"
+        # turns explicit zero into two servings and bypasses validation.
+        requested_servings = servings_map.get(meal["id"], 2)
+        if requested_servings is None:
+            requested_servings = 2
+        requested_base_servings = meal.get("base_servings", 2)
+        if requested_base_servings is None:
+            requested_base_servings = 2
+        servings = _positive_finite(requested_servings)
+        base_servings = _positive_finite(requested_base_servings)
         scaling_valid = servings is not None and base_servings is not None
         factor = servings / base_servings if scaling_valid else 0.0
         for name, quantity, unit in meal["ingredients"]:
@@ -452,11 +460,20 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
     # names this way, so lookup must not reintroduce spelling-based mismatches.
     owned = {normalize_text(value) for value in (owned or [])}
     overrides = {normalize_text(key): value for key, value in (overrides or {}).items()}
-    pantry = {
-        normalize_text(key): value
-        for key, value in (pantry or {}).items()
-        if normalize_text(key)
-    }
+    pantry = {}
+    ambiguous_pantry_keys = set()
+    for raw_key, value in (pantry or {}).items():
+        normalized_key = normalize_text(raw_key)
+        if not normalized_key:
+            continue
+        if normalized_key in pantry:
+            # Never silently overwrite two inventory entries that collapse to
+            # the same normalized ingredient key; their units/amounts may differ.
+            pantry.pop(normalized_key, None)
+            ambiguous_pantry_keys.add(normalized_key)
+            continue
+        if normalized_key not in ambiguous_pantry_keys:
+            pantry[normalized_key] = value
     output = []
 
     for requirement in requirements:
@@ -489,7 +506,11 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 "reason": "Ingredient unit is missing; add an explicit unit before shopping.",
             }
         )
-        pantry_row = pantry.get(ingredient) if unit_validation.get("valid", True) else None
+        pantry_row = (
+            pantry.get(ingredient)
+            if unit_validation.get("valid", True) and ingredient not in ambiguous_pantry_keys
+            else None
+        )
         pantry_used = 0.0
         if pantry_row:
             converted_pantry, _ = _convert_ingredient_quantity(pantry_row.get("quantity", 0), pantry_row.get("unit"), unit, ingredient)
