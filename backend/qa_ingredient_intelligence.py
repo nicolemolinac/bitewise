@@ -243,6 +243,15 @@ def run():
         None, "kochen-backen"
     ) == "suggested_substitution"
 
+    assert ingredient_product_match_type(
+        "pine nuts", "REWE Pesto Genovese mit Pinienkernen 190g",
+        None, "oele-sossen-gewuerze"
+    ) is None
+    assert ingredient_product_match_type(
+        "honey", "REWE Bio Honig-Nuss Riegel 40g",
+        None, "suesses-salziges"
+    ) is None
+
     butter_profile = {
         "canonical": "butter", "name_en": "butter", "name_de": "Butter",
         "aliases": ["Butter"], "form": "solid",
