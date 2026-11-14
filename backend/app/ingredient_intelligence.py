@@ -33,7 +33,7 @@ _BASE_TERMS = {
     "firm tofu": ("firm tofu", "naturtofu", "tofu natur", "fester tofu"),
     "curry powder": ("curry powder", "currypulver", "curry pulver", "curry gewurz", "curry gewurzmischung"),
     "cumin": ("cumin", "kreuzkummel", "kreuzkuemmel", "kreuz kummel"),
-    "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemuse bruhe", "bruhwurfel gemuse", "bruhwuerfel gemuse", "bruhwurfel"),
+    "vegetable stock": ("vegetable stock", "gemusebruhe", "gemuesebruehe", "gemuse bruhe", "bruhwurfel gemuse", "bruhwuerfel gemuse"),
     "cooking cream": ("cooking cream", "kochcreme", "kochsahne", "sahne zum kochen"),
     "burger buns": ("burger buns", "burger bun", "brioche burger buns", "brioche buns", "hamburger brotchen", "hamburgerbrotchen", "hamburgerbroetchen", "burger brotchen", "burgerbrotchen", "burgerbroetchen", "sesam brotchen", "sesambrötchen", "sesambroetchen", "weizen brotchen", "weizen broetchen", "brötchen", "broetchen"),
     "caesar dressing": ("caesar dressing", "caesar salat dressing", "caesar sauce", "salatdressing caesar"),
@@ -476,6 +476,14 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     title = normalize_text(product_text)
     if not title or _ingredient_specific_exclusions(ingredient, title):
         return None
+    # Stock cubes are concentrates, not ready-to-use liquid stock. Keep them
+    # visible for review when the recipe asks for liquid stock.
+    if (
+        normalize_text(ingredient) == "vegetable stock"
+        and normalize_text(_profile_lookup(intelligence, ingredient).get("form") or "") == "liquid"
+        and any(marker in title for marker in ("bruhwurfel", "bruhwuerfel", "bouillon cube", "stock cube"))
+    ):
+        return "suggested_substitution"
     # Neutral cooking-oil requests should not silently accept oils whose
     # processing leaves a strong flavor or materially changes high-heat use.
     # This applies across candidate oil types, not to one retailer SKU.
