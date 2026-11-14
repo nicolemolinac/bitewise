@@ -755,6 +755,11 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
             return None
     profile = _profile_lookup(intelligence, ingredient)
     product_form = str(profile.get("form") or "")
+    if normalize_text(product_form) in {"", "unspecified", "unknown"}:
+        # The ingredient label itself is a deterministic source of form intent.
+        # This keeps the no-AI/catalog-search fallback from treating "canned
+        # corn" as interchangeable with fresh corn or "ground beef" as steak.
+        product_form = _infer_ingredient_form(ingredient)
     # Enforce a final retail-aisle guard for fresh produce. Some imported REWE
     # rows contain raw-looking names such as "Rotkohl" while actually belonging
     # to the prepared/canned aisle; title overlap alone must never make them
