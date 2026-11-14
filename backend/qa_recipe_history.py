@@ -211,6 +211,9 @@ def main():
         })
         assert basket["meals"] == 1 and basket["servings"] == 2
         rice_item = next(row for row in basket["items"] if row["ingredient"] == "rice")
+        if not rice_item.get("product"):
+            print("RICE ITEM DIAGNOSTIC:", rice_item)
+            print("RICE REQUIREMENT DIAGNOSTIC:", next((row for row in basket.get("requirements", []) if row.get("ingredient") == "rice"), None))
         assert rice_item["product"]["name_original"] == "REWE Beste Wahl Langkornreis 500g"
         assert rice_item["total"] == 1.49
         print("QA PASS: recipe history survives restart and shopping resolves real REWE catalog products")
