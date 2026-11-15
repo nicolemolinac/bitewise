@@ -190,8 +190,8 @@ _UNIT_ALIASES = {
     "pinch": "pinch", "pinches": "pinch", "prise": "pinch", "prisen": "pinch",
     "bunch": "bunch", "bunches": "bunch", "bundle": "bunch", "bundles": "bunch", "bund": "bunch",
     "slice": "slice", "slices": "slice", "scheibe": "slice", "scheiben": "slice",
-    "esslöffel": "tbsp", "essloeffel": "tbsp",
-    "teelöffel": "tsp", "teeloeffel": "tsp",
+    "esslöffel": "tbsp", "essloeffel": "tbsp", "essloffel": "tbsp",
+    "teelöffel": "tsp", "teeloeffel": "tsp", "teeloffel": "tsp",
 }
 _UNIT_BASE = {
     "g": ("mass", 1.0), "kg": ("mass", 1000.0),
