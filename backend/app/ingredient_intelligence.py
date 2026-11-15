@@ -897,8 +897,8 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     # exact fresh-herb match merely because both share the word Koriander.
     if normalize_text(ingredient) in {"fresh cilantro", "cilantro", "coriander leaves"}:
         coriander_seed_markers = (
-            r"\\b(?:koriander|coriander)\\s*(?:samen|saat|seed|seeds|pulver|powder|gemahlen|ganz|whole)\\b",
-            r"\\b(?:ground|gemahlen(?:er|es|e)?)\\s+(?:koriander|coriander)\\b",
+            r"\b(?:koriander|coriander)\s*(?:samen|saat|seed|seeds|pulver|powder|gemahlen|ganz|whole)\b",
+            r"\b(?:ground|gemahlen(?:er|es|e)?)\s+(?:koriander|coriander)\b",
         )
         if any(re.search(pattern, title) for pattern in coriander_seed_markers):
             return None
