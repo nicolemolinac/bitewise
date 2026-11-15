@@ -1277,6 +1277,31 @@ def run():
     # Token-boundary audit: retrieval may be broad, but a shared substring
     # must never establish ingredient identity (e.g. apple/pineapple).
     assert ingredient_product_match_type("apple", "REWE Ananas 1 Stück", {}, "obst-gemuese") is None
+    protein_aisle = "fleisch-wurst-fisch"
+    assert ingredient_product_match_type(
+        "chicken breast", "Gezer Fleischmanufaktur Halal Hähnchenbrustfilet 700g", {}, protein_aisle
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "ground beef", "Rinder-Hackfleisch 250g", {}, protein_aisle
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "salmon", "Deutsche See Bio Lachsfilet 200g", {}, protein_aisle
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "shrimp", "Meine Lieblings Garnelen ASC 80g", {}, protein_aisle
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "bacon", "ja! Bauchspeck geräuchert 2 Scheiben", {}, protein_aisle
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "turkey", "Bernard Matthews Puten-Filetstreifen 200g", {}, protein_aisle
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "bacon", "Billie Green Veganer Bacon 150g", {}, protein_aisle
+    ) is None
+    assert ingredient_product_match_type(
+        "turkey", "Bifi Turkey Snack 20g", {}, protein_aisle
+    ) is None
     assert ingredient_product_match_type("apple", "REWE Apfelsaft naturtrüb 1L", {}, "getraenke-genussmittel") is None
     assert ingredient_product_match_type("orange", "REWE Orangensaft 1L", {}, "getraenke-genussmittel") is None
     assert ingredient_product_match_type("banana", "REWE Bananenchips 150g", {}, "suesses-salziges") is None
