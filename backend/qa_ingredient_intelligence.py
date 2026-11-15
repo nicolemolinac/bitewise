@@ -1168,6 +1168,8 @@ def run():
     assert validate_ingredient_unit("garlic", "clove")["valid"] is True
     assert validate_ingredient_unit("eggs", "pcs")["valid"] is True
     assert validate_ingredient_unit("vegetable oil", "tablespoons")["valid"] is True
+    assert validate_ingredient_unit("milk", "centilitres")["valid"] is True
+    assert validate_ingredient_unit("milk", "decilitres")["valid"] is True
     assert validate_ingredient_unit("wheat flour", "cups")["valid"] is True
     assert validate_ingredient_unit("black pepper", "pinches")["valid"] is True
     assert validate_ingredient_unit("fresh parsley", "bundles")["valid"] is True
