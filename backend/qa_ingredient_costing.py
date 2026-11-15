@@ -88,6 +88,24 @@ def run():
     assert garlic_cloves["quantity"] == 3, "Clove and cloves must consolidate"
     assert garlic_pieces["quantity"] == 1, "Whole garlic units must remain separate"
 
+    semantic_catalog = FakeCatalog({
+        "garlic": [{
+            "id": 6, "name_original": "Knoblauch 2 Zehen", "package_size": 2,
+            "package_unit": "clove", "price": 0.99, "availability": "available",
+        }],
+        "parsley": [{
+            "id": 7, "name_original": "Petersilie 1 Bund", "package_size": 1,
+            "package_unit": "bunch", "price": 1.29, "availability": "available",
+        }],
+    })
+    semantic_basket = build_basket([
+        {"ingredient": "garlic", "quantity": 2, "unit": "cloves", "source_meals": ["Garlic pasta"]},
+        {"ingredient": "parsley", "quantity": 1, "unit": "bunch", "source_meals": ["Tabbouleh"]},
+    ], semantic_catalog, mode="cheapest")
+    assert all(row["match_status"] == "matched" for row in semantic_basket)
+    assert [row["packs"] for row in semantic_basket] == [1, 1]
+    assert [row["package_unit"] for row in semantic_basket] == ["clove", "bunch"]
+
     assert _convert_quantity(float("nan"), "g", "g") is None
     assert _convert_quantity(float("inf"), "g", "kg") is None
     assert _convert_quantity(100, "g", "ml") is None
