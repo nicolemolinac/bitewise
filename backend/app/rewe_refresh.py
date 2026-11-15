@@ -72,6 +72,14 @@ def _refresh_is_complete_healthy(report: dict) -> bool:
     )
 
 
+def _minimum_safe_rewe_seen_count(before_count: int) -> int:
+    try:
+        previous_count = int(before_count or 0)
+    except (OverflowError, TypeError, ValueError):
+        previous_count = 0
+    return max(100, int(previous_count * 0.90)) if previous_count > 0 else 100
+
+
 def _remove_stale_rewe_products(db, seen_external_ids: set[str], before_count: int):
     """Remove only products proven absent from a complete, healthy catalog refresh.
 
@@ -80,7 +88,7 @@ def _remove_stale_rewe_products(db, seen_external_ids: set[str], before_count: i
     catalog from transient REWE/scraper failures.
     """
     seen_count = len(seen_external_ids)
-    minimum_safe = max(100, int(before_count * 0.70)) if before_count else 100
+    minimum_safe = _minimum_safe_rewe_seen_count(before_count)
     if seen_count < minimum_safe:
         return {
             "removed": 0,
