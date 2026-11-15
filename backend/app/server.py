@@ -20,7 +20,7 @@ from .migration_api import router as migration_router
 from . import main as main_module
 from .ai.gemini_efficient import GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
-from .ingredient_aliases import ingredient_aliases
+from .ingredient_aliases import ingredient_aliases, ingredient_matches_product
 from .rewe_refresh import router as rewe_refresh_router
 
 # main.py's /api/ai/meals handler resolves GeminiService from its module globals at request time.
@@ -29,14 +29,14 @@ main_module.GeminiService = EfficientGeminiService
 
 
 def _multilingual_catalog_search(self, ingredient):
-    """Use exact normalized ingredient phrases; never substring-match related foods."""
+    """Find catalog titles by their most specific English/German ingredient phrase."""
     aliases = ingredient_aliases(ingredient)
     if not aliases:
         return []
 
     Product = main_module.Product
-    # SQL is only a bounded candidate prefilter. The final decision below is
-    # exact normalized equality, not LIKE substring matching.
+    # SQL is a bounded candidate prefilter only. Semantic phrase validation
+    # happens in Python so brand/size text around the ingredient is permitted.
     clauses = []
     for term in aliases:
         pattern = f"%{term}%"
@@ -46,28 +46,25 @@ def _multilingual_catalog_search(self, ingredient):
             Product.name_original.ilike(pattern),
             Product.translated_name.ilike(pattern),
         ])
-    rows = self.db.query(Product).filter(or_(*clauses)).limit(300).all()
+    rows = self.db.query(Product).filter(or_(*clauses)).limit(500).all()
 
-    alias_set = {str(x).strip().casefold() for x in aliases if str(x).strip()}
     scored = []
     for row in rows:
-        fields = [
-            str(row.ingredient or "").strip().casefold(),
-            str(row.translated_name or "").strip().casefold(),
-            str(row.name_normalized or "").strip().casefold(),
-            str(row.name_original or "").strip().casefold(),
-        ]
-        # Match only exact ingredient labels. A generic "milk" must not match
-        # coconut milk, nor "chicken" chicken breast, nor "pepper" bell pepper.
-        exact = [field for field in fields if field in alias_set]
-        if not exact:
+        fields = (
+            row.translated_name,
+            row.name_normalized,
+            row.name_original,
+            row.ingredient,
+        )
+        if not any(ingredient_matches_product(ingredient, field or "") for field in fields):
             continue
+
         score = 100
         if row.price is not None:
             score += 5
         if str(row.availability or "").lower() == "available":
             score += 3
-        if row.package_size and row.package_size > 0 and row.package_unit not in {"", "unknown"}:
+        if row.package_size and row.package_size > 0 and str(row.package_unit or "").lower() not in {"", "unknown"}:
             score += 2
         scored.append((score, row))
 
