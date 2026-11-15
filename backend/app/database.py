@@ -404,6 +404,26 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         r"(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?"
     )
     match = re.search(reference_pattern, name or "", re.I)
+    # If the snapshot title also contains an explicit checkout price, it is
+    # more authoritative than a unit reference price. Strip reference/Pfand
+    # fragments first so those values cannot be mistaken for pack prices.
+    checkout_text = re.sub(reference_pattern, " ", name or "", flags=re.I)
+    checkout_text = re.sub(
+        r"(?:zzgl\.?\s*)?(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?\s*(?:Pfand|deposit)|"
+        r"(?:Pfand|deposit)\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+        " ", checkout_text, flags=re.I,
+    )
+    explicit = re.search(
+        r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})|(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
+        checkout_text, re.I,
+    )
+    if explicit:
+        checkout_price = _snapshot_float(explicit.group(1) or explicit.group(2))
+        if checkout_price is not None and checkout_price > 0:
+            unit_price = checkout_price / package_size
+            if math.isfinite(unit_price) and unit_price > 0:
+                return round(checkout_price, 2), unit_price
+
     if match:
         reference_price = _snapshot_float(match.group(3))
         reference_quantity = int(match.group(1))
@@ -423,25 +443,8 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
                 pack_price = per_unit * package_size
                 if math.isfinite(per_unit) and per_unit > 0 and math.isfinite(pack_price) and pack_price > 0:
                     return round(pack_price, 2), per_unit
-
         # A reference price with an incompatible dimension cannot be treated
-        # as checkout price. Look only for a separate explicit pack price.
-        checkout_text = re.sub(reference_pattern, " ", name or "", flags=re.I)
-        checkout_text = re.sub(
-            r"(?:zzgl\.?\s*)?(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?\s*(?:Pfand|deposit)|"
-            r"(?:Pfand|deposit)\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
-            " ", checkout_text, flags=re.I,
-        )
-        explicit = re.search(
-            r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})|(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
-            checkout_text, re.I,
-        )
-        if explicit:
-            checkout_price = _snapshot_float(explicit.group(1) or explicit.group(2))
-            if checkout_price is not None and checkout_price > 0:
-                unit_price = checkout_price / package_size
-                if math.isfinite(unit_price) and unit_price > 0:
-                    return round(checkout_price, 2), unit_price
+        # as a checkout price; without an explicit pack price, leave it unpriced.
         return None, None
 
     # Without a displayed reference price, the snapshot's price field is the
