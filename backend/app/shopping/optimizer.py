@@ -73,7 +73,7 @@ def consolidate(meals, servings_map):
                 and math.isfinite(raw_quantity)
                 and raw_quantity > 0
             )
-            raw_unit = str(unit or "").strip()
+            raw_unit = unit.strip() if isinstance(unit, str) else ""
             unit_valid = bool(raw_unit)
             normalized_unit = _normal_unit(raw_unit) if unit_valid else ""
             unit_info = _UNIT_BASE.get(normalized_unit)
