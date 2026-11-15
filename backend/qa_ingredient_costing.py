@@ -285,6 +285,9 @@ def run():
     assert _snapshot_package_dimensions(
         "Maggi soup 52g 500ml (1 l = 3,18 €)", 52, "g"
     ) == (52.0, "g")
+    assert _snapshot_package_dimensions(
+        "Maggi soup 52g 500ml (1 l = 3,18 €)", 1, "g"
+    ) == (52.0, "g")
     assert _snapshot_package_size("Water 9" + "9" * 400 + "kg", 500, "g") == 500
     assert _snapshot_package_size("Water " + "9" * 5000 + "x500ml", 500, "ml") == 500
     assert _snapshot_package_size("Water 2x500ml", 1, "l") == 1
