@@ -561,11 +561,7 @@ def _rewe_add_button_index(page):
 
 
 def _merge_duplicate_product(current: dict, incoming: dict) -> dict:
-    """Merge duplicate SKU observations without letting invalid values win.
-
-    Checkout price and unit price are coupled: when a valid checkout price
-    repairs an invalid one, a stale unit price must never survive that repair.
-    """
+    """Merge duplicate SKU observations and keep checkout-derived costs coherent."""
     merged = dict(current)
 
     def positive_finite(value):
@@ -583,19 +579,9 @@ def _merge_duplicate_product(current: dict, incoming: dict) -> dict:
         if key == "price":
             if positive_finite(value) and not positive_finite(merged.get("price")):
                 merged["price"] = value
-                candidate_unit_price = incoming.get("price_per_unit")
-                if positive_finite(candidate_unit_price):
-                    merged["price_per_unit"] = candidate_unit_price
-                else:
-                    size = merged.get("package_size")
-                    if positive_finite(size) and str(merged.get("package_unit") or "").strip():
-                        merged["price_per_unit"] = float(value) / float(size)
-                    else:
-                        merged["price_per_unit"] = None
             continue
         if key == "price_per_unit":
-            if positive_finite(value) and not positive_finite(merged.get("price_per_unit")):
-                merged[key] = value
+            # Never trust this field independently; it is recalculated below.
             continue
         if key == "package_size":
             candidate_valid = (
@@ -609,13 +595,23 @@ def _merge_duplicate_product(current: dict, incoming: dict) -> dict:
             if candidate_valid and not existing_valid:
                 merged["package_size"] = value
                 merged["package_unit"] = incoming["package_unit"]
-                if positive_finite(merged.get("price")):
-                    merged["price_per_unit"] = float(merged["price"]) / float(value)
             continue
         if key == "package_unit":
             continue
         if merged.get(key) is None or merged.get(key) == "":
             merged[key] = value
+
+    # Checkout price is authoritative. A separately supplied positive unit
+    # price can still be stale or refer to another package size.
+    if (
+        positive_finite(merged.get("price"))
+        and positive_finite(merged.get("package_size"))
+        and str(merged.get("package_unit") or "").strip()
+    ):
+        derived = float(merged["price"]) / float(merged["package_size"])
+        merged["price_per_unit"] = derived if math.isfinite(derived) and derived > 0 else None
+    else:
+        merged["price_per_unit"] = None
     return merged
 
 class ReweCatalogScraper:
