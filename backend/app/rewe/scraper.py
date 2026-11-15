@@ -187,17 +187,9 @@ def _displayed_unit_price(text: str):
     return normalized_amount, normalized_unit
 
 def price_details(text: str, package_size=None, package_unit=None):
-    """Return (checkout pack price, price per normalized g/ml/unit).
-
-    Prefer an explicit checkout price over a calculated reference price. A
-    reference price is only a fallback when package size and unit are known.
-    """
+    """Return checkout pack price and coherent price per package unit."""
     reference_price, reference_unit = _displayed_unit_price(text)
-    reference_match = re.search(
-        r"\b(?:1\s*(?:kg|l|g|ml)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
-        str(text or ""),
-        re.I,
-    )
+    reference_match = re.search(_REFERENCE_PRICE_PATTERN, str(text or ""), re.I)
     checkout_text = (
         str(text or "")[:reference_match.start()] + " " + str(text or "")[reference_match.end():]
         if reference_match else str(text or "")
@@ -216,43 +208,51 @@ def price_details(text: str, package_size=None, package_unit=None):
         flags=re.I,
     )
 
-    # First use an actual package checkout price, excluding the reference
-    # price fragment so €/kg or €/l can never masquerade as the pack price.
+    # An explicit checkout price always wins over a reference price.
     for pattern in (
         r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})",
         r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
     ):
         match = re.search(pattern, checkout_text, re.I)
         if match:
-            try:
-                pack_price = float(match.group(1).replace(",", "."))
-                size = float(package_size) if package_size is not None else None
-            except (OverflowError, TypeError, ValueError):
-                continue
-            if not math.isfinite(pack_price) or pack_price <= 0:
+            pack_price = _finite_float(match.group(1))
+            size = _finite_float(package_size) if not isinstance(package_size, bool) else None
+            if pack_price is None or pack_price <= 0:
                 continue
             per_unit = (
                 pack_price / size
-                if size is not None and math.isfinite(size) and size > 0
+                if size is not None and size > 0
                 else None
             )
             if per_unit is not None and (not math.isfinite(per_unit) or per_unit <= 0):
                 per_unit = None
             return round(pack_price, 2), per_unit
 
-    # Only calculate from a displayed reference price when the pack's
-    # normalized unit is known and compatible.
-    try:
-        size = float(package_size) if package_size is not None else None
-    except (OverflowError, TypeError, ValueError):
-        size = None
+    size = _finite_float(package_size) if not isinstance(package_size, bool) else None
     if (
-        reference_price is not None and size is not None and math.isfinite(size)
-        and size > 0 and package_unit == reference_unit
+        reference_price is None or reference_price <= 0
+        or size is None or size <= 0
     ):
-        pack_price = reference_price * size / 1000.0
-        if math.isfinite(pack_price) and pack_price > 0:
-            return round(pack_price, 2), reference_price / 1000.0
+        return None, None
+
+    if reference_unit == package_unit == "unit":
+        pack_price = reference_price * size
+        return (round(pack_price, 2), reference_price) if math.isfinite(pack_price) and pack_price > 0 else (None, None)
+
+    if reference_unit in {"g", "ml"}:
+        reference_quantity = size if package_unit == reference_unit else None
+        if reference_quantity is None:
+            physical_sizes, _ = _physical_sizes_by_dimension(text, include_yield=True)
+            reference_quantity = physical_sizes.get(reference_unit)
+        if reference_quantity is None or not math.isfinite(reference_quantity) or reference_quantity <= 0:
+            return None, None
+        pack_price = reference_price * reference_quantity / 1000.0
+        per_unit = pack_price / size
+        if (
+            math.isfinite(pack_price) and pack_price > 0
+            and math.isfinite(per_unit) and per_unit > 0
+        ):
+            return round(pack_price, 2), per_unit
     return None, None
 
 def price(text: str):
