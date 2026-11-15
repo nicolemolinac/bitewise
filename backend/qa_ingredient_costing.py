@@ -487,7 +487,7 @@ def run():
             "ingredient_intelligence": {
                 "canonical": "pine nuts",
                 "substitution_options": [{
-                    "name": "sunflower seeds", "quantity_ratio": 1.5,
+                    "name": "sunflower seeds", "quantity_ratio": 1.5, "confidence": 0.99, "role_preserved": True, "safe_to_auto_apply": True,
                 }],
             },
         }],
@@ -549,7 +549,7 @@ def run():
     unidentified_substitute = build_basket(
         [{"ingredient": "custom cooking fat", "quantity": 20, "unit": "ml",
           "ingredient_intelligence": {"canonical": "custom cooking fat",
-              "substitution_options": [{"name": "rapeseed oil", "quantity_ratio": 1.0}]}}],
+              "substitution_options": [{"name": "rapeseed oil", "quantity_ratio": 1.0, "confidence": 0.99, "role_preserved": True, "safe_to_auto_apply": True}]}}],
         FakeCatalog({"custom cooking fat": [{
             "id": 27, "name_original": "REWE Rapsöl 500ml", "package_size": 500,
             "package_unit": "ml", "price": 1.5, "availability": "available",
@@ -669,7 +669,7 @@ def run():
     }
     profile_ratio_b = {
         "canonical": "neutral cooking fat", "form": "liquid",
-        "substitution_options": [{"name": "rapeseed oil", "quantity_ratio": 1.5}],
+        "substitution_options": [{"name": "rapeseed oil", "quantity_ratio": 1.5, "confidence": 0.99, "role_preserved": True, "safe_to_auto_apply": True}],
     }
     profile_separated = consolidate([
         {"id": "ratio-a", "name": "Recipe A", "base_servings": 1,
