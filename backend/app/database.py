@@ -386,47 +386,72 @@ def _snapshot_package_dimensions(name: str, raw_size, raw_unit: str):
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
-    """Prefer the actual checkout price; use reference price only as fallback."""
-    checkout_price = _snapshot_float(raw_price)
+    """Normalize legacy snapshot reference prices, then fall back to checkout price."""
     try:
         package_size = float(package_size)
     except (OverflowError, TypeError, ValueError):
         package_size = None
+    package_unit = str(package_unit or "").strip().lower()
     valid_package = (
         package_size is not None and math.isfinite(package_size)
-        and package_size > 0 and bool(str(package_unit or "").strip())
+        and package_size > 0 and bool(package_unit)
     )
-    if checkout_price is not None and checkout_price > 0 and valid_package:
-        # Derive from the checkout price to keep pack and unit costs coherent.
-        checkout_unit_price = checkout_price / package_size
-        if math.isfinite(checkout_unit_price) and checkout_unit_price > 0:
-            return checkout_price, checkout_unit_price
+    if not valid_package:
+        return None, None
 
-    match = re.search(
-        r"\b(1|100)\s*(kg|g|l|ml|stück|stk\.?)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
-        name or "",
-        re.I,
+    reference_pattern = (
+        r"\b(1|100)\s*(kg|g|l|ml|stück|stk\.?|st\.?)\s*=\s*"
+        r"(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?"
     )
-    reference_price = _snapshot_float(match.group(3)) if match else None
-    reference_quantity = int(match.group(1)) if match else 0
-    reference_unit = match.group(2).lower() if match else ""
-    if reference_price is not None and reference_price > 0 and valid_package:
-        if reference_unit in {"kg", "g"} and package_unit == "g":
-            quantity_in_base_units = reference_quantity * (1000 if reference_unit == "kg" else 1)
-            per_unit = reference_price / quantity_in_base_units
-        elif reference_unit in {"l", "ml"} and package_unit == "ml":
-            quantity_in_base_units = reference_quantity * (1000 if reference_unit == "l" else 1)
-            per_unit = reference_price / quantity_in_base_units
-        elif reference_unit in {"stk", "stk.", "stück"} and package_unit == "unit" and reference_quantity == 1:
-            per_unit = reference_price
-        else:
-            per_unit = None
-        if per_unit is not None:
-            pack_price = per_unit * package_size
-            if math.isfinite(per_unit) and per_unit > 0 and math.isfinite(pack_price) and pack_price > 0:
-                return round(pack_price, 2), per_unit
+    match = re.search(reference_pattern, name or "", re.I)
+    if match:
+        reference_price = _snapshot_float(match.group(3))
+        reference_quantity = int(match.group(1))
+        reference_unit = match.group(2).lower()
+        if reference_price is not None and reference_price > 0:
+            if reference_unit in {"kg", "g"} and package_unit == "g":
+                quantity_in_base_units = reference_quantity * (1000 if reference_unit == "kg" else 1)
+                per_unit = reference_price / quantity_in_base_units
+            elif reference_unit in {"l", "ml"} and package_unit == "ml":
+                quantity_in_base_units = reference_quantity * (1000 if reference_unit == "l" else 1)
+                per_unit = reference_price / quantity_in_base_units
+            elif reference_unit in {"stk", "stk.", "st.", "stück"} and package_unit in {"unit", "piece"} and reference_quantity == 1:
+                per_unit = reference_price
+            else:
+                per_unit = None
+            if per_unit is not None:
+                pack_price = per_unit * package_size
+                if math.isfinite(per_unit) and per_unit > 0 and math.isfinite(pack_price) and pack_price > 0:
+                    return round(pack_price, 2), per_unit
 
-    # A standalone unit price is not enough to establish a checkout price.
+        # A reference price with an incompatible dimension cannot be treated
+        # as checkout price. Look only for a separate explicit pack price.
+        checkout_text = re.sub(reference_pattern, " ", name or "", flags=re.I)
+        checkout_text = re.sub(
+            r"(?:zzgl\.?\s*)?(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?\s*(?:Pfand|deposit)|"
+            r"(?:Pfand|deposit)\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+            " ", checkout_text, flags=re.I,
+        )
+        explicit = re.search(
+            r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})|(\d+[,.]\d{2})\s*(?:€|EUR|Euro)",
+            checkout_text, re.I,
+        )
+        if explicit:
+            checkout_price = _snapshot_float(explicit.group(1) or explicit.group(2))
+            if checkout_price is not None and checkout_price > 0:
+                unit_price = checkout_price / package_size
+                if math.isfinite(unit_price) and unit_price > 0:
+                    return round(checkout_price, 2), unit_price
+        return None, None
+
+    # Without a displayed reference price, the snapshot's price field is the
+    # only checkout-price fallback. Ignore its separately stored unit-price
+    # metadata because older snapshots can normalize that field inconsistently.
+    checkout_price = _snapshot_float(raw_price)
+    if checkout_price is not None and checkout_price > 0:
+        unit_price = checkout_price / package_size
+        if math.isfinite(unit_price) and unit_price > 0:
+            return round(checkout_price, 2), unit_price
     return None, None
 
 def _auto_import_rewe_csv_snapshot() -> None:
