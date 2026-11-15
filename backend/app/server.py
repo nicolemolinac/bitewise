@@ -209,16 +209,19 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
              )),
             None,
         )
-        if selected_option is None:
-            # Deterministic, curated substitutions can still be applied without
-            # recipe-side metadata. Unknown semantic suggestions are not auto-applied.
-            selected_option = {}
-        elif isinstance(selected_option.get("name"), str) and selected_option["name"].strip():
+        if selected_option is not None and isinstance(selected_option.get("name"), str) and selected_option["name"].strip():
             # Always persist the canonical replacement name, even when the
             # matched catalog label was German or another declared alias.
             replacement = selected_option["name"].strip()
-        raw_ratio = selected_option.get("quantity_ratio", 1)
-        if isinstance(raw_ratio, bool):
+        # The basket has already validated any executable substitution ratio.
+        # Use that explicit value as fallback for curated substitutions, but
+        # never manufacture a 1:1 ratio when metadata is absent.
+        raw_ratio = (
+            selected_option.get("quantity_ratio")
+            if selected_option is not None and selected_option.get("quantity_ratio") is not None
+            else row.get("quantity_ratio")
+        )
+        if raw_ratio is None or isinstance(raw_ratio, bool):
             continue
         try:
             ratio = float(raw_ratio)
