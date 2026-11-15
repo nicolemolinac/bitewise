@@ -184,16 +184,21 @@ def main():
         print(f"Distinct ingredient labels: {len(ingredients)}")
         print(f"Distinct categories: {len(categories)}")
         print(f"Missing/zero prices: {missing_price} ({missing_price / total:.1%})")
-        assert missing_price <= 1, f"Unexpected unpriced REWE products: {missing_price}"
-        for row in products:
-            if row.price is None or float(row.price) <= 0:
-                print("PRODUCT WITHOUT PRICE:", {
-                    "id": row.id,
-                    "name": row.name_original,
-                    "ingredient": row.ingredient,
-                    "package_size": row.package_size,
-                    "package_unit": row.package_unit,
-                })
+        unpriced_rows = [
+            {
+                "id": row.id,
+                "name": row.name_original,
+                "ingredient": row.ingredient,
+                "price": row.price,
+                "price_per_unit": row.price_per_unit,
+                "package_size": row.package_size,
+                "package_unit": row.package_unit,
+            }
+            for row in products
+            if row.price is None or float(row.price) <= 0
+        ]
+        print("PRODUCTS WITHOUT PRICE:", unpriced_rows[:100], flush=True)
+        assert missing_price <= 1, f"Unexpected unpriced REWE products: {missing_price}; sample={unpriced_rows[:100]!r}"
         print(f"Stale or never checked (>30 days): {stale} ({stale / total:.1%})")
         print(f"Duplicate normalized-name rows: {duplicate_name_rows}")
         print(f"Products with REWE product URL: {with_product_url} ({with_product_url / total:.1%})")
