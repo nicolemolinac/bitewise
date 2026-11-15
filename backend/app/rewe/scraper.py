@@ -58,13 +58,15 @@ def package(text: str):
     value = str(text or "").replace("\\u00a0", " ").replace("×", "x")
     pattern = re.compile(
         r"(?<![\\w,])(?:(\\d+(?:[.,]\\d+)?)\\s*x\\s*)?"
-        r"(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l|stk|st\\.|stück)\\b",
+        r"(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l|stk|st\\.|stück)(?![a-z])",
         re.I,
     )
     matches = list(pattern.finditer(value))
     if not matches:
         return None, None
-    match = matches[-1]
+    # Product-card text starts with the product name; later numbers may be
+    # unit-price references (for example, "€/100 g"), not pack contents.
+    match = matches[0]
     multiplier = float((match.group(1) or "1").replace(",", "."))
     amount = float(match.group(2).replace(",", "."))
     if not (math.isfinite(multiplier) and math.isfinite(amount)) or multiplier <= 0 or amount <= 0:
