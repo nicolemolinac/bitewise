@@ -796,6 +796,11 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             raw_products = list(adapter.search(ingredient) or [])
         override_id = overrides.get(ingredient)
         for product in raw_products:
+            # Catalog adapters can return stale or malformed rows during a
+            # partial refresh. Ignore non-object candidates instead of letting
+            # one corrupt row crash the entire basket response.
+            if not isinstance(product, dict):
+                continue
             if product.get("ingredient_match_type") in {"semantic_candidate", "suggested_substitution"}:
                 if override_id is not None and str(product.get("id")) == str(override_id):
                     semantic_type = product.get("semantic_match_type") or product.get("ingredient_match_type")
