@@ -105,7 +105,7 @@ class PantryPatch(BaseModel):ingredient:str|None=None;quantity:float|None=None;u
 class BasketIn(BaseModel):meal_ids:list[str];servings:dict[str,float]=Field(default_factory=dict);owned:list[str]=Field(default_factory=list);mode:str='best-value'
 class SettingsIn(BaseModel):postcode:str|None=None;shopping_strategy:str|None=None
 class BrainDumpIn(BaseModel):prompt:str
-class PurchaseIn(BaseModel):product_id:int;packs:int=1;ingredient:str|None=None
+class PurchaseIn(BaseModel):product_id:int;packs:int=1;ingredient:str|None=None;pantry_ingredient:str|None=None;is_substitution:bool=False
 class ProductOverrideIn(BaseModel):ingredient:str;product_id:int
 class ShoppingStateIn(BaseModel):ingredient:str;state:str;product_id:int|None=None;purchased_quantity:float|None=None;purchased_unit:str|None=None
 class PlanCreateIn(BaseModel):weeks:int=1;servings:int=2;strategy:str='best-value';budget:float|None=None;start_date:str|None=None;meal_ids:list[str]=Field(default_factory=list)
@@ -526,6 +526,11 @@ def purchase(payload:PurchaseIn):
   if not product:raise HTTPException(404,'Product not found')
   ingredient=normalize_ingredient(payload.ingredient or product.ingredient or '')
   if not ingredient:raise HTTPException(422,'Ingredient is required')
+  pantry_ingredient=normalize_ingredient(payload.pantry_ingredient or ('' if payload.is_substitution else ingredient))
+  if payload.is_substitution and not pantry_ingredient:
+   raise HTTPException(422,'A substitute purchase must identify the actual replacement ingredient for pantry inventory.')
+  if not pantry_ingredient:
+   raise HTTPException(422,'Pantry ingredient is required')
   try:
    package_size=float(product.package_size)
   except (TypeError,ValueError,OverflowError):
@@ -536,33 +541,33 @@ def purchase(payload:PurchaseIn):
   amount=package_size*payload.packs
   if not math.isfinite(amount) or amount<=0:
    raise HTTPException(422,'Purchased quantity is invalid')
-  matching=[row for row in db.query(PantryItem).all() if normalize_text(row.ingredient)==normalize_text(ingredient)]
+  matching=[row for row in db.query(PantryItem).all() if normalize_text(row.ingredient)==normalize_text(pantry_ingredient)]
   if len(matching)>1:
-   raise HTTPException(409,f'Pantry has duplicate entries for {ingredient}; reconcile inventory before adding a purchase.')
+   raise HTTPException(409,f'Pantry has duplicate entries for {pantry_ingredient}; reconcile inventory before adding a purchase.')
   item=matching[0] if matching else None
   if item:
    if not isinstance(item.unit,str) or not item.unit.strip():
-    raise HTTPException(409,f'Pantry unit is missing for {ingredient}; correct it before adding a purchase.')
+    raise HTTPException(409,f'Pantry unit is missing for {pantry_ingredient}; correct it before adding a purchase.')
    if isinstance(item.quantity,bool):
-    raise HTTPException(409,f'Pantry quantity is invalid for {ingredient}.')
+    raise HTTPException(409,f'Pantry quantity is invalid for {pantry_ingredient}.')
    try:
     stock=float(item.quantity)
    except (TypeError,ValueError,OverflowError):
     stock=float('nan')
    if not math.isfinite(stock) or stock<0:
     raise HTTPException(409,f'Pantry quantity is invalid for {ingredient}.')
-   converted_amount,_=_convert_ingredient_quantity(amount,package_unit,item.unit,ingredient)
+   converted_amount,_=_convert_ingredient_quantity(amount,package_unit,item.unit,pantry_ingredient)
    if converted_amount is None or not math.isfinite(converted_amount) or converted_amount<=0:
-    raise HTTPException(409,f'Pantry tracks {ingredient} in incompatible units ({item.unit} vs {package_unit}).')
+    raise HTTPException(409,f'Pantry tracks {pantry_ingredient} in incompatible units ({item.unit} vs {package_unit}).')
    new_stock=stock+converted_amount
    if not math.isfinite(new_stock):
-    raise HTTPException(409,f'Adding this purchase would overflow pantry quantity for {ingredient}.')
+    raise HTTPException(409,f'Adding this purchase would overflow pantry quantity for {pantry_ingredient}.')
    item.quantity=new_stock;item.confidence='estimated';item.source='purchase'
   else:
-   db.add(PantryItem(ingredient=ingredient,quantity=amount,unit=package_unit,confidence='estimated',source='purchase'))
+   db.add(PantryItem(ingredient=pantry_ingredient,quantity=amount,unit=package_unit,confidence='estimated',source='purchase'))
   state=db.query(ShoppingState).filter_by(ingredient=ingredient).first()
   if not state:state=ShoppingState(ingredient=ingredient);db.add(state)
-  state.state='purchased';state.product_id=product.id;state.purchased_quantity=amount;state.purchased_unit=package_unit;db.commit();return {'ok':True,'ingredient':ingredient,'added':amount,'unit':package_unit}
+  state.state='purchased';state.product_id=product.id;state.purchased_quantity=amount;state.purchased_unit=package_unit;db.commit();return {'ok':True,'ingredient':ingredient,'pantry_ingredient':pantry_ingredient,'added':amount,'unit':package_unit}
  finally:db.close()
 @app.post('/api/brain-dump')
 def brain_dump(payload:BrainDumpIn):
