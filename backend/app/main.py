@@ -253,13 +253,19 @@ def update_pantry(item_id:int,payload:PantryPatch):
   row=db.get(PantryItem,item_id)
   if not row:raise HTTPException(404,'Pantry item not found')
   values=payload.model_dump(exclude_unset=True)
-  if 'quantity' in values and values['quantity'] is not None and (
-   not math.isfinite(values['quantity']) or values['quantity']<0
+  # PATCH nulls do not clear required identity, quantity or unit fields.
+  for required_field in ('ingredient','quantity','unit'):
+   if required_field in values and values[required_field] is None:
+    values.pop(required_field)
+  if 'quantity' in values and (
+   isinstance(values['quantity'],bool) or not math.isfinite(values['quantity']) or values['quantity']<0
   ):raise HTTPException(422,'Quantity must be finite and non-negative')
-  if values.get('ingredient'):values['ingredient']=normalize_ingredient(values['ingredient'])
+  if 'ingredient' in values:
+   values['ingredient']=normalize_ingredient(values['ingredient'])
+   if not values['ingredient']:raise HTTPException(422,'Ingredient is required')
   candidate_ingredient=values.get('ingredient') or row.ingredient
-  candidate_unit=values.get('unit') if values.get('unit') is not None else row.unit
-  if 'unit' in values and values['unit'] is not None and not str(values['unit']).strip():
+  candidate_unit=values.get('unit') if 'unit' in values else row.unit
+  if 'unit' in values and not str(values['unit']).strip():
    raise HTTPException(422,'Pantry unit is required')
   if not validate_ingredient_unit(candidate_ingredient, candidate_unit).get('valid', False):
    raise HTTPException(422,'Pantry unit is incompatible with this ingredient')
