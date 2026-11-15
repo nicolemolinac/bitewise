@@ -64,6 +64,15 @@ The REWE browser fallback attaches to Chrome for Testing over CDP. If no browser
 - The first refresh may show REWE's consent and delivery-location prompts. Select Delivery / Lieferservice, not Pickup / Abholung.
 - You do not need to pre-populate the REWE products database. The refresh creates/updates catalog rows. A postcode is configured separately in Bitewise Settings.
 
+To audit existing REWE package metadata and ingredient-match coverage without changing the database or contacting REWE:
+
+```bash
+cd backend
+.venv/bin/python qa_rewe_catalog_integrity.py
+```
+
+This reports missing package sizes, possible legacy `1 unit` defaults, price-per-unit inconsistencies and which common ingredients have usable catalog matches.
+
 To test one category before refreshing the full catalog:
 
 ```bash
