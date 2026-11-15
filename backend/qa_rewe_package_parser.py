@@ -19,6 +19,12 @@ def main():
         ("Grundpreis 1,99 € / 100 g", (None, None)),
         ("Olivenöl 500 ml, Grundpreis 0,99 € / 100 ml", (500.0, "ml")),
         ("Saft 2 x 0,5 l", (1000.0, "ml")),
+        ("1 Packung Nudeln", (1.0, "unit")),
+        ("1 Flasche Wasser", (1.0, "unit")),
+        ("1 Bund Petersilie", (1.0, "unit")),
+        ("1 Kopf Salat", (1.0, "unit")),
+        ("2 Zehen Knoblauch", (2.0, "unit")),
+        ("2 Dutzend Eier", (24.0, "unit")),
     ]
     for label, expected in cases:
         actual = package(label)
