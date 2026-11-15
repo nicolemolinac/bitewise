@@ -40,8 +40,15 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
     if not isinstance(raw, dict): return None
     name = str(raw.get("name") or "").strip()
     if not name: return None
+
+    raw_ingredients = raw.get("ingredients")
+    # Never keep a recipe after silently dropping one of its ingredients:
+    # that would make its shopping basket and cost estimate incomplete.
+    if not isinstance(raw_ingredients, list) or not raw_ingredients or len(raw_ingredients) > 20:
+        return None
+
     ingredients = []
-    for item in raw.get("ingredients") or []:
+    for item in raw_ingredients:
         if isinstance(item, dict):
             ingredient = str(item.get("ingredient") or item.get("name") or "").strip().lower()
             quantity = item.get("quantity")
@@ -51,19 +58,19 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
             quantity = item[1]
             unit = str(item[2] or "").strip().lower()
         else:
-            continue
-        # Never turn a missing unit into "unit": that silently changes grams/ml
-        # into count-based shopping requirements. Reject malformed amounts too.
+            return None
+
+        # Reject the whole meal instead of hiding malformed shopping requirements.
         if not ingredient or not unit or isinstance(quantity, bool):
-            continue
+            return None
         try:
             quantity = float(quantity)
         except (TypeError, ValueError):
-            continue
+            return None
         if not math.isfinite(quantity) or quantity <= 0:
-            continue
+            return None
         ingredients.append([ingredient, quantity, unit])
-    if not ingredients: return None
+
     try: minutes = max(5, min(240, int(float(raw.get("time") or 30))))
     except Exception: minutes = 30
     try: cost = max(.5, min(50, float(raw.get("cost") or 3.5)))
@@ -73,7 +80,7 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
     meal_type = str(raw.get("meal_type") or "dinner").strip().lower()
     if meal_type not in {"breakfast", "lunch", "dinner", "dessert", "snack"}: meal_type = "dinner"
     meal_id = _slug(str(raw.get("id") or name)); meal_id = meal_id if meal_id.startswith("ai-") else f"ai-{meal_id}"
-    return {"id": meal_id[:80], "name": name[:120], "description": str(raw.get("description") or "AI-generated meal idea.")[:280], "time": minutes, "difficulty": str(raw.get("difficulty") or "Easy")[:30], "cost": round(cost, 2), "calories": calories, "meal_type": meal_type, "cuisine": str(raw.get("cuisine") or "International")[:60], "tags": [str(tag)[:40] for tag in (raw.get("tags") or ["AI Generated"])][:8], "ingredients": ingredients[:20], "steps": _sanitize_steps(raw.get("steps")), "image": str(raw.get("image") or FALLBACK_IMAGE), "source": "gemini"}
+    return {"id": meal_id[:80], "name": name[:120], "description": str(raw.get("description") or "AI-generated meal idea.")[:280], "time": minutes, "difficulty": str(raw.get("difficulty") or "Easy")[:30], "cost": round(cost, 2), "calories": calories, "meal_type": meal_type, "cuisine": str(raw.get("cuisine") or "International")[:60], "tags": [str(tag)[:40] for tag in (raw.get("tags") or ["AI Generated"])][:8], "ingredients": ingredients, "steps": _sanitize_steps(raw.get("steps")), "image": str(raw.get("image") or FALLBACK_IMAGE), "source": "gemini"}
 
 
 def _load_persisted() -> None:
