@@ -1237,6 +1237,27 @@ def run():
         "fresh cilantro", "REWE Frischer Koriander im Bund", fresh_herb,
         "frische-krauter"
     ) == "exact"
+
+    fresh_coriander = {
+        "fresh coriander": {
+            "canonical": "fresh coriander", "name_de": "Frischer Koriander",
+            "form": "fresh", "aliases": ["fresh cilantro", "cilantro", "Koriander"],
+        }
+    }
+    for seed_title in (
+        "REWE Korianderkörner 30g",
+        "REWE Korianderkoerner 30g",
+        "REWE Koriandersaat 30g",
+        "REWE Coriander Seeds 30g",
+        "REWE Coriander Powder 30g",
+    ):
+        assert ingredient_product_match_type(
+            "fresh coriander", seed_title, fresh_coriander, ""
+        ) is None, seed_title
+    assert ingredient_product_match_type(
+        "fresh coriander", "REWE Koriandergrün im Bund", fresh_coriander,
+        "frische-krauter"
+    ) == "exact"
     garlic_profile = {"garlic": {"canonical": "garlic", "name_de": "Knoblauch", "form": "whole", "aliases": ["Knoblauch"]}}
     assert ingredient_product_match_type("garlic", "REWE Bio Hähnchen Brustfilet Joghurt Knoblauch 320g", garlic_profile, "Fleisch") is None
     assert ingredient_product_match_type("garlic", "Knoblauch 1 Stück", garlic_profile, "obst-gemuese") == "exact"
