@@ -4,7 +4,7 @@ Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quantity, build_basket, consolidate
 from app.database import _snapshot_float, _snapshot_package_size, _snapshot_pack_pricing
-from app.rewe.scraper import _displayed_unit_price, _merge_duplicate_product, package, price_details, ReweCatalogScraper
+from app.rewe.scraper import _displayed_unit_price, _json_ld_products, _merge_duplicate_product, package, price_details, ReweCatalogScraper
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -45,6 +45,38 @@ def run():
     assert _invalid_duplicate["price_per_unit"] == 0.00498
     assert _invalid_duplicate["package_size"] == 500
     assert _invalid_duplicate["package_unit"] == "g"
+    # When a valid checkout price repairs an invalid observation, its unit
+    # price must be recalculated rather than inherited from stale metadata.
+    _repaired_price = _merge_duplicate_product(
+        {"price": 0, "price_per_unit": 9.99, "package_size": 500, "package_unit": "g"},
+        {"price": 2.50, "price_per_unit": float("nan")},
+    )
+    assert _repaired_price["price"] == 2.50
+    assert abs(_repaired_price["price_per_unit"] - 0.005) < 1e-12
+    _repaired_without_size = _merge_duplicate_product(
+        {"price": 0, "price_per_unit": 9.99, "package_size": None, "package_unit": None},
+        {"price": 2.50, "price_per_unit": 0},
+    )
+    assert _repaired_without_size["price"] == 2.50
+    assert _repaired_without_size["price_per_unit"] is None
+    # Whitespace-only supplier SKUs are absent IDs, not a shared product key.
+    _jsonld_html = BeautifulSoup(
+        '<script type="application/ld+json">' + json.dumps({
+            "@type": "ItemList",
+            "itemListElement": [{
+                "item": {
+                    "@type": "Product", "sku": "   ",
+                    "name": "Chicken Breast 500g",
+                    "url": "https://www.rewe.de/shop/p/chicken-breast-500g/123456",
+                }
+            }]
+        }) + '</script>',
+        "html.parser",
+    )
+    _jsonld_rows = _json_ld_products(_jsonld_html, "https://www.rewe.de", "test")
+    assert len(_jsonld_rows) == 1
+    assert _jsonld_rows[0]["external_id"]
+    assert _jsonld_rows[0]["external_id"].strip() == _jsonld_rows[0]["external_id"]
     # Catalog health must count only usable checkout prices. Zero, negative,
     # NaN, infinity and malformed strings must not satisfy the HTTP fallback ratio.
     _ingest_report = {"products_created": 0, "products_updated": 0, "products_found": 0, "products_with_price": 0}
