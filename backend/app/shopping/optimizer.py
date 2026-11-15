@@ -69,12 +69,19 @@ def _normal_unit(value):
 def _convert_quantity(quantity, from_unit, to_unit):
     """Convert only well-defined mass, volume and count units; otherwise return None."""
     source, target = _normal_unit(from_unit), _normal_unit(to_unit)
+    try:
+        amount = float(quantity)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(amount):
+        return None
     if source == target:
-        return float(quantity)
+        return amount
     source_info, target_info = _UNIT_BASE.get(source), _UNIT_BASE.get(target)
     if not source_info or not target_info or source_info[0] != target_info[0]:
         return None
-    return float(quantity) * source_info[1] / target_info[1]
+    converted = amount * source_info[1] / target_info[1]
+    return converted if math.isfinite(converted) else None
 
 
 def _number(product, *keys, default=0.0):
