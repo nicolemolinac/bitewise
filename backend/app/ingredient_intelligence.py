@@ -408,13 +408,19 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         "lime", "limes", "zucchini", "avocado", "avocados", "banana", "bananas",
         "strawberry", "strawberries", "blueberry", "blueberries", "parsley",
         "spinach", "broccoli", "cabbage", "aubergine", "eggplant", "asparagus",
-        "celery",
+        "celery", "apple", "apples", "pear", "pears", "orange", "oranges",
+        "grape", "grapes", "mango", "mangos", "peach", "peaches", "kiwi",
+        "kiwis", "melon", "watermelon", "pineapple", "raspberry", "blackberry",
+        "cherry", "plum",
     }
     compound_product_terms = (
         "wurst", "fleisch", "fisch", "fleischersatz", "sauce", "saucen",
         "suppe", "brustfilet", "hahnchen", "chicken", "garnelen", "shrimp",
         "tempeh", "mettwurst", "pesto", "brot", "bread", "butter", "aufstrich",
         "passata", "tomatenmark", "tomato paste", "tomato puree", "tomaten puree",
+        "juice", "saft", "nectar", "smoothie", "puree", "püree", "mus",
+        "chips", "snack", "knabberartikel", "dried fruit", "getrocknet",
+        "marmelade", "jam", "kompott",
     )
     if ingredient_tokens & fresh_produce_tokens and any(token in title for token in compound_product_terms):
         return False
@@ -514,6 +520,10 @@ def _category_compatible(ingredient: str, category: str, title: str, form: str =
         "red cabbage", "strawberry", "strawberries", "blueberries", "banana",
         "parsley", "basil", "dill", "thyme", "rosemary", "mint", "chives",
         "sage", "marjoram", "oregano", "spinach", "broccoli",
+        "apple", "apples", "pear", "pears", "orange", "oranges", "grape",
+        "grapes", "mango", "mangos", "peach", "peaches", "kiwi", "kiwis",
+        "melon", "watermelon", "pineapple", "raspberry", "blackberry",
+        "cherry", "plum",
     }
     # Keep category validation in sync with the broader fresh-produce guard
     # above. Without this, plural/less-common produce names bypass aisle checks
