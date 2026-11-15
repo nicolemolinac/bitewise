@@ -97,8 +97,17 @@ def rewe_refresh_safe():
                 if existing.price != incoming_price:
                     existing.last_price = existing.price
                 for key, value in data.items():
-                    if hasattr(existing, key):
-                        setattr(existing, key, value)
+                    if not hasattr(existing, key):
+                        continue
+                    # Never erase a known package size with an unknown scrape result.
+                    if key == "package_size" and (value is None or float(value or 0) <= 0):
+                        continue
+                    if key == "package_unit" and str(value or "").lower() in {"", "unknown", "none"}:
+                        continue
+                    setattr(existing, key, value)
+                # Recalculate normalized unit price only from a validated package size.
+                if existing.price is not None and existing.package_size and existing.package_size > 0:
+                    existing.price_per_unit = existing.price / existing.package_size
                 existing.postcode_context = current_postcode
                 existing.last_seen_at = now
                 existing.last_checked_at = now
