@@ -42,7 +42,7 @@ def consolidate(meals, servings_map):
         for ingredient_index, ingredient_row in enumerate(ingredient_rows):
             if (
                 not isinstance(ingredient_row, (list, tuple))
-                or len(ingredient_row) < 3
+                or len(ingredient_row) != 3
                 or not isinstance(ingredient_row[0], str)
                 or not ingredient_row[0].strip()
             ):
