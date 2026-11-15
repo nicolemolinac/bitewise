@@ -549,7 +549,18 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
     # saved overrides and user-owned ingredients. Consolidation already groups
     # names this way, so lookup must not reintroduce spelling-based mismatches.
     owned = {normalize_text(value) for value in (owned or [])}
-    overrides = {normalize_text(key): value for key, value in (overrides or {}).items()}
+    normalized_overrides = {}
+    ambiguous_override_keys = set()
+    for raw_key, value in (overrides or {}).items():
+        normalized_key = normalize_text(raw_key)
+        if not normalized_key:
+            continue
+        if normalized_key in normalized_overrides:
+            normalized_overrides.pop(normalized_key, None)
+            ambiguous_override_keys.add(normalized_key)
+        elif normalized_key not in ambiguous_override_keys:
+            normalized_overrides[normalized_key] = value
+    overrides = normalized_overrides
     raw_pantry = pantry or {}
     pantry = {}
     ambiguous_pantry_keys = set()
@@ -646,6 +657,23 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                                 0.0, stock - min(stock, pantry_deduction)
                             )
         needed = max(0.0, requested - pantry_used)
+
+        if ingredient in ambiguous_override_keys:
+            base = {
+                **requirement,
+                "needed_quantity": round(needed, 2),
+                "product_needed_quantity": round(needed, 2),
+                "quantity_validation": quantity_validation,
+                "quantity_ratio": 1.0,
+                "pantry_used": round(pantry_used, 2),
+                "pantry_unit": unit,
+                "match_status": "unmatched",
+                "match_reason": "Multiple saved product overrides normalize to this ingredient. Resolve the duplicate choices before shopping.",
+                "why": "The saved product choice is ambiguous; no automatic replacement was selected.",
+                "semantic_suggestions": [],
+            }
+            output.append(base)
+            continue
 
         base = {
             **requirement,
