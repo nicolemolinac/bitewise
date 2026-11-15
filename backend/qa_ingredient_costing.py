@@ -6,7 +6,7 @@ from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quanti
 from app.database import _snapshot_float, _snapshot_package_dimensions, _snapshot_package_size, _snapshot_pack_pricing
 from app.rewe.scraper import _displayed_unit_price, _json_ld_products, _merge_duplicate_product, package, price_details, ReweCatalogScraper
 from app.rewe_refresh import _refresh_is_complete_healthy
-from app.main import consume_meal_from_pantry
+from app.main import consume_meal_from_pantry, pantry_snapshot
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -81,6 +81,23 @@ def run():
         servings=2,
     ) == []
     assert _duplicate_stock_a.quantity == 1.0 and _duplicate_stock_b.quantity == 2.0
+
+    _snapshot_duplicate_a = type("PantryRow", (), {
+        "ingredient": "red onion", "quantity": 1.0, "unit": "piece", "confidence": "manual"
+    })()
+    _snapshot_duplicate_b = type("PantryRow", (), {
+        "ingredient": "Red-onion", "quantity": 2.0, "unit": "piece", "confidence": "manual"
+    })()
+    _snapshot_rice = type("PantryRow", (), {
+        "ingredient": "rice", "quantity": 500.0, "unit": "g", "confidence": "manual"
+    })()
+    _pantry_snapshot = pantry_snapshot(FakePantryDB([
+        _snapshot_duplicate_a, _snapshot_duplicate_b, _snapshot_rice
+    ]))
+    assert "red onion" not in _pantry_snapshot
+    assert _pantry_snapshot["rice"] == {
+        "quantity": 500.0, "unit": "g", "confidence": "manual"
+    }
 
     # Snapshot numeric parsing must reject infinities/NaN and non-positive
     # checkout prices instead of persisting unusable catalog values.
