@@ -54,7 +54,7 @@ def normalize(value: str) -> str:
 
 
 _PACKAGE_NUMBER = r"(?:\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)"
-_PACKAGE_UNIT = r"glas|gläser|glaeser|bund|bünde|buende|kopf|köpfe|koepfe|zehe|zehen|stange|stangen|knolle|knollen|netz|netze|rolle|rollen|schale|schalen|packung(?:en)?|pack|flasche(?:n)?|dose(?:n)?|kg|mg|g|ml|cl|l|stk\.?|st\.?|stück|stueck|pcs?\.?|eier|beutel|becher"
+_PACKAGE_UNIT = r"glas|gläser|glaeser|bund|bünde|buende|kopf|köpfe|koepfe|zehe|zehen|stange|stangen|knolle|knollen|netz|netze|rolle|rollen|schale|schalen|dutzend|dozens?|dozen|packung(?:en)?|pack|flasche(?:n)?|dose(?:n)?|kg|mg|g|ml|cl|l|stk\.?|st\.?|stück|stueck|pcs?\.?|eier|beutel|becher"
 
 
 def _parse_de_number(raw):
