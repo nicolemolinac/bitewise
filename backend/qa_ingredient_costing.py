@@ -212,9 +212,10 @@ def run():
                     "name": "Chicken Breast 500g",
                     "url": "https://www.rewe.de/shop/p/chicken-breast-500g/123456",
                 },
-                {
-                    "item": {
-                        "@type": "Product", "sku": "sku-offer-price",
+            },
+            {
+                "item": {
+                    "@type": "Product", "sku": "sku-offer-price",
                         "name": "Chicken Breast 500g",
                         "description": "Former price EUR 9.99",
                         "url": "https://www.rewe.de/shop/p/chicken-breast-500g/654321",
