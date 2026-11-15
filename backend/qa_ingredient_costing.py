@@ -264,6 +264,7 @@ def run():
     assert _snapshot_package_size("Juice 0,75ml pack 2x200ml", 0.75, "ml") == 400
     assert _snapshot_package_size("Yogurt 4x50g family pack 200g", 200, "g") == 200
     assert _snapshot_package_size("Water 2x500ml", 500, "ml") == 1000
+    assert _snapshot_package_size("Maggi broth 108g ergibt 6l 6l (1l = 0,38 €)", 108, "g") == 108
     assert _snapshot_package_dimensions("Milk 1l", None, None) == (None, None)
     assert _snapshot_package_dimensions("Milk 1l", 0, "ml") == (None, None)
     assert _snapshot_package_dimensions("Milk 1l", 1000, "ml") == (1000, "ml")
