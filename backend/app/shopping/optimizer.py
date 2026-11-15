@@ -53,6 +53,7 @@ _UNIT_ALIASES = {
     "tbsp": "tbsp", "tablespoon": "tbsp", "tablespoons": "tbsp",
     "tsp": "tsp", "teaspoon": "tsp", "teaspoons": "tsp",
     "cup": "cup", "cups": "cup",
+    "clove": "clove", "cloves": "clove",
 }
 _UNIT_BASE = {"g": ("mass", 1.0), "kg": ("mass", 1000.0),
               "ml": ("volume", 1.0), "l": ("volume", 1000.0),
