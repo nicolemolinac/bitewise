@@ -558,6 +558,21 @@ def _substitution_quantity_ratio(ingredient, product, intelligence):
 
 
 def build_basket(requirements, adapter, mode="best-value", owned=None, overrides=None, pantry=None):
+    if not isinstance(requirements, (list, tuple)):
+        raise ValueError("Shopping requirements must be a list.")
+    if any(not isinstance(row, dict) for row in requirements):
+        raise ValueError("Every shopping requirement must be an object.")
+    if any(
+        not isinstance(row.get("ingredient"), str) or not row["ingredient"].strip()
+        for row in requirements
+    ):
+        raise ValueError("Every shopping requirement needs an ingredient name.")
+    if overrides is not None and not isinstance(overrides, dict):
+        raise ValueError("Product overrides must be a mapping.")
+    if pantry is not None and not isinstance(pantry, dict):
+        raise ValueError("Pantry inventory must be a mapping.")
+    if owned is not None and not isinstance(owned, (list, tuple, set)):
+        raise ValueError("Owned ingredients must be a list or set.")
     # Use the same accent/punctuation-insensitive key for recipe names, pantry,
     # saved overrides and user-owned ingredients. Consolidation already groups
     # names this way, so lookup must not reintroduce spelling-based mismatches.
@@ -612,7 +627,12 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             requested = float(raw_requested)
         except (TypeError, ValueError, OverflowError):
             requested = float("nan")
-        quantity_validation = requirement.get("quantity_validation") or {"valid": True, "reason": None}
+        raw_quantity_validation = requirement.get("quantity_validation")
+        quantity_validation = (
+            raw_quantity_validation
+            if isinstance(raw_quantity_validation, dict)
+            else {"valid": raw_quantity_validation is None, "reason": None}
+        )
         quantity_valid = (
             not isinstance(raw_requested, bool)
             and math.isfinite(requested)
@@ -627,13 +647,19 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             }
         raw_unit = str(requirement.get("unit") or "").strip()
         unit = _normal_unit(raw_unit) if raw_unit else ""
-        unit_validation = requirement.get("unit_validation") or (
-            validate_ingredient_unit(
-                ingredient, unit, requirement.get("ingredient_intelligence")
-            ) if raw_unit else {
-                "valid": False, "family": None,
-                "reason": "Ingredient unit is missing; add an explicit unit before shopping.",
-            }
+        raw_unit_validation = requirement.get("unit_validation")
+        unit_validation = (
+            raw_unit_validation if isinstance(raw_unit_validation, dict) else (
+                {"valid": False, "family": None, "reason": "Ingredient unit validation metadata is malformed."}
+                if raw_unit_validation is not None else (
+                    validate_ingredient_unit(
+                        ingredient, unit, requirement.get("ingredient_intelligence")
+                    ) if raw_unit else {
+                        "valid": False, "family": None,
+                        "reason": "Ingredient unit is missing; add an explicit unit before shopping.",
+                    }
+                )
+            )
         )
         pantry_row = (
             pantry.get(ingredient)
