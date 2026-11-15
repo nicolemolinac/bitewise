@@ -158,8 +158,26 @@ def package(text: str):
     return None, None
 
 def price(text: str):
+    # Grundpreis is a normalized unit price, not the checkout price of the pack.
+    # Remove both labelled and bare €/100g-style denominators before extracting
+    # the product price so a missing pack price never becomes a false price.
+    value = re.sub(
+        r"(?:grundpreis|base\s*price)\s*:?\s*(?:€|EUR|Euro)?\s*"
+        r"\d+[,.]\d{1,2}\s*(?:€|EUR|Euro)?\s*/\s*"
+        r"\d+(?:[,.]\d+)?\s*(?:kg|g|ml|l)\b",
+        " ",
+        str(text or ""),
+        flags=re.I,
+    )
+    value = re.sub(
+        r"\d+[,.]\d{1,2}\s*(?:€|EUR|Euro)?\s*/\s*"
+        r"\d+(?:[,.]\d+)?\s*(?:kg|g|ml|l)\b",
+        " ",
+        value,
+        flags=re.I,
+    )
     for pattern in (r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})", r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)"):
-        match = re.search(pattern, text, re.I)
+        match = re.search(pattern, value, re.I)
         if match:
             return float(match.group(1).replace(",", "."))
     return None
