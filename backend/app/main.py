@@ -74,7 +74,21 @@ def product_dict(p):
  if p is None:return None
  return {'id':p.id,'supermarket':p.supermarket,'external_id':p.external_id,'ingredient':p.ingredient,'name_original':p.name_original,'name_normalized':p.name_normalized,'translated_name':p.translated_name,'brand':p.brand,'category':p.category,'package_size':p.package_size,'package_unit':p.package_unit,'price':p.price,'price_per_unit':p.price_per_unit,'currency':p.currency,'product_url':p.product_url,'image_url':p.image_url,'availability':p.availability,'postcode_context':p.postcode_context,'last_checked_at':p.last_checked_at}
 def meal_by_id(meal_id):return next((m for m in MEALS if m['id']==meal_id),None)
-def pantry_snapshot(db):return {r.ingredient.lower():{'quantity':r.quantity,'unit':r.unit,'confidence':r.confidence} for r in db.query(PantryItem).all()}
+def pantry_snapshot(db):
+ result={}
+ ambiguous=set()
+ for row in db.query(PantryItem).all():
+  key=normalize_text(row.ingredient)
+  if not key or key in ambiguous:
+   continue
+  if key in result:
+   # A dict cannot represent duplicate normalized keys. Remove the first row
+   # and mark the key unusable instead of silently overwriting inventory.
+   result.pop(key,None)
+   ambiguous.add(key)
+   continue
+  result[key]={'quantity':row.quantity,'unit':row.unit,'confidence':row.confidence}
+ return result
 
 class CatalogAdapter:
  def __init__(self,db):self.db=db
