@@ -108,6 +108,9 @@ def main():
         assert saved["saved"] == 4
         call("PATCH", "/api/recipe-history/" + concept["id"], {"status": "expanded"})
         call("PATCH", "/api/recipe-history/" + concept_two["id"], {"status": "expanded"})
+        concept_with_photo = {**concept, "image": "https://images.example.test/qa-pasta.jpg"}
+        photo_update = call("PATCH", "/api/recipe-history/" + concept["id"], {"meal": concept_with_photo})
+        assert photo_update["meal_updated"] is True
     finally:
         stop_api(proc)
 
@@ -129,6 +132,8 @@ def main():
     try:
         history = call("GET", "/api/recipe-history")
         assert history["count"] == 4
+        saved_concept = next(row for row in history["records"] if row["record_key"] == concept["id"])
+        assert saved_concept["meal"]["image"] == "https://images.example.test/qa-pasta.jpg"
         saved_recipe_ids = {row["meal"].get("id") for row in history["records"] if row["record_type"] == "recipe"}
         assert saved_recipe_ids == {first["id"], second["id"]}, saved_recipe_ids
         basket = call("POST", "/api/shopping", {
