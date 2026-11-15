@@ -86,7 +86,7 @@ class CatalogAdapter:
   return [{'id':None,'supermarket':'REWE','ingredient':p['ingredient'],'name_original':p.get('name',p['ingredient']),'name_normalized':p.get('name',p['ingredient']).lower(),'brand':p.get('brand'),'package_size':p.get('pack_qty',1),'package_unit':p.get('unit','unit'),'price':p.get('price'),'price_per_unit':p.get('unit_price'),'product_url':p.get('url'),'availability':'fixture'} for p in fallback]
 
 class EventIn(BaseModel):meal_id:str;action:str|None=None;event:str|None=None
-class PantryIn(BaseModel):ingredient:str;quantity:float=1;unit:str='unit';confidence:str='user_confirmed';source:str='manual';notes:str|None=None;expiry_date:str|None=None
+class PantryIn(BaseModel):ingredient:str;quantity:float=1;unit:str;confidence:str='user_confirmed';source:str='manual';notes:str|None=None;expiry_date:str|None=None
 class PantryPatch(BaseModel):ingredient:str|None=None;quantity:float|None=None;unit:str|None=None;notes:str|None=None;expiry_date:str|None=None
 class BasketIn(BaseModel):meal_ids:list[str];servings:dict[str,float]=Field(default_factory=dict);owned:list[str]=Field(default_factory=list);mode:str='best-value'
 class SettingsIn(BaseModel):postcode:str|None=None;shopping_strategy:str|None=None
@@ -214,12 +214,16 @@ def get_pantry():
  finally:db.close()
 @app.post('/api/pantry')
 def add_pantry(payload:PantryIn):
- if payload.quantity<0:raise HTTPException(422,'Quantity cannot be negative')
+ if not math.isfinite(payload.quantity) or payload.quantity<0:raise HTTPException(422,'Quantity must be finite and non-negative')
  ingredient=normalize_ingredient(payload.ingredient)
+ unit=str(payload.unit or '').strip()
  if not ingredient:raise HTTPException(422,'Ingredient is required')
+ if not unit:raise HTTPException(422,'Pantry unit is required')
+ if not validate_ingredient_unit(ingredient, unit).get('valid', False):
+  raise HTTPException(422,'Pantry unit is incompatible with this ingredient')
  db=SessionLocal()
  try:
-  old=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first();values=payload.model_dump();values['ingredient']=ingredient
+  old=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first();values=payload.model_dump();values['ingredient']=ingredient;values['unit']=unit
   if old:
    for k,v in values.items():setattr(old,k,v)
   else:db.add(PantryItem(**values))
@@ -232,8 +236,16 @@ def update_pantry(item_id:int,payload:PantryPatch):
   row=db.get(PantryItem,item_id)
   if not row:raise HTTPException(404,'Pantry item not found')
   values=payload.model_dump(exclude_unset=True)
-  if 'quantity' in values and values['quantity'] is not None and values['quantity']<0:raise HTTPException(422,'Quantity cannot be negative')
+  if 'quantity' in values and values['quantity'] is not None and (
+   not math.isfinite(values['quantity']) or values['quantity']<0
+  ):raise HTTPException(422,'Quantity must be finite and non-negative')
   if values.get('ingredient'):values['ingredient']=normalize_ingredient(values['ingredient'])
+  candidate_ingredient=values.get('ingredient') or row.ingredient
+  candidate_unit=values.get('unit') if values.get('unit') is not None else row.unit
+  if 'unit' in values and values['unit'] is not None and not str(values['unit']).strip():
+   raise HTTPException(422,'Pantry unit is required')
+  if not validate_ingredient_unit(candidate_ingredient, candidate_unit).get('valid', False):
+   raise HTTPException(422,'Pantry unit is incompatible with this ingredient')
   for k,v in values.items():setattr(row,k,v)
   row.confidence='manually_corrected';row.source='manual';db.commit();return {'ok':True}
  finally:db.close()
