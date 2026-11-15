@@ -194,6 +194,24 @@ def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
     return urlunsplit((parts.scheme or "https", parts.netloc, parts.path, parts.query, ""))
 
 
+def _offer_price(value):
+    """Parse a finite, non-negative REWE checkout price from JSON-LD."""
+    if value is None or isinstance(value, bool):
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    if "," in raw:
+        raw = raw.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(?:\.\d{3})+", raw):
+        raw = raw.replace(".", "")
+    try:
+        result = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return result if math.isfinite(result) and result >= 0 else None
+
+
 def _schema_availability(offers) -> str:
     """Translate schema.org availability into the catalog's conservative status."""
     if not isinstance(offers, dict):
@@ -241,10 +259,7 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 if isinstance(offers, list):
                     offers = offers[0] if offers else {}
                 offer_price = (offers.get("price") or offers.get("lowPrice")) if isinstance(offers, dict) else None
-                try:
-                    offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
-                except Exception:
-                    offer_price = None
+                offer_price = _offer_price(offer_price)
                 size, unit = package(name)
                 if size is None:
                     size, unit = package(candidate.get("description") or "")
