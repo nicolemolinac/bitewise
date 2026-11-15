@@ -117,7 +117,9 @@ def _displayed_unit_price(text: str):
     # Convert the displayed reference quantity to the canonical base
     # unit (g/ml) before dividing. "1 g" is not interchangeable with "100 g".
     reference_quantity = quantity * (1000 if unit in {"kg", "l"} else 1)
-    normalized_amount = amount / reference_quantity
+    # Keep the established €/kg or €/l scale; downstream package pricing
+    # divides this normalized reference by 1000 to obtain €/g or €/ml.
+    normalized_amount = amount * 1000 / reference_quantity
     if not math.isfinite(normalized_amount) or normalized_amount <= 0:
         return None, None
     return normalized_amount, "g" if unit in {"kg", "g"} else "ml"
