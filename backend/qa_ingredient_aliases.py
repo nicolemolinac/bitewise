@@ -57,6 +57,55 @@ def main():
     chicken_generic_matches = _multilingual_catalog_search(adapter, "chicken")
     assert chicken_generic_matches == [], chicken_generic_matches
 
+    # Exercise the real SQLAlchemy candidate prefilter, not only the Python
+    # semantic matcher. This catches SQL alias/ILIKE regressions.
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from app.database import Product
+
+    engine = create_engine("sqlite:///:memory:")
+    Product.__table__.create(engine)
+    SqlSession = sessionmaker(bind=engine)
+    sql_db = SqlSession()
+    try:
+        sql_db.add_all([
+            Product(
+                supermarket="REWE", external_id="sql-1", ingredient="milk",
+                name_original="REWE Bio Frische Vollmilch 3,5%",
+                name_normalized="rewe bio frische vollmilch 3 5",
+                package_size=1000, package_unit="ml", price=1.19,
+                price_per_unit=0.00119, availability="available",
+            ),
+            Product(
+                supermarket="REWE", external_id="sql-2", ingredient="coconut milk",
+                name_original="Alpro Kokosmilch", name_normalized="alpro kokosmilch",
+                package_size=1000, package_unit="ml", price=1.99,
+                price_per_unit=0.00199, availability="available",
+            ),
+            Product(
+                supermarket="REWE", external_id="sql-3", ingredient="olive oil",
+                name_original="REWE Bio Olivenöl Nativ Extra",
+                name_normalized="rewe bio olivenoel nativ extra",
+                package_size=500, package_unit="ml", price=4.99,
+                price_per_unit=0.00998, availability="available",
+            ),
+            Product(
+                supermarket="REWE", external_id="sql-4", ingredient="chicken breast",
+                name_original="Hähnchenbrustfilet", name_normalized="haehnchenbrustfilet",
+                package_size=400, package_unit="g", price=4.49,
+                price_per_unit=0.011225, availability="available",
+            ),
+        ])
+        sql_db.commit()
+        sql_adapter = type("Adapter", (), {"db": sql_db})()
+        assert len(_multilingual_catalog_search(sql_adapter, "milk")) == 1
+        assert len(_multilingual_catalog_search(sql_adapter, "olive oil")) == 1
+        assert len(_multilingual_catalog_search(sql_adapter, "chicken breast")) == 1
+        assert _multilingual_catalog_search(sql_adapter, "chicken") == []
+    finally:
+        sql_db.close()
+        engine.dispose()
+
     oil = ingredient_aliases("oil")
     assert "olive oil" not in oil
     assert "olivenöl" not in oil
