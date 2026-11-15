@@ -1255,6 +1255,7 @@ def run():
     chicken_breast_terms = ingredient_candidate_search_terms("chicken breast")
     assert "hähnchenbrust" in chicken_breast_terms
     assert "haehnchenbrust" in chicken_breast_terms
+    assert "hahnchenbrust" in chicken_breast_terms
     assert ingredient_product_match_type(
         "chicken breast", "REWE Bio Hähnchenbrust 400g", {}, "Fleisch"
     ) == "exact"
