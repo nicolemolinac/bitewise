@@ -84,6 +84,50 @@ def main():
     assert browser_pages == 51, (
         f"Expected exactly 51 unique browser page navigations, got {browser_pages}"
     )
+
+    # Never silently treat a category as complete when pagination exceeds the
+    # configured safety cap. That could otherwise allow stale-product deletion.
+    class LongSession:
+        def get(self, url, **kwargs):
+            page_number = int(parse_qs(urlsplit(url).query).get("page", ["1"])[0])
+            return FakeResponse(f"<html><body>Unique catalog page {page_number}</body></html>")
+
+    long_scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
+    long_scraper.session = LongSession()
+
+    def next_long_page(html, current, start):
+        page_number = int(parse_qs(urlsplit(current).query).get("page", ["1"])[0])
+        return [f"{start}?page={page_number + 1}"] if page_number < 51 else []
+
+    long_scraper._pagination_links = next_long_page
+    try:
+        list(long_scraper.pages(REWE_CATEGORY_URLS[0]))
+        raise AssertionError("HTTP pagination cap must fail closed")
+    except RuntimeError as exc:
+        assert "pagination did not complete" in str(exc)
+
+    long_scraper._browser_category_html = lambda page, url: (
+        f"<html><body>Unique browser catalog page "
+        f"{parse_qs(urlsplit(url).query).get('page', ['1'])[0]}</body></html>"
+    )
+    try:
+        list(long_scraper._browser_category_pages(object(), REWE_CATEGORY_URLS[0]))
+        raise AssertionError("Browser pagination cap must fail closed")
+    except RuntimeError as exc:
+        assert "pagination did not complete" in str(exc)
+
+    # Repeated page bodies are also failures, not successful early termination.
+    repeated = ReweCatalogScraper(delay=0, browser_enabled=False)
+    repeated.session = FakeResponseSession = type(
+        "RepeatedSession", (), {"get": lambda self, url, **kwargs: FakeResponse("<html><body>same</body></html>")}
+    )()
+    repeated._pagination_links = lambda html, current, start: [f"{start}?page=2"] if "page=2" not in current else []
+    try:
+        list(repeated.pages(REWE_CATEGORY_URLS[0]))
+        raise AssertionError("Repeated page content must fail closed")
+    except RuntimeError as exc:
+        assert "repeated page content" in str(exc)
+
     print(
         "REWE pagination regression QA: "
         f"{len(REWE_CATEGORY_URLS)} categories, {total_pages} HTTP pages and "
