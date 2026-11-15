@@ -275,7 +275,7 @@ def _visible_postcode_input(scope):
     return None
 
 
-def _find_chrome_for_testing(playwright):
+def _find_chrome_for_testing():
     """Find an installed Google Chrome for Testing executable; never substitute Chromium."""
     candidates = []
     configured = os.getenv("CHROME_FOR_TESTING_PATH", "").strip()
@@ -318,12 +318,12 @@ def _ensure_chrome_for_testing(playwright, endpoint):
             f"No Chrome for Testing is reachable at {endpoint}; automatic launch is local-only."
         )
 
-    executable = _find_chrome_for_testing(playwright)
+    executable = _find_chrome_for_testing()
     if not executable:
         raise RuntimeError(
-            "Chrome for Testing was not found. Install it with "
-            "'python -m playwright install chromium' or set CHROME_FOR_TESTING_PATH "
-            "to the Chrome for Testing executable."
+            "Google Chrome for Testing was not found. Install Chrome for Testing or set "
+            "CHROME_FOR_TESTING_PATH to its executable. Playwright's bundled Chromium "
+            "is intentionally not used."
         )
 
     port = parsed.port or 9222
