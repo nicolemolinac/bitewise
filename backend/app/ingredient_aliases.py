@@ -160,6 +160,8 @@ _IRREGULAR_SINGULARS = {
     "loaves": "loaf",
     "halves": "half",
     "knives": "knife",
+    # Uncountable ingredient names whose spelling ends in "ses".
+    "molasses": "molasses",
 }
 
 
