@@ -15,6 +15,7 @@ def main():
             ["garlic", 2, ""],
             ["butter", "not-a-number", "g"],
             ["onion", 1, "unit"],
+            ["salt", True, "g"],
         ],
     })
     assert meal is not None
