@@ -160,7 +160,7 @@ def consolidate(meals, servings_map):
                         "Serving count and base servings must be finite positive numbers before scaling ingredients."
                     ),
                 }
-            row["source_meals"].append(meal["name"])
+            row["source_meals"].append(str(meal.get("name") or meal["id"]))
             if isinstance(profile, dict) and profile:
                 row["ingredient_intelligence"] = profile
             row["unit_validation"] = (
