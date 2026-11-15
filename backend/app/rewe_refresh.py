@@ -96,17 +96,38 @@ def rewe_refresh_safe():
                 incoming_price = data.get("price")
                 if existing.price != incoming_price:
                     existing.last_price = existing.price
+                raw_size = data.get("package_size")
+                try:
+                    incoming_size = float(raw_size)
+                except (TypeError, ValueError):
+                    incoming_size = 0.0
+                incoming_unit = str(data.get("package_unit") or "").strip().lower()
+                valid_package_pair = (
+                    incoming_size > 0
+                    and incoming_size < float("inf")
+                    and incoming_unit not in {"", "unknown", "none"}
+                )
+
                 for key, value in data.items():
                     if not hasattr(existing, key):
                         continue
-                    # Never erase a known package size with an unknown scrape result.
-                    if key == "package_size" and (value is None or float(value or 0) <= 0):
+                    # Package size and unit describe one indivisible measurement.
+                    # Never mix a fresh size with a stale/unknown unit, or erase a
+                    # known pair when REWE omits either part of the package label.
+                    if key in {"package_size", "package_unit"} and not valid_package_pair:
                         continue
-                    if key == "package_unit" and str(value or "").lower() in {"", "unknown", "none"}:
+                    if key == "price_per_unit" and not valid_package_pair:
                         continue
                     setattr(existing, key, value)
-                # Recalculate normalized unit price only from a validated package size.
-                if existing.price is not None and existing.package_size and existing.package_size > 0:
+
+                # Recalculate normalized unit price from the retained/updated
+                # package pair and latest price, rather than trusting a stale scrape.
+                if (
+                    existing.price is not None
+                    and existing.package_size
+                    and existing.package_size > 0
+                    and str(existing.package_unit or "").lower() not in {"", "unknown", "none"}
+                ):
                     existing.price_per_unit = existing.price / existing.package_size
                 existing.postcode_context = current_postcode
                 existing.last_seen_at = now
