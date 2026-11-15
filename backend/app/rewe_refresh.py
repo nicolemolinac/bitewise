@@ -186,17 +186,28 @@ def rewe_refresh_safe():
 
         report = ReweCatalogScraper().run(upsert, postcode)
 
+        skipped_observations = int(report.get("products_skipped", 0) or 0)
+        found_observations = int(report.get("products_found", 0) or 0)
+        # A healthy HTTP response can still contain a material number of
+        # unusable product cards. Do not delete old rows based on that snapshot.
+        max_skips_for_reconciliation = max(5, int(found_observations * 0.01))
         complete_healthy = (
             report.get("status") == "healthy"
             and report.get("categories_failed", 0) == 0
             and report.get("categories_processed", 0) == len(REWE_CATEGORY_URLS)
             and report.get("categories_successful", 0) == len(REWE_CATEGORY_URLS)
+            and skipped_observations <= max_skips_for_reconciliation
         )
 
         reconciliation = {
             "removed": 0,
             "reconciliation_skipped": True,
-            "reconciliation_reason": "Refresh was partial or incomplete; existing catalog preserved.",
+            "reconciliation_reason": (
+                f"Refresh skipped {skipped_observations} product observations "
+                f"(safe maximum {max_skips_for_reconciliation}); existing catalog preserved."
+                if skipped_observations > max_skips_for_reconciliation
+                else "Refresh was partial or incomplete; existing catalog preserved."
+            ),
         }
         if complete_healthy:
             reconciliation = _remove_stale_rewe_products(db, seen_external_ids, before_count)
