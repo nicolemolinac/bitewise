@@ -70,6 +70,8 @@ jobs:
         run: python qa_ingredient_aliases.py
       - name: Ingredient package parsing and unit conversion QA
         run: python qa_ingredient_intelligence.py
+      - name: REWE package parser edge cases
+        run: python qa_rewe_package_parser.py
       - name: Recipe ingredient input validation QA
         run: python qa_recipe_ingredient_validation.py
       - name: REWE pagination regression QA across all 17 categories
