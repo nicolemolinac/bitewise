@@ -304,9 +304,14 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 if normalized_price is None and offer_price is not None:
                     normalized_price = offer_price
                     normalized_price_per_unit = offer_price / size if size else None
-                external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
+                external_id = str(
+                    candidate.get("sku") or candidate.get("gtin13")
+                    or candidate.get("productID") or ""
+                ).strip()
                 if not external_id:
-                    external_id = hashlib.sha256(f"{name}|{product_url or raw_url}".encode()).hexdigest()[:20]
+                    external_id = hashlib.sha256(
+                        f"{name}|{product_url or raw_url}".encode()
+                    ).hexdigest()[:20]
                 brand = candidate.get("brand")
                 if isinstance(brand, dict):
                     brand = brand.get("name")
@@ -552,46 +557,62 @@ def _rewe_add_button_index(page):
 
 
 def _merge_duplicate_product(current: dict, incoming: dict) -> dict:
-    """Merge duplicate SKU observations without letting invalid values win."""
+    """Merge duplicate SKU observations without letting invalid values win.
+
+    Checkout price and unit price are coupled: when a valid checkout price
+    repairs an invalid one, a stale unit price must never survive that repair.
+    """
     merged = dict(current)
+
+    def positive_finite(value):
+        if isinstance(value, bool):
+            return False
+        try:
+            number = float(value)
+        except (OverflowError, TypeError, ValueError):
+            return False
+        return math.isfinite(number) and number > 0
+
     for key, value in incoming.items():
         if value is None or value == "":
             continue
-        if key in {"price", "price_per_unit"}:
-            try:
-                candidate = float(value)
-                candidate_valid = math.isfinite(candidate) and candidate > 0
-            except (OverflowError, TypeError, ValueError):
-                candidate_valid = False
-            try:
-                existing = float(merged.get(key))
-                existing_valid = math.isfinite(existing) and existing > 0
-            except (OverflowError, TypeError, ValueError):
-                existing_valid = False
-            if candidate_valid and not existing_valid:
+        if key == "price":
+            if positive_finite(value) and not positive_finite(merged.get("price")):
+                merged["price"] = value
+                candidate_unit_price = incoming.get("price_per_unit")
+                if positive_finite(candidate_unit_price):
+                    merged["price_per_unit"] = candidate_unit_price
+                else:
+                    size = merged.get("package_size")
+                    if positive_finite(size) and str(merged.get("package_unit") or "").strip():
+                        merged["price_per_unit"] = float(value) / float(size)
+                    else:
+                        merged["price_per_unit"] = None
+            continue
+        if key == "price_per_unit":
+            if positive_finite(value) and not positive_finite(merged.get("price_per_unit")):
                 merged[key] = value
             continue
         if key == "package_size":
-            try:
-                candidate = float(value)
-                candidate_valid = math.isfinite(candidate) and candidate > 0 and bool(str(incoming.get("package_unit") or "").strip())
-            except (OverflowError, TypeError, ValueError):
-                candidate_valid = False
-            try:
-                existing = float(merged.get("package_size"))
-                existing_valid = math.isfinite(existing) and existing > 0 and bool(str(merged.get("package_unit") or "").strip())
-            except (OverflowError, TypeError, ValueError):
-                existing_valid = False
+            candidate_valid = (
+                positive_finite(value)
+                and bool(str(incoming.get("package_unit") or "").strip())
+            )
+            existing_valid = (
+                positive_finite(merged.get("package_size"))
+                and bool(str(merged.get("package_unit") or "").strip())
+            )
             if candidate_valid and not existing_valid:
                 merged["package_size"] = value
                 merged["package_unit"] = incoming["package_unit"]
+                if positive_finite(merged.get("price")):
+                    merged["price_per_unit"] = float(merged["price"]) / float(value)
             continue
         if key == "package_unit":
             continue
         if merged.get(key) is None or merged.get(key) == "":
             merged[key] = value
     return merged
-
 
 class ReweCatalogScraper:
     def __init__(self, delay=0.35, session=None, browser_enabled=None):
