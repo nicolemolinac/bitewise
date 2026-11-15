@@ -91,9 +91,19 @@ def main():
     assert ingredient_matches_product("saffron", "Safran gemahlen")
     assert canonical_ingredient("tomatoes") == "tomato"
     assert canonical_ingredient("Tomate") == "tomato"
+    assert canonical_ingredient("potatoes") == "potato"
     assert canonical_ingredient("chicken breasts") == "chicken breast"
     assert canonical_ingredient("olive oil") == "olive oil"
     assert canonical_ingredient("rice noodles") == "rice noodle"
+    # Singular nouns ending in s must not be corrupted as if they were plurals.
+    assert canonical_ingredient("couscous") == "couscous"
+    assert canonical_ingredient("hummus") == "hummus"
+    assert canonical_ingredient("watercress") == "watercress"
+    assert canonical_ingredient("molasses") == "molasses"
+    assert canonical_ingredient("asparagus") == "asparagus"
+    assert "hummu" not in ingredient_aliases("hummus")
+    assert "watercres" not in ingredient_aliases("watercress")
+    assert ingredient_matches_product("hummus", "REWE Bio Hummus Natur")
     assert ingredient_matches_product("leek", "Porree frisch")
     assert ingredient_matches_product("asparagus", "Grüner Spargel")
     assert ingredient_matches_product("lamb", "Lammfleisch")
