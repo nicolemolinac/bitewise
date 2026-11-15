@@ -895,9 +895,12 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
     # German "Koriander" can mean either fresh coriander leaves or the dried
     # spice seed. A bad/missing REWE aisle must not let seed products become an
     # exact fresh-herb match merely because both share the word Koriander.
-    if normalize_text(ingredient) in {"fresh cilantro", "cilantro", "coriander leaves"}:
+    if normalize_text(ingredient) in {
+        "fresh cilantro", "cilantro", "coriander leaves", "fresh coriander",
+    }:
         coriander_seed_markers = (
-            r"\b(?:koriander|coriander)\s*(?:samen|saat|seed|seeds|pulver|powder|gemahlen|ganz|whole)\b",
+            r"\b(?:koriander|coriander)(?:samen|saat|korner|koerner|seeds?)\b",
+            r"\b(?:koriander|coriander)\s+(?:samen|saat|korner|koerner|seed|seeds|pulver|powder|gemahlen|ganz|whole)\b",
             r"\b(?:ground|gemahlen(?:er|es|e)?)\s+(?:koriander|coriander)\b",
         )
         if any(re.search(pattern, title) for pattern in coriander_seed_markers):
