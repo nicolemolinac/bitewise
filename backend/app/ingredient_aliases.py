@@ -145,10 +145,30 @@ def _norm(value: str) -> str:
 
 
 _ALIAS_INDEX: dict[str, set[str]] = {}
+_ALIAS_CANONICAL: dict[str, str] = {}
 for group in _ALIAS_GROUPS:
     normalized = {_norm(x) for x in group if _norm(x)}
+    canonical = _norm(group[0])
     for term in normalized:
         _ALIAS_INDEX.setdefault(term, set()).update(normalized)
+        _ALIAS_CANONICAL.setdefault(term, canonical)
+
+
+def canonical_ingredient(value: str) -> str:
+    """Return a conservative canonical ingredient label for exact aliases."""
+    needle = _norm(value)
+    if not needle:
+        return ""
+    if needle in _ALIAS_CANONICAL:
+        return _ALIAS_CANONICAL[needle]
+    # Normalize simple English plurals without stripping words from compounds.
+    if needle.endswith("ies") and len(needle) > 4:
+        singular = needle[:-3] + "y"
+    elif needle.endswith("s") and len(needle) > 3:
+        singular = needle[:-1]
+    else:
+        singular = needle
+    return _ALIAS_CANONICAL.get(singular, singular)
 
 
 def ingredient_aliases(value: str) -> list[str]:
