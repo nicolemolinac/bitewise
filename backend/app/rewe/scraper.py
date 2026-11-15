@@ -148,6 +148,19 @@ def _canonical_product_url(value: str | None, base_url: str = "") -> str | None:
     return urlunsplit((parts.scheme or "https", parts.netloc, parts.path, parts.query, ""))
 
 
+def _schema_availability(offers) -> str:
+    """Translate schema.org availability into the catalog's conservative status."""
+    if not isinstance(offers, dict):
+        return "unknown"
+    raw = str(offers.get("availability") or "").strip().lower()
+    token = re.split(r"[/#]", raw)[-1].replace("_", "").replace("-", "")
+    if any(marker in token for marker in ("outofstock", "soldout", "discontinued")):
+        return "unavailable"
+    if any(marker in token for marker in ("instock", "limitedavailability")):
+        return "available"
+    return "unknown"
+
+
 def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
     rows = []
     for script in soup.select('script[type="application/ld+json"]'):
@@ -181,7 +194,7 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 offers = candidate.get("offers") or {}
                 if isinstance(offers, list):
                     offers = offers[0] if offers else {}
-                offer_price = offers.get("price") if isinstance(offers, dict) else None
+                offer_price = (offers.get("price") or offers.get("lowPrice")) if isinstance(offers, dict) else None
                 try:
                     offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
                 except Exception:
@@ -208,7 +221,7 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     "price_per_unit": (offer_price / size) if offer_price is not None and size else None,
                     "product_url": product_url,
                     "image_url": image_url,
-                    "availability": "available" if offers else "unknown",
+                    "availability": _schema_availability(offers),
                 })
     return rows
 
