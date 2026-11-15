@@ -174,13 +174,13 @@ def ingredient_matches_product(ingredient: str, product_text: str) -> bool:
 
     matched_known = []
     for known in _ALIAS_INDEX:
-        exact = re.search(rf"(?<!\\w){re.escape(known)}(?!\\w)", text)
+        exact = re.search(rf"(?<!\w){re.escape(known)}(?!\w)", text)
         compact = known.replace(" ", "")
         # German product names often join a specific cut/type into one word.
         # Permit a suffix only for long, specific aliases, never generic words.
         compound = (
             len(compact) >= 10
-            and re.search(rf"(?<!\\w){re.escape(compact)}[a-zäöüß]+(?!\\w)", text)
+            and re.search(rf"(?<!\w){re.escape(compact)}[a-zäöüß]+(?!\w)", text)
         )
         if exact or compound:
             matched_known.append(known)
@@ -191,6 +191,6 @@ def ingredient_matches_product(ingredient: str, product_text: str) -> bool:
 
     # Unknown ingredients still get exact phrase matching in the source title.
     return any(
-        re.search(rf"(?<!\\w){re.escape(alias)}(?!\\w)", text)
+        re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", text)
         for alias in aliases
     )
