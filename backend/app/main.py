@@ -20,7 +20,8 @@ from .recommendations.engine import score_meal
 from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
-from .shopping.optimizer import STRATEGIES, build_basket, consolidate
+from .shopping.optimizer import STRATEGIES, _convert_ingredient_quantity, build_basket, consolidate
+from .ingredient_intelligence import normalize_text, validate_ingredient_unit
 from .catalog_intelligence import search_catalog_opportunities
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
@@ -124,14 +125,82 @@ def dislikes():
  db=SessionLocal()
  try:ids=[x.meal_id for x in db.query(UserEvent).filter(UserEvent.action=='dislike').all()];return {'meals':[m for m in MEALS if m['id'] in ids]}
  finally:db.close()
-def consume_meal_from_pantry(db,meal,servings=2):
- factor=servings/2;consumed=[]
- for ingredient,amount,unit in meal['ingredients']:
-  item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first()
-  if item and item.unit==unit:used=min(item.quantity,amount*factor);item.quantity=max(0,item.quantity-amount*factor);consumed.append({'ingredient':ingredient,'quantity':round(used,2),'unit':unit})
+def consume_meal_from_pantry(db, meal, servings=2):
+ """Deduct only validated, unit-compatible quantities from pantry inventory."""
+ try:
+  servings_value = float(servings)
+  base_servings = float(meal.get("base_servings", 2))
+ except (TypeError, ValueError, OverflowError):
+  raise HTTPException(422, "Servings must be finite positive numbers")
+ if (
+  isinstance(servings, bool) or not math.isfinite(servings_value)
+  or not math.isfinite(base_servings) or servings_value <= 0 or base_servings <= 0
+ ):
+  raise HTTPException(422, "Servings must be finite positive numbers")
+ factor = servings_value / base_servings
+ if not math.isfinite(factor) or factor <= 0:
+  raise HTTPException(422, "Invalid serving scale")
+ consumed = []
+ inventory = {}
+ ambiguous = set()
+ for item in db.query(PantryItem).all():
+  key = normalize_text(item.ingredient)
+  if not key:
+   continue
+  if key in inventory:
+   inventory.pop(key, None)
+   ambiguous.add(key)
+  elif key not in ambiguous:
+   inventory[key] = item
+ intelligence = meal.get("ingredient_intelligence") or {}
+ for row in meal.get("ingredients") or []:
+  if not isinstance(row, (list, tuple)) or len(row) < 3:
+   continue
+  ingredient, raw_amount, unit = row[0], row[1], row[2]
+  ingredient = str(ingredient or "").strip()
+  if not ingredient or not isinstance(unit, str) or not unit.strip():
+   continue
+  if isinstance(raw_amount, bool):
+   continue
+  try:
+   amount = float(raw_amount) * factor
+  except (TypeError, ValueError, OverflowError):
+   continue
+  if not math.isfinite(amount) or amount <= 0:
+   continue
+  profile = {}
+  if isinstance(intelligence, dict):
+   profile = next(
+    (value for key, value in intelligence.items()
+     if normalize_text(key) == normalize_text(ingredient) and isinstance(value, dict)),
+    {},
+   )
+  if not validate_ingredient_unit(ingredient, unit, profile).get("valid", False):
+   continue
+  key = normalize_text(ingredient)
+  item = inventory.get(key) if key not in ambiguous else None
+  if item is None or not isinstance(item.unit, str) or not item.unit.strip():
+   continue
+  if isinstance(item.quantity, bool):
+   continue
+  try:
+   stock = float(item.quantity)
+  except (TypeError, ValueError, OverflowError):
+   continue
+  if not math.isfinite(stock) or stock <= 0:
+   continue
+  available, _ = _convert_ingredient_quantity(stock, item.unit, unit, ingredient)
+  if available is None or not math.isfinite(available) or available <= 0:
+   continue
+  used = min(available, amount)
+  deduct, _ = _convert_ingredient_quantity(used, unit, item.unit, ingredient)
+  if deduct is None or not math.isfinite(deduct) or deduct <= 0:
+   continue
+  item.quantity = max(0.0, stock - min(stock, deduct))
+  consumed.append({"ingredient": ingredient, "quantity": round(used, 2), "unit": unit})
  return consumed
 @app.post('/api/meals/{meal_id}/eaten')
-def eaten(meal_id:str,servings:int=2):
+def eaten(meal_id:str,servings:int=Query(default=2,ge=1,le=12)):
  meal=meal_by_id(meal_id)
  if not meal:raise HTTPException(404,'Meal not found')
  db=SessionLocal()
