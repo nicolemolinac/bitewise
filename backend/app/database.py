@@ -345,8 +345,14 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
         return current_size
 
     match = matches[-1]
-    amount = float(match.group(2).replace(",", "."))
-    multiplier = int(match.group(1) or 1)
+    try:
+        amount = float(match.group(2).replace(",", "."))
+        multiplier = int(match.group(1) or 1)
+    except (OverflowError, TypeError, ValueError):
+        return current_size
+    if not math.isfinite(amount) or amount <= 0 or multiplier <= 0:
+        return current_size
+
     source_unit = match.group(3).lower()
     if source_unit == "kg":
         amount *= 1000
@@ -355,7 +361,10 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
         amount *= 1000
         source_unit = "ml"
 
-    return amount * multiplier if source_unit == current_unit else current_size
+    if source_unit != current_unit:
+        return current_size
+    resolved_size = amount * multiplier
+    return resolved_size if math.isfinite(resolved_size) and resolved_size > 0 else current_size
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
