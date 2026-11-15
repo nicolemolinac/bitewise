@@ -109,6 +109,28 @@ def run():
     assert _convert_quantity(float("nan"), "g", "g") is None
     assert _convert_quantity(float("inf"), "g", "kg") is None
     assert _convert_quantity(100, "g", "ml") is None
+    assert _convert_quantity(True, "g", "g") is None
+
+    # Booleans are numeric subclasses in Python; they must never become quantities.
+    invalid_quantity = consolidate([
+        {"id": "bool", "name": "Invalid meal", "ingredients": [["rice", True, "g"]]},
+    ], {"bool": 2})
+    assert invalid_quantity == []
+    try:
+        consolidate([
+            {"id": "bool-servings", "name": "Invalid servings", "ingredients": [["rice", 10, "g"]]},
+        ], {"bool-servings": True})
+        raise AssertionError("Boolean serving count must be rejected")
+    except ValueError:
+        pass
+    try:
+        build_basket(
+            [{"ingredient": "rice", "quantity": True, "unit": "g"}],
+            FakeCatalog({"rice": []}),
+        )
+        raise AssertionError("Boolean basket quantity must be rejected")
+    except ValueError:
+        pass
 
     canonical_rows = consolidate([
         {"id": "x", "name": "Tomato salad", "ingredients": [["tomato", 1, "piece"], ["tomatoes", 2, "piece"], ["cherry tomatoes", 3, "piece"]]},
