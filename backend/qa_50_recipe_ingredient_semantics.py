@@ -134,7 +134,7 @@ def main():
             for name, qty, unit in meal["ingredients"]:
                 # Canonical mass/volume/count units are checked by consolidate;
                 # retain the same dimension in this independent expected total.
-                normalized = {"kg": "g", "l": "ml", "unit": "piece"}.get(unit, unit)
+                normalized = {"kg": "g", "l": "ml", "unit": "piece", "cloves": "clove"}.get(unit, unit)
                 scale = {"kg": 1000, "l": 1000}.get(unit, 1)
                 key = (canonical_ingredient(name), normalized)
                 expected[key] += qty * scale * servings / 2
