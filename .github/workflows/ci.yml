@@ -65,6 +65,12 @@ jobs:
         run: python qa_cooking_preferences.py
       - name: REWE ingredient matching and cost QA
         run: python qa_ingredient_costing.py
+      - name: Ingredient alias specificity QA
+        run: python qa_ingredient_aliases.py
+      - name: Ingredient package parsing and unit conversion QA
+        run: python qa_ingredient_intelligence.py
+      - name: Recipe ingredient input validation QA
+        run: python qa_recipe_ingredient_validation.py
       - name: REWE pagination regression QA across all 17 categories
         run: python qa_rewe_pagination.py
       - name: Google Images meal-photo API QA
