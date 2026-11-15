@@ -53,33 +53,79 @@ def normalize(value: str) -> str:
     return re.sub(r"[^a-z0-9äöüß]+", " ", (value or "").lower()).strip()
 
 
+_PACKAGE_NUMBER = r"(?:\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)"
+_PACKAGE_UNIT = r"kg|mg|g|ml|cl|l|stk\.?|st\.?|stück|stueck|pcs?\.?|eier|beutel|becher|packungen?|flaschen?|dosen?"
+
+
+def _parse_de_number(raw):
+    value = str(raw or "").strip()
+    if not value:
+        return None
+    if "," in value:
+        value = value.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(?:\.\d{3})+", value):
+        value = value.replace(".", "")
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    return result if math.isfinite(result) and result > 0 else None
+
+
+def _package_unit(amount, unit):
+    unit = unit.lower().rstrip(".")
+    if unit == "kg": return amount * 1000, "g"
+    if unit == "mg": return amount / 1000, "g"
+    if unit == "g": return amount, "g"
+    if unit == "l": return amount * 1000, "ml"
+    if unit == "cl": return amount * 10, "ml"
+    if unit == "ml": return amount, "ml"
+    if unit in {"stk", "st", "stück", "stueck", "pcs", "pc", "eier", "beutel", "becher", "packungen", "flaschen", "dosen"}:
+        return amount, "unit"
+    return None, None
+
+
 def package(text: str):
-    """Parse package quantities, including multipacks, into base units."""
-    value = str(text or "").replace("\u00a0", " ").replace("×", "x")
-    pattern = re.compile(
-        r"(?<![\w,])(?:(\d+(?:[.,]\d+)?)\s*x\s*)?"
-        r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)(?![a-z])",
+    """Parse total sellable package content; reject unit-price denominators."""
+    value = str(text or "").replace("\u00a0", " ").replace("×", "x").replace("✕", "x")
+    if not value.strip():
+        return None, None
+
+    # A price-per-unit denominator is not the package content.
+    value = re.sub(r"(?:grundpreis|preis\\s*/?\\s*kg|€/|€\\s*/|eur\\s*/|/\\s*)\\s*\d+(?:[.,]\d+)?\s*(?:kg|g|ml|l)\b", " ", value, flags=re.I)
+    # Do not accept negative values by matching the positive suffix of "-2 g".
+    multi = re.compile(
+        rf"(?<![\w.,+-])(?P<n>{_PACKAGE_NUMBER})\s*x\s*(?P<q>{_PACKAGE_NUMBER})\s*(?P<u>{_PACKAGE_UNIT})(?![\w])",
         re.I,
     )
-    matches = list(pattern.finditer(value))
-    if not matches:
-        return None, None
-    # Product-card text starts with the product name; later numbers may be
-    # unit-price references (for example, "€/100 g"), not pack contents.
-    match = matches[0]
-    multiplier = float((match.group(1) or "1").replace(",", "."))
-    amount = float(match.group(2).replace(",", "."))
-    if not (math.isfinite(multiplier) and math.isfinite(amount)) or multiplier <= 0 or amount <= 0:
-        return None, None
-    amount *= multiplier
-    unit = match.group(3).lower()
-    if unit == "kg":
-        return amount * 1000, "g"
-    if unit == "l":
-        return amount * 1000, "ml"
-    if unit in ("stk", "st.", "stück"):
-        return amount, "unit"
-    return amount, unit
+    for m in multi.finditer(value):
+        n, q = _parse_de_number(m.group("n")), _parse_de_number(m.group("q"))
+        if n is None or q is None:
+            continue
+        base, unit = _package_unit(q, m.group("u"))
+        total = n * base if base is not None else None
+        if total is not None and math.isfinite(total) and total > 0:
+            return total, unit
+
+    single = re.compile(
+        rf"(?<![\w.,+-])(?P<q>{_PACKAGE_NUMBER})\s*(?P<u>{_PACKAGE_UNIT})(?![\w])",
+        re.I,
+    )
+    for m in single.finditer(value):
+        q = _parse_de_number(m.group("q"))
+        if q is None:
+            continue
+        base, unit = _package_unit(q, m.group("u"))
+        if base is not None:
+            return base, unit
+
+    # Count packs such as "10er Pack" only if the product is clearly a count item.
+    count = re.search(r"(?<![\w])(\d+)\s*(?:er[- ]?pack|er packung)\b", value, re.I)
+    if count:
+        n = _parse_de_number(count.group(1))
+        if n is not None:
+            return n, "unit"
+    return None, None
 
 def price(text: str):
     for pattern in (r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})", r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)"):
@@ -138,7 +184,9 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     offer_price = float(str(offer_price).replace(",", ".")) if offer_price is not None else None
                 except Exception:
                     offer_price = None
-                size, unit = package(f"{name} {candidate.get('description') or ''}")
+                size, unit = package(name)
+                if size is None:
+                    size, unit = package(candidate.get("description") or "")
                 external_id = str(candidate.get("sku") or candidate.get("gtin13") or candidate.get("productID") or "")
                 if not external_id:
                     external_id = hashlib.sha256(f"{name}|{product_url or raw_url}".encode()).hexdigest()[:20]
@@ -442,7 +490,9 @@ class ReweCatalogScraper:
             name_key = normalize(product_name)
             if name_key:
                 pdp_by_name[name_key] = href
-            size, unit = package(raw)
+            size, unit = package(product_name)
+            if size is None:
+                size, unit = package(raw)
             cost = price(raw)
             image_node = box.select_one("img")
             image_src = None
