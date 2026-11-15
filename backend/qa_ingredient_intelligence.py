@@ -1253,7 +1253,7 @@ def run():
     assert ingredient_product_match_type("banana", "REWE Bananenchips 150g", {}, "suesses-salziges") is None
     assert ingredient_product_match_type("chicken", "REWE Chicken Soup 400ml", {}, "") is None
     assert ingredient_product_match_type("beef", "REWE Beef in Sauce 400g", {}, "") is None
-    assert ingredient_product_match_type("white fish fillet", "REWE White Fish Fingers 450g", {"form": "fresh"}, "") is None
+    assert ingredient_product_match_type("fish", "REWE Fish Fingers 450g", {"form": "fresh"}, "") is None
     assert ingredient_product_match_type("ham", "REWE Shampoo Repair 250ml", {}, "drogerie-gesundheit") is None
     assert ingredient_product_match_type("milk", "Ritter Sport Milk Chocolate 100g", {}, "suesses-salziges") is None
     assert ingredient_product_match_type("milk", "REWE Bio Kokosmilch 400ml", {"form": "liquid"}, "fertiggerichte-konserven") is None
