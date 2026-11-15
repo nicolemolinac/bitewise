@@ -36,6 +36,8 @@ def main():
     price_cases = [
         ("Grundpreis 1,99 € / 100 g", None),
         ("Grundpreis 1,99 €/kg", None),
+        ("1,99 €/kg", None),
+        ("0,30 €/100 ml", None),
         ("Olivenöl 1,49 € Grundpreis 0,30 €/100 ml", 1.49),
         ("Milk 0.99 EUR Grundpreis 0.10 EUR / 100 ml", 0.99),
         ("Product without price", None),
