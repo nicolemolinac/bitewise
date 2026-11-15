@@ -10,6 +10,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import tempfile
 
+from sqlalchemy import or_
+
 _TEMP = tempfile.TemporaryDirectory(prefix="bitewise-catalog-coverage-")
 os.environ["BITEWISE_LOCAL_DB_PATH"] = str(Path(_TEMP.name) / "coverage.sqlite")
 os.environ["DATABASE_URL"] = ""
@@ -18,6 +20,7 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app import server
 from app.database import Product, SessionLocal
+from app.ingredient_intelligence import ingredient_candidate_search_terms, ingredient_product_match_type
 
 
 SAMPLE_INGREDIENTS = [
@@ -60,6 +63,34 @@ def main():
         coverage = []
         for ingredient in SAMPLE_INGREDIENTS:
             candidates = adapter.search(ingredient) or []
+            aliases = ingredient_candidate_search_terms(ingredient)
+            clauses = []
+            for term in aliases:
+                pattern = f"%{term}%"
+                clauses.extend([
+                    Product.ingredient.ilike(pattern),
+                    Product.name_normalized.ilike(pattern),
+                    Product.name_original.ilike(pattern),
+                    Product.translated_name.ilike(pattern),
+                ])
+            raw_rows = db.query(Product).filter(
+                Product.supermarket == "REWE", or_(*clauses)
+            ).all() if clauses else []
+            raw_samples = [
+                {
+                    "name": row.name_original,
+                    "category": row.category,
+                    "match_type": ingredient_product_match_type(
+                        ingredient,
+                        " ".join(str(value or "") for value in (
+                            row.name_original, row.name_normalized, row.translated_name
+                        )),
+                        None,
+                        row.category or "",
+                    ),
+                }
+                for row in raw_rows[:8]
+            ]
             exact = [p for p in candidates if p.get("ingredient_match_type") == "exact"]
             substitutes = [p for p in candidates if p.get("ingredient_match_type") == "substitute"]
             usable = [
@@ -74,6 +105,8 @@ def main():
                 "exact": len(exact),
                 "substitutes": len(substitutes),
                 "priced_usable": len(usable),
+                "raw_candidate_count": len(raw_rows),
+                "raw_candidate_samples": raw_samples,
                 "sample_candidates": [
                     {
                         "name": product.get("name_original"),
