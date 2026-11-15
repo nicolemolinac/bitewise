@@ -68,13 +68,18 @@ def run():
     mixed_units = consolidate([
         {"id": "a", "name": "Chicken bowl", "ingredients": [["chicken breast", 200, "g"], ["milk", 100, "ml"], ["garlic", 2, "cloves"]]},
         {"id": "b", "name": "Chicken pasta", "ingredients": [["chicken breast", 0.3, "kg"], ["milk", 0.5, "l"], ["garlic", 1, "unit"]]},
-    ], {"a": 2, "b": 2})
+        {"id": "c", "name": "Garlic toast", "ingredients": [["garlic", 1, "clove"]]},
+    ], {"a": 2, "b": 2, "c": 2})
     chicken = next(row for row in mixed_units if row["ingredient"] == "chicken breast")
     milk_total = next(row for row in mixed_units if row["ingredient"] == "milk")
     garlic_rows = [row for row in mixed_units if row["ingredient"] == "garlic"]
     assert chicken["quantity"] == 500 and chicken["unit"] == "g"
     assert milk_total["quantity"] == 600 and milk_total["unit"] == "ml"
     assert len(garlic_rows) == 2, "Cloves and whole units must not be silently merged"
+    garlic_cloves = next(row for row in garlic_rows if row["unit"] == "clove")
+    garlic_pieces = next(row for row in garlic_rows if row["unit"] == "piece")
+    assert garlic_cloves["quantity"] == 3, "Clove and cloves must consolidate"
+    assert garlic_pieces["quantity"] == 1, "Whole garlic units must remain separate"
 
     print("PASS: kg/g and l/ml conversions, pantry deductions, checkout package cost, consumed cost, and unmatched handling")
 
