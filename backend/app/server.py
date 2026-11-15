@@ -81,7 +81,8 @@ def _assign_expanded_recipe_identity(recipe: dict, concept_id: str) -> dict:
     if concept_id:
         previous_id = str(recipe.get("id") or "recipe")
         recipe["source_concept_id"] = concept_id
-        recipe["id"] = f"{previous_id}-{concept_id}"
+        if not previous_id.endswith(f"-{concept_id}"):
+            recipe["id"] = f"{previous_id}-{concept_id}"
         # expand_concept returns the same dictionary object stored in MEALS.
         # Persist the new ID too: Picks and shopping use it after an app restart.
         if any(item is recipe for item in AI_MEALS):
