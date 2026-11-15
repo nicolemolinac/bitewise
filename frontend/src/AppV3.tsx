@@ -173,6 +173,7 @@ export default function AppV3(){
   const [extraResults,setExtraResults]=useState<Product[]>([]);
   const [detail,setDetail]=useState<Meal|null>(null);
   const [loading,setLoading]=useState(false);
+  const [recoveringImages,setRecoveringImages]=useState(false);
   const [cartAdding,setCartAdding]=useState(false);
   const [cartReport,setCartReport]=useState<any>(null);
   const [error,setError]=useState('');
@@ -288,6 +289,13 @@ export default function AppV3(){
     }
   }
 
+  async function recoverMissingImages(){
+    const missing=discoverPool.filter(meal=>!meal.image);
+    if(!missing.length)return;
+    setRecoveringImages(true);setError('');
+    try{await attachFreePhotos(missing)}finally{setRecoveringImages(false)}
+  }
+
   async function generateAI(prompt:string){
     setLoading(true);setError('');
     try{
@@ -334,7 +342,7 @@ export default function AppV3(){
     if(action==='like')setLiked(x=>x.some(a=>a.id===meal.id)?x:[...x,meal]);
     else setSkipped(x=>[...new Set([...x,meal.id])]);
   }
-  function servingTotals(includeUnplannedPicks=false){const totals:Record<string,number>={};weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(s.meal)totals[s.meal.id]=(totals[s.meal.id]||0)+factor*(dayContexts[idx]?.people||1)}));if(!Object.keys(totals).length&&includeUnplannedPicks)liked.forEach(m=>totals[m.id]=factor);return totals}
+  function servingTotals(includeUnplannedPicks=false){const totals:Record<string,number>={};weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(s.meal)totals[s.meal.id]=(totals[s.meal.id]||0)+factor*(dayContexts[idx]?.people||1)}));if(includeUnplannedPicks)liked.forEach(m=>{if(!totals[m.id])totals[m.id]=factor});return totals}
   async function removePick(meal:Meal){
     setLiked(current=>current.filter(item=>item.id!==meal.id));
     const sourceConceptId=(meal as any).source_concept_id;
@@ -391,10 +399,11 @@ export default function AppV3(){
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{mealTypes.map(t=><button key={t.id} onClick={()=>setMealType(t.id)} className={cx('shrink-0 rounded-full px-4 py-2 text-sm font-black',mealType===t.id?'bg-[#dff2df] text-[#173b2d]':'bg-white text-[#173b2d]/55')}>{t.emoji} {t.label}</button>)}</div>
         <div className="mt-3 flex flex-col gap-2 rounded-2xl bg-white p-3 shadow-sm sm:flex-row"><input value={brain} onChange={e=>setBrain(e.target.value)} onKeyDown={e=>e.key==='Enter'&&brain.trim()&&generateAI(brain)} className="min-w-0 flex-1 rounded-xl bg-[#f3f1eb] px-4 py-3 text-sm outline-none" placeholder="Fancy but easy tonight · cheap breakfast · use what I have..."/><button onClick={()=>brain.trim()&&generateAI(brain)} className="rounded-xl bg-[#18392b] px-5 py-3 text-sm font-black text-white">{loading?'Thinking…':'Generate'}</button></div>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{cuisines.map(c=><button key={c} onClick={()=>setFilter(c)} className={cx('shrink-0 rounded-full border px-3 py-1.5 text-xs font-black capitalize',filter===c?'border-[#18392b] bg-[#18392b] text-white':'border-[#18392b]/10 bg-white text-[#18392b]/55')}>{c.replace('-',' ')}</button>)}</div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white px-4 py-3 shadow-sm"><span className="text-xs font-bold text-[#18392b]/55">{discoverPool.filter(m=>!m.image).length} Discover meals without photos</span><button disabled={recoveringImages||!discoverPool.some(m=>!m.image)} onClick={()=>void recoverMissingImages()} className="rounded-xl bg-[#18392b] px-4 py-2.5 text-xs font-black text-white disabled:opacity-40">{recoveringImages?'Searching for missing photos…':'↻ Recover missing photos'}</button></div>
         {!visible.length&&!loading?<div className="mt-5 rounded-[28px] bg-white p-10 text-center"><ChefHat className="mx-auto text-[#18392b]/20"/><div className="mt-3 font-black">No exact matches yet</div><button onClick={()=>generateAI(`${filter==='all'?'varied':filter} ${mealType} ideas`)} className="mt-4 rounded-full bg-[#18392b] px-5 py-2.5 text-sm font-black text-white">Generate matching meals</button></div>:!visible.length&&loading?<div className="mt-5 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-[#18392b]/45">Creating your {mealType} ideas…</div>:<div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{visible.map(m=><MealCard key={m.id} meal={m} open={()=>!m.is_concept&&setDetail(m)} like={()=>react(m,'like')} skip={()=>react(m,'skip')} picked={false}/>)}</div>}
       </>}
 
-      {tab==='picks'&&<><Title title="Your picks" sub="Only selected ideas become full recipes. Portions adapt to your profile and each day's guest count."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{liked.map(m=><MealCard key={m.id} meal={m} open={()=>setDetail(m)} like={()=>void removePick(m)} skip={()=>void removePick(m)} picked/>)}</div>{liked.length>0&&<button onClick={()=>makeBasket(strategy,extras,owned,true)} className="mt-6 rounded-2xl bg-[#18392b] px-5 py-3 text-sm font-black text-white"><ShoppingBasket size={15} className="mr-2 inline"/>Build adaptive weekly basket</button>}</>}
+      {tab==='picks'&&<><Title title="Your picks" sub="Recalculate ingredient quantities across all saved Picks or build the basket from the weekly plan."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{liked.map(m=><MealCard key={m.id} meal={m} open={()=>setDetail(m)} like={()=>void removePick(m)} skip={()=>void removePick(m)} picked/>)}</div>{liked.length>0&&<div className="mt-6 flex flex-wrap gap-2"><button onClick={()=>makeBasket(strategy,extras,owned,true)} className="rounded-2xl bg-[#18392b] px-5 py-3 text-sm font-black text-white"><ShoppingBasket size={15} className="mr-2 inline"/>↻ Recalculate ingredients for all Picks</button><button onClick={()=>makeBasket(strategy,extras,owned,false)} className="rounded-2xl border border-[#18392b]/15 bg-white px-5 py-3 text-sm font-black text-[#18392b]">Build basket from weekly plan</button></div>}</>}
 
       {tab==='history'&&<><Title title="Recipe history" sub="Your generated ideas and completed recipes are saved in the permanent Bitewise database."/><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{history.map((row:any)=><article key={row.record_key} className="rounded-[22px] bg-white p-4 shadow-sm"><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-[.12em] text-[#18392b]/40">{row.record_type==='recipe'?'Full recipe':'Idea'}</span><span className="rounded-full bg-[#edf3ee] px-2 py-1 text-[10px] font-bold capitalize">{row.status}</span></div><div className="mt-2 font-black">{row.meal?.name||row.name}</div><div className="mt-1 text-xs text-[#18392b]/45">{row.meal?.meal_type||''} · {row.meal?.time||'—'} min</div><div className="mt-3 flex gap-2">{row.record_type==='recipe'?<button onClick={()=>setDetail(row.meal)} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white">Open recipe</button>:<button disabled={row.status==='expanded'} onClick={()=>react(row.meal,'like')} className="flex-1 rounded-xl bg-[#18392b] px-3 py-2 text-xs font-black text-white disabled:opacity-40">{row.status==='expanded'?'Expanded':'Create recipe'}</button>}</div></article>)}</div>{!history.length&&<Empty text="Your generated ideas and recipes will appear here."/>}</>}
 
