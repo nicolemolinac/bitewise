@@ -1,5 +1,5 @@
 """Regression tests for REWE package-size parsing. Run from backend/."""
-from app.rewe.scraper import package
+from app.rewe.scraper import package, price
 
 
 def main():
@@ -32,7 +32,22 @@ def main():
     for label, expected in cases:
         actual = package(label)
         assert actual == expected, f"{label!r}: expected {expected}, got {actual}"
-    print(f"REWE PACKAGE PARSER: PASS ({len(cases)} cases)")
+
+    price_cases = [
+        ("Grundpreis 1,99 € / 100 g", None),
+        ("Grundpreis 1,99 €/kg", None),
+        ("Olivenöl 1,49 € Grundpreis 0,30 €/100 ml", 1.49),
+        ("Milk 0.99 EUR Grundpreis 0.10 EUR / 100 ml", 0.99),
+        ("Product without price", None),
+    ]
+    for label, expected in price_cases:
+        actual = price(label)
+        assert actual == expected, f"{label!r}: expected price {expected}, got {actual}"
+
+    print(
+        f"REWE PACKAGE + PRICE PARSER: PASS "
+        f"({len(cases)} package cases + {len(price_cases)} price cases)"
+    )
 
 
 if __name__ == "__main__":
