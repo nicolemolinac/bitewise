@@ -737,6 +737,24 @@ def run():
     assert stale_override_basket[0]["match_status"] == "unmatched"
     assert stale_override_basket[0]["product"] is None
     assert "previously selected product" in stale_override_basket[0]["match_reason"]
+    ambiguous_override_basket = build_basket(
+        [{"ingredient": "onion", "quantity": 2, "unit": "piece"}],
+        FakeCatalog({"onion": [{
+            "id": 78, "name_original": "Onion 1kg",
+            "package_size": 1000, "package_unit": "g",
+            "price": 1.5, "availability": "available",
+        }]}),
+        overrides={"onion": 78, "Onion!": 79},
+    )
+    assert ambiguous_override_basket[0]["match_status"] == "unmatched"
+    assert "Multiple saved product overrides" in ambiguous_override_basket[0]["match_reason"]
+    covered_with_ambiguous_override = build_basket(
+        [{"ingredient": "onion", "quantity": 1, "unit": "piece"}],
+        FakeCatalog({}),
+        overrides={"onion": 78, "Onion!": 79},
+        pantry={"onion": {"quantity": 1, "unit": "piece"}},
+    )
+    assert covered_with_ambiguous_override[0]["match_status"] == "covered"
     punctuation_pantry_basket = build_basket(
         [{"ingredient": "Red-onion", "quantity": 2, "unit": "piece", "source_meals": ["Chorrillana"]}],
         onion_catalog, mode="cheapest",
