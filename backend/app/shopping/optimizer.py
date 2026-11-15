@@ -16,9 +16,20 @@ def consolidate(meals, servings_map):
     grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": []})
     canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
     for meal in meals:
-        servings = servings_map.get(meal["id"], 2)
-        factor = servings / 2
+        try:
+            servings = float(servings_map.get(meal["id"], 2))
+        except (TypeError, ValueError):
+            raise ValueError(f"Invalid serving count for meal {meal.get('id')}")
+        if not math.isfinite(servings) or servings <= 0:
+            raise ValueError(f"Invalid serving count for meal {meal.get('id')}")
+        factor = servings / 2  # generated recipes are normalized to 2 servings
         for name, quantity, unit in meal["ingredients"]:
+            try:
+                quantity = float(quantity)
+            except (TypeError, ValueError):
+                continue
+            if not name or not math.isfinite(quantity) or quantity <= 0:
+                continue
             normalized_unit = _normal_unit(unit)
             unit_info = _UNIT_BASE.get(normalized_unit)
             if unit_info:
@@ -35,7 +46,7 @@ def consolidate(meals, servings_map):
     return [
         {
             "ingredient": ingredient,
-            "quantity": round(value["quantity"], 2),
+            "quantity": round(value["quantity"], 6),
             "unit": unit,
             "source_meals": list(dict.fromkeys(value["source_meals"])),
         }
@@ -54,6 +65,9 @@ _UNIT_ALIASES = {
     "tsp": "tsp", "teaspoon": "tsp", "teaspoons": "tsp",
     "cup": "cup", "cups": "cup",
     "clove": "clove", "cloves": "clove",
+    "milligrams": "mg", "milligram": "mg", "mg": "mg",
+    "centiliter": "cl", "centiliters": "cl", "cl": "cl",
+    "pinch": "pinch", "pinches": "pinch",
 }
 _UNIT_BASE = {"g": ("mass", 1.0), "kg": ("mass", 1000.0),
               "ml": ("volume", 1.0), "l": ("volume", 1000.0),
@@ -166,8 +180,8 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
 
         base = {
             **requirement,
-            "needed_quantity": round(needed, 2),
-            "pantry_used": round(pantry_used, 2),
+            "needed_quantity": round(needed, 6),
+            "pantry_used": round(pantry_used, 6),
             "pantry_unit": unit,
             "product": None,
             "packs": 0,
@@ -189,7 +203,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         if ingredient in owned or needed <= 0:
             base.update({
                 "needed_quantity": 0.0 if ingredient in owned else 0.0,
-                "pantry_used": round(requested if ingredient in owned else pantry_used, 2),
+                "pantry_used": round(requested if ingredient in owned else pantry_used, 6),
                 "match_status": "covered",
                 "match_reason": "Covered by pantry / marked as owned.",
                 "why": "Covered by pantry / marked as owned.",
