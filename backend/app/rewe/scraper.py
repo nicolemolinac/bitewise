@@ -92,7 +92,7 @@ def package(text: str):
         return None, None
 
     # A price-per-unit denominator is not the package content.
-    value = re.sub(r"(?:grundpreis|preis\\s*/?\\s*kg|€/|€\\s*/|eur\\s*/|/\\s*)\\s*\d+(?:[.,]\d+)?\s*(?:kg|g|ml|l)\b", " ", value, flags=re.I)
+    value = re.sub(r"(?:grundpreis|preis\s*/?\s*kg|€/|€\s*/|eur\s*/|/\s*)\s*\d+(?:[.,]\d+)?\s*(?:kg|g|ml|l)\b", " ", value, flags=re.I)
     # Do not accept negative values by matching the positive suffix of "-2 g".
     multi = re.compile(
         rf"(?<![\w.,+-])(?P<n>{_PACKAGE_NUMBER})\s*x\s*(?P<q>{_PACKAGE_NUMBER})\s*(?P<u>{_PACKAGE_UNIT})(?![\w])",
