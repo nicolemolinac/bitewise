@@ -88,6 +88,8 @@ jobs:
         run: python qa_recipe_ingredient_validation.py
       - name: REWE pagination regression QA across all 17 categories
         run: python qa_rewe_pagination.py
+      - name: REWE partial HTTP-to-browser fallback QA
+        run: python qa_rewe_fallback.py
       - name: Google Images meal-photo API QA
         run: python qa_image_photos.py
       - name: REWE cart handoff URL safety QA
