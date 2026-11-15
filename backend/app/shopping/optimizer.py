@@ -637,7 +637,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             not isinstance(raw_requested, bool)
             and math.isfinite(requested)
             and requested > 0
-            and quantity_validation.get("valid", True) is True
+            and quantity_validation.get("valid") is True
         )
         if not quantity_valid:
             requested = 0.0
@@ -649,7 +649,14 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         unit = _normal_unit(raw_unit) if raw_unit else ""
         raw_unit_validation = requirement.get("unit_validation")
         unit_validation = (
-            raw_unit_validation if isinstance(raw_unit_validation, dict) else (
+            {
+                **raw_unit_validation,
+                "valid": raw_unit_validation.get("valid") is True,
+                "reason": raw_unit_validation.get("reason") or (
+                    None if raw_unit_validation.get("valid") is True
+                    else "Ingredient unit validation metadata is invalid."
+                ),
+            } if isinstance(raw_unit_validation, dict) else (
                 {"valid": False, "family": None, "reason": "Ingredient unit validation metadata is malformed."}
                 if raw_unit_validation is not None else (
                     validate_ingredient_unit(
@@ -663,7 +670,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         )
         pantry_row = (
             pantry.get(ingredient)
-            if unit_validation.get("valid", True) and ingredient not in ambiguous_pantry_keys
+            if unit_validation.get("valid") is True and ingredient not in ambiguous_pantry_keys
             else None
         )
         pantry_used = 0.0
@@ -734,7 +741,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             output.append(base)
             continue
 
-        if not unit_validation.get("valid", True):
+        if unit_validation.get("valid") is not True:
             base.update({
                 "unit_validation": unit_validation,
                 "match_reason": unit_validation.get("reason") or "Ingredient unit failed validation.",
