@@ -519,11 +519,15 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         )
         pantry_used = 0.0
         if isinstance(pantry_row, dict):
-            converted_pantry, _ = _convert_ingredient_quantity(
-                pantry_row.get("quantity", 0), pantry_row.get("unit"), unit, ingredient
-            )
-            if converted_pantry is not None:
-                pantry_used = min(requested, max(0.0, converted_pantry))
+            pantry_unit = pantry_row.get("unit")
+            # Inventory without an explicit unit is ambiguous. Do not let
+            # _normal_unit's legacy default ("piece") turn it into usable stock.
+            if isinstance(pantry_unit, str) and pantry_unit.strip():
+                converted_pantry, _ = _convert_ingredient_quantity(
+                    pantry_row.get("quantity", 0), pantry_unit, unit, ingredient
+                )
+                if converted_pantry is not None:
+                    pantry_used = min(requested, max(0.0, converted_pantry))
         needed = max(0.0, requested - pantry_used)
 
         base = {
