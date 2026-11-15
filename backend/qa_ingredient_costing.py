@@ -92,7 +92,26 @@ def run():
     assert _convert_quantity(float("inf"), "g", "kg") is None
     assert _convert_quantity(100, "g", "ml") is None
 
-    print("PASS: kg/g and l/ml conversions, finite-value guards, pantry deductions, checkout package cost, consumed cost, and unmatched handling")
+    canonical_rows = consolidate([
+        {"id": "x", "name": "Tomato salad", "ingredients": [["tomato", 1, "piece"], ["tomatoes", 2, "piece"], ["cherry tomatoes", 3, "piece"]]},
+    ], {"x": 2})
+    regular_tomato = next(row for row in canonical_rows if row["ingredient"] == "tomato")
+    cherry_tomato = next(row for row in canonical_rows if row["ingredient"] == "cherry tomato")
+    assert regular_tomato["quantity"] == 3
+    assert cherry_tomato["quantity"] == 3, "Specific tomato types must remain separate"
+
+    synonym_pantry = build_basket(
+        [{"ingredient": "tomato", "quantity": 3, "unit": "piece", "source_meals": ["Salad"]}],
+        FakeCatalog({"tomato": []}),
+        pantry={
+            "tomatoes": {"quantity": 2, "unit": "piece"},
+            "Tomate": {"quantity": 1, "unit": "piece"},
+        },
+    )[0]
+    assert synonym_pantry["match_status"] == "covered"
+    assert synonym_pantry["pantry_used"] == 3
+
+    print("PASS: conversions, canonical ingredient merging, synonym pantry deductions, finite-value guards, checkout and consumption costing, pack limits, and unmatched handling")
 
 
 if __name__ == "__main__":
