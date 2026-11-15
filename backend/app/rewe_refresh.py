@@ -130,24 +130,25 @@ def rewe_refresh_safe():
                 valid_price = False
             if valid_price:
                 incoming["price"] = incoming_price
-                try:
-                    unit_price = float(incoming.get("price_per_unit"))
-                    valid_unit_price = math.isfinite(unit_price) and unit_price > 0
-                except (OverflowError, TypeError, ValueError):
-                    valid_unit_price = False
-                if valid_unit_price:
-                    incoming["price_per_unit"] = unit_price
-                elif valid_package:
-                    incoming["price_per_unit"] = incoming_price / package_size
+                # Derive unit price from the checkout price and verified
+                # package dimensions. A separately supplied reference price may
+                # be stale, differently normalized or attached to another size.
+                if valid_package:
+                    derived_unit_price = incoming_price / package_size
                 elif existing is not None:
                     try:
                         existing_size = float(existing.package_size)
-                        if math.isfinite(existing_size) and existing_size > 0:
-                            incoming["price_per_unit"] = incoming_price / existing_size
-                        else:
-                            incoming.pop("price_per_unit", None)
+                        derived_unit_price = (
+                            incoming_price / existing_size
+                            if math.isfinite(existing_size) and existing_size > 0
+                            else None
+                        )
                     except (OverflowError, TypeError, ValueError):
-                        incoming.pop("price_per_unit", None)
+                        derived_unit_price = None
+                else:
+                    derived_unit_price = None
+                if derived_unit_price is not None and math.isfinite(derived_unit_price) and derived_unit_price > 0:
+                    incoming["price_per_unit"] = derived_unit_price
                 else:
                     incoming.pop("price_per_unit", None)
             else:
