@@ -57,6 +57,20 @@ def main():
     assert _derive_rewe_unit_price(2.50, 500) == 0.005
     assert _derive_rewe_unit_price(2.50, 0) is None
     assert _derive_rewe_unit_price(True, 500) is None
+
+    # Refresh and semantic indexing share one lock in both app entrypoints.
+    from fastapi import HTTPException
+    from app import main as main_module
+    from app.rewe_refresh import rewe_refresh_safe
+    assert main_module._SEMANTIC_INDEX_GUARD.acquire(blocking=False)
+    try:
+        try:
+            rewe_refresh_safe()
+            raise AssertionError("Concurrent refresh must be rejected while semantic indexing owns the lock")
+        except HTTPException as exc:
+            assert exc.status_code == 409
+    finally:
+        main_module._SEMANTIC_INDEX_GUARD.release()
     scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
     session = FakeSession()
     scraper.session = session
