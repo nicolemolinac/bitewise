@@ -106,6 +106,8 @@ def run():
     assert _snapshot_float("1e999", 7) == 7
     assert _snapshot_float("2,50") == 2.5
     assert _snapshot_pack_pricing("Product", 500, "g", "-1.00", "0")[0] is None
+    assert _snapshot_pack_pricing("Product", None, "g", "2.50", None) == (None, None)
+    assert _snapshot_pack_pricing("Product", "not-a-size", "g", "2.50", None) == (None, None)
     assert _snapshot_pack_pricing("Product", 500, "g", "2.50", "-0.1") == (2.5, 0.005)
     assert _snapshot_pack_pricing("Product 1kg = 0,00 €", 500, "g", "2.50", None) == (2.5, 0.005)
     assert _snapshot_pack_pricing("Product 100g = 1,20 €", 500, "g", 9.99, 0.0999) == (9.99, 0.01998)
