@@ -2,7 +2,61 @@
 from app.ingredient_aliases import ingredient_aliases
 
 
+class FakeQuery:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def filter(self, *_args):
+        return self
+
+    def limit(self, count):
+        self.rows = self.rows[:count]
+        return self
+
+    def all(self):
+        return self.rows
+
+
+class FakeSession:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def query(self, _model):
+        return FakeQuery(self.rows)
+
+
+def _product(product_id, name):
+    from types import SimpleNamespace
+    normalized = " ".join(name.lower().replace("%", " ").split())
+    return SimpleNamespace(
+        id=product_id, supermarket="REWE", external_id=str(product_id),
+        ingredient=normalized, name_original=name, name_normalized=normalized,
+        translated_name=None, brand=None, category=None, package_size=1000.0,
+        package_unit="ml", price=1.19, price_per_unit=0.00119, currency="EUR",
+        product_url=None, image_url=None, availability="available",
+        postcode_context="13353", last_checked_at=None,
+    )
+
+
 def main():
+    from app.server import _multilingual_catalog_search
+
+    catalog_rows = [
+        _product(1, "REWE Bio Frische Vollmilch 3,5%"),
+        _product(2, "Alpro Kokosmilch"),
+        _product(3, "REWE Bio Olivenöl Nativ Extra"),
+        _product(4, "Hähnchenbrustfilet"),
+    ]
+    adapter = type("Adapter", (), {"db": FakeSession(catalog_rows)})()
+    milk_matches = _multilingual_catalog_search(adapter, "milk")
+    assert [row["id"] for row in milk_matches] == [1], milk_matches
+    oil_matches = _multilingual_catalog_search(adapter, "olive oil")
+    assert [row["id"] for row in oil_matches] == [3], oil_matches
+    chicken_matches = _multilingual_catalog_search(adapter, "chicken breast")
+    assert [row["id"] for row in chicken_matches] == [4], chicken_matches
+    chicken_generic_matches = _multilingual_catalog_search(adapter, "chicken")
+    assert chicken_generic_matches == [], chicken_generic_matches
+
     oil = ingredient_aliases("oil")
     assert "olive oil" not in oil
     assert "olivenöl" not in oil
