@@ -2,7 +2,7 @@
 
 Run from backend/: python qa_ingredient_costing.py
 """
-from app.shopping.optimizer import build_basket, consolidate
+from app.shopping.optimizer import _convert_quantity, build_basket, consolidate
 
 
 class FakeCatalog:
@@ -81,7 +81,11 @@ def run():
     assert garlic_cloves["quantity"] == 3, "Clove and cloves must consolidate"
     assert garlic_pieces["quantity"] == 1, "Whole garlic units must remain separate"
 
-    print("PASS: kg/g and l/ml conversions, pantry deductions, checkout package cost, consumed cost, and unmatched handling")
+    assert _convert_quantity(float("nan"), "g", "g") is None
+    assert _convert_quantity(float("inf"), "g", "kg") is None
+    assert _convert_quantity(100, "g", "ml") is None
+
+    print("PASS: kg/g and l/ml conversions, finite-value guards, pantry deductions, checkout package cost, consumed cost, and unmatched handling")
 
 
 if __name__ == "__main__":
