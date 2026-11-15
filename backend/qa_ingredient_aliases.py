@@ -35,6 +35,13 @@ def main():
     assert not ingredient_matches_product("pepper", "Schwarzer Pfeffer")
     assert ingredient_matches_product("bell pepper", "Rote Paprika")
     assert ingredient_matches_product("saffron", "Safran gemahlen")
+    assert ingredient_matches_product("leek", "Porree frisch")
+    assert ingredient_matches_product("asparagus", "Grüner Spargel")
+    assert ingredient_matches_product("lamb", "Lammfleisch")
+    assert ingredient_matches_product("sesame oil", "Sesamöl")
+    assert not ingredient_matches_product("milk", "Mandelmilch")
+    assert not ingredient_matches_product("cream", "Frischkäse")
+    assert not ingredient_matches_product("milk", "Milchschokolade")
 
     print("GENERIC OIL DOES NOT BROADEN TO OLIVE OIL: PASS")
     print("OLIVE OIL KEEPS ITS SPECIFIC GERMAN ALIAS: PASS")
