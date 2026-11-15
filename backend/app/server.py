@@ -18,7 +18,7 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 from .cloud_sync import auth_enabled, authenticate_request, router as cloud_router
 from .migration_api import router as migration_router
 from . import main as main_module
-from .ai.gemini_efficient import GeminiService as EfficientGeminiService
+from .ai.gemini_efficient import DATA_FILE as AI_MEALS_DATA_FILE, MEALS as AI_MEALS, GeminiService as EfficientGeminiService
 from .database import RecipeHistory, SessionLocal
 from .ingredient_aliases import ingredient_aliases, ingredient_matches_product
 from .rewe_refresh import router as rewe_refresh_router
@@ -77,10 +77,22 @@ app = main_module.app
 
 
 def _assign_expanded_recipe_identity(recipe: dict, concept_id: str) -> dict:
-    """Make expanded recipe IDs unique even when Gemini reuses a generic ID."""
+    """Give each expanded concept a stable recipe ID and persist it for shopping after restart."""
     if concept_id:
+        previous_id = str(recipe.get("id") or "recipe")
         recipe["source_concept_id"] = concept_id
-        recipe["id"] = f"{recipe.get('id') or 'recipe'}-{concept_id}"
+        recipe["id"] = f"{previous_id}-{concept_id}"
+        # expand_concept returns the same dictionary object stored in MEALS.
+        # Persist the new ID too: Picks and shopping use it after an app restart.
+        if any(item is recipe for item in AI_MEALS):
+            AI_MEALS_DATA_FILE.write_text(
+                json.dumps(
+                    [item for item in AI_MEALS if item.get("source") == "gemini"],
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
     return recipe
 
 
