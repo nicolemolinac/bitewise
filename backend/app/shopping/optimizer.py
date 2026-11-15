@@ -128,11 +128,18 @@ def consolidate(meals, servings_map):
                             ratio_signature = float(raw_ratio) if raw_ratio is not None and not isinstance(raw_ratio, bool) and math.isfinite(float(raw_ratio)) else None
                         except (TypeError, ValueError, OverflowError):
                             ratio_signature = None
+                        try:
+                            confidence_signature = float(option.get("confidence"))
+                            if not math.isfinite(confidence_signature):
+                                confidence_signature = None
+                        except (TypeError, ValueError, OverflowError):
+                            confidence_signature = None
                         option_signature.append((
                             normalize_text(option.get("name") or ""),
                             normalize_text(option.get("name_de") or ""),
                             option_alias_signature,
                             ratio_signature,
+                            confidence_signature,
                             option.get("role_preserved") is True,
                             option.get("safe_to_auto_apply") is True,
                             normalize_text(option.get("preparation_adjustment") or ""),
