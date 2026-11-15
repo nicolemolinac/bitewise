@@ -118,7 +118,7 @@ def main():
 
     # Repeated page bodies are also failures, not successful early termination.
     repeated = ReweCatalogScraper(delay=0, browser_enabled=False)
-    repeated.session = FakeResponseSession = type(
+    repeated.session = type(
         "RepeatedSession", (), {"get": lambda self, url, **kwargs: FakeResponse("<html><body>same</body></html>")}
     )()
     repeated._pagination_links = lambda html, current, start: [f"{start}?page=2"] if "page=2" not in current else []
