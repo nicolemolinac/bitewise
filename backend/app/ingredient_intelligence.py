@@ -1341,10 +1341,11 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
                 option_aliases = [option_aliases]
             if not isinstance(option_aliases, list):
                 option_aliases = []
-            raw_ratio = option.get("quantity_ratio", 1)
-            # Only an omitted ratio gets the documented default. Explicit
-            # booleans, empty strings, zero, NaN and infinities are malformed
-            # model metadata and must not silently become a 1:1 substitution.
+            # A substitution option without an explicit quantity ratio
+            # is descriptive only; never manufacture a 1:1 conversion.
+            if "quantity_ratio" not in option:
+                continue
+            raw_ratio = option.get("quantity_ratio")
             if isinstance(raw_ratio, bool):
                 continue
             try:
