@@ -1,4 +1,5 @@
 from datetime import datetime
+import math
 
 from fastapi import APIRouter, HTTPException
 
@@ -13,6 +14,29 @@ from .database import (
 from .rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper, package
 
 router = APIRouter(prefix="/api")
+
+
+def _valid_rewe_price(value):
+    """Return a finite non-negative checkout price, or None when REWE omitted it."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        price = float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+    return price if math.isfinite(price) and price >= 0 else None
+
+
+def _update_existing_price(existing, incoming_price) -> str:
+    """Update a known price only when the current scrape supplies a valid one."""
+    price = _valid_rewe_price(incoming_price)
+    if price is None:
+        return "preserved"
+    if existing.price != price:
+        existing.last_price = existing.price
+        existing.price = price
+        return "updated"
+    return "unchanged"
 
 
 def _repair_existing_package_metadata(existing, product_name: str | None = None) -> str:
@@ -115,11 +139,17 @@ def rewe_refresh_safe():
             )
             now = datetime.utcnow()
 
+            incoming_data = dict(data)
+            incoming_data["price"] = _valid_rewe_price(data.get("price"))
+            if incoming_data["price"] is None:
+                # An absent/invalid scrape price is unknown, not a zero price.
+                # Keep a known existing price and never persist a stale unit price
+                # for a new product without a verified checkout price.
+                incoming_data["price_per_unit"] = None
+
             if existing:
                 _repair_existing_package_metadata(existing, data.get("name_original"))
-                incoming_price = data.get("price")
-                if existing.price != incoming_price:
-                    existing.last_price = existing.price
+                _update_existing_price(existing, incoming_data.get("price"))
                 raw_size = data.get("package_size")
                 try:
                     incoming_size = float(raw_size)
@@ -132,7 +162,10 @@ def rewe_refresh_safe():
                     and incoming_unit not in {"", "unknown", "none"}
                 )
 
-                for key, value in data.items():
+                for key, value in incoming_data.items():
+                    if key == "price":
+                        # Price was validated and merged above; None means no update.
+                        continue
                     if not hasattr(existing, key):
                         continue
                     # Package size and unit describe one indivisible measurement.
@@ -159,7 +192,7 @@ def rewe_refresh_safe():
                 db.flush()
                 return False
 
-            db.add(Product(supermarket="REWE", postcode_context=current_postcode, **data))
+            db.add(Product(supermarket="REWE", postcode_context=current_postcode, **incoming_data))
             db.flush()
             return True
 
