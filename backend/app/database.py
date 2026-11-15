@@ -373,55 +373,108 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
     return resolved_size if math.isfinite(resolved_size) and resolved_size > 0 else current_size
 
 
+def _snapshot_reference_pattern():
+    return (
+        r"\b(\d+(?:[,.]\d+)?)\s*(kg|g|l|ml|stück|stk\.?|st\.?)\s*=\s*"
+        r"(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?"
+    )
+
+
+def _snapshot_physical_sizes(name: str):
+    """Return the last explicit mass and volume quantities in a product title."""
+    clean_name = re.sub(_snapshot_reference_pattern(), " ", name or "", flags=re.I)
+    sizes = {}
+    last_dimension = None
+    for match in re.finditer(
+        r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
+        clean_name,
+        re.I,
+    ):
+        try:
+            amount = float(match.group(2).replace(",", "."))
+            multiplier = int(match.group(1) or 1)
+        except (OverflowError, TypeError, ValueError):
+            continue
+        if not math.isfinite(amount) or amount <= 0 or multiplier <= 0:
+            continue
+        source_unit = match.group(3).lower()
+        if source_unit in {"kg", "g"}:
+            dimension = "g"
+            amount *= 1000 if source_unit == "kg" else 1
+        else:
+            dimension = "ml"
+            amount *= 1000 if source_unit == "l" else 1
+        amount *= multiplier
+        if math.isfinite(amount) and amount > 0:
+            sizes[dimension] = amount
+            last_dimension = dimension
+    return sizes, last_dimension
+
+
+def _snapshot_reference_dimension(name: str):
+    match = re.search(_snapshot_reference_pattern(), name or "", re.I)
+    if not match:
+        return None
+    unit = match.group(2).lower()
+    if unit in {"kg", "g"}:
+        return "g"
+    if unit in {"l", "ml"}:
+        return "ml"
+    if unit in {"stk", "stk.", "st", "st.", "stück"}:
+        return "unit"
+    return None
+
+
 def _snapshot_package_dimensions(name: str, raw_size, raw_unit: str):
-    """Return verified package dimensions, preferring physical size over piece count."""
+    """Resolve physical pack size from title and compatible reference dimension."""
     size = _snapshot_float(raw_size)
     unit = str(raw_unit or "").strip()[:20].lower()
     if size is None or not math.isfinite(size) or size <= 0 or not unit:
         return None, None
 
-    # Variable-weight REWE items are often listed as "1 Stück ca. 700 g".
-    # The CSV may store "1 unit", but the reference price is €/kg and the
-    # recipe optimizer needs the approximate physical mass to cost the pack.
-    if unit in {"unit", "piece", "pcs", "pc"}:
-        clean_name = re.sub(
-            r"\b\d+(?:[,.]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.?)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
-            " ",
-            name or "",
-            flags=re.I,
+    physical_sizes, last_dimension = _snapshot_physical_sizes(name)
+    reference_dimension = _snapshot_reference_dimension(name)
+    count_units = {"unit", "piece", "pcs", "pc", "st", "stk", "stk.", "stück"}
+    unit_dimension = "g" if unit in {"g", "gram", "grams"} else (
+        "ml" if unit in {"ml", "l", "liter", "litre"} else None
+    )
+
+    # A per-piece reference price is already dimensionally compatible with a
+    # count package. Do not replace it with the item's physical mass.
+    if unit in count_units and reference_dimension == "unit":
+        return size, unit
+
+    # Variable-weight products often arrive as "1 unit" with an explicit
+    # physical weight/volume in the title. Prefer the dimension used by REWE's
+    # reference price when available; otherwise use the final physical size.
+    if unit in count_units or size <= 1:
+        selected_dimension = (
+            reference_dimension if reference_dimension in physical_sizes else last_dimension
         )
-        matches = list(re.finditer(
-            r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
-            clean_name,
-            re.I,
-        ))
-        if matches:
-            match = matches[-1]
-            try:
-                physical_size = float(match.group(2).replace(",", "."))
-                multiplier = int(match.group(1) or 1)
-            except (OverflowError, TypeError, ValueError):
-                physical_size, multiplier = None, 0
-            if physical_size is not None and math.isfinite(physical_size) and physical_size > 0 and multiplier > 0:
-                physical_unit = match.group(3).lower()
-                if physical_unit == "kg":
-                    physical_size *= 1000
-                    physical_unit = "g"
-                elif physical_unit == "l":
-                    physical_size *= 1000
-                    physical_unit = "ml"
-                physical_size *= multiplier
-                if math.isfinite(physical_size) and physical_size > 0:
-                    return physical_size, physical_unit
+        if selected_dimension and physical_sizes.get(selected_dimension):
+            return physical_sizes[selected_dimension], selected_dimension
+
+    # Some snapshot rows store 330g while the product title and reference price
+    # establish 330ml (or vice versa). Switch dimensions only when both physical
+    # quantities are present and their ratio is plausibly near 1:1.
+    if (
+        unit_dimension
+        and reference_dimension in {"g", "ml"}
+        and reference_dimension != unit_dimension
+        and physical_sizes.get(unit_dimension)
+        and physical_sizes.get(reference_dimension)
+    ):
+        ratio = physical_sizes[reference_dimension] / physical_sizes[unit_dimension]
+        if math.isfinite(ratio) and 0.5 <= ratio <= 2.0:
+            return physical_sizes[reference_dimension], reference_dimension
 
     size = _snapshot_package_size(name, size, unit)
     if not math.isfinite(size) or size <= 0:
         return None, None
     return size, unit
 
-
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
-    """Normalize legacy snapshot reference prices, then fall back to checkout price."""
+    """Normalize legacy reference prices against the matching physical pack/yield size."""
     try:
         package_size = float(package_size)
     except (OverflowError, TypeError, ValueError):
@@ -434,14 +487,9 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
     if not valid_package:
         return None, None
 
-    reference_pattern = (
-        r"\b(\d+(?:[,.]\d+)?)\s*(kg|g|l|ml|stück|stk\.?|st\.?)\s*=\s*"
-        r"(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?"
-    )
+    reference_pattern = _snapshot_reference_pattern()
     match = re.search(reference_pattern, name or "", re.I)
-    # If the snapshot title also contains an explicit checkout price, it is
-    # more authoritative than a unit reference price. Strip reference/Pfand
-    # fragments first so those values cannot be mistaken for pack prices.
+    # An explicit checkout amount in the title wins over reference prices.
     checkout_text = re.sub(reference_pattern, " ", name or "", flags=re.I)
     checkout_text = re.sub(
         r"(?:zzgl\.?\s*)?(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?\s*(?:Pfand|deposit)|"
@@ -463,28 +511,47 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         reference_price = _snapshot_float(match.group(3))
         reference_quantity = _snapshot_float(match.group(1))
         reference_unit = match.group(2).lower()
-        if reference_price is not None and reference_price > 0 and reference_quantity is not None and reference_quantity > 0:
-            if reference_unit in {"kg", "g"} and package_unit == "g":
-                quantity_in_base_units = reference_quantity * (1000 if reference_unit == "kg" else 1)
-                per_unit = reference_price / quantity_in_base_units
-            elif reference_unit in {"l", "ml"} and package_unit == "ml":
-                quantity_in_base_units = reference_quantity * (1000 if reference_unit == "l" else 1)
-                per_unit = reference_price / quantity_in_base_units
-            elif reference_unit in {"stk", "stk.", "st", "st.", "stück"} and package_unit in {"unit", "piece"} and reference_quantity == 1:
-                per_unit = reference_price
-            else:
-                per_unit = None
-            if per_unit is not None:
-                pack_price = per_unit * package_size
-                if math.isfinite(per_unit) and per_unit > 0 and math.isfinite(pack_price) and pack_price > 0:
-                    return round(pack_price, 2), per_unit
-        # A reference price with an incompatible dimension cannot be treated
-        # as a checkout price; without an explicit pack price, leave it unpriced.
+        if reference_price is None or reference_price <= 0 or reference_quantity is None or reference_quantity <= 0:
+            return None, None
+
+        if reference_unit in {"kg", "g", "l", "ml"}:
+            reference_scale = 1000 if reference_unit in {"kg", "l"} else 1
+            reference_quantity_base = reference_quantity * reference_scale
+            if not math.isfinite(reference_quantity_base) or reference_quantity_base <= 0:
+                return None, None
+            physical_sizes, _ = _snapshot_physical_sizes(name)
+            reference_dimension = "g" if reference_unit in {"kg", "g"} else "ml"
+            # The title may carry both net mass and volume, or a prepared-yield
+            # volume (e.g. soup powder "ergibt 6l"). Use the quantity that
+            # corresponds to the displayed reference-price dimension.
+            physical_quantity = physical_sizes.get(reference_dimension)
+            if physical_quantity is None:
+                package_dimension = "g" if package_unit in {"g", "gram", "grams"} else (
+                    "ml" if package_unit in {"ml", "l", "liter", "litre"} else None
+                )
+                if package_dimension == reference_dimension:
+                    physical_quantity = package_size
+            if physical_quantity is None or not math.isfinite(physical_quantity) or physical_quantity <= 0:
+                return None, None
+            pack_price = reference_price * physical_quantity / reference_quantity_base
+            unit_price = pack_price / package_size
+            if (
+                math.isfinite(pack_price) and pack_price > 0
+                and math.isfinite(unit_price) and unit_price > 0
+            ):
+                return round(pack_price, 2), unit_price
+            return None, None
+
+        if reference_unit in {"stk", "stk.", "st", "st.", "stück"} and package_unit in {"unit", "piece"}:
+            if reference_quantity == 1:
+                pack_price = reference_price * package_size
+                unit_price = pack_price / package_size
+                if math.isfinite(pack_price) and pack_price > 0 and math.isfinite(unit_price) and unit_price > 0:
+                    return round(pack_price, 2), unit_price
         return None, None
 
     # Without a displayed reference price, the snapshot's price field is the
-    # only checkout-price fallback. Ignore its separately stored unit-price
-    # metadata because older snapshots can normalize that field inconsistently.
+    # only checkout-price fallback. Ignore legacy unit-price metadata.
     checkout_price = _snapshot_float(raw_price)
     if checkout_price is not None and checkout_price > 0:
         unit_price = checkout_price / package_size
