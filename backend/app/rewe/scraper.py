@@ -53,77 +53,128 @@ def normalize(value: str) -> str:
     return re.sub(r"[^a-z0-9äöüß]+", " ", (value or "").lower()).strip()
 
 
-def package(text: str):
-    # Do not mistake a displayed reference price ("1 kg = 11,06 €") for
-    # the product's own package size.
-    text = re.sub(
-        r"\b(?:1\s*(?:kg|l|g|ml)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+_REFERENCE_PRICE_PATTERN = (
+    r"\b(\d+(?:[,.]\d+)?)\s*(kg|g|l|ml|stk|st\.|stück)\s*=\s*"
+    r"(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?"
+)
+
+
+def _strip_prepared_yield(text: str) -> str:
+    return re.sub(
+        r"\b(?:ergibt|reicht(?:\s+für)?|für)\s*(?:(?:\d+)\s*[x×]\s*)?"
+        r"\d+(?:[,.]\d+)?\s*(?:kg|g|l|ml)"
+        r"(?:\s+(?:(?:\d+)\s*[x×]\s*)?\d+(?:[,.]\d+)?\s*(?:kg|g|l|ml))?",
         " ",
         str(text or ""),
         flags=re.I,
     )
-    # Preserve multipack quantity: 2x200ml is 400ml, not 200ml.
-    # Product titles can contain an erroneous/partial size before the actual
-    # pack size (e.g. "0,75ml ... 0,75l"). Prefer the final mass/volume size,
-    # falling back to count units only when no physical size is present.
-    matches = list(re.finditer(
-        r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)",
-        text,
+
+
+def _physical_sizes_by_dimension(text: str, include_yield: bool = True):
+    clean = re.sub(_REFERENCE_PRICE_PATTERN, " ", str(text or ""), flags=re.I)
+    if not include_yield:
+        clean = _strip_prepared_yield(clean)
+    sizes = {}
+    last_dimension = None
+    for match in re.finditer(
+        r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
+        clean,
+        re.I,
+    ):
+        try:
+            amount = float(match.group(2).replace(",", "."))
+            multiplier = int(match.group(1) or 1)
+        except (OverflowError, TypeError, ValueError):
+            continue
+        if not math.isfinite(amount) or amount <= 0 or multiplier <= 0:
+            continue
+        unit = match.group(3).lower()
+        dimension = "g" if unit in {"kg", "g"} else "ml"
+        amount *= 1000 if unit in {"kg", "l"} else 1
+        amount *= multiplier
+        if math.isfinite(amount) and amount > 0:
+            sizes[dimension] = amount
+            last_dimension = dimension
+    return sizes, last_dimension
+
+
+def package(text: str):
+    """Infer package dimensions without confusing reference prices or yields."""
+    original = str(text or "")
+    reference_price, reference_unit = _displayed_unit_price(original)
+    clean = _strip_prepared_yield(
+        re.sub(_REFERENCE_PRICE_PATTERN, " ", original, flags=re.I)
+    )
+    sizes, last_dimension = _physical_sizes_by_dimension(clean, include_yield=True)
+
+    if reference_unit == "unit":
+        count_matches = list(re.finditer(
+            r"(\d+(?:[.,]\d+)?)\s*(?:stk|st\.|stück)\b",
+            clean,
+            re.I,
+        ))
+        if count_matches:
+            try:
+                count = float(count_matches[-1].group(1).replace(",", "."))
+            except (OverflowError, TypeError, ValueError):
+                count = None
+            if count is not None and math.isfinite(count) and count > 0:
+                return count, "unit"
+
+    if sizes:
+        if reference_unit in {"g", "ml"} and reference_unit in sizes:
+            other = "ml" if reference_unit == "g" else "g"
+            if other in sizes:
+                ratio = sizes[reference_unit] / sizes[other]
+                # Near 1:1 mass/volume labels describe the same physical pack.
+                # A much larger volume is usually prepared yield, not contents.
+                if math.isfinite(ratio) and 0.5 <= ratio <= 2.0:
+                    return sizes[reference_unit], reference_unit
+                if "g" in sizes:
+                    return sizes["g"], "g"
+            return sizes[reference_unit], reference_unit
+        if "g" in sizes and "ml" in sizes:
+            ratio = sizes["g"] / sizes["ml"]
+            if not math.isfinite(ratio) or not 0.5 <= ratio <= 2.0:
+                return sizes["g"], "g"
+        return sizes[last_dimension], last_dimension
+
+    count_matches = list(re.finditer(
+        r"(\d+(?:[.,]\d+)?)\s*(?:stk|st\.|stück)\b",
+        clean,
         re.I,
     ))
-    if not matches:
-        return None, None
-    physical_matches = [
-        item for item in matches
-        if item.group(3).lower() not in {"stk", "st.", "stück"}
-    ]
-    match = (physical_matches or matches)[-1]
-    try:
-        multiplier = int(match.group(1) or 1)
-        amount = float(match.group(2).replace(",", ".")) * multiplier
-    except (OverflowError, TypeError, ValueError):
-        return None, None
-    if not math.isfinite(amount) or amount <= 0:
-        return None, None
-    unit = match.group(3).lower()
-    if unit == "kg":
-        amount *= 1000
-        return (amount, "g") if math.isfinite(amount) else (None, None)
-    if unit == "l":
-        amount *= 1000
-        return (amount, "ml") if math.isfinite(amount) else (None, None)
-    if unit in ("stk", "st.", "stück"):
-        return amount, "unit"
-    return amount, unit
-
+    if count_matches:
+        try:
+            count = float(count_matches[-1].group(1).replace(",", "."))
+        except (OverflowError, TypeError, ValueError):
+            return None, None
+        return (count, "unit") if math.isfinite(count) and count > 0 else (None, None)
+    return None, None
 
 def _displayed_unit_price(text: str):
-    """Read REWE reference prices and normalize them to €/kg or €/l."""
-    match = re.search(
-        r"\b(1|100)\s*(kg|g|l|ml)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
-        text,
-        re.I,
-    )
+    """Read any REWE reference quantity and normalize to €/kg, €/l or €/unit."""
+    match = re.search(_REFERENCE_PRICE_PATTERN, str(text or ""), re.I)
     if not match:
         return None, None
-    quantity = int(match.group(1))
+    quantity = _safe_float(match.group(1))
     unit = match.group(2).lower()
-    try:
-        amount = float(match.group(3).replace(",", "."))
-    except (OverflowError, TypeError, ValueError):
+    amount = _safe_float(match.group(3))
+    if (
+        quantity is None or quantity <= 0
+        or amount is None or amount <= 0
+    ):
         return None, None
-    if not math.isfinite(amount) or amount <= 0:
-        return None, None
-    # Convert the displayed reference quantity to the canonical base
-    # unit (g/ml) before dividing. "1 g" is not interchangeable with "100 g".
-    reference_quantity = quantity * (1000 if unit in {"kg", "l"} else 1)
-    # Keep the established €/kg or €/l scale; downstream package pricing
-    # divides this normalized reference by 1000 to obtain €/g or €/ml.
-    normalized_amount = amount * 1000 / reference_quantity
+    if unit in {"kg", "g", "l", "ml"}:
+        reference_quantity = quantity * (1000 if unit in {"kg", "l"} else 1)
+        normalized_amount = amount * 1000 / reference_quantity
+        normalized_unit = "g" if unit in {"kg", "g"} else "ml"
+    else:
+        normalized_amount = amount / quantity
+        normalized_unit = "unit"
     if not math.isfinite(normalized_amount) or normalized_amount <= 0:
         return None, None
-    return normalized_amount, "g" if unit in {"kg", "g"} else "ml"
-
+    return normalized_amount, normalized_unit
 
 def price_details(text: str, package_size=None, package_unit=None):
     """Return (checkout pack price, price per normalized g/ml/unit).
