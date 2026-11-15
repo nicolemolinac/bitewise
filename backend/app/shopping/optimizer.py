@@ -18,14 +18,19 @@ def consolidate(meals, servings_map):
     grouped = defaultdict(lambda: {"quantity": 0.0, "source_meals": []})
     canonical_units = {"mass": "g", "volume": "ml", "count": "piece"}
     for meal in meals:
+        raw_servings = servings_map.get(meal["id"], 2)
+        if isinstance(raw_servings, bool):
+            raise ValueError(f"Invalid serving count for meal {meal.get('id')}")
         try:
-            servings = float(servings_map.get(meal["id"], 2))
+            servings = float(raw_servings)
         except (TypeError, ValueError):
             raise ValueError(f"Invalid serving count for meal {meal.get('id')}")
         if not math.isfinite(servings) or servings <= 0:
             raise ValueError(f"Invalid serving count for meal {meal.get('id')}")
         factor = servings / 2  # generated recipes are normalized to 2 servings
         for name, quantity, unit in meal["ingredients"]:
+            if isinstance(quantity, bool):
+                continue
             try:
                 quantity = float(quantity)
             except (TypeError, ValueError):
@@ -106,6 +111,8 @@ def _normal_unit(value):
 def _convert_quantity(quantity, from_unit, to_unit):
     """Convert only well-defined mass, volume and count units; otherwise return None."""
     source, target = _normal_unit(from_unit), _normal_unit(to_unit)
+    if isinstance(quantity, bool):
+        return None
     try:
         amount = float(quantity)
     except (TypeError, ValueError):
@@ -124,7 +131,7 @@ def _convert_quantity(quantity, from_unit, to_unit):
 def _number(product, *keys, default=0.0):
     for key in keys:
         value = product.get(key)
-        if value is not None:
+        if value is not None and not isinstance(value, bool):
             try:
                 number = float(value)
                 if math.isfinite(number):
@@ -194,7 +201,15 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
 
     for requirement in requirements:
         ingredient = canonical_ingredient(requirement["ingredient"])
-        requested = float(requirement["quantity"])
+        raw_requested = requirement.get("quantity")
+        if isinstance(raw_requested, bool):
+            raise ValueError(f"Invalid quantity for ingredient {ingredient}")
+        try:
+            requested = float(raw_requested)
+        except (TypeError, ValueError):
+            raise ValueError(f"Invalid quantity for ingredient {ingredient}")
+        if not math.isfinite(requested) or requested <= 0:
+            raise ValueError(f"Invalid quantity for ingredient {ingredient}")
         unit = _normal_unit(requirement["unit"])
         pantry_available = 0.0
         # Pantry labels may use a singular, plural, or German synonym of the
@@ -250,7 +265,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         override_id = overrides.get(ingredient)
         for product in raw_products:
             price = product.get("price")
-            if price is None or str(product.get("availability") or "").lower() in {
+            if isinstance(price, bool) or price is None or str(product.get("availability") or "").lower() in {
                 "unavailable", "out_of_stock", "not_available", "discontinued"
             }:
                 continue
