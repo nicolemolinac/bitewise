@@ -949,6 +949,20 @@ def run():
         "custom cooking fat", "REWE Rapsöl 1L", missing_ratio_profile
     ) == "suggested_substitution"
 
+    missing_ratio_catalog = IntelligenceCatalog({"custom cooking fat": [{
+        "id": 23, "name_original": "REWE Rapsöl 500ml",
+        "package_size": 500, "package_unit": "ml", "price": 1.5,
+        "availability": "available", "ingredient_match_type": "semantic_candidate",
+        "semantic_match_type": "suggested_substitution",
+    }]})
+    missing_ratio_basket = build_basket([{
+        "ingredient": "custom cooking fat", "quantity": 20, "unit": "ml",
+        "ingredient_intelligence": missing_ratio_profile,
+        "unit_validation": {"valid": True},
+    }], missing_ratio_catalog, overrides={"custom cooking fat": 23})
+    assert missing_ratio_basket[0]["match_status"] == "unmatched"
+    assert missing_ratio_basket[0]["semantic_suggestions"][0]["semantic_warning"]
+
     # Explicit malformed quantity ratios must be discarded, not silently
     # converted to a 1:1 substitution by truthiness/default handling.
     for malformed_ratio in ("", "not-a-number", "NaN", "Infinity", float("nan"), float("inf"), 0, -1, 6, True, False):
