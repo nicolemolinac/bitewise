@@ -15,6 +15,10 @@ def main():
         ("Produkt ohne Mengenangabe", (None, None)),
         ("Packung 0 g", (None, None)),
         ("Packung -2 g", (None, None)),
+        ("Packung - 2 g", (None, None)),
+        ("Grundpreis 1,99 € / 100 g", (None, None)),
+        ("Olivenöl 500 ml, Grundpreis 0,99 € / 100 ml", (500.0, "ml")),
+        ("Saft 2 x 0,5 l", (1000.0, "ml")),
     ]
     for label, expected in cases:
         actual = package(label)
