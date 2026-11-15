@@ -337,7 +337,7 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
     apply that match's multipack count (if present).
     """
     clean_name = re.sub(
-        r"\b(?:1\s*(?:kg|l|g|ml)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+        r"\b\d+(?:[,.]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.?)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
         " ",
         name or "",
         flags=re.I,
@@ -374,11 +374,46 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
 
 
 def _snapshot_package_dimensions(name: str, raw_size, raw_unit: str):
-    """Return verified snapshot dimensions, or (None, None) when uncostable."""
+    """Return verified package dimensions, preferring physical size over piece count."""
     size = _snapshot_float(raw_size)
-    unit = str(raw_unit or "").strip()[:20]
+    unit = str(raw_unit or "").strip()[:20].lower()
     if size is None or not math.isfinite(size) or size <= 0 or not unit:
         return None, None
+
+    # Variable-weight REWE items are often listed as "1 Stück ca. 700 g".
+    # The CSV may store "1 unit", but the reference price is €/kg and the
+    # recipe optimizer needs the approximate physical mass to cost the pack.
+    if unit in {"unit", "piece", "pcs", "pc"}:
+        clean_name = re.sub(
+            r"\b\d+(?:[,.]\d+)?\s*(?:kg|g|l|ml|stück|stk\.?|st\.?)\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+            " ",
+            name or "",
+            flags=re.I,
+        )
+        matches = list(re.finditer(
+            r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
+            clean_name,
+            re.I,
+        ))
+        if matches:
+            match = matches[-1]
+            try:
+                physical_size = float(match.group(2).replace(",", "."))
+                multiplier = int(match.group(1) or 1)
+            except (OverflowError, TypeError, ValueError):
+                physical_size, multiplier = None, 0
+            if physical_size is not None and math.isfinite(physical_size) and physical_size > 0 and multiplier > 0:
+                physical_unit = match.group(3).lower()
+                if physical_unit == "kg":
+                    physical_size *= 1000
+                    physical_unit = "g"
+                elif physical_unit == "l":
+                    physical_size *= 1000
+                    physical_unit = "ml"
+                physical_size *= multiplier
+                if math.isfinite(physical_size) and physical_size > 0:
+                    return physical_size, physical_unit
+
     size = _snapshot_package_size(name, size, unit)
     if not math.isfinite(size) or size <= 0:
         return None, None
