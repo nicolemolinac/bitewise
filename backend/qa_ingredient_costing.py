@@ -338,6 +338,21 @@ def run():
     assert mismatched_unit_price["match_status"] == "matched"
     assert mismatched_unit_price["unit_cost"] == 0.004
 
+    # Cross-dimension product packages must report unit cost in the
+    # recipe's requested unit, using only an explicit ingredient density.
+    honey_cross_unit = build_basket(
+        [{"ingredient": "honey", "quantity": 100, "unit": "g"}],
+        FakeCatalog({"honey": [{
+            "id": 992, "name_original": "Honey 500ml",
+            "package_size": 500, "package_unit": "ml",
+            "price": 3.0, "price_per_unit": 0.006,
+            "availability": "available",
+        }]}),
+        mode="premium",
+    )[0]
+    assert honey_cross_unit["match_status"] == "matched"
+    assert abs(honey_cross_unit["unit_cost"] - (3.0 / 710.0)) < 1e-6
+
     # Exact package multiples must not round up because of binary floating
     # point noise (0.30000000000000004 / 0.1 is slightly above three).
     decimal_pack = build_basket(
