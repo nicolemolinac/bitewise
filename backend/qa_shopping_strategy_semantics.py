@@ -93,6 +93,12 @@ def main():
     assert saffron["waste"] == 0.8, saffron
     assert saffron["waste_ratio"] == 4.0, saffron
 
+    # Invalid package sizes must be rejected, never clamped to a tiny amount.
+    invalid_package = product("bad-pack", "REWE Butter malformed pack", 1.00, 1)
+    invalid_package["pack_qty"] = 0
+    rejected_package = basket([invalid_package], "best-value")
+    assert rejected_package["match_status"] == "unmatched", rejected_package
+
     # Unit mismatch must never be treated as an equivalent package.
     incompatible = basket(
         [dict(product("drink", "REWE Coconut Drink 1l", 1.99, 1), unit="l")],
@@ -114,7 +120,9 @@ def main():
     print("STRATEGY BEST-VALUE VS PLAN-EFFICIENCY: PASS (different justified choices)")
     print("STRATEGY PREMIUM: PASS")
     print("FRACTIONAL-QUANTITY WASTE: PASS (0.2g need / 1g pack = 400%)")
-    print("INCOMPATIBLE PACKAGE UNIT: PASS")\n    print("LEFTOVER UNIT AGGREGATION: PASS (g/ml/pieces remain separate)")
+    print("INCOMPATIBLE PACKAGE UNIT: PASS")
+    print("INVALID PACKAGE SIZE: PASS")
+    print("LEFTOVER UNIT AGGREGATION: PASS (g/ml/pieces remain separate)")
     print("SHOPPING STRATEGY SEMANTICS QA: PASS")
 
 
