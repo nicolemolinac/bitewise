@@ -78,11 +78,58 @@ def consolidate(meals, servings_map):
             profile = _profile_lookup(intelligence, str(name or ""))
             form_key = normalize_text(profile.get("form") or "unspecified") if isinstance(profile, dict) else "unspecified"
             preparation_key = normalize_text(profile.get("preparation") or "") if isinstance(profile, dict) else ""
-            # Same ingredient/unit can still represent different retail forms
-            # (e.g. whole vs ground cumin) or preparation states (whole vs
-            # chopped garlic). Never merge quantities and let the last recipe
-            # choose the matching/unit-validation rules for all meals.
-            key = (normalize_text(name), normalized_unit, form_key, preparation_key)
+            # Different recipe profiles can declare different safe substitutes
+            # or quantity ratios for the same ingredient. Merging those rows
+            # would let the last recipe silently determine the ratio for every
+            # meal. Include identity and executable substitution metadata in
+            # the grouping key; identical profiles still consolidate normally.
+            profile_signature = ()
+            if isinstance(profile, dict) and profile:
+                raw_aliases = profile.get("aliases", [])
+                if isinstance(raw_aliases, str):
+                    raw_aliases = [raw_aliases]
+                alias_signature = tuple(sorted(
+                    normalize_text(value) for value in raw_aliases
+                    if isinstance(value, str) and value.strip()
+                )) if isinstance(raw_aliases, list) else ()
+                raw_options = profile.get("substitution_options", [])
+                option_signature = []
+                if isinstance(raw_options, list):
+                    for option in raw_options:
+                        if not isinstance(option, dict):
+                            continue
+                        raw_option_aliases = option.get("aliases", [])
+                        if isinstance(raw_option_aliases, str):
+                            raw_option_aliases = [raw_option_aliases]
+                        option_alias_signature = tuple(sorted(
+                            normalize_text(value) for value in raw_option_aliases
+                            if isinstance(value, str) and value.strip()
+                        )) if isinstance(raw_option_aliases, list) else ()
+                        raw_ratio = option.get("quantity_ratio")
+                        try:
+                            ratio_signature = float(raw_ratio) if raw_ratio is not None and not isinstance(raw_ratio, bool) and math.isfinite(float(raw_ratio)) else None
+                        except (TypeError, ValueError, OverflowError):
+                            ratio_signature = None
+                        option_signature.append((
+                            normalize_text(option.get("name") or ""),
+                            normalize_text(option.get("name_de") or ""),
+                            option_alias_signature,
+                            ratio_signature,
+                            option.get("role_preserved") is True,
+                            option.get("safe_to_auto_apply") is True,
+                            normalize_text(option.get("preparation_adjustment") or ""),
+                        ))
+                profile_signature = (
+                    normalize_text(profile.get("canonical") or ""),
+                    normalize_text(profile.get("name_en") or ""),
+                    normalize_text(profile.get("name_de") or ""),
+                    alias_signature,
+                    tuple(option_signature),
+                )
+            key = (
+                normalize_text(name), normalized_unit, form_key,
+                preparation_key, profile_signature,
+            )
             row = grouped[key]
             row.setdefault("display_ingredient", str(name or "").strip())
             row["quantity"] += normalized_quantity * factor
@@ -117,7 +164,7 @@ def consolidate(meals, servings_map):
             "unit_validation": value.get("unit_validation") or validate_ingredient_unit(ingredient, unit, value.get("ingredient_intelligence")),
             "quantity_validation": value.get("quantity_validation") or {"valid": True, "reason": None},
         }
-        for (ingredient, unit, _form, _preparation), value in grouped.items()
+        for (ingredient, unit, _form, _preparation, _profile_signature), value in grouped.items()
     ]
 
 
