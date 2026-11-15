@@ -154,6 +154,32 @@ for group in _ALIAS_GROUPS:
         _ALIAS_CANONICAL.setdefault(term, canonical)
 
 
+# Irregular English food plurals that cannot be normalized by removing a final "s".
+_IRREGULAR_SINGULARS = {
+    "leaves": "leaf",
+    "loaves": "loaf",
+    "halves": "half",
+    "knives": "knife",
+}
+
+
+def _singular_form(value: str) -> str:
+    """Conservatively singularize common English plurals without corrupting nouns."""
+    if value in _IRREGULAR_SINGULARS:
+        return _IRREGULAR_SINGULARS[value]
+    if value.endswith("ies") and len(value) > 4:
+        return value[:-3] + "y"
+    if value.endswith("oes") and len(value) > 4:
+        return value[:-2]
+    # Words ending in these sequences are commonly singular already:
+    # hummus, couscous, asparagus, citrus, watercress, molasses.
+    if value.endswith(("ss", "us", "is")):
+        return value
+    if value.endswith("s") and len(value) > 3:
+        return value[:-1]
+    return value
+
+
 def canonical_ingredient(value: str) -> str:
     """Return a conservative canonical ingredient label for exact aliases."""
     needle = _norm(value)
@@ -161,13 +187,7 @@ def canonical_ingredient(value: str) -> str:
         return ""
     if needle in _ALIAS_CANONICAL:
         return _ALIAS_CANONICAL[needle]
-    # Normalize simple English plurals without stripping words from compounds.
-    if needle.endswith("ies") and len(needle) > 4:
-        singular = needle[:-3] + "y"
-    elif needle.endswith("s") and len(needle) > 3:
-        singular = needle[:-1]
-    else:
-        singular = needle
+    singular = _singular_form(needle)
     return _ALIAS_CANONICAL.get(singular, singular)
 
 
@@ -178,12 +198,11 @@ def ingredient_aliases(value: str) -> list[str]:
         return []
     aliases = set(_ALIAS_INDEX.get(needle, {needle}))
     aliases.add(needle)
-    # Lightweight singular/plural fallback for recipe-side English terms.
-    if needle.endswith("ies") and len(needle) > 4:
-        aliases.add(needle[:-3] + "y")
-    elif needle.endswith("s") and len(needle) > 3:
-        aliases.add(needle[:-1])
-    else:
+    # Conservative singular/plural fallback for recipe-side English terms.
+    singular = _singular_form(needle)
+    if singular != needle:
+        aliases.add(singular)
+    elif not needle.endswith(("s", "ss", "us", "is")):
         aliases.add(needle + "s")
     # If a generated ingredient contains a known phrase, inherit that group's
     # aliases. Match whole words and prefer the most specific phrase: generic
