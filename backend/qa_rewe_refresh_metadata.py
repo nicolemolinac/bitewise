@@ -1,7 +1,11 @@
 """Regression checks for repair of legacy REWE package-size defaults."""
 from types import SimpleNamespace
 
-from app.rewe_refresh import _repair_existing_package_metadata
+from app.rewe_refresh import (
+    _repair_existing_package_metadata,
+    _update_existing_price,
+    _valid_rewe_price,
+)
 
 
 def product(size, unit, name):
@@ -38,7 +42,22 @@ def main():
     assert valid_existing.package_size == 500
     assert valid_existing.package_unit == "g"
 
-    print("REWE LEGACY PACKAGE METADATA REPAIR: PASS (4 cases)")
+    # A missing or invalid scrape price must not erase the last known checkout price.
+    priced = SimpleNamespace(price=1.99, last_price=1.49)
+    assert _update_existing_price(priced, None) == "preserved"
+    assert priced.price == 1.99 and priced.last_price == 1.49
+    assert _update_existing_price(priced, float("nan")) == "preserved"
+    assert priced.price == 1.99 and priced.last_price == 1.49
+    assert _update_existing_price(priced, -2) == "preserved"
+    assert _update_existing_price(priced, True) == "preserved"
+
+    # A valid new price updates the current price and moves the old one to last_price.
+    assert _update_existing_price(priced, "2,49") == "updated"
+    assert priced.price == 2.49 and priced.last_price == 1.99
+    assert _valid_rewe_price(float("inf")) is None
+    assert _valid_rewe_price("not a price") is None
+
+    print("REWE LEGACY PACKAGE / PRICE METADATA REPAIR: PASS (11 cases)")
 
 
 if __name__ == "__main__":
