@@ -29,56 +29,50 @@ main_module.GeminiService = EfficientGeminiService
 
 
 def _multilingual_catalog_search(self, ingredient):
-    """Match English recipe ingredients against the German REWE catalog without LLM calls."""
+    """Use exact normalized ingredient phrases; never substring-match related foods."""
     aliases = ingredient_aliases(ingredient)
     if not aliases:
         return []
 
     Product = main_module.Product
+    # SQL is only a bounded candidate prefilter. The final decision below is
+    # exact normalized equality, not LIKE substring matching.
     clauses = []
     for term in aliases:
         pattern = f"%{term}%"
-        clauses.extend(
-            [
-                Product.ingredient.ilike(pattern),
-                Product.name_normalized.ilike(pattern),
-                Product.name_original.ilike(pattern),
-                Product.translated_name.ilike(pattern),
-            ]
-        )
+        clauses.extend([
+            Product.ingredient.ilike(pattern),
+            Product.name_normalized.ilike(pattern),
+            Product.name_original.ilike(pattern),
+            Product.translated_name.ilike(pattern),
+        ])
+    rows = self.db.query(Product).filter(or_(*clauses)).limit(300).all()
 
-    rows = self.db.query(Product).filter(or_(*clauses)).limit(120).all()
-    if rows:
-        alias_set = {x.lower() for x in aliases}
+    alias_set = {str(x).strip().casefold() for x in aliases if str(x).strip()}
+    scored = []
+    for row in rows:
+        fields = [
+            str(row.ingredient or "").strip().casefold(),
+            str(row.translated_name or "").strip().casefold(),
+            str(row.name_normalized or "").strip().casefold(),
+            str(row.name_original or "").strip().casefold(),
+        ]
+        # Match only exact ingredient labels. A generic "milk" must not match
+        # coconut milk, nor "chicken" chicken breast, nor "pepper" bell pepper.
+        exact = [field for field in fields if field in alias_set]
+        if not exact:
+            continue
+        score = 100
+        if row.price is not None:
+            score += 5
+        if str(row.availability or "").lower() == "available":
+            score += 3
+        if row.package_size and row.package_size > 0 and row.package_unit not in {"", "unknown"}:
+            score += 2
+        scored.append((score, row))
 
-        def score(row):
-            fields = [
-                str(row.ingredient or "").lower(),
-                str(row.translated_name or "").lower(),
-                str(row.name_normalized or "").lower(),
-                str(row.name_original or "").lower(),
-            ]
-            best = 0
-            for alias in alias_set:
-                for field in fields:
-                    if field == alias:
-                        best = max(best, 100)
-                    elif field.startswith(alias + " ") or field.endswith(" " + alias):
-                        best = max(best, 80)
-                    elif alias in field:
-                        best = max(best, 60 if len(alias) >= 4 else 40)
-            if row.price is not None:
-                best += 10
-            if str(row.availability or "").lower() == "available":
-                best += 5
-            return best
-
-        rows.sort(key=score, reverse=True)
-        return [main_module.product_dict(row) for row in rows[:40]]
-
-    # Never substitute seed/demo products for a real REWE catalog match.
-    # An empty result is more honest than displaying invented availability or prices.
-    return []
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+    return [main_module.product_dict(row) for _, row in scored[:40]]
 
 
 main_module.CatalogAdapter.search = _multilingual_catalog_search
