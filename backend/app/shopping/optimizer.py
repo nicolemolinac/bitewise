@@ -658,23 +658,6 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                             )
         needed = max(0.0, requested - pantry_used)
 
-        if ingredient in ambiguous_override_keys:
-            base = {
-                **requirement,
-                "needed_quantity": round(needed, 2),
-                "product_needed_quantity": round(needed, 2),
-                "quantity_validation": quantity_validation,
-                "quantity_ratio": 1.0,
-                "pantry_used": round(pantry_used, 2),
-                "pantry_unit": unit,
-                "match_status": "unmatched",
-                "match_reason": "Multiple saved product overrides normalize to this ingredient. Resolve the duplicate choices before shopping.",
-                "why": "The saved product choice is ambiguous; no automatic replacement was selected.",
-                "semantic_suggestions": [],
-            }
-            output.append(base)
-            continue
-
         base = {
             **requirement,
             "needed_quantity": round(needed, 2),
@@ -729,6 +712,15 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 "match_reason": "Covered by pantry / marked as owned.",
                 "why": "Covered by pantry / marked as owned.",
                 "badge": "🏠 Uses Pantry",
+            })
+            output.append(base)
+            continue
+
+        if ingredient in ambiguous_override_keys:
+            base.update({
+                "match_status": "unmatched",
+                "match_reason": "Multiple saved product overrides normalize to this ingredient. Resolve the duplicate choices before shopping.",
+                "why": "The saved product choice is ambiguous; no automatic replacement was selected.",
             })
             output.append(base)
             continue
