@@ -114,8 +114,10 @@ def _displayed_unit_price(text: str):
         return None, None
     if not math.isfinite(amount) or amount <= 0:
         return None, None
-    base_quantity = 1000 if unit in {"kg", "l"} else 100
-    normalized_amount = amount * 1000 / base_quantity
+    # Convert the displayed reference quantity to the canonical base
+    # unit (g/ml) before dividing. "1 g" is not interchangeable with "100 g".
+    reference_quantity = quantity * (1000 if unit in {"kg", "l"} else 1)
+    normalized_amount = amount / reference_quantity
     if not math.isfinite(normalized_amount) or normalized_amount <= 0:
         return None, None
     return normalized_amount, "g" if unit in {"kg", "g"} else "ml"
