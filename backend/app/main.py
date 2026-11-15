@@ -142,14 +142,16 @@ def dislikes():
  finally:db.close()
 def consume_meal_from_pantry(db, meal, servings=2):
  """Deduct only validated, unit-compatible quantities from pantry inventory."""
+ raw_base_servings=meal.get("base_servings",2)
  try:
   servings_value = float(servings)
-  base_servings = float(meal.get("base_servings", 2))
+  base_servings = float(raw_base_servings)
  except (TypeError, ValueError, OverflowError):
   raise HTTPException(422, "Servings must be finite positive numbers")
  if (
-  isinstance(servings, bool) or not math.isfinite(servings_value)
-  or not math.isfinite(base_servings) or servings_value <= 0 or base_servings <= 0
+  isinstance(servings, bool) or isinstance(raw_base_servings,bool)
+  or not math.isfinite(servings_value) or not math.isfinite(base_servings)
+  or servings_value <= 0 or base_servings <= 0
  ):
   raise HTTPException(422, "Servings must be finite positive numbers")
  factor = servings_value / base_servings
