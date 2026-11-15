@@ -31,7 +31,24 @@ def consolidate(meals, servings_map):
             return None
         return parsed if math.isfinite(parsed) and parsed > 0 else None
 
-    for meal in meals:
+    if not isinstance(meals, list) or not isinstance(servings_map, dict):
+        raise ValueError("Meals and serving counts must be provided as a list and mapping.")
+    for meal_index, meal in enumerate(meals):
+        if not isinstance(meal, dict) or not str(meal.get("id") or "").strip():
+            raise ValueError(f"Meal at position {meal_index + 1} has no valid identity.")
+        ingredient_rows = meal.get("ingredients")
+        if not isinstance(ingredient_rows, list) or not ingredient_rows:
+            raise ValueError(f"Recipe {meal.get('name') or meal['id']} has no valid ingredient list.")
+        for ingredient_index, ingredient_row in enumerate(ingredient_rows):
+            if (
+                not isinstance(ingredient_row, (list, tuple))
+                or len(ingredient_row) < 3
+                or not isinstance(ingredient_row[0], str)
+                or not ingredient_row[0].strip()
+            ):
+                raise ValueError(
+                    f"Recipe {meal.get('name') or meal['id']} has an invalid ingredient entry at position {ingredient_index + 1}."
+                )
         # Apply defaults only when a value is genuinely absent. Using "or 2"
         # turns explicit zero into two servings and bypasses validation.
         requested_servings = servings_map.get(meal["id"], 2)
@@ -44,7 +61,7 @@ def consolidate(meals, servings_map):
         base_servings = _positive_finite(requested_base_servings)
         scaling_valid = servings is not None and base_servings is not None
         factor = servings / base_servings if scaling_valid else 0.0
-        for name, quantity, unit in meal["ingredients"]:
+        for name, quantity, unit in ingredient_rows:
             try:
                 raw_quantity = float(quantity)
             except (TypeError, ValueError, OverflowError):
