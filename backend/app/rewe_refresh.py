@@ -330,6 +330,10 @@ def rewe_refresh_safe():
                 db.rollback()
         raise HTTPException(502, f"REWE refresh failed: {str(exc)[:180]}")
     finally:
-        if db is not None:
-            db.close()
-        _SEMANTIC_INDEX_GUARD.release()
+        try:
+            if db is not None:
+                db.close()
+        finally:
+            # Even a failed connection close must not permanently block future
+            # refreshes or semantic-index requests in this process.
+            _SEMANTIC_INDEX_GUARD.release()
