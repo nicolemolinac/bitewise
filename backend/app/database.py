@@ -472,10 +472,19 @@ def _auto_import_rewe_csv_snapshot() -> None:
                 source_id = str(row.get("id") or "").strip()
                 if not source_id:
                     source_id = str(len(products) + 1)
-                package_size = _snapshot_float(row.get("package_size"), 1.0)
-                package_size = package_size if package_size is not None and package_size > 0 else 1.0
-                package_unit = str(row.get("package_unit") or "unit").strip()[:20]
+                # The snapshot is a fallback catalog, not a reason to invent
+                # package dimensions. Rows without a positive size and explicit
+                # unit cannot be costed safely and must not become "1 unit".
+                package_size = _snapshot_float(row.get("package_size"))
+                package_unit = str(row.get("package_unit") or "").strip()[:20]
+                if (
+                    package_size is None or package_size <= 0
+                    or not math.isfinite(package_size) or not package_unit
+                ):
+                    continue
                 package_size = _snapshot_package_size(name, package_size, package_unit)
+                if not math.isfinite(package_size) or package_size <= 0:
+                    continue
                 pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
                     name, package_size, package_unit, row.get("price"), row.get("price_per_unit")
                 )
