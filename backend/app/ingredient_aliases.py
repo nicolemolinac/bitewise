@@ -93,6 +93,17 @@ _ALIAS_GROUPS = [
     ("bacon", "speck", "bacon"),
     ("sausage", "sausages", "wurst", "würstchen", "wuerstchen"),
     ("turkey", "pute", "putenfleisch"),
+    ("saffron", "safran"),
+    ("parsley", "petersilie"),
+    ("basil", "basilikum"),
+    ("oregano", "oregano"),
+    ("thyme", "thymian"),
+    ("rosemary", "rosmarin"),
+    ("chives", "schnittlauch"),
+    ("dill", "dill"),
+    ("ginger", "ingwer"),
+    ("coriander", "cilantro", "koriander"),
+    ("chili", "chilli", "chilischote", "chilischoten"),
     ("wrap", "wraps", "tortilla", "tortillas", "weizentortilla"),
 ]
 
@@ -141,3 +152,45 @@ def ingredient_aliases(value: str) -> list[str]:
     for known in specific:
         aliases.update(_ALIAS_INDEX[known])
     return sorted((x for x in aliases if x), key=lambda x: (-len(x), x))
+
+
+def ingredient_matches_product(ingredient: str, product_text: str) -> bool:
+    """Match a product title to an ingredient without broad substring collisions.
+
+    The most specific known ingredient phrase in the product title wins. This
+    prevents generic "oil" from matching olive oil, "milk" from matching
+    coconut milk, and "pepper" from matching black pepper. Specific German
+    compounds such as "Hähnchenbrustfilet" can match a specific phrase like
+    "chicken breast", but not the broader "chicken".
+    """
+    needle = _norm(ingredient)
+    text = _norm(product_text)
+    if not needle or not text:
+        return False
+
+    aliases = set(ingredient_aliases(needle))
+    if not aliases:
+        return False
+
+    matched_known = []
+    for known in _ALIAS_INDEX:
+        exact = re.search(rf"(?<!\\w){re.escape(known)}(?!\\w)", text)
+        compact = known.replace(" ", "")
+        # German product names often join a specific cut/type into one word.
+        # Permit a suffix only for long, specific aliases, never generic words.
+        compound = (
+            len(compact) >= 10
+            and re.search(rf"(?<!\\w){re.escape(compact)}[a-zäöüß]+(?!\\w)", text)
+        )
+        if exact or compound:
+            matched_known.append(known)
+
+    if matched_known:
+        most_specific = max(matched_known, key=lambda term: (len(term), term))
+        return most_specific in aliases
+
+    # Unknown ingredients still get exact phrase matching in the source title.
+    return any(
+        re.search(rf"(?<!\\w){re.escape(alias)}(?!\\w)", text)
+        for alias in aliases
+    )
