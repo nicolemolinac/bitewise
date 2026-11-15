@@ -238,12 +238,19 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             if not math.isfinite(numeric_price) or numeric_price < 0:
                 continue
             needed_in_pack_unit = _convert_quantity(needed, unit, product_unit)
-            if needed_in_pack_unit is None:
+            if needed_in_pack_unit is None or needed_in_pack_unit <= 0:
                 continue
-            packs = max(1, math.ceil(needed_in_pack_unit / pack_qty))
+            pack_ratio = needed_in_pack_unit / pack_qty
+            # The REWE cart handoff accepts at most 99 packs per product.
+            # Do not show a basket quantity that checkout would silently truncate.
+            if not math.isfinite(pack_ratio) or pack_ratio > 99:
+                continue
+            packs = max(1, math.ceil(pack_ratio))
             purchased_quantity = packs * pack_qty
             waste_in_pack_unit = max(0.0, purchased_quantity - needed_in_pack_unit)
             checkout_cost = packs * numeric_price
+            if not math.isfinite(checkout_cost):
+                continue
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
             # Waste is relative to the amount actually required. A 0.2g need
             # with 0.8g leftover is 400% waste, not 80%.
