@@ -57,7 +57,7 @@ def package(text: str):
     # Do not mistake a displayed reference price ("1 kg = 11,06 €") for
     # the product's own package size.
     text = re.sub(
-        r"\b(?:1\s*(?:kg|l)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+        r"\b(?:1\s*(?:kg|l|g|ml)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
         " ",
         str(text or ""),
         flags=re.I,
@@ -131,7 +131,7 @@ def price_details(text: str, package_size=None, package_unit=None):
     """
     reference_price, reference_unit = _displayed_unit_price(text)
     reference_match = re.search(
-        r"\b(?:1\s*(?:kg|l)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+        r"\b(?:1\s*(?:kg|l|g|ml)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
         str(text or ""),
         re.I,
     )
