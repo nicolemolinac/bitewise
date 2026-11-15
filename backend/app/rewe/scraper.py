@@ -164,14 +164,14 @@ def price(text: str):
     value = re.sub(
         r"(?:grundpreis|base\s*price)\s*:?\s*(?:€|EUR|Euro)?\s*"
         r"\d+[,.]\d{1,2}\s*(?:€|EUR|Euro)?\s*/\s*"
-        r"\d+(?:[,.]\d+)?\s*(?:kg|g|ml|l)\b",
+        r"(?:\d+(?:[,.]\d+)?\s*)?(?:kg|g|ml|l)\b",
         " ",
         str(text or ""),
         flags=re.I,
     )
     value = re.sub(
         r"\d+[,.]\d{1,2}\s*(?:€|EUR|Euro)?\s*/\s*"
-        r"\d+(?:[,.]\d+)?\s*(?:kg|g|ml|l)\b",
+        r"(?:\d+(?:[,.]\d+)?\s*)?(?:kg|g|ml|l)\b",
         " ",
         value,
         flags=re.I,
