@@ -1050,10 +1050,19 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
             )
             if not matched_option_term or not category_compatible:
                 continue
+            raw_ratio = option.get("quantity_ratio")
+            ratio_is_executable = False
+            if "quantity_ratio" in option and not isinstance(raw_ratio, bool):
+                try:
+                    parsed_ratio = float(raw_ratio)
+                    ratio_is_executable = math.isfinite(parsed_ratio) and 0.1 <= parsed_ratio <= 5
+                except (TypeError, ValueError, OverflowError):
+                    ratio_is_executable = False
             safe_option = (
                 option.get("safe_to_auto_apply") is True
                 and option.get("role_preserved") is True
                 and _safe_confidence(option.get("confidence")) >= 0.85
+                and ratio_is_executable
             )
             # A declared transformation may cross the requested retail form
             # (e.g. frozen fries -> fresh potatoes) only when it includes an
