@@ -614,6 +614,14 @@ def run():
 
     assert _convert_quantity(1, "bunch", "piece") is None
     assert _convert_quantity(1, "piece", "bunch") is None
+    # Unit validation and shopping normalization must agree on all
+    # supported plural/German aliases; otherwise accepted units fail at costing.
+    assert _convert_quantity(2, "pinches", "ml") == 0.6
+    assert _convert_quantity(1, "stueck", "piece") == 1
+    assert _convert_quantity(1, "bundles", "bunch") == 1
+    assert _convert_quantity(2, "millilitres", "ml") == 2
+    assert _convert_quantity(2, "centilitres", "ml") == 20
+    assert _convert_quantity(2, "decilitres", "ml") == 200
 
     substitute_catalog = FakeCatalog({
         "trofie pasta": [{
