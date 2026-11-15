@@ -35,6 +35,25 @@ class FakePantryDB:
 
 
 def run():
+    for malformed_requirements in (None, {}, ["not-an-object"]):
+        try:
+            build_basket(malformed_requirements, FakeCatalog({}))
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Malformed basket requirements were silently accepted")
+    _bad_quantity_metadata = build_basket([{
+        "ingredient": "onion", "quantity": 1, "unit": "piece",
+        "quantity_validation": "valid",
+    }], FakeCatalog({}))[0]
+    assert _bad_quantity_metadata["match_status"] == "unmatched"
+    assert _bad_quantity_metadata["quantity_validation"]["valid"] is False
+    _bad_unit_metadata = build_basket([{
+        "ingredient": "onion", "quantity": 1, "unit": "piece",
+        "unit_validation": "valid",
+    }], FakeCatalog({}))[0]
+    assert _bad_unit_metadata["match_status"] == "unmatched"
+    assert _bad_unit_metadata["unit_validation"]["valid"] is False
     for malformed_recipe in (
         {"id": "bad-ingredients", "name": "Broken", "ingredients": [["rice", 1]]},
         {"id": "missing-ingredients", "name": "Broken", "ingredients": None},
