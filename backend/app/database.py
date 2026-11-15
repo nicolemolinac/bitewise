@@ -367,6 +367,18 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
     return resolved_size if math.isfinite(resolved_size) and resolved_size > 0 else current_size
 
 
+def _snapshot_package_dimensions(name: str, raw_size, raw_unit: str):
+    """Return verified snapshot dimensions, or (None, None) when uncostable."""
+    size = _snapshot_float(raw_size)
+    unit = str(raw_unit or "").strip()[:20]
+    if size is None or not math.isfinite(size) or size <= 0 or not unit:
+        return None, None
+    size = _snapshot_package_size(name, size, unit)
+    if not math.isfinite(size) or size <= 0:
+        return None, None
+    return size, unit
+
+
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
     """Convert displayed €/kg or €/l unit prices into actual package checkout prices."""
     match = re.search(
@@ -475,15 +487,10 @@ def _auto_import_rewe_csv_snapshot() -> None:
                 # The snapshot is a fallback catalog, not a reason to invent
                 # package dimensions. Rows without a positive size and explicit
                 # unit cannot be costed safely and must not become "1 unit".
-                package_size = _snapshot_float(row.get("package_size"))
-                package_unit = str(row.get("package_unit") or "").strip()[:20]
-                if (
-                    package_size is None or package_size <= 0
-                    or not math.isfinite(package_size) or not package_unit
-                ):
-                    continue
-                package_size = _snapshot_package_size(name, package_size, package_unit)
-                if not math.isfinite(package_size) or package_size <= 0:
+                package_size, package_unit = _snapshot_package_dimensions(
+                    name, row.get("package_size"), row.get("package_unit")
+                )
+                if package_size is None:
                     continue
                 pack_price, normalized_price_per_unit = _snapshot_pack_pricing(
                     name, package_size, package_unit, row.get("price"), row.get("price_per_unit")
