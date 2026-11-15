@@ -90,7 +90,7 @@ def _number(product, *keys, default=0.0):
 
 
 def _package(product):
-    qty = _number(product, "pack_qty", "package_size", default=1.0)
+    qty = _number(product, "pack_qty", "package_size", default=0.0)
     unit = product.get("unit") or product.get("package_unit") or "piece"
     # Invalid package sizes must never be clamped to a tiny positive quantity:
     # doing so can create millions of fictitious packs and corrupt checkout costs.
