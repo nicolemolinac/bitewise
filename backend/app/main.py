@@ -621,7 +621,10 @@ def shopping(payload:BasketIn,request:Request):
    if not math.isfinite(meal_servings) or not 0.1<=meal_servings<=12:
     raise HTTPException(422,f"Serving count for {meal['name']} must be between 0.1 and 12")
    servings_map[meal['id']]=meal_servings
-  requirements=consolidate(selected,servings_map)
+  try:
+   requirements=consolidate(selected,servings_map)
+  except ValueError as exc:
+   raise HTTPException(422,str(exc))
   overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['total'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'waste':waste,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
  finally:db.close()
 def serialize_planned_meal(row):
