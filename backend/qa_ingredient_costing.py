@@ -5,6 +5,7 @@ Run from backend/: python qa_ingredient_costing.py
 from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quantity, build_basket, consolidate
 from app.database import _snapshot_float, _snapshot_package_dimensions, _snapshot_package_size, _snapshot_pack_pricing
 from app.rewe.scraper import _displayed_unit_price, _json_ld_products, _merge_duplicate_product, package, price_details, ReweCatalogScraper
+from app.rewe_refresh import _refresh_is_complete_healthy
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -17,6 +18,19 @@ class FakeCatalog:
 
 
 def run():
+    _healthy_catalog_report = {
+        "status": "healthy",
+        "categories_failed": 0,
+        "categories_processed": 17,
+        "categories_successful": 17,
+        "products_found": 12000,
+        "products_skipped": 120,
+    }
+    assert _refresh_is_complete_healthy(_healthy_catalog_report) is True
+    _too_many_skips = {**_healthy_catalog_report, "products_skipped": 121}
+    assert _refresh_is_complete_healthy(_too_many_skips) is False
+    _partial_catalog = {**_healthy_catalog_report, "categories_failed": 1}
+    assert _refresh_is_complete_healthy(_partial_catalog) is False
     # Snapshot numeric parsing must reject infinities/NaN and non-positive
     # checkout prices instead of persisting unusable catalog values.
     assert _snapshot_float("nan", 7) == 7
