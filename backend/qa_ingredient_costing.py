@@ -59,6 +59,11 @@ def run():
     )
     assert _repaired_price["price"] == 2.50
     assert abs(_repaired_price["price_per_unit"] - 0.005) < 1e-12
+    _duplicate_with_stale_positive_unit_price = _merge_duplicate_product(
+        {"price": 2.50, "price_per_unit": 0.5, "package_size": 500, "package_unit": "g"},
+        {"price": 2.50, "price_per_unit": 0.5, "package_size": 500, "package_unit": "g"},
+    )
+    assert abs(_duplicate_with_stale_positive_unit_price["price_per_unit"] - 0.005) < 1e-12
     _repaired_without_size = _merge_duplicate_product(
         {"price": 0, "price_per_unit": 9.99, "package_size": None, "package_unit": None},
         {"price": 2.50, "price_per_unit": 0},
