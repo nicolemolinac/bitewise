@@ -424,6 +424,24 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     )
     if ingredient_tokens & fresh_produce_tokens and any(token in title for token in compound_product_terms):
         return False
+    # Raw meat/fish ingredients must not match prepared meals, sauces or
+    # processed products merely because their titles contain the animal name.
+    raw_protein_tokens = {
+        "chicken", "hahnchen", "haehnchen", "beef", "rind", "pork",
+        "schwein", "turkey", "truthahn", "salmon", "lachs", "shrimp",
+        "garnelen", "fish", "fisch", "bacon", "speck",
+    }
+    prepared_protein_terms = (
+        "soup", "suppe", "sauce", "sossen", "broth", "brühe", "bruehe",
+        "stock", "wurst", "sausage", "salami", "schnitzel", "nuggets",
+        "ready meal", "fertiggericht", "auflauf", "pizza", "wrap",
+        "salad", "salat", "pesto", "dressing", "sandwich", "burger",
+    )
+    if ingredient_tokens & raw_protein_tokens and any(
+        _contains_phrase(title, term) and not _contains_phrase(ingredient, term)
+        for term in prepared_protein_terms
+    ):
+        return False
     if form == "fresh" and any(token in title for token in ("tiefkuhl", "frozen", "konserve", "dose", "getrocknet", "gemahlen", "gewurze", "gewurz", "spices", "seasonings")):
         return False
     if form in {"frozen", "tiefkuhl"}:
