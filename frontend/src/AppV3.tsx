@@ -258,7 +258,7 @@ export default function AppV3(){
   const factor=portionFactor(profile);const todayIndex=(new Date().getDay()+6)%7;const todaySlots=weeklyPlan[todayIndex]?.slots||[];
   const weeklyStats=useMemo(()=>{let cost=0,calories=0,mealCount=0;weeklyPlan.forEach((d,idx)=>d.slots.forEach(s=>{if(!s.meal)return;const portions=dayContexts[idx]?.people||1;cost+=s.meal.cost*factor*portions;calories+=caloriesOf(s.meal)*factor;mealCount++}));return {cost,avgCalories:mealCount?Math.round(calories/7):0,mealCount}},[weeklyPlan,dayContexts,factor]);
 
-  async function attachFreePhotos(fresh:Meal[]){
+  async function attachFreePhotos(fresh:Meal[],reportFailure=false){
     try{
       const photos=await api('/meal-photos',{method:'POST',body:JSON.stringify({meals:fresh.map(meal=>({
         name:meal.name,
@@ -280,7 +280,8 @@ export default function AppV3(){
         const updated=enriched.find(meal=>meal.id===row.record_key);
         return updated?{...row,meal:updated}:row;
       }));
-    }catch{
+    }catch(e:any){
+      if(reportFailure)setError('Could not recover meal photos: '+e.message);
       setMeals(current=>{
         const byId=new Map(current.map(meal=>[meal.id,meal]));
         fresh.forEach(meal=>{if(!byId.has(meal.id))byId.set(meal.id,{...meal,image:''})});
@@ -293,7 +294,7 @@ export default function AppV3(){
     const missing=discoverPool.filter(meal=>!meal.image);
     if(!missing.length)return;
     setRecoveringImages(true);setError('');
-    try{await attachFreePhotos(missing)}finally{setRecoveringImages(false)}
+    try{await attachFreePhotos(missing,true)}finally{setRecoveringImages(false)}
   }
 
   async function generateAI(prompt:string){
