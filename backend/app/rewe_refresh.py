@@ -46,6 +46,18 @@ def _valid_rewe_checkout_price(data: dict) -> bool:
     return math.isfinite(price) and price > 0
 
 
+def _derive_rewe_unit_price(checkout_price, package_size):
+    if isinstance(checkout_price, bool) or isinstance(package_size, bool):
+        return None
+    try:
+        price = float(checkout_price)
+        size = float(package_size)
+        unit_price = price / size
+    except (OverflowError, TypeError, ValueError, ZeroDivisionError):
+        return None
+    return unit_price if math.isfinite(unit_price) and unit_price > 0 else None
+
+
 def _refresh_is_complete_healthy(report: dict) -> bool:
     """Allow destructive reconciliation only for complete, high-quality snapshots."""
     skipped = int(report.get("products_skipped", 0) or 0)
@@ -184,12 +196,9 @@ def rewe_refresh_safe():
             package_for_unit_price = package_size if valid_package else (
                 getattr(existing, "package_size", None) if existing is not None else None
             )
-            try:
-                checkout_for_unit_price = float(checkout_for_unit_price)
-                package_for_unit_price = float(package_for_unit_price)
-                derived_unit_price = checkout_for_unit_price / package_for_unit_price
-            except (OverflowError, TypeError, ValueError, ZeroDivisionError):
-                derived_unit_price = None
+            derived_unit_price = _derive_rewe_unit_price(
+                checkout_for_unit_price, package_for_unit_price
+            )
             if (
                 derived_unit_price is not None
                 and math.isfinite(derived_unit_price)
