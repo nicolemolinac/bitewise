@@ -733,6 +733,14 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             # An explicitly malformed AI ratio is not a 1:1 substitution.
             # Reject this candidate instead of silently changing recipe quantities.
             if quantity_ratio is None:
+                if override_id is not None and str(product.get("id")) == str(override_id):
+                    semantic_suggestions.append({
+                        **product,
+                        "semantic_warning": (
+                            "This substitute has no explicit quantity ratio. "
+                            "It can be reviewed, but cannot safely replace the recipe ingredient automatically."
+                        ),
+                    })
                 continue
             product_needed = needed * quantity_ratio
             conversion_ingredient = (
@@ -804,9 +812,12 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             base.update({
                 "semantic_suggestions": semantic_suggestions[:5],
                 "match_reason": (
-                    "No high-confidence match was found. Semantic product suggestions are shown for your review."
-                    if semantic_suggestions else
-                    "No available catalog product with a compatible unit and a real price was found."
+                    "The selected substitute has no explicit quantity ratio and cannot be applied safely. Review the suggested product or choose another."
+                    if any(row.get("semantic_warning") for row in semantic_suggestions) else (
+                        "No high-confidence match was found. Semantic product suggestions are shown for your review."
+                        if semantic_suggestions else
+                        "No available catalog product with a compatible unit and a real price was found."
+                    )
                 ),
                 "why": (
                     "Review the possible products before selecting one."
