@@ -21,7 +21,8 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 from app import server
 from app.database import Product, SessionLocal
 from app.ingredient_intelligence import (
-    _BASE_TERMS, _category_compatible, _contains_phrase, _form_compatible,
+    _BASE_TERMS, _REVIEW_ONLY_SUBSTITUTION_TERMS, _SUBSTITUTION_TERMS,
+    _category_compatible, _contains_phrase, _form_compatible,
     _infer_ingredient_form, _ingredient_specific_exclusions,
     ingredient_candidate_search_terms, ingredient_product_match_type, normalize_text,
 )
@@ -94,10 +95,29 @@ def main():
                     row.name_original, row.name_normalized, row.translated_name
                 ))
                 inferred_form = _infer_ingredient_form(ingredient)
+                normalized_ingredient = normalize_text(ingredient)
+                trusted_terms = {
+                    normalized_ingredient,
+                    *(normalize_text(value) for value in _BASE_TERMS.get(normalized_ingredient, ())),
+                }
+                substitution_only = {
+                    normalize_text(value)
+                    for value in (
+                        *(_SUBSTITUTION_TERMS.get(normalized_ingredient, ())),
+                        *(_REVIEW_ONLY_SUBSTITUTION_TERMS.get(normalized_ingredient, ())),
+                    )
+                }
+                computed_exact_hit = any(
+                    _contains_phrase(normalize_text(product_text), term)
+                    for term in trusted_terms
+                    if term and term not in substitution_only
+                )
                 raw_samples.append({
                     "name": row.name_original,
                     "category": row.category,
                     "normalized_title": normalize_text(product_text),
+                    "computed_exact_hit": computed_exact_hit,
+                    "substitution_only_terms": sorted(substitution_only),
                     "exact_alias_hits": [
                         term for term in _BASE_TERMS.get(ingredient, ())
                         if _contains_phrase(normalize_text(product_text), normalize_text(term))
