@@ -175,6 +175,8 @@ def price_details(text: str, package_size=None, package_unit=None):
                 if size is not None and math.isfinite(size) and size > 0
                 else None
             )
+            if per_unit is not None and (not math.isfinite(per_unit) or per_unit <= 0):
+                per_unit = None
             return round(pack_price, 2), per_unit
 
     # Only calculate from a displayed reference price when the pack's
@@ -310,6 +312,10 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                 if offer_price is not None:
                     normalized_price = offer_price
                     normalized_price_per_unit = offer_price / size if size else None
+                    if normalized_price_per_unit is not None and (
+                        not math.isfinite(normalized_price_per_unit) or normalized_price_per_unit <= 0
+                    ):
+                        normalized_price_per_unit = None
                 else:
                     normalized_price, normalized_price_per_unit = price_details(price_text, size, unit)
                 external_id = str(
