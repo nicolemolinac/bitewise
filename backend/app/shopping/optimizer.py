@@ -648,26 +648,37 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         raw_unit = str(requirement.get("unit") or "").strip()
         unit = _normal_unit(raw_unit) if raw_unit else ""
         raw_unit_validation = requirement.get("unit_validation")
-        unit_validation = (
-            {
-                **raw_unit_validation,
-                "valid": raw_unit_validation.get("valid") is True,
-                "reason": raw_unit_validation.get("reason") or (
-                    None if raw_unit_validation.get("valid") is True
-                    else "Ingredient unit validation metadata is invalid."
-                ),
-            } if isinstance(raw_unit_validation, dict) else (
-                {"valid": False, "family": None, "reason": "Ingredient unit validation metadata is malformed."}
-                if raw_unit_validation is not None else (
-                    validate_ingredient_unit(
-                        ingredient, unit, requirement.get("ingredient_intelligence")
-                    ) if raw_unit else {
-                        "valid": False, "family": None,
-                        "reason": "Ingredient unit is missing; add an explicit unit before shopping.",
-                    }
-                )
-            )
+        computed_unit_validation = (
+            validate_ingredient_unit(
+                ingredient, unit, requirement.get("ingredient_intelligence")
+            ) if raw_unit else {
+                "valid": False, "family": None,
+                "reason": "Ingredient unit is missing; add an explicit unit before shopping.",
+            }
         )
+        if raw_unit_validation is None:
+            unit_validation = computed_unit_validation
+        elif isinstance(raw_unit_validation, dict):
+            # Never let caller-supplied metadata bypass the actual unit ontology.
+            # Both the supplied validation and a fresh validation must agree.
+            supplied_valid = raw_unit_validation.get("valid") is True
+            computed_valid = computed_unit_validation.get("valid") is True
+            unit_validation = {
+                **computed_unit_validation,
+                **raw_unit_validation,
+                "valid": supplied_valid and computed_valid,
+                "reason": (
+                    raw_unit_validation.get("reason")
+                    or computed_unit_validation.get("reason")
+                    or (None if supplied_valid and computed_valid else
+                        "Ingredient unit validation metadata is invalid.")
+                ),
+            }
+        else:
+            unit_validation = {
+                "valid": False, "family": None,
+                "reason": "Ingredient unit validation metadata is malformed.",
+            }
         pantry_row = (
             pantry.get(ingredient)
             if unit_validation.get("valid") is True and ingredient not in ambiguous_pantry_keys
