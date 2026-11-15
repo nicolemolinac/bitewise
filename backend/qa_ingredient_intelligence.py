@@ -1128,11 +1128,26 @@ def run():
         "substitution_options": [{
             "name": "peanut butter", "confidence": 0.99,
             "role_preserved": False, "safe_to_auto_apply": False,
+            "quantity_ratio": 1.0,
         }],
     }
     assert ingredient_product_match_type(
         "neutral cooking fat", "Peanut butter creamy", unsafe_profile
     ) == "suggested_substitution"
+    unsafe_substitution_catalog = IntelligenceCatalog({"neutral cooking fat": [{
+        "id": 24, "name_original": "Peanut Butter Creamy 350g",
+        "package_size": 350, "package_unit": "g", "price": 2.0,
+        "availability": "available", "ingredient_match_type": "semantic_candidate",
+        "semantic_match_type": "suggested_substitution",
+        "ingredient_substitute": "peanut butter",
+    }]})
+    unsafe_substitution_basket = build_basket([{
+        "ingredient": "neutral cooking fat", "quantity": 20, "unit": "ml",
+        "ingredient_intelligence": unsafe_profile,
+        "unit_validation": {"valid": True},
+    }], unsafe_substitution_catalog, overrides={"neutral cooking fat": 24})
+    assert unsafe_substitution_basket[0]["match_status"] == "unmatched"
+    assert unsafe_substitution_basket[0]["semantic_suggestions"][0]["semantic_warning"]
     assert ingredient_product_match_type("canned corn", "REWE Mais aus der Dose 300g", intelligence) == "exact"
     assert ingredient_product_match_type(
         "canned corn", "REWE Bio Zuckermais Tiefkühl 450g", intelligence
