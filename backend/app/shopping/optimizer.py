@@ -526,7 +526,21 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             ambiguous_pantry_keys.add(normalized_key)
             continue
         if normalized_key not in ambiguous_pantry_keys:
-            pantry[normalized_key] = value
+            pantry[normalized_key] = dict(value) if isinstance(value, dict) else value
+    # Pantry records do not currently store ingredient form/preparation. If
+    # this week's recipes need different forms of the same named ingredient,
+    # that stock cannot safely be allocated to either form.
+    requested_forms = defaultdict(set)
+    for requirement in requirements:
+        key = normalize_text(requirement.get("ingredient"))
+        if key:
+            requested_forms[key].add((
+                normalize_text(requirement.get("ingredient_form") or "unspecified"),
+                normalize_text(requirement.get("ingredient_preparation") or ""),
+            ))
+    ambiguous_pantry_keys.update(
+        key for key, forms in requested_forms.items() if len(forms) > 1
+    )
     output = []
 
     for requirement in requirements:
@@ -575,6 +589,24 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 )
                 if converted_pantry is not None:
                     pantry_used = min(requested, max(0.0, converted_pantry))
+                    if pantry_used > 0:
+                        pantry_deduction, _ = _convert_ingredient_quantity(
+                            pantry_used, unit, pantry_unit, ingredient
+                        )
+                        try:
+                            stock = float(pantry_row.get("quantity"))
+                        except (TypeError, ValueError, OverflowError):
+                            stock = float("nan")
+                        if (
+                            pantry_deduction is not None
+                            and math.isfinite(pantry_deduction)
+                            and pantry_deduction > 0
+                            and math.isfinite(stock)
+                            and stock > 0
+                        ):
+                            pantry_row["quantity"] = max(
+                                0.0, stock - min(stock, pantry_deduction)
+                            )
         needed = max(0.0, requested - pantry_used)
 
         base = {
