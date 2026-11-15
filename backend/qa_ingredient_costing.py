@@ -108,6 +108,8 @@ def run():
     assert _snapshot_package_size("Juice 0,75ml pack 2x200ml", 0.75, "ml") == 400
     assert _snapshot_package_size("Yogurt 4x50g family pack 200g", 200, "g") == 200
     assert _snapshot_package_size("Water 2x500ml", 500, "ml") == 1000
+    assert _snapshot_package_size("Water 9" + "9" * 400 + "kg", 500, "g") == 500
+    assert _snapshot_package_size("Water " + "9" * 5000 + "x500ml", 500, "ml") == 500
     assert _snapshot_package_size("Water 2x500ml", 1, "l") == 1
     # A TypeError inside an intelligence-aware adapter is a real failure, not
     # evidence that it uses the legacy one-argument search signature.
