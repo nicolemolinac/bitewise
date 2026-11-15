@@ -1342,18 +1342,18 @@ def normalize_recipe_intelligence(recipe: dict) -> dict:
             if not isinstance(option_aliases, list):
                 option_aliases = []
             # A substitution option without an explicit quantity ratio
-            # is descriptive only; never manufacture a 1:1 conversion.
-            if "quantity_ratio" not in option:
-                continue
-            raw_ratio = option.get("quantity_ratio")
-            if isinstance(raw_ratio, bool):
-                continue
-            try:
-                ratio = float(raw_ratio)
-            except (TypeError, ValueError, OverflowError):
-                continue
-            if not math.isfinite(ratio) or not 0.1 <= ratio <= 5:
-                continue
+            # remains visible for review, but is not executable in the basket.
+            ratio = None
+            if "quantity_ratio" in option:
+                raw_ratio = option.get("quantity_ratio")
+                if isinstance(raw_ratio, bool):
+                    continue
+                try:
+                    ratio = float(raw_ratio)
+                except (TypeError, ValueError, OverflowError):
+                    continue
+                if not math.isfinite(ratio) or not 0.1 <= ratio <= 5:
+                    continue
             confidence = _safe_confidence(option.get("confidence", 0))
             substitution_options.append({
                 "name": option_name,
