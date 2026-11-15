@@ -2,7 +2,10 @@
 from urllib.parse import parse_qs, urlsplit
 
 from app.rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper
-from app.rewe_refresh import _derive_rewe_unit_price, _valid_rewe_checkout_price, _valid_rewe_package
+from app.rewe_refresh import (
+    _derive_rewe_unit_price, _minimum_safe_rewe_seen_count,
+    _valid_rewe_checkout_price, _valid_rewe_package,
+)
 
 
 def product_page(category_path: str, page_number: int) -> str:
@@ -39,6 +42,9 @@ class FakeSession:
 
 
 def main():
+    assert _minimum_safe_rewe_seen_count(0) == 100
+    assert _minimum_safe_rewe_seen_count(1000) == 900
+    assert _minimum_safe_rewe_seen_count(12000) == 10800
     assert _valid_rewe_package({"package_size": 500, "package_unit": "g"}) is True
     assert _valid_rewe_package({"package_size": True, "package_unit": "g"}) is False
     assert _valid_rewe_package({"package_size": float("inf"), "package_unit": "g"}) is False
