@@ -97,6 +97,9 @@ def run():
     assert package("Product 2x500ml") == (1000, "ml")
     assert _displayed_unit_price("1 kg = 0,00 €") == (None, None)
     assert _displayed_unit_price("1 kg = 999999999999999999999999999999999999999999999999 €") == (None, None)
+    assert _displayed_unit_price("1 g = 2,00 €") == (2.0, "g")
+    assert _displayed_unit_price("1 ml = 0,50 €") == (0.5, "ml")
+    assert _displayed_unit_price("100 g = 1,20 €") == (0.012, "g")
     assert price_details("€ 0,00", 500, "g") == (None, None)
     assert price_details("€ 2,50", float("inf"), "g") == (2.5, None)
     # Snapshot imports must choose the same final physical size as the live
