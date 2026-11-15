@@ -128,13 +128,13 @@ def ingredient_aliases(value: str) -> list[str]:
     # and "oil" must not broaden "olive oil" to every kind of cooking oil.
     matched = [
         known for known in _ALIAS_INDEX
-        if re.search(rf"(?<!\\w){re.escape(known)}(?!\\w)", needle)
+        if re.search(rf"(?<!\w){re.escape(known)}(?!\w)", needle)
     ]
     specific = [
         known for known in matched
         if not any(
             known != other
-            and re.search(rf"(?<!\\w){re.escape(known)}(?!\\w)", other)
+            and re.search(rf"(?<!\w){re.escape(known)}(?!\w)", other)
             for other in matched
         )
     ]
