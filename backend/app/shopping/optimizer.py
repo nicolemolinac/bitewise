@@ -72,6 +72,7 @@ _UNIT_ALIASES = {
     "ounce": "oz", "ounces": "oz", "oz": "oz",
     "pound": "lb", "pounds": "lb", "lbs": "lb", "lb": "lb",
     "fluid ounce": "fl oz", "fluid ounces": "fl oz", "fl oz": "fl oz", "floz": "fl oz",
+    "dozen": "dozen", "dozens": "dozen", "dutzend": "dozen",
     "pinch": "pinch", "pinches": "pinch",
 }
 _UNIT_BASE = {
@@ -80,7 +81,7 @@ _UNIT_BASE = {
     "ml": ("volume", 1.0), "cl": ("volume", 10.0), "l": ("volume", 1000.0),
     "fl oz": ("volume", 29.5735295625),
     "tsp": ("volume", 5.0), "tbsp": ("volume", 15.0), "cup": ("volume", 250.0),
-    "piece": ("count", 1.0),
+    "piece": ("count", 1.0), "dozen": ("count", 12.0),
 }
 
 
