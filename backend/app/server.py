@@ -205,9 +205,14 @@ async def update_recipe_history(record_key: str, request: Request):
     except Exception:
         raise HTTPException(400, "Invalid JSON payload")
     status = str(payload.get("status") or "") if isinstance(payload, dict) else ""
+    meal = payload.get("meal") if isinstance(payload, dict) else None
     allowed = {"discovered", "saved", "skipped", "disliked", "expanded", "removed", "cooked"}
-    if status not in allowed:
+    if status and status not in allowed:
         raise HTTPException(422, "Invalid recipe history status")
+    if not status and not isinstance(meal, dict):
+        raise HTTPException(422, "A valid status or updated meal is required")
+    if meal is not None and (not isinstance(meal, dict) or not str(meal.get("name") or "").strip()):
+        raise HTTPException(422, "Invalid updated meal")
     db = SessionLocal()
     try:
         row = db.query(RecipeHistory).filter_by(
@@ -216,10 +221,14 @@ async def update_recipe_history(record_key: str, request: Request):
         ).first()
         if row is None:
             raise HTTPException(404, "Recipe history record not found")
-        row.status = status
+        if status:
+            row.status = status
+        if isinstance(meal, dict):
+            row.meal_json = json.dumps(meal, ensure_ascii=False, default=_json_history_default)
+            row.name = str(meal.get("name") or row.name)[:180]
         row.updated_at = datetime.utcnow()
         db.commit()
-        return {"ok": True, "record_key": row.record_key, "status": row.status}
+        return {"ok": True, "record_key": row.record_key, "status": row.status, "meal_updated": isinstance(meal, dict)}
     finally:
         db.close()
 
