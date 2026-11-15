@@ -65,14 +65,21 @@ _UNIT_ALIASES = {
     "tsp": "tsp", "teaspoon": "tsp", "teaspoons": "tsp",
     "cup": "cup", "cups": "cup",
     "clove": "clove", "cloves": "clove",
-    "milligrams": "mg", "milligram": "mg", "mg": "mg",
-    "centiliter": "cl", "centiliters": "cl", "cl": "cl",
+    "milligram": "mg", "milligrams": "mg", "mg": "mg",
+    "centiliter": "cl", "centiliters": "cl", "centilitre": "cl", "centilitres": "cl", "cl": "cl",
+    "ounce": "oz", "ounces": "oz", "oz": "oz",
+    "pound": "lb", "pounds": "lb", "lbs": "lb", "lb": "lb",
+    "fluid ounce": "fl oz", "fluid ounces": "fl oz", "fl oz": "fl oz", "floz": "fl oz",
     "pinch": "pinch", "pinches": "pinch",
 }
-_UNIT_BASE = {"g": ("mass", 1.0), "kg": ("mass", 1000.0),
-              "ml": ("volume", 1.0), "l": ("volume", 1000.0),
-              "tbsp": ("volume", 15.0), "tsp": ("volume", 5.0), "cup": ("volume", 250.0),
-              "piece": ("count", 1.0)}
+_UNIT_BASE = {
+    "mg": ("mass", 0.001), "g": ("mass", 1.0), "kg": ("mass", 1000.0),
+    "oz": ("mass", 28.349523125), "lb": ("mass", 453.59237),
+    "ml": ("volume", 1.0), "cl": ("volume", 10.0), "l": ("volume", 1000.0),
+    "fl oz": ("volume", 29.5735295625),
+    "tsp": ("volume", 5.0), "tbsp": ("volume", 15.0), "cup": ("volume", 250.0),
+    "piece": ("count", 1.0),
+}
 
 
 def _normal_unit(value):
