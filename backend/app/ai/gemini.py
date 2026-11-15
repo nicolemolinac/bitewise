@@ -41,12 +41,26 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
     if not name: return None
     ingredients = []
     for item in raw.get("ingredients") or []:
-        if isinstance(item, dict): ingredient, quantity, unit = str(item.get("ingredient") or item.get("name") or "").strip().lower(), item.get("quantity"), str(item.get("unit") or "unit").strip().lower() or "unit"
-        elif isinstance(item, (list, tuple)) and len(item) >= 3: ingredient, quantity, unit = str(item[0]).strip().lower(), item[1], str(item[2] or "unit").strip().lower() or "unit"
-        else: continue
-        if not ingredient: continue
-        try: quantity = float(quantity)
-        except Exception: continue
+        if isinstance(item, dict):
+            ingredient = str(item.get("ingredient") or item.get("name") or "").strip().lower()
+            quantity = item.get("quantity")
+            unit = str(item.get("unit") or "").strip().lower()
+        elif isinstance(item, (list, tuple)) and len(item) >= 3:
+            ingredient = str(item[0]).strip().lower()
+            quantity = item[1]
+            unit = str(item[2] or "").strip().lower()
+        else:
+            continue
+        # Never turn a missing unit into "unit": that silently changes grams/ml
+        # into count-based shopping requirements. Reject malformed amounts too.
+        if not ingredient or not unit:
+            continue
+        try:
+            quantity = float(quantity)
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(quantity) or quantity <= 0:
+            continue
         ingredients.append([ingredient, quantity, unit])
     if not ingredients: return None
     try: minutes = max(5, min(240, int(float(raw.get("time") or 30))))
