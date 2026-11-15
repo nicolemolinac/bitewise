@@ -714,9 +714,9 @@ class ReweCatalogScraper:
             response.raise_for_status()
             fingerprint = self._page_fingerprint(response.text)
             if fingerprint in seen_content:
-                # REWE sometimes serves page 1 again under a different pagination URL.
-                # Stop this category rather than repeatedly ingesting identical content.
-                break
+                # Repeated content means pagination is not trustworthy. Mark the
+                # category failed so a partial scrape can never trigger stale deletion.
+                raise RuntimeError("REWE repeated page content before pagination completed")
             seen_content.add(fingerprint)
             yield url, response.text
             for href in self._pagination_links(response.text, url, start):
@@ -891,8 +891,7 @@ class ReweCatalogScraper:
             html = self._browser_category_html(page, current)
             fingerprint = self._page_fingerprint(html)
             if fingerprint in seen_content:
-                # Stop when REWE returns the same product page for a different URL.
-                break
+                raise RuntimeError("REWE repeated browser page content before pagination completed")
             seen_content.add(fingerprint)
             yield current, html
             for href in self._pagination_links(html, current, start):
