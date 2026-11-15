@@ -769,7 +769,7 @@ class ReweCatalogScraper:
                 "package_size": size,
                 "package_unit": unit,
                 "price": cost,
-                "price_per_unit": unit_cost if unit_cost is not None else ((cost / size) if cost is not None and size else None),
+                "price_per_unit": unit_cost,
                 "product_url": href,
                 "image_url": image_url,
                 "availability": "unknown",
