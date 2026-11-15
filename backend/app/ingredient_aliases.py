@@ -122,8 +122,22 @@ def ingredient_aliases(value: str) -> list[str]:
         aliases.add(needle[:-1])
     else:
         aliases.add(needle + "s")
-    # If a generated ingredient contains a known phrase, inherit that group's aliases.
-    for known, group in _ALIAS_INDEX.items():
-        if known in needle or needle in known:
-            aliases.update(group)
+    # If a generated ingredient contains a known phrase, inherit that group's
+    # aliases. Match whole words and prefer the most specific phrase: generic
+    # "chicken" must not broaden "chicken breast" to unrelated chicken cuts,
+    # and "oil" must not broaden "olive oil" to every kind of cooking oil.
+    matched = [
+        known for known in _ALIAS_INDEX
+        if re.search(rf"(?<!\\w){re.escape(known)}(?!\\w)", needle)
+    ]
+    specific = [
+        known for known in matched
+        if not any(
+            known != other
+            and re.search(rf"(?<!\\w){re.escape(known)}(?!\\w)", other)
+            for other in matched
+        )
+    ]
+    for known in specific:
+        aliases.update(_ALIAS_INDEX[known])
     return sorted((x for x in aliases if x), key=lambda x: (-len(x), x))
