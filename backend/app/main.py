@@ -517,6 +517,20 @@ def set_shopping_state(payload:ShoppingStateIn):
   row.purchased_unit=payload.purchased_unit if payload.state=='partial' else None
   db.commit();return {'ok':True}
  finally:db.close()
+def _purchase_pantry_identity(ingredient, pantry_ingredient=None, is_substitution=False):
+ original=normalize_ingredient(ingredient or '')
+ if not original:
+  raise HTTPException(422,'Ingredient is required')
+ pantry_name=normalize_ingredient(pantry_ingredient or ('' if is_substitution else original))
+ if is_substitution and not pantry_name:
+  raise HTTPException(422,'A substitute purchase must identify the actual replacement ingredient for pantry inventory.')
+ if not pantry_name:
+  raise HTTPException(422,'Pantry ingredient is required')
+ if is_substitution and normalize_text(pantry_name)==normalize_text(original):
+  raise HTTPException(422,'A substitute purchase must be stored under its replacement ingredient, not the original.')
+ return original, pantry_name
+
+
 @app.post('/api/shopping/purchase')
 def purchase(payload:PurchaseIn):
  if payload.packs<1 or payload.packs>99:raise HTTPException(422,'Packs must be between 1 and 99')
@@ -524,13 +538,11 @@ def purchase(payload:PurchaseIn):
  try:
   product=db.get(Product,payload.product_id)
   if not product:raise HTTPException(404,'Product not found')
-  ingredient=normalize_ingredient(payload.ingredient or product.ingredient or '')
-  if not ingredient:raise HTTPException(422,'Ingredient is required')
-  pantry_ingredient=normalize_ingredient(payload.pantry_ingredient or ('' if payload.is_substitution else ingredient))
-  if payload.is_substitution and not pantry_ingredient:
-   raise HTTPException(422,'A substitute purchase must identify the actual replacement ingredient for pantry inventory.')
-  if not pantry_ingredient:
-   raise HTTPException(422,'Pantry ingredient is required')
+  ingredient,pantry_ingredient=_purchase_pantry_identity(
+   payload.ingredient or product.ingredient,
+   payload.pantry_ingredient,
+   payload.is_substitution,
+  )
   try:
    package_size=float(product.package_size)
   except (TypeError,ValueError,OverflowError):
