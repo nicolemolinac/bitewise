@@ -77,6 +77,9 @@ def main():
         persisted_recipe = {"id": "generic-recipe-id", "name": "Persisted pizza", "source": "gemini"}
         with patch("app.server.AI_MEALS", [persisted_recipe]), patch("app.server.AI_MEALS_DATA_FILE", data_file):
             _assign_expanded_recipe_identity(persisted_recipe, "persisted-pizza-concept")
+            stable_id = persisted_recipe["id"]
+            _assign_expanded_recipe_identity(persisted_recipe, "persisted-pizza-concept")
+            assert persisted_recipe["id"] == stable_id, "Repeated expansion must not append the concept ID twice"
         stored = json.loads(data_file.read_text(encoding="utf-8"))
         assert stored[0]["id"] == persisted_recipe["id"]
         assert stored[0]["source_concept_id"] == "persisted-pizza-concept"
