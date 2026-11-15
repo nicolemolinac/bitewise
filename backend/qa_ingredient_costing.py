@@ -3,7 +3,7 @@
 Run from backend/: python qa_ingredient_costing.py
 """
 from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quantity, build_basket, consolidate
-from app.database import _snapshot_float, _snapshot_package_size, _snapshot_pack_pricing
+from app.database import _snapshot_float, _snapshot_package_dimensions, _snapshot_package_size, _snapshot_pack_pricing
 from app.rewe.scraper import _displayed_unit_price, _json_ld_products, _merge_duplicate_product, package, price_details, ReweCatalogScraper
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
@@ -108,6 +108,9 @@ def run():
     assert _snapshot_package_size("Juice 0,75ml pack 2x200ml", 0.75, "ml") == 400
     assert _snapshot_package_size("Yogurt 4x50g family pack 200g", 200, "g") == 200
     assert _snapshot_package_size("Water 2x500ml", 500, "ml") == 1000
+    assert _snapshot_package_dimensions("Milk 1l", None, None) == (None, None)
+    assert _snapshot_package_dimensions("Milk 1l", 0, "ml") == (None, None)
+    assert _snapshot_package_dimensions("Milk 1l", 1000, "ml") == (1000, "ml")
     assert _snapshot_package_size("Water 9" + "9" * 400 + "kg", 500, "g") == 500
     assert _snapshot_package_size("Water " + "9" * 5000 + "x500ml", 500, "ml") == 500
     assert _snapshot_package_size("Water 2x500ml", 1, "l") == 1
