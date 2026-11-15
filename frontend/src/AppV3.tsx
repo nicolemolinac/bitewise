@@ -280,6 +280,18 @@ export default function AppV3(){
         const updated=enriched.find(meal=>meal.id===row.record_key);
         return updated?{...row,meal:updated}:row;
       }));
+      const recovered=enriched.filter(meal=>Boolean(meal.image));
+      if(reportFailure&&!recovered.length)throw new Error('Google Images did not return any usable photos for these meals.');
+      if(recovered.length){
+        try{
+          await Promise.all(recovered.map(meal=>api(`/recipe-history/${encodeURIComponent(meal.id)}`,{
+            method:'PATCH',body:JSON.stringify({meal})
+          })));
+        }catch(e:any){
+          if(reportFailure)throw new Error('Photos were found but could not be saved to recipe history: '+e.message);
+        }
+      }
+      if(reportFailure&&recovered.length) setError(`Recovered and saved ${recovered.length} of ${fresh.length} missing photos.`);
     }catch(e:any){
       if(reportFailure)setError('Could not recover meal photos: '+e.message);
       setMeals(current=>{
