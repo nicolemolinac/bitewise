@@ -67,6 +67,12 @@ def run():
     }], FakeCatalog({}))[0]
     assert _forged_quantity["match_status"] == "unmatched"
     assert _forged_quantity["quantity_validation"]["valid"] is False
+    _forged_unknown_unit = build_basket([{
+        "ingredient": "onion", "quantity": 1, "unit": "furlong",
+        "unit_validation": {"valid": True},
+    }], FakeCatalog({}))[0]
+    assert _forged_unknown_unit["match_status"] == "unmatched"
+    assert _forged_unknown_unit["unit_validation"]["valid"] is False
     for malformed_recipe in (
         {"id": "bad-ingredients", "name": "Broken", "ingredients": [["rice", 1]]},
         {"id": "missing-ingredients", "name": "Broken", "ingredients": None},
