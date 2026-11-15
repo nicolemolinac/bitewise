@@ -24,7 +24,7 @@ type Meal = {
   costing?:{strategy:string;matched_ingredients:number;substituted_ingredients?:number;covered_ingredients?:number;unmatched_ingredients?:number;total_ingredients:number;catalog_ready:boolean;checkout_total:number|null;consumed_cost:number|null;cost_per_serving?:number|null;servings?:number;people?:number;cost_scope?:string;shopping_ready?:boolean;catalog_coverage?:number;currency:string};
   product_matches?:any[];
 };
-type Product = { id:number|null; name_original:string; brand?:string|null; package_size:number; package_unit:string; price:number|null; product_url?:string|null; image_url?:string|null; ingredient?:string; semantic_similarity?:number; semantic_match_type?:string|null; ingredient_match_type?:string|null; };
+type Product = { id:number|null; name_original:string; brand?:string|null; package_size:number; package_unit:string; price:number|null; product_url?:string|null; image_url?:string|null; ingredient?:string; semantic_similarity?:number; semantic_match_type?:string|null; ingredient_match_type?:string|null; semantic_warning?:string|null; };
 type BasketItem = { ingredient:string; ingredient_form?:string|null; ingredient_preparation?:string|null; quantity:number; needed_quantity?:number; product_needed_quantity?:number; quantity_ratio?:number; unit:string; product:Product|null; packs:number; total:number; checkout_cost?:number; consumed_cost?:number; waste?:number; package_quantity?:number|null; package_unit?:string|null; unit_cost?:number|null; unit_conversion_note?:string|null; pantry_used?:number; badge?:string; match_status?:string; match_reason?:string|null; availability_status?:string; availability_note?:string; semantic_suggestions?:Product[]; quantity_validation?:{valid:boolean;reason?:string|null}; unit_validation?:{valid:boolean;reason?:string|null}; };
 type Profile = { heightCm:number; weightKg:number; portionPreference:number };
 type DayContext = { people:number; occasion:string };
@@ -565,7 +565,7 @@ export default function AppV3(){
               <div className="mt-2 flex flex-wrap gap-2">
                 {item.semantic_suggestions.map(p => (
                   <button key={p.id || p.name_original} onClick={() => void useSemanticSuggestion(item, p)} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs font-bold text-amber-900">
-                    {p.name_original}{p.semantic_match_type === 'substitute' || p.semantic_match_type === 'suggested_substitution' || p.ingredient_match_type === 'substitute' || p.ingredient_match_type === 'suggested_substitution' ? ' · Possible substitute' : ''} · {p.price != null ? money(p.price) : 'price unavailable'}{p.semantic_similarity ? ' · similarity ' + p.semantic_similarity.toFixed(2) : ''} · Use this
+                    {p.name_original}{p.semantic_match_type === 'substitute' || p.semantic_match_type === 'suggested_substitution' || p.ingredient_match_type === 'substitute' || p.ingredient_match_type === 'suggested_substitution' ? ' · Possible substitute' : ''} · {p.price != null ? money(p.price) : 'price unavailable'}{p.semantic_similarity ? ' · similarity ' + p.semantic_similarity.toFixed(2) : ''}{p.semantic_warning ? ' · ' + p.semantic_warning : ' · Use this'}
                   </button>
                 ))}
               </div>
