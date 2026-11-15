@@ -447,7 +447,26 @@ def _snapshot_package_dimensions(name: str, raw_size, raw_unit: str):
     # Variable-weight products often arrive as "1 unit" with an explicit
     # physical weight/volume in the title. Prefer the dimension used by REWE's
     # reference price when available; otherwise use the final physical size.
-    if unit in count_units or size <= 1:
+    if unit in count_units:
+        selected_dimension = (
+            reference_dimension if reference_dimension in physical_sizes else last_dimension
+        )
+        if selected_dimension and physical_sizes.get(selected_dimension):
+            return physical_sizes[selected_dimension], selected_dimension
+
+    if size <= 1:
+        if unit_dimension and physical_sizes.get(unit_dimension):
+            # A one-unit placeholder can coexist with the real physical size
+            # in the title (e.g. 52g soup mix yielding 500ml). Keep the package
+            # dimension when the other dimension represents a much larger yield.
+            if (
+                reference_dimension in physical_sizes
+                and reference_dimension != unit_dimension
+            ):
+                ratio = physical_sizes[reference_dimension] / physical_sizes[unit_dimension]
+                if math.isfinite(ratio) and 0.5 <= ratio <= 2.0:
+                    return physical_sizes[reference_dimension], reference_dimension
+            return physical_sizes[unit_dimension], unit_dimension
         selected_dimension = (
             reference_dimension if reference_dimension in physical_sizes else last_dimension
         )
