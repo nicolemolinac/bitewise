@@ -94,8 +94,7 @@ jobs:
         run: python qa_rewe_cart.py
       - name: REWE product image extraction QA
         run: python qa_rewe_product_images.py
-      - name: Live REWE delivery QA (external site may block cloud runners)
-        continue-on-error: true
+      - name: Live REWE delivery QA (explicit skip only when cloud runner is blocked)
         env:
           REWE_BROWSER_ENABLED: 'true'
           REWE_BROWSER_HEADLESS: 'true'
