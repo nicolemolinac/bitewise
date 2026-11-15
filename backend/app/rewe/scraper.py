@@ -984,15 +984,72 @@ class ReweCatalogScraper:
     def run(self, upsert, postcode, urls=REWE_CATEGORY_URLS):
         http_report = self._run_http(upsert, postcode, urls)
         ratio = http_report["products_with_price"] / http_report["products_found"] if http_report["products_found"] else 0
-        if http_report["status"] != "failed" and ratio >= 0.25:
+        http_is_complete = (
+            http_report["status"] == "healthy"
+            and http_report["categories_failed"] == 0
+        )
+        if http_is_complete and ratio >= 0.25:
             return http_report
         if not self.browser_enabled:
             return http_report
-        browser_report = self._run_browser(upsert, postcode, urls)
+
+        # When HTTP found enough priced products but only some categories failed,
+        # retry just those categories in the authenticated browser session. This
+        # avoids needlessly re-scraping the successful categories and lets the
+        # final report combine both sources without double-counting products.
+        failed_categories = {
+            str(error.get("category") or "")
+            for error in http_report.get("errors", [])
+            if isinstance(error, dict) and error.get("category")
+        }
+        browser_urls = [
+            url for url in urls
+            if url.rstrip("/").split("/")[-1] in failed_categories
+        ] if http_report["status"] == "partial" and ratio >= 0.25 else list(urls)
+        if not browser_urls:
+            browser_urls = list(urls)
+
+        browser_report = self._run_browser(upsert, postcode, browser_urls)
         browser_report["http_fallback_reason"] = {
             "status": http_report["status"],
+            "categories_failed": http_report["categories_failed"],
             "products_found": http_report["products_found"],
             "products_with_price": http_report["products_with_price"],
             "errors": http_report["errors"][:3],
         }
+
+        if len(browser_urls) < len(urls):
+            # The browser retried only categories that HTTP failed. Successful
+            # HTTP categories and browser-retried categories are disjoint.
+            for key in (
+                "pages_processed", "products_found", "products_with_price",
+                "products_created", "products_updated",
+            ):
+                browser_report[key] = (
+                    int(http_report.get(key, 0) or 0)
+                    + int(browser_report.get(key, 0) or 0)
+                )
+            browser_report["categories_processed"] = (
+                int(http_report.get("categories_successful", 0) or 0)
+                + int(browser_report.get("categories_processed", 0) or 0)
+            )
+            browser_report["categories_successful"] = (
+                int(http_report.get("categories_successful", 0) or 0)
+                + int(browser_report.get("categories_successful", 0) or 0)
+            )
+            browser_report["fetch_mode"] = "http+chrome-for-testing-cdp"
+            successes = browser_report["categories_successful"]
+            failures = browser_report["categories_failed"]
+            browser_report["status"] = (
+                "failed" if successes == 0
+                else ("healthy" if successes == len(urls) and failures == 0 else "partial")
+            )
+        elif browser_report["status"] == "failed" and http_report["categories_successful"] > 0:
+            # Preserve products already ingested by a partially successful HTTP
+            # pass if the browser itself is blocked or unavailable.
+            http_report["errors"].extend(browser_report.get("errors", [])[:3])
+            http_report["browser_fallback_reason"] = browser_report.get("errors", [])[:3]
+            http_report["status"] = "partial"
+            return http_report
+
         return browser_report
