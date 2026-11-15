@@ -1251,6 +1251,9 @@ def run():
     assert ingredient_product_match_type("apple", "REWE Apfelsaft naturtrüb 1L", {}, "getraenke-genussmittel") is None
     assert ingredient_product_match_type("orange", "REWE Orangensaft 1L", {}, "getraenke-genussmittel") is None
     assert ingredient_product_match_type("banana", "REWE Bananenchips 150g", {}, "suesses-salziges") is None
+    assert ingredient_product_match_type("chicken", "REWE Hühnersuppe 400ml", {}, "fertiggerichte-konserven") is None
+    assert ingredient_product_match_type("beef", "REWE Rindergulasch in Sauce 400g", {}, "fertiggerichte-konserven") is None
+    assert ingredient_product_match_type("white fish fillet", "REWE Fischstäbchen 450g", {"form": "fresh"}, "tiefkuehlkost") is None
     assert ingredient_product_match_type("ham", "REWE Shampoo Repair 250ml", {}, "drogerie-gesundheit") is None
     assert ingredient_product_match_type("milk", "Ritter Sport Milk Chocolate 100g", {}, "suesses-salziges") is None
     assert ingredient_product_match_type("milk", "REWE Bio Kokosmilch 400ml", {"form": "liquid"}, "fertiggerichte-konserven") is None
