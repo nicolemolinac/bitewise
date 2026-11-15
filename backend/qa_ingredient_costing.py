@@ -250,7 +250,7 @@ def run():
                     "name": "Chicken Breast 500g",
                     "url": "https://www.rewe.de/shop/p/chicken-breast-500g/123456",
                 },
-            },
+            }},
             {
                 "item": {
                     "@type": "Product", "sku": "sku-offer-price",
