@@ -423,8 +423,16 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         "marmelade", "jam", "kompott", "powder", "pulver", "spice",
         "seasoning", "dried", "dehydrated", "getrocknet", "gemahlen",
     )
+    requested_form = normalize_text(form)
+    if requested_form in {"", "unspecified", "unknown"}:
+        requested_form = _infer_ingredient_form(ingredient)
+    dried_markers = {"dried", "getrocknet", "dehydrated", "trocken"}
+    powder_markers = {"powder", "pulver", "gemahlen"}
     if ingredient_tokens & fresh_produce_tokens and any(
-        _contains_phrase(title, token) and not _contains_phrase(ingredient, token)
+        _contains_phrase(title, token)
+        and not _contains_phrase(ingredient, token)
+        and not (token in dried_markers and requested_form == "dried")
+        and not (token in powder_markers and requested_form == "powder")
         for token in compound_product_terms
     ):
         return False
