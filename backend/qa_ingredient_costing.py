@@ -26,9 +26,11 @@ def run():
     assert _snapshot_pack_pricing("Product", 500, "g", "-1.00", "0")[0] is None
     assert _snapshot_pack_pricing("Product", 500, "g", "2.50", "-0.1") == (2.5, 0.005)
     assert _snapshot_pack_pricing("Product 1kg = 0,00 €", 500, "g", "2.50", None) == (2.5, 0.005)
-    assert _snapshot_pack_pricing("Product 100g = 1,20 €", 500, "g", 9.99, 0.0999) == (6.0, 0.012)
-    assert _snapshot_pack_pricing("Product 100ml = 0,50 €", 500, "ml", 9.99, 0.0999) == (2.5, 0.005)
-    assert _snapshot_pack_pricing("Product 1g = 0,02 €", 100, "g", 9.99, 0.0999) == (2.0, 0.02)
+    assert _snapshot_pack_pricing("Product 100g = 1,20 €", 500, "g", 9.99, 0.0999) == (9.99, 0.01998)
+    assert _snapshot_pack_pricing("Product 100ml = 0,50 €", 500, "ml", 9.99, 0.0999) == (9.99, 0.01998)
+    assert _snapshot_pack_pricing("Product 1g = 0,02 €", 100, "g", 9.99, 0.0999) == (9.99, 0.0999)
+    assert _snapshot_pack_pricing("Product 100g = 1,20 €", 500, "g", None, None) == (6.0, 0.012)
+    assert _snapshot_pack_pricing("Product 100ml = 0,50 €", 500, "ml", None, None) == (2.5, 0.005)
     assert _snapshot_package_size("Alete biscuits 180g (1 kg = 11,06 €)", 180, "g") == 180
     # Duplicate SKU observations allow later valid values to replace invalid
     # earlier values, while preserving descriptive data from the first card.
