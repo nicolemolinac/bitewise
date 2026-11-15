@@ -93,15 +93,27 @@ def run():
                     "@type": "Product", "sku": "   ",
                     "name": "Chicken Breast 500g",
                     "url": "https://www.rewe.de/shop/p/chicken-breast-500g/123456",
+                },
+                {
+                    "item": {
+                        "@type": "Product", "sku": "sku-offer-price",
+                        "name": "Chicken Breast 500g",
+                        "description": "Former price EUR 9.99",
+                        "url": "https://www.rewe.de/shop/p/chicken-breast-500g/654321",
+                        "offers": {"@type": "Offer", "price": "2.49", "priceCurrency": "EUR"},
+                    }
                 }
             }]
         }) + '</script>',
         "html.parser",
     )
     _jsonld_rows = _json_ld_products(_jsonld_html, "https://www.rewe.de", "test")
-    assert len(_jsonld_rows) == 1
+    assert len(_jsonld_rows) == 2
     assert _jsonld_rows[0]["external_id"]
     assert _jsonld_rows[0]["external_id"].strip() == _jsonld_rows[0]["external_id"]
+    _offer_price_row = next(row for row in _jsonld_rows if row["external_id"] == "sku-offer-price")
+    assert _offer_price_row["price"] == 2.49
+    assert _offer_price_row["price_per_unit"] == 2.49 / 500
     # Catalog health must count only usable checkout prices. Zero, negative,
     # NaN, infinity and malformed strings must not satisfy the HTTP fallback ratio.
     _ingest_report = {"products_created": 0, "products_updated": 0, "products_found": 0, "products_with_price": 0}
