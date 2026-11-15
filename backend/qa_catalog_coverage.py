@@ -20,7 +20,11 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 
 from app import server
 from app.database import Product, SessionLocal
-from app.ingredient_intelligence import ingredient_candidate_search_terms, ingredient_product_match_type
+from app.ingredient_intelligence import (
+    _category_compatible, _form_compatible, _infer_ingredient_form,
+    _ingredient_specific_exclusions, ingredient_candidate_search_terms,
+    ingredient_product_match_type,
+)
 
 
 SAMPLE_INGREDIENTS = [
@@ -76,21 +80,33 @@ def main():
             raw_rows = db.query(Product).filter(
                 Product.supermarket == "REWE", or_(*clauses)
             ).all() if clauses else []
-            raw_samples = [
-                {
+            raw_categories = {}
+            for row in raw_rows:
+                category_name = row.category or ""
+                raw_categories[category_name] = raw_categories.get(category_name, 0) + 1
+            diagnostic_rows = [
+                row for row in raw_rows
+                if row.category == "fleisch-wurst-fisch"
+            ][:8] or raw_rows[:8]
+            raw_samples = []
+            for row in diagnostic_rows:
+                product_text = " ".join(str(value or "") for value in (
+                    row.name_original, row.name_normalized, row.translated_name
+                ))
+                inferred_form = _infer_ingredient_form(ingredient)
+                raw_samples.append({
                     "name": row.name_original,
                     "category": row.category,
-                    "match_type": ingredient_product_match_type(
-                        ingredient,
-                        " ".join(str(value or "") for value in (
-                            row.name_original, row.name_normalized, row.translated_name
-                        )),
-                        None,
-                        row.category or "",
+                    "inferred_form": inferred_form,
+                    "form_compatible": _form_compatible(inferred_form, product_text, ingredient),
+                    "category_compatible": _category_compatible(
+                        ingredient, row.category or "", product_text, inferred_form
                     ),
-                }
-                for row in raw_rows[:8]
-            ]
+                    "excluded": _ingredient_specific_exclusions(ingredient, product_text),
+                    "match_type": ingredient_product_match_type(
+                        ingredient, product_text, None, row.category or ""
+                    ),
+                })
             exact = [p for p in candidates if p.get("ingredient_match_type") == "exact"]
             substitutes = [p for p in candidates if p.get("ingredient_match_type") == "substitute"]
             usable = [
@@ -107,6 +123,7 @@ def main():
                 "priced_usable": len(usable),
                 "search_terms": aliases,
                 "raw_candidate_count": len(raw_rows),
+                "raw_categories": raw_categories,
                 "raw_candidate_samples": raw_samples,
                 "sample_candidates": [
                     {
