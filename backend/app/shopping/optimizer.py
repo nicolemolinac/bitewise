@@ -81,7 +81,9 @@ def _number(product, *keys, default=0.0):
         value = product.get(key)
         if value is not None:
             try:
-                return float(value)
+                number = float(value)
+                if math.isfinite(number):
+                    return number
             except (TypeError, ValueError):
                 pass
     return default
@@ -90,7 +92,11 @@ def _number(product, *keys, default=0.0):
 def _package(product):
     qty = _number(product, "pack_qty", "package_size", default=1.0)
     unit = product.get("unit") or product.get("package_unit") or "piece"
-    return max(qty, 0.0001), _normal_unit(unit)
+    # Invalid package sizes must never be clamped to a tiny positive quantity:
+    # doing so can create millions of fictitious packs and corrupt checkout costs.
+    if not math.isfinite(qty) or qty <= 0:
+        return None, _normal_unit(unit)
+    return qty, _normal_unit(unit)
 
 
 def _premium_signal(product):
@@ -194,16 +200,29 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             }:
                 continue
             pack_qty, product_unit = _package(product)
+            if pack_qty is None:
+                continue
+            try:
+                numeric_price = float(price)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(numeric_price) or numeric_price < 0:
+                continue
             needed_in_pack_unit = _convert_quantity(needed, unit, product_unit)
             if needed_in_pack_unit is None:
                 continue
             packs = max(1, math.ceil(needed_in_pack_unit / pack_qty))
             purchased_quantity = packs * pack_qty
             waste_in_pack_unit = max(0.0, purchased_quantity - needed_in_pack_unit)
-            checkout_cost = packs * float(price)
+            checkout_cost = packs * numeric_price
             consumed_cost = checkout_cost * min(1.0, needed_in_pack_unit / purchased_quantity)
-            waste_ratio = waste_in_pack_unit / max(needed_in_pack_unit, 1.0)
-            unit_price = _number(product, "unit_price", "price_per_unit", default=float(price) / pack_qty)
+            # Waste is relative to the amount actually required. A 0.2g need
+            # with 0.8g leftover is 400% waste, not 80%.
+            waste_ratio = waste_in_pack_unit / needed_in_pack_unit if needed_in_pack_unit > 0 else 0.0
+            fallback_unit_price = numeric_price / pack_qty
+            unit_price = _number(product, "unit_price", "price_per_unit", default=fallback_unit_price)
+            if unit_price < 0:
+                unit_price = fallback_unit_price
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             product_id = product.get("id")
             selected_by_user = override_id is not None and str(product_id) == str(override_id)
