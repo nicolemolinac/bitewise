@@ -553,7 +553,19 @@ def shopping(payload:BasketIn,request:Request):
     if isinstance(meal,dict) and meal.get('id') in payload.meal_ids and meal['id'] not in selected_ids:
      selected.append(meal);selected_ids.add(meal['id'])
   if not selected:raise HTTPException(422,'Select at least one valid saved recipe')
-  servings_map={m['id']:max(0.1,float(payload.servings.get(m['id'],2))) for m in selected};requirements=consolidate(selected,servings_map)
+  servings_map={}
+  for meal in selected:
+   raw_servings=payload.servings.get(meal['id'],2)
+   if isinstance(raw_servings,bool):
+    raise HTTPException(422,f"Invalid serving count for {meal['name']}")
+   try:
+    meal_servings=float(raw_servings)
+   except (TypeError,ValueError,OverflowError):
+    raise HTTPException(422,f"Invalid serving count for {meal['name']}")
+   if not math.isfinite(meal_servings) or not 0.1<=meal_servings<=12:
+    raise HTTPException(422,f"Serving count for {meal['name']} must be between 0.1 and 12")
+   servings_map[meal['id']]=meal_servings
+  requirements=consolidate(selected,servings_map)
   overrides={r.ingredient:r.product_id for r in db.query(ProductOverride).all()};basket=build_basket(requirements,CatalogAdapter(db),payload.mode,payload.owned,overrides=overrides,pantry=pantry_snapshot(db));total=round(sum(x['total'] for x in basket),2);total_servings=sum(servings_map.values());waste=round(sum(x['waste'] for x in basket),2);return {'requirements':requirements,'basket':basket,'items':basket,'total':total,'meals':len(selected),'servings':total_servings,'cost_per_serving':round(total/total_servings,2) if total_servings else 0,'waste':waste,'strategy':payload.mode,'pantry_savings_items':sum(1 for x in basket if x.get('pantry_used',0)>0)}
  finally:db.close()
 def serialize_planned_meal(row):
@@ -566,7 +578,7 @@ def ranked_plan_candidates(db,requested_ids=None):
 def create_plan(payload:PlanCreateIn):
  if payload.weeks not in (1,2,4):raise HTTPException(422,'Weeks must be 1, 2, or 4')
  if payload.strategy not in STRATEGIES:raise HTTPException(422,'Unknown shopping strategy')
- if payload.budget is not None and payload.budget<0:raise HTTPException(422,'Budget cannot be negative')
+ if payload.budget is not None and (not math.isfinite(payload.budget) or payload.budget<0):raise HTTPException(422,'Budget must be finite and non-negative')
  if payload.servings<1 or payload.servings>12:raise HTTPException(422,'Servings must be between 1 and 12')
  try:start=date.fromisoformat(payload.start_date) if payload.start_date else date.today()
  except ValueError:raise HTTPException(422,'start_date must be YYYY-MM-DD')
@@ -600,7 +612,7 @@ def move_planned_meal(plan_id:int,planned_meal_id:int,payload:PlannedMealPatch):
   if not plan or not row or row.plan_id!=plan_id:raise HTTPException(404,'Planned meal not found')
   values=payload.model_dump(exclude_none=True)
   if 'day_index' in values and not (0<=values['day_index']<plan.weeks*7):raise HTTPException(422,'day_index outside plan range')
-  if 'servings' in values and values['servings']<1:raise HTTPException(422,'servings must be positive')
+  if 'servings' in values and (not math.isfinite(values['servings']) or not 1<=values['servings']<=12):raise HTTPException(422,'servings must be between 1 and 12')
   for k,v in values.items():setattr(row,k,v)
   db.commit();return serialize_planned_meal(row)
  finally:db.close()
