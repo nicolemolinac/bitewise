@@ -144,11 +144,20 @@ def consolidate(meals, servings_map):
                             option.get("safe_to_auto_apply") is True,
                             normalize_text(option.get("preparation_adjustment") or ""),
                         ))
+                raw_suggestions = profile.get("suggested_substitutions", [])
+                if isinstance(raw_suggestions, str):
+                    raw_suggestions = [raw_suggestions]
+                suggestion_signature = tuple(sorted(
+                    normalize_text(value) for value in raw_suggestions
+                    if isinstance(value, str) and value.strip()
+                )) if isinstance(raw_suggestions, list) else ()
                 profile_signature = (
                     normalize_text(profile.get("canonical") or ""),
                     normalize_text(profile.get("name_en") or ""),
                     normalize_text(profile.get("name_de") or ""),
+                    normalize_text(profile.get("name_es") or ""),
                     alias_signature,
+                    suggestion_signature,
                     tuple(option_signature),
                 )
             key = (
