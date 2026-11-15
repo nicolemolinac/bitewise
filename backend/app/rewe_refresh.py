@@ -89,13 +89,19 @@ def rewe_refresh_safe():
     try:
         def upsert(data, current_postcode):
             nonlocal skipped_invalid_package
-            external_id = str(data["external_id"])
-            seen_external_ids.add(external_id)
+            external_id = str(data.get("external_id") or "").strip()
+            if not external_id:
+                skipped_invalid_package += 1
+                return None
             existing = (
                 db.query(Product)
                 .filter_by(supermarket="REWE", external_id=external_id)
                 .first()
             )
+            # Existing rows count as seen even when this observation omits a
+            # package size: their previously verified dimensions are preserved.
+            if existing is not None:
+                seen_external_ids.add(external_id)
             now = datetime.utcnow()
             incoming = dict(data)
 
@@ -167,8 +173,10 @@ def rewe_refresh_safe():
             if not valid_package:
                 # A new catalog row without a measurable package cannot be
                 # costed safely. Do not invent "1 unit" and expose it as purchasable.
+                # Crucially, do not count it as observed for stale-row deletion.
                 skipped_invalid_package += 1
                 return None
+            seen_external_ids.add(external_id)
             incoming["package_size"] = package_size
             incoming["package_unit"] = package_unit
             db.add(Product(supermarket="REWE", postcode_context=current_postcode, **incoming))
