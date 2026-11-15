@@ -23,8 +23,14 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
-      - name: Install Chromium for REWE browser fallback
-        run: python -m playwright install --with-deps chromium
+      - name: Install Google Chrome for Testing
+        uses: browser-actions/setup-chrome@v2
+        id: setup-chrome
+        with:
+          chrome-version: stable
+          install-dependencies: true
+      - name: Configure Chrome for Testing executable
+        run: echo "CHROME_FOR_TESTING_PATH=${{ steps.setup-chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
       - run: python -m compileall app
       - name: Import API and verify critical routes
         run: |
