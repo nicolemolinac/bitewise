@@ -723,6 +723,11 @@ class ReweCatalogScraper:
                 if href not in seen_urls and href not in pending:
                     pending.append(href)
             time.sleep(self.delay)
+        if pending:
+            raise RuntimeError(
+                f"Category pagination did not complete within {MAX_CATEGORY_PAGES} "
+                "pages or REWE repeated page content; refusing to mark a partial catalog healthy."
+            )
 
     def extract(self, html, url, category):
         soup = BeautifulSoup(html, "html.parser")
@@ -893,6 +898,11 @@ class ReweCatalogScraper:
             for href in self._pagination_links(html, current, start):
                 if href not in seen_urls and href not in pending:
                     pending.append(href)
+        if pending:
+            raise RuntimeError(
+                f"Browser category pagination did not complete within {MAX_CATEGORY_PAGES} "
+                "pages or REWE repeated page content; refusing to mark a partial catalog healthy."
+            )
 
     def _base_report(self, postcode, mode):
         return {
