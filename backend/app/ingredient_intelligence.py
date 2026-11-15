@@ -1157,8 +1157,9 @@ _UNIT_VALIDATION_ALIASES = {
     "piece": "piece", "pieces": "piece", "pcs": "piece", "pc": "piece",
     "stuck": "piece", "stueck": "piece", "unit": "piece", "units": "piece",
     "clove": "cloves", "cloves": "cloves", "zehe": "cloves", "zehen": "cloves",
-    "pinch": "pinch", "prise": "pinch", "prisen": "pinch",
-    "bunch": "bunch", "bunches": "bunch", "bund": "bunch",
+    "cup": "cup", "cups": "cup",
+    "pinch": "pinch", "pinches": "pinch", "prise": "pinch", "prisen": "pinch",
+    "bunch": "bunch", "bunches": "bunch", "bundle": "bunch", "bundles": "bunch", "bund": "bunch",
     "slice": "slice", "slices": "slice", "scheibe": "slice", "scheiben": "slice",
     "essloffel": "tbsp", "teeloffel": "tsp",
 }
