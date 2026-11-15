@@ -206,9 +206,9 @@ def run():
     assert milk["match_status"] == "matched"
     assert milk["checkout_cost"] == 1.19 and milk["consumed_cost"] == 0.59
 
-    # Invalid zero/negative catalog unit prices must fall back to the
-    # checkout-price/package-size calculation, not bias value ranking.
-    for invalid_unit_price in (0, -0.25):
+    # Catalog unit-price metadata may be invalid or stale even when positive.
+    # Ranking and displayed unit cost derive from checkout price/package size.
+    for invalid_unit_price in (0, -0.25, 0.5, 0.000001):
         row = build_basket(
             [{"ingredient": "unit price QA", "quantity": 100, "unit": "g"}],
             FakeCatalog({"unit price QA": [{
@@ -221,6 +221,21 @@ def run():
         )[0]
         assert row["match_status"] == "matched"
         assert row["unit_cost"] == 0.004
+
+    # A plausible-looking but mismatched positive reference price must not
+    # distort ranking or the unit cost shown to the user.
+    mismatched_unit_price = build_basket(
+        [{"ingredient": "mismatched unit price", "quantity": 100, "unit": "g"}],
+        FakeCatalog({"mismatched unit price": [{
+            "id": 991, "name_original": "Mismatched Unit Price 500g",
+            "package_size": 500, "package_unit": "g",
+            "price": 2.0, "price_per_unit": 0.5,
+            "availability": "available",
+        }]}),
+        mode="premium",
+    )[0]
+    assert mismatched_unit_price["match_status"] == "matched"
+    assert mismatched_unit_price["unit_cost"] == 0.004
 
     # Exact package multiples must not round up because of binary floating
     # point noise (0.30000000000000004 / 0.1 is slightly above three).
