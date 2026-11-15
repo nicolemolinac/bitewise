@@ -276,7 +276,7 @@ def _visible_postcode_input(scope):
 
 
 def _find_chrome_for_testing(playwright):
-    """Find an installed Chrome for Testing / Playwright Chromium executable."""
+    """Find an installed Google Chrome for Testing executable; never substitute Chromium."""
     candidates = []
     configured = os.getenv("CHROME_FOR_TESTING_PATH", "").strip()
     if configured:
@@ -286,21 +286,16 @@ def _find_chrome_for_testing(playwright):
     candidates.extend([
         Path("/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
         home / "Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
-        Path("/Applications/Chromium.app/Contents/MacOS/Chromium"),
-        home / "Applications/Chromium.app/Contents/MacOS/Chromium",
     ])
-    for pattern in (
-        "Library/Caches/ms-playwright/chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
-        "Library/Caches/ms-playwright/chromium-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
-        ".cache/ms-playwright/chromium-*/chrome-linux/chrome",
-        ".cache/ms-playwright/chromium-*/chrome-linux64/chrome",
-    ):
-        candidates.extend(home.glob(pattern))
-
-    try:
-        candidates.append(Path(playwright.chromium.executable_path))
-    except Exception:
-        pass
+    candidates.extend([
+        Path("/usr/bin/google-chrome-for-testing"),
+        Path("/opt/google/chrome-for-testing/chrome"),
+        home / "AppData/Local/Google/Chrome for Testing/Application/chrome.exe",
+        home / "Downloads/chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        home / "Downloads/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+    ])
+    # Deliberately do not fall back to Playwright's bundled Chromium. Bitewise
+    # uses Google's Chrome for Testing build for the REWE browser session.
 
     for candidate in candidates:
         if candidate.is_file():
