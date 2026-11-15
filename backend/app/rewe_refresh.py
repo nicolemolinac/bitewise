@@ -32,7 +32,8 @@ def _valid_rewe_package(data: dict) -> bool:
         size = float(raw_size)
     except (OverflowError, TypeError, ValueError):
         return False
-    return math.isfinite(size) and size > 0 and bool(str(data.get("package_unit") or "").strip())
+    unit = str(data.get("package_unit") or "").strip().lower()
+    return math.isfinite(size) and size > 0 and unit in {"g", "ml", "unit"}
 
 
 def _valid_rewe_checkout_price(data: dict) -> bool:
