@@ -929,6 +929,26 @@ def run():
             f"Normalized malformed confidence {malformed_confidence!r} must remain review-only"
         )
 
+    # A substitution without a ratio remains visible for manual review,
+    # but its normalized metadata must never invent a 1:1 quantity conversion.
+    missing_ratio_profile = normalize_recipe_intelligence({
+        "ingredients": [["custom cooking fat", 20, "ml"]],
+        "ingredient_intelligence": {
+            "custom cooking fat": {
+                "canonical": "custom cooking fat", "form": "liquid",
+                "substitution_options": [{
+                    "name": "rapeseed oil", "confidence": 0.99,
+                    "role_preserved": True, "safe_to_auto_apply": True,
+                }],
+            },
+        },
+    })["custom cooking fat"]
+    assert len(missing_ratio_profile["substitution_options"]) == 1
+    assert missing_ratio_profile["substitution_options"][0]["quantity_ratio"] is None
+    assert ingredient_product_match_type(
+        "custom cooking fat", "REWE Rapsöl 1L", missing_ratio_profile
+    ) == "suggested_substitution"
+
     # Explicit malformed quantity ratios must be discarded, not silently
     # converted to a 1:1 substitution by truthiness/default handling.
     for malformed_ratio in ("", "not-a-number", "NaN", "Infinity", float("nan"), float("inf"), 0, -1, 6, True, False):
