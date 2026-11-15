@@ -108,6 +108,8 @@ def run():
     assert _displayed_unit_price("100 g = 1,20 €") == (12.0, "g")
     assert price_details("€ 0,00", 500, "g") == (None, None)
     assert price_details("€ 2,50", float("inf"), "g") == (2.5, None)
+    assert price_details("100 g = 1,20 €", 500, "g") == (6.0, 0.012)
+    assert price_details("1 g = 2,00 €", 100, "g") == (200.0, 2.0)
     # Snapshot imports must choose the same final physical size as the live
     # scraper, rather than an earlier partial size embedded in a product title.
     assert _snapshot_package_size("Drink 0,75ml bottle 0,75l", 0.75, "ml") == 750
