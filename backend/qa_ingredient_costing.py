@@ -897,6 +897,17 @@ def run():
     assert _convert_ingredient_quantity(1, "piece", "g", "fresh cilantro") == (None, None)
     assert _convert_ingredient_quantity(30, "g", "piece", "fresh cilantro") == (None, None)
     assert bacon_grams == 45 and "15 g per slice" in bacon_note
+    garlic_cloves_grams, garlic_clove_note = _convert_ingredient_quantity(2, "cloves", "g", "garlic")
+    assert garlic_cloves_grams == 6 and "3 g per clove" in garlic_clove_note
+    # A whole-piece estimate must never be reused for a different count unit.
+    assert _convert_ingredient_quantity(1, "clove", "g", "onion") == (None, None)
+    assert _convert_ingredient_quantity(1, "slice", "g", "onion") == (None, None)
+    assert _convert_ingredient_quantity(1, "bunch", "g", "potato") == (None, None)
+    assert _convert_ingredient_quantity(1, "piece", "g", "fresh cilantro") == (None, None)
+    assert _convert_ingredient_quantity(1, "clove", "g", "fresh cilantro") == (None, None)
+    assert _convert_ingredient_quantity(1, "slice", "g", "fresh cilantro") == (None, None)
+    assert _convert_ingredient_quantity(1, "bunch", "g", "bacon") == (None, None)
+    assert _convert_ingredient_quantity(1, "clove", "g", "bacon") == (None, None)
 
     honey_grams, honey_note = _convert_ingredient_quantity(15, "ml", "g", "honey")
     cornstarch_grams, starch_note = _convert_ingredient_quantity(15, "ml", "g", "cornstarch")
