@@ -304,10 +304,14 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     offer_price = None
                 price_text = f"{name} {candidate.get('description') or ''}"
                 size, unit = package(price_text)
-                normalized_price, normalized_price_per_unit = price_details(price_text, size, unit)
-                if normalized_price is None and offer_price is not None:
+                # Schema.org Offer.price is the structured checkout price.
+                # Do not let an old/list/reference price embedded in the product
+                # description override this authoritative offer value.
+                if offer_price is not None:
                     normalized_price = offer_price
                     normalized_price_per_unit = offer_price / size if size else None
+                else:
+                    normalized_price, normalized_price_per_unit = price_details(price_text, size, unit)
                 external_id = str(
                     candidate.get("sku") or candidate.get("gtin13")
                     or candidate.get("productID") or ""
