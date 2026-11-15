@@ -58,7 +58,7 @@ def run():
         {"base_servings": 2, "ingredients": [["rice", 1, "kg"]]},
         servings=2,
     )
-    assert _rice_consumed == [{"ingredient": "rice", "quantity": 500.0, "unit": "kg"}]
+    assert _rice_consumed == [{"ingredient": "rice", "quantity": 0.5, "unit": "kg"}]
     assert _rice_stock.quantity == 0
     _missing_unit_stock = type("PantryRow", (), {
         "ingredient": "onion", "quantity": 4.0, "unit": ""
