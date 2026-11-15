@@ -237,7 +237,10 @@ def add_pantry(payload:PantryIn):
   raise HTTPException(422,'Pantry unit is incompatible with this ingredient')
  db=SessionLocal()
  try:
-  old=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first();values=payload.model_dump();values['ingredient']=ingredient;values['unit']=unit
+  matches=[row for row in db.query(PantryItem).all() if normalize_text(row.ingredient)==normalize_text(ingredient)]
+  if len(matches)>1:raise HTTPException(409,'Pantry contains duplicate normalized entries; reconcile them before editing.')
+  old=matches[0] if matches else None
+  values=payload.model_dump();values['ingredient']=ingredient;values['unit']=unit
   if old:
    for k,v in values.items():setattr(old,k,v)
   else:db.add(PantryItem(**values))
@@ -260,6 +263,12 @@ def update_pantry(item_id:int,payload:PantryPatch):
    raise HTTPException(422,'Pantry unit is required')
   if not validate_ingredient_unit(candidate_ingredient, candidate_unit).get('valid', False):
    raise HTTPException(422,'Pantry unit is incompatible with this ingredient')
+  if 'ingredient' in values and values['ingredient']:
+   duplicates=[
+    item for item in db.query(PantryItem).all()
+    if item.id != row.id and normalize_text(item.ingredient)==normalize_text(candidate_ingredient)
+   ]
+   if duplicates:raise HTTPException(409,'Another pantry entry already uses this normalized ingredient name.')
   for k,v in values.items():setattr(row,k,v)
   row.confidence='manually_corrected';row.source='manual';db.commit();return {'ok':True}
  finally:db.close()
