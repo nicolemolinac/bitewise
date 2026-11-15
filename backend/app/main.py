@@ -493,11 +493,23 @@ def get_shopping_state():
 @app.put('/api/shopping/state')
 def set_shopping_state(payload:ShoppingStateIn):
  if payload.state not in {'needed','partial','purchased','owned'}:raise HTTPException(422,'Unsupported shopping state')
- ingredient=normalize_ingredient(payload.ingredient);db=SessionLocal()
+ ingredient=normalize_ingredient(payload.ingredient)
+ if not ingredient:raise HTTPException(422,'Ingredient is required')
+ if payload.state=='partial':
+  if payload.purchased_quantity is None or isinstance(payload.purchased_quantity,bool) or not math.isfinite(payload.purchased_quantity) or payload.purchased_quantity<=0:
+   raise HTTPException(422,'Partial purchase quantity must be finite and positive')
+  if not isinstance(payload.purchased_unit,str) or not payload.purchased_unit.strip():
+   raise HTTPException(422,'Partial purchase unit is required')
+ db=SessionLocal()
  try:
-  row=db.query(ShoppingState).filter_by(ingredient=ingredient).first()
+  matches=[row for row in db.query(ShoppingState).all() if normalize_text(row.ingredient)==normalize_text(ingredient)]
+  if len(matches)>1:raise HTTPException(409,'Duplicate normalized shopping-state entries must be reconciled.')
+  row=matches[0] if matches else None
   if not row:row=ShoppingState(ingredient=ingredient);db.add(row)
-  row.state=payload.state;row.product_id=payload.product_id;row.purchased_quantity=payload.purchased_quantity if payload.state=='partial' else None;row.purchased_unit=payload.purchased_unit if payload.state=='partial' else None;db.commit();return {'ok':True}
+  row.state=payload.state;row.product_id=payload.product_id
+  row.purchased_quantity=payload.purchased_quantity if payload.state=='partial' else None
+  row.purchased_unit=payload.purchased_unit if payload.state=='partial' else None
+  db.commit();return {'ok':True}
  finally:db.close()
 @app.post('/api/shopping/purchase')
 def purchase(payload:PurchaseIn):
