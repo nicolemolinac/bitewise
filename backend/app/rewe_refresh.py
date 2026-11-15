@@ -133,6 +133,11 @@ def _remove_stale_rewe_products(db, seen_external_ids: set[str], before_count: i
 @router.post("/rewe/refresh")
 def rewe_refresh_safe():
     """Merge a fresh REWE snapshot into the existing catalog without destructive resets.
+
+    Existing products are updated in place, including prices. New products are inserted.
+    Products missing from REWE are removed only after a complete healthy refresh and only
+    if the refreshed catalog passes a shrink-safety check.
+    """
     # Serialize catalog refresh against semantic indexing. server.py removes
     # main.py's compatibility route and registers this router, so the guard
     # must live here rather than only in the legacy route wrapper.
@@ -140,23 +145,22 @@ def rewe_refresh_safe():
     if not _SEMANTIC_INDEX_GUARD.acquire(blocking=False):
         raise HTTPException(409, "REWE refresh and semantic indexing cannot run at the same time.")
 
-    Existing products are updated in place, including prices. New products are inserted.
-    Products missing from REWE are removed only after a complete healthy refresh and only
-    if the refreshed catalog passes a shrink-safety check.
-    """
-    db = SessionLocal()
-    postcode = _setting(db, "postcode", "13353")
-    run = CatalogRun(status="running")
-    db.add(run)
-    db.commit()
-
-    before_count = db.query(Product).filter(Product.supermarket == "REWE").count()
+    db = None
+    run = None
+    before_count = 0
     seen_external_ids: set[str] = set()
     skipped_invalid_package = 0
     skipped_invalid_price = 0
     skipped_invalid_identity = 0
 
     try:
+        db = SessionLocal()
+        postcode = _setting(db, "postcode", "13353")
+        run = CatalogRun(status="running")
+        db.add(run)
+        db.commit()
+        before_count = db.query(Product).filter(Product.supermarket == "REWE").count()
+
         def upsert(data, current_postcode):
             nonlocal skipped_invalid_package, skipped_invalid_price, skipped_invalid_identity
             external_id = str(data.get("external_id") or "").strip()
@@ -313,14 +317,19 @@ def rewe_refresh_safe():
             ),
         }
     except Exception as exc:
-        db.rollback()
-        recovery = db.get(CatalogRun, run.id)
-        if recovery:
-            recovery.status = "failed"
-            recovery.errors = max(1, recovery.errors or 0)
-            recovery.finished_at = datetime.utcnow()
-            db.commit()
+        if db is not None:
+            try:
+                db.rollback()
+                recovery = db.get(CatalogRun, run.id) if run is not None else None
+                if recovery:
+                    recovery.status = "failed"
+                    recovery.errors = max(1, recovery.errors or 0)
+                    recovery.finished_at = datetime.utcnow()
+                    db.commit()
+            except Exception:
+                db.rollback()
         raise HTTPException(502, f"REWE refresh failed: {str(exc)[:180]}")
     finally:
-        db.close()
+        if db is not None:
+            db.close()
         _SEMANTIC_INDEX_GUARD.release()
