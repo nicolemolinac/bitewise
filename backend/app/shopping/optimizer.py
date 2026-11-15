@@ -686,7 +686,19 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             # package dimensions. Catalog reference-price metadata can be stale
             # or normalized against a different package size; it must not
             # override the internally consistent price-per-unit calculation.
-            unit_price = price / pack_qty
+            # Candidate unit prices must use the recipe's requested unit.
+            # Comparing €/g with €/ml directly can distort ranking when a
+            # verified ingredient density permits cross-dimension conversion.
+            pack_in_recipe_unit, _ = _convert_ingredient_quantity(
+                pack_qty, product_unit, unit, conversion_ingredient
+            )
+            unit_price = (
+                price / pack_in_recipe_unit
+                if pack_in_recipe_unit is not None
+                and math.isfinite(pack_in_recipe_unit)
+                and pack_in_recipe_unit > 0
+                else 0.0
+            )
             score = _candidate_score(mode, checkout_cost, waste_ratio, unit_price, len(requirement.get("source_meals", [])), product)
             # Exact matches win over substitutions; a substitute is used only when
             # no exact priced/available option is present.
