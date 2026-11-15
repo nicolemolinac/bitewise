@@ -80,6 +80,7 @@ def _package_unit(amount, unit):
     if unit == "l": return amount * 1000, "ml"
     if unit == "cl": return amount * 10, "ml"
     if unit == "ml": return amount, "ml"
+    if unit in {"dutzend", "dozen"}: return amount * 12, "unit"
     if unit in {"stk", "st", "stück", "stueck", "pcs", "pc", "eier", "beutel", "becher", "pack", "packung", "packungen", "flasche", "flaschen", "dose", "dosen", "glas", "gläser", "glaeser", "bund", "bünde", "buende", "kopf", "köpfe", "koepfe", "zehe", "zehen", "stange", "stangen", "knolle", "knollen", "netz", "netze", "rolle", "rollen", "schale", "schalen"}:
         return amount, "unit"
     return None, None
@@ -94,7 +95,7 @@ def package(text: str):
     # A price-per-unit denominator is not the package content.
     value = re.sub(r"(?:grundpreis|preis\s*/?\s*kg|€/|€\s*/|eur\s*/|/\s*)\s*\d+(?:[.,]\d+)?\s*(?:kg|g|ml|l)\b", " ", value, flags=re.I)
     # Remove signed negative quantities even when whitespace follows the minus.
-    value = re.sub(r"(?<!\w)-\s*\d+(?:[.,]\d+)?\s*(?:kg|mg|g|ml|cl|l|stk\.?|st\.?|stück|stueck)\b", " ", value, flags=re.I)
+    value = re.sub(rf"(?<!\w)-\s*{_PACKAGE_NUMBER}\s*(?:{_PACKAGE_UNIT})\b", " ", value, flags=re.I)
     # Do not accept negative values by matching the positive suffix of "-2 g".
     multi = re.compile(
         rf"(?<![\w.,+-])(?P<n>{_PACKAGE_NUMBER})\s*x\s*(?P<q>{_PACKAGE_NUMBER})\s*(?P<u>{_PACKAGE_UNIT})(?![\w])",
