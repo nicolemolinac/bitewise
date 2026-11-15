@@ -1054,7 +1054,8 @@ def run():
                 "substitution_options": [{
                     "name": "rapeseed oil", "name_de": "Rapsöl",
                     "aliases": ["Rapsöl kaltgepresst"],
-                    "quantity_ratio": 1.5,
+                    "confidence": 0.96, "role_preserved": True,
+                    "safe_to_auto_apply": True, "quantity_ratio": 1.5,
                 }],
             },
         },
