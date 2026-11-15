@@ -147,6 +147,18 @@ def run():
     assert _snapshot_pack_pricing("Egg 1 St. = 0,30 €", 6, "unit", None, None) == (1.8, 0.3)
     assert _snapshot_pack_pricing("Product 500ml €2,99 (1kg = 5,00 €)", 500, "ml", 5.0, None) == (2.99, 2.99 / 500)
     assert _snapshot_pack_pricing("Product 500g €2,49 (1kg = 5,00 €)", 500, "g", 5.0, None) == (2.49, 2.49 / 500)
+    assert _snapshot_pack_pricing(
+        "Bebivita 4x90ml 4x90g (1 kg = 7,47 €)", 360, "g", None, None
+    ) == (2.69, 7.47 / 1000)
+    assert _snapshot_pack_pricing(
+        "Hipp juice 330g 330ml (1 l = 4,82 €)", 330, "ml", None, None
+    ) == (1.59, 4.82 / 1000)
+    assert _snapshot_pack_pricing(
+        "Maggi soup 52g 500ml (1 l = 3,18 €)", 52, "g", None, None
+    ) == (1.59, 1.59 / 52)
+    assert _snapshot_pack_pricing(
+        "Maggi soup 108g ergibt 6l (1 l = 0,38 €)", 108, "g", None, None
+    ) == (2.28, 2.28 / 108)
     assert _snapshot_pack_pricing("Product 1kg = 5,00 €", 500, "ml", 2.50, None) == (None, None)
     assert _snapshot_package_size("Alete biscuits 180g (1 kg = 11,06 €)", 180, "g") == 180
     # Duplicate SKU observations allow later valid values to replace invalid
@@ -261,6 +273,18 @@ def run():
     assert _snapshot_package_dimensions(
         "Bifi 5 Stück 100g (1 kg = 29,90 €)", 5, "unit"
     ) == (100.0, "g")
+    assert _snapshot_package_dimensions(
+        "Bebivita 4x90ml 4x90g (1 kg = 7,47 €)", 360, "ml"
+    ) == (360.0, "g")
+    assert _snapshot_package_dimensions(
+        "Hipp juice 330g 330ml (1 l = 4,82 €)", 330, "g"
+    ) == (330.0, "ml")
+    assert _snapshot_package_dimensions(
+        "Kneipp shower gel 2x200ml (1 l = 19,98 €)", 1, "g"
+    ) == (400.0, "ml")
+    assert _snapshot_package_dimensions(
+        "Maggi soup 52g 500ml (1 l = 3,18 €)", 52, "g"
+    ) == (52.0, "g")
     assert _snapshot_package_size("Water 9" + "9" * 400 + "kg", 500, "g") == 500
     assert _snapshot_package_size("Water " + "9" * 5000 + "x500ml", 500, "ml") == 500
     assert _snapshot_package_size("Water 2x500ml", 1, "l") == 1
