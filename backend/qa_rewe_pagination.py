@@ -2,6 +2,7 @@
 from urllib.parse import parse_qs, urlsplit
 
 from app.rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper
+from app.rewe_refresh import _derive_rewe_unit_price, _valid_rewe_checkout_price, _valid_rewe_package
 
 
 def product_page(category_path: str, page_number: int) -> str:
@@ -38,6 +39,17 @@ class FakeSession:
 
 
 def main():
+    assert _valid_rewe_package({"package_size": 500, "package_unit": "g"}) is True
+    assert _valid_rewe_package({"package_size": True, "package_unit": "g"}) is False
+    assert _valid_rewe_package({"package_size": float("inf"), "package_unit": "g"}) is False
+    assert _valid_rewe_package({"package_size": 0, "package_unit": "g"}) is False
+    assert _valid_rewe_checkout_price({"price": 2.49}) is True
+    assert _valid_rewe_checkout_price({"price": True}) is False
+    assert _valid_rewe_checkout_price({"price": float("nan")}) is False
+    assert _valid_rewe_checkout_price({"price": 0}) is False
+    assert _derive_rewe_unit_price(2.50, 500) == 0.005
+    assert _derive_rewe_unit_price(2.50, 0) is None
+    assert _derive_rewe_unit_price(True, 500) is None
     scraper = ReweCatalogScraper(delay=0, browser_enabled=False)
     session = FakeSession()
     scraper.session = session
