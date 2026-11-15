@@ -9,6 +9,7 @@ from collections import Counter
 from app.database import Product, SessionLocal
 from app.rewe.scraper import package
 from app.server import main_module
+from app.shopping.optimizer import _convert_quantity
 
 
 def _finite(value):
@@ -30,6 +31,7 @@ def main():
 
         missing_package = []
         legacy_default = []
+        package_metadata_drift = []
         invalid_price = []
         unit_price_drift = []
         availability = Counter()
@@ -40,8 +42,16 @@ def main():
             unit = str(row.package_unit or "").strip().lower()
             if not valid_size or size <= 0 or unit in {"", "unknown", "none"}:
                 missing_package.append(row)
-            if valid_size and size == 1 and unit in {"unit", "piece"} and package(row.name_original) == (None, None):
+            parsed_size, parsed_unit = package(row.name_original)
+            if valid_size and size == 1 and unit in {"unit", "piece"} and (parsed_size, parsed_unit) == (None, None):
                 legacy_default.append(row)
+            if parsed_size is not None and parsed_unit:
+                parsed_in_stored_unit = _convert_quantity(parsed_size, parsed_unit, unit)
+                if (
+                    parsed_in_stored_unit is None
+                    or not math.isclose(parsed_in_stored_unit, size, rel_tol=0.001, abs_tol=0.001)
+                ):
+                    package_metadata_drift.append(row)
             if row.price is not None:
                 valid_price, numeric_price = _finite(row.price)
                 if not valid_price or numeric_price < 0:
@@ -61,6 +71,7 @@ def main():
         }
         print(f"Missing/unknown package metadata: {len(missing_package)}")
         print(f"Possible legacy fake '1 unit' defaults: {len(legacy_default)}")
+        print(f"Package metadata differing from product title: {len(package_metadata_drift)}")
         print(f"Invalid prices: {len(invalid_price)}")
         print(f"Price-per-unit drift vs price/package: {len(unit_price_drift)}")
         print(f"Availability: {dict(availability)}")
@@ -69,6 +80,7 @@ def main():
         for label, sample in (
             ("LEGACY DEFAULTS", legacy_default),
             ("MISSING PACKAGE", missing_package),
+            ("PACKAGE TITLE / METADATA DRIFT", package_metadata_drift),
             ("PRICE-PER-UNIT DRIFT", unit_price_drift),
         ):
             if sample:
