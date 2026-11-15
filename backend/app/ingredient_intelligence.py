@@ -1003,9 +1003,13 @@ def ingredient_product_match_type(ingredient: str, product_text: str, intelligen
         and category_key not in {"obst-gemuese", "frische-krauter", "krauter"}
     ):
         return None
+    # Keep retail-aisle labels out of product-form checks. For example,
+    # "Fleisch-Wurst-Fisch" is a valid aisle for chicken, beef and fish; the
+    # word "Wurst" in that category must not make every raw protein look like
+    # a sausage/prepared product.
     form_compatible = _form_compatible(
         product_form,
-        title + " " + normalize_text(product_category),
+        title,
         ingredient,
     )
     category_compatible = _category_compatible(
