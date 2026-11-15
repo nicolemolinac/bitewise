@@ -386,7 +386,17 @@ def _snapshot_package_dimensions(name: str, raw_size, raw_unit: str):
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
-    """Convert displayed reference prices into actual package checkout prices."""
+    """Prefer the actual checkout price; use reference price only as fallback."""
+    checkout_price = _snapshot_float(raw_price)
+    if (
+        checkout_price is not None and checkout_price > 0
+        and math.isfinite(package_size) and package_size > 0
+    ):
+        # Derive from the checkout price to keep pack and unit costs coherent.
+        checkout_unit_price = checkout_price / package_size
+        if math.isfinite(checkout_unit_price) and checkout_unit_price > 0:
+            return checkout_price, checkout_unit_price
+
     match = re.search(
         r"\b(1|100)\s*(kg|g|l|ml|stück|stk\.?)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
         name or "",
@@ -411,17 +421,8 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
             if math.isfinite(per_unit) and per_unit > 0 and math.isfinite(pack_price) and pack_price > 0:
                 return round(pack_price, 2), per_unit
 
-    fallback = _snapshot_float(raw_price)
-    if fallback is not None and fallback <= 0:
-        fallback = None
-    per_unit = _snapshot_float(raw_price_per_unit)
-    if per_unit is not None and per_unit <= 0:
-        per_unit = None
-    if per_unit is None and fallback is not None and math.isfinite(package_size) and package_size > 0:
-        per_unit = fallback / package_size
-    if per_unit is not None and (not math.isfinite(per_unit) or per_unit <= 0):
-        per_unit = None
-    return fallback, per_unit
+    # A standalone unit price is not enough to establish a checkout price.
+    return None, None
 
 def _auto_import_rewe_csv_snapshot() -> None:
     """Seed an empty product table from the committed REWE CSV snapshot exactly once.
