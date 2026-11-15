@@ -513,9 +513,10 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
     # names this way, so lookup must not reintroduce spelling-based mismatches.
     owned = {normalize_text(value) for value in (owned or [])}
     overrides = {normalize_text(key): value for key, value in (overrides or {}).items()}
+    raw_pantry = pantry or {}
     pantry = {}
     ambiguous_pantry_keys = set()
-    for raw_key, value in (pantry or {}).items():
+    for raw_key, value in raw_pantry.items():
         normalized_key = normalize_text(raw_key)
         if not normalized_key:
             continue
