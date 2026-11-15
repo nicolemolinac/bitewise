@@ -488,10 +488,16 @@ class ReweCatalogScraper:
             if current is None:
                 unique[product["external_id"]] = product
                 continue
+            current_size = current.get("package_size")
+            candidate_size = product.get("package_size")
+            current_has_size = isinstance(current_size, (int, float)) and math.isfinite(current_size) and current_size > 0
+            candidate_has_size = isinstance(candidate_size, (int, float)) and math.isfinite(candidate_size) and candidate_size > 0
             candidate_is_better = (
                 (not current.get("product_url") and product.get("product_url"))
                 or (not current.get("image_url") and product.get("image_url"))
                 or (current.get("price") is None and product.get("price") is not None)
+                or (not current_has_size and candidate_has_size)
+                or (not current.get("price_per_unit") and product.get("price_per_unit"))
             )
             if candidate_is_better:
                 merged = {**current, **{k: v for k, v in product.items() if v is not None}}
