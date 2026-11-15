@@ -241,27 +241,31 @@ def run():
     assert _repaired_without_size["price"] == 2.50
     assert _repaired_without_size["price_per_unit"] is None
     # Whitespace-only supplier SKUs are absent IDs, not a shared product key.
-    _jsonld_html = BeautifulSoup(
-        '<script type="application/ld+json">' + json.dumps({
-            "@type": "ItemList",
-            "itemListElement": [{
-                "item": {
-                    "@type": "Product", "sku": "   ",
-                    "name": "Chicken Breast 500g",
-                    "url": "https://www.rewe.de/shop/p/chicken-breast-500g/123456",
-                },
-            }},
+    _jsonld_payload = {
+        "@type": "ItemList",
+        "itemListElement": [
             {
                 "item": {
-                    "@type": "Product", "sku": "sku-offer-price",
-                        "name": "Chicken Breast 500g",
-                        "description": "Former price EUR 9.99",
-                        "url": "https://www.rewe.de/shop/p/chicken-breast-500g/654321",
-                        "offers": {"@type": "Offer", "price": "2.49", "priceCurrency": "EUR"},
-                    }
+                    "@type": "Product",
+                    "sku": "   ",
+                    "name": "Chicken Breast 500g",
+                    "url": "https://www.rewe.de/shop/p/chicken-breast-500g/123456",
                 }
-            }]
-        }) + '</script>',
+            },
+            {
+                "item": {
+                    "@type": "Product",
+                    "sku": "sku-offer-price",
+                    "name": "Chicken Breast 500g",
+                    "description": "Former price EUR 9.99",
+                    "url": "https://www.rewe.de/shop/p/chicken-breast-500g/654321",
+                    "offers": {"@type": "Offer", "price": "2.49", "priceCurrency": "EUR"},
+                }
+            },
+        ],
+    }
+    _jsonld_html = BeautifulSoup(
+        '<script type="application/ld+json">' + json.dumps(_jsonld_payload) + '</script>',
         "html.parser",
     )
     _jsonld_rows = _json_ld_products(_jsonld_html, "https://www.rewe.de", "test")
