@@ -149,6 +149,18 @@ def run():
         "cumin", "REWE Kreuzkümmel ganz 40g", {"form": "whole"}, "oele-sossen-gewuerze"
     ) == "exact"
     assert ingredient_product_match_type(
+        "fresh parsley", "REWE Dried Parsley 10g", {"form": "fresh"}, ""
+    ) is None
+    assert ingredient_product_match_type(
+        "dried parsley", "REWE Dried Parsley 10g", {"form": "dried"}, ""
+    ) == "exact"
+    assert ingredient_product_match_type(
+        "fresh garlic", "REWE Garlic Powder 100g", {"form": "fresh"}, ""
+    ) is None
+    assert ingredient_product_match_type(
+        "garlic powder", "REWE Garlic Powder 100g", {"form": "powder"}, ""
+    ) == "exact"
+    assert ingredient_product_match_type(
         "rice", "REWE Beste Wahl Langkornreis 500g",
         {"canonical": "rice", "name_en": "rice", "name_de": "Reis",
          "aliases": ["Langkornreis"], "form": "dry"}, "Rice"
