@@ -21,9 +21,9 @@ os.environ["BITEWISE_IMPORT_CATALOG_SNAPSHOT"] = "true"
 from app import server
 from app.database import Product, SessionLocal
 from app.ingredient_intelligence import (
-    _category_compatible, _form_compatible, _infer_ingredient_form,
-    _ingredient_specific_exclusions, ingredient_candidate_search_terms,
-    ingredient_product_match_type,
+    _BASE_TERMS, _category_compatible, _contains_phrase, _form_compatible,
+    _infer_ingredient_form, _ingredient_specific_exclusions,
+    ingredient_candidate_search_terms, ingredient_product_match_type, normalize_text,
 )
 
 
@@ -97,6 +97,11 @@ def main():
                 raw_samples.append({
                     "name": row.name_original,
                     "category": row.category,
+                    "normalized_title": normalize_text(product_text),
+                    "exact_alias_hits": [
+                        term for term in _BASE_TERMS.get(ingredient, ())
+                        if _contains_phrase(normalize_text(product_text), normalize_text(term))
+                    ],
                     "inferred_form": inferred_form,
                     "form_compatible": _form_compatible(inferred_form, product_text, ingredient),
                     "category_compatible": _category_compatible(
