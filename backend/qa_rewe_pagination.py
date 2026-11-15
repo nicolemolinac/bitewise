@@ -49,6 +49,7 @@ def main():
     assert _valid_rewe_package({"package_size": True, "package_unit": "g"}) is False
     assert _valid_rewe_package({"package_size": float("inf"), "package_unit": "g"}) is False
     assert _valid_rewe_package({"package_size": 0, "package_unit": "g"}) is False
+    assert _valid_rewe_package({"package_size": 500, "package_unit": "unknown"}) is False
     assert _valid_rewe_checkout_price({"price": 2.49}) is True
     assert _valid_rewe_checkout_price({"price": True}) is False
     assert _valid_rewe_checkout_price({"price": float("nan")}) is False
