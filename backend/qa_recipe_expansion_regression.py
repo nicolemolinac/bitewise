@@ -55,10 +55,16 @@ def run():
     # A catalog substitute must update the recipe itself, not only the shopping list.
     adapted = {
         "ingredients": [["pine nuts", 30, "g"], ["basil pesto", 50, "g"]],
+        "ingredient_intelligence": {"pine nuts": {"substitution_options": [{
+            "name": "sunflower seeds", "quantity_ratio": 1.0,
+            "confidence": 0.99, "role_preserved": True,
+            "safe_to_auto_apply": True,
+        }]}},
         "steps": [{"text": "Toast the pine nuts and stir through the basil pesto."}],
     }
     changes = _adapt_recipe_to_catalog(adapted, [{
         "ingredient": "pine nuts",
+        "quantity_ratio": 1.0,
         "match_status": "substituted",
         "match_reason": "No exact match; culinary substitute selected.",
         "product": {
@@ -72,10 +78,16 @@ def run():
 
     partially_adapted = {
         "ingredients": [["pine nuts", 30, "g"]],
+        "ingredient_intelligence": {"pine nuts": {"substitution_options": [{
+            "name": "sunflower seeds", "quantity_ratio": 1.0,
+            "confidence": 0.99, "role_preserved": True,
+            "safe_to_auto_apply": True,
+        }]}},
         "steps": [{"text": "Toast the pine nuts."}],
     }
     _adapt_recipe_to_catalog(partially_adapted, [{
         "ingredient": "pine nuts",
+        "quantity_ratio": 1.0,
         "match_status": "substituted",
         "pantry_used": 10,
         "needed_quantity": 20,
