@@ -24,7 +24,7 @@ def main():
     assert "coconut milk" not in milk
     assert "kokosmilch" not in milk
 
-    from app.ingredient_aliases import ingredient_matches_product
+    from app.ingredient_aliases import canonical_ingredient, ingredient_matches_product
 
     assert ingredient_matches_product("milk", "REWE Bio Frische Vollmilch 3,5%")
     assert not ingredient_matches_product("milk", "Alpro Kokosmilch")
@@ -35,6 +35,11 @@ def main():
     assert not ingredient_matches_product("pepper", "Schwarzer Pfeffer")
     assert ingredient_matches_product("bell pepper", "Rote Paprika")
     assert ingredient_matches_product("saffron", "Safran gemahlen")
+    assert canonical_ingredient("tomatoes") == "tomato"
+    assert canonical_ingredient("Tomate") == "tomato"
+    assert canonical_ingredient("chicken breasts") == "chicken breast"
+    assert canonical_ingredient("olive oil") == "olive oil"
+    assert canonical_ingredient("rice noodles") == "rice noodle"
     assert ingredient_matches_product("leek", "Porree frisch")
     assert ingredient_matches_product("asparagus", "Grüner Spargel")
     assert ingredient_matches_product("lamb", "Lammfleisch")
