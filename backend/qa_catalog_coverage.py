@@ -88,6 +88,8 @@ def main():
             row for row in coverage
             if row["status"] == "gap" and row["ingredient"] not in known_catalog_gaps
         ]
+        for row in coverage:
+            print("INGREDIENT COVERAGE:", row)
         assert not unexpected_gaps, (
             "Unexpected common-ingredient catalog gaps: "
             + ", ".join(row["ingredient"] for row in unexpected_gaps)
