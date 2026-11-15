@@ -1001,6 +1001,22 @@ def run():
     _adapt_recipe_to_catalog(ratio_recipe, ratio_basket)
     assert ratio_recipe["ingredients"] == [["rapeseed oil", 30.0, "ml"]]
 
+    # Even a stale/legacy basket row marked substituted must not make
+    # recipe adaptation invent a 1:1 quantity ratio.
+    no_ratio_recipe = {
+        "base_servings": 2,
+        "ingredients": [["custom cooking fat", 20, "ml"]],
+        "ingredient_intelligence": {},
+        "steps": [{"text": "Add custom cooking fat."}],
+    }
+    _adapt_recipe_to_catalog(no_ratio_recipe, [{
+        "ingredient": "custom cooking fat", "match_status": "substituted",
+        "needed_quantity": 20, "pantry_used": 0,
+        "product": {"ingredient_substitute": "rapeseed oil", "name_original": "REWE Rapsöl 1L"},
+    }])
+    assert no_ratio_recipe["ingredients"] == [["custom cooking fat", 20, "ml"]]
+    assert no_ratio_recipe["adaptations"] == []
+
     # Recipe metadata may be keyed with punctuation and the selected product
     # may carry a German alias. Adaptation must still apply the declared ratio
     # and persist the canonical replacement name.
