@@ -478,18 +478,50 @@ def set_shopping_state(payload:ShoppingStateIn):
  finally:db.close()
 @app.post('/api/shopping/purchase')
 def purchase(payload:PurchaseIn):
- if payload.packs<1:raise HTTPException(422,'Packs must be at least 1')
+ if payload.packs<1 or payload.packs>99:raise HTTPException(422,'Packs must be between 1 and 99')
  db=SessionLocal()
  try:
   product=db.get(Product,payload.product_id)
   if not product:raise HTTPException(404,'Product not found')
-  ingredient=normalize_ingredient(payload.ingredient or product.ingredient);amount=product.package_size*payload.packs;item=db.query(PantryItem).filter(PantryItem.ingredient.ilike(ingredient)).first()
-  if item and item.unit!=product.package_unit:raise HTTPException(409,f'Pantry already tracks {ingredient} in {item.unit}; cannot safely merge {product.package_unit}.')
-  if item:item.quantity+=amount;item.confidence='estimated';item.source='purchase'
-  else:db.add(PantryItem(ingredient=ingredient,quantity=amount,unit=product.package_unit,confidence='estimated',source='purchase'))
+  ingredient=normalize_ingredient(payload.ingredient or product.ingredient or '')
+  if not ingredient:raise HTTPException(422,'Ingredient is required')
+  try:
+   package_size=float(product.package_size)
+  except (TypeError,ValueError,OverflowError):
+   package_size=float('nan')
+  package_unit=str(product.package_unit or '').strip()
+  if not math.isfinite(package_size) or package_size<=0 or not package_unit:
+   raise HTTPException(409,'This catalog product has no verified package size and unit.')
+  amount=package_size*payload.packs
+  if not math.isfinite(amount) or amount<=0:
+   raise HTTPException(422,'Purchased quantity is invalid')
+  matching=[row for row in db.query(PantryItem).all() if normalize_text(row.ingredient)==normalize_text(ingredient)]
+  if len(matching)>1:
+   raise HTTPException(409,f'Pantry has duplicate entries for {ingredient}; reconcile inventory before adding a purchase.')
+  item=matching[0] if matching else None
+  if item:
+   if not isinstance(item.unit,str) or not item.unit.strip():
+    raise HTTPException(409,f'Pantry unit is missing for {ingredient}; correct it before adding a purchase.')
+   if isinstance(item.quantity,bool):
+    raise HTTPException(409,f'Pantry quantity is invalid for {ingredient}.')
+   try:
+    stock=float(item.quantity)
+   except (TypeError,ValueError,OverflowError):
+    stock=float('nan')
+   if not math.isfinite(stock) or stock<0:
+    raise HTTPException(409,f'Pantry quantity is invalid for {ingredient}.')
+   converted_amount,_=_convert_ingredient_quantity(amount,package_unit,item.unit,ingredient)
+   if converted_amount is None or not math.isfinite(converted_amount) or converted_amount<=0:
+    raise HTTPException(409,f'Pantry tracks {ingredient} in incompatible units ({item.unit} vs {package_unit}).')
+   new_stock=stock+converted_amount
+   if not math.isfinite(new_stock):
+    raise HTTPException(409,f'Adding this purchase would overflow pantry quantity for {ingredient}.')
+   item.quantity=new_stock;item.confidence='estimated';item.source='purchase'
+  else:
+   db.add(PantryItem(ingredient=ingredient,quantity=amount,unit=package_unit,confidence='estimated',source='purchase'))
   state=db.query(ShoppingState).filter_by(ingredient=ingredient).first()
   if not state:state=ShoppingState(ingredient=ingredient);db.add(state)
-  state.state='purchased';state.product_id=product.id;state.purchased_quantity=amount;state.purchased_unit=product.package_unit;db.commit();return {'ok':True,'ingredient':ingredient,'added':amount,'unit':product.package_unit}
+  state.state='purchased';state.product_id=product.id;state.purchased_quantity=amount;state.purchased_unit=package_unit;db.commit();return {'ok':True,'ingredient':ingredient,'added':amount,'unit':package_unit}
  finally:db.close()
 @app.post('/api/brain-dump')
 def brain_dump(payload:BrainDumpIn):
