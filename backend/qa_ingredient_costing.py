@@ -552,6 +552,29 @@ def run():
     assert pantry_rice["checkout_cost"] == 3.0
     assert pantry_rice["consumed_cost"] == 2.25
 
+    # Shared pantry stock is consumed once across separate requirement rows,
+    # including different but convertible units.
+    shared_pantry_lines = build_basket([
+        {"ingredient": "onion", "quantity": 1, "unit": "piece",
+         "unit_validation": {"valid": True}, "source_meals": ["Meal A"]},
+        {"ingredient": "onion", "quantity": 100, "unit": "g",
+         "unit_validation": {"valid": True}, "source_meals": ["Meal B"]},
+    ], FakeCatalog({}), pantry={"onion": {"quantity": 200, "unit": "g"}})
+    assert shared_pantry_lines[0]["pantry_used"] == 1
+    assert shared_pantry_lines[1]["pantry_used"] == 50
+    assert shared_pantry_lines[1]["needed_quantity"] == 50
+
+    # Pantry has no form/preparation metadata, so it cannot be allocated to
+    # two conflicting forms of the same named ingredient in one basket.
+    ambiguous_form_lines = build_basket([
+        {"ingredient": "cumin", "quantity": 100, "unit": "g",
+         "ingredient_form": "whole", "unit_validation": {"valid": True}},
+        {"ingredient": "cumin", "quantity": 100, "unit": "g",
+         "ingredient_form": "powder", "unit_validation": {"valid": True}},
+    ], FakeCatalog({}), pantry={"cumin": {"quantity": 200, "unit": "g"}})
+    assert [row["pantry_used"] for row in ambiguous_form_lines] == [0, 0]
+    assert [row["needed_quantity"] for row in ambiguous_form_lines] == [100, 100]
+
     mixed_units = consolidate([
         {"id": "a", "name": "Chicken bowl", "ingredients": [["chicken breast", 200, "g"], ["milk", 100, "ml"], ["garlic", 2, "cloves"]]},
         {"id": "b", "name": "Chicken pasta", "ingredients": [["chicken breast", 0.3, "kg"], ["milk", 0.5, "l"], ["garlic", 1, "unit"]]},
