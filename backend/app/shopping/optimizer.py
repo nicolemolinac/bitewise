@@ -411,17 +411,43 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
             f"Estimated {grams_per_tsp:g} g per teaspoon of {ingredient}."
         )
 
-    # A bunch is a distinct retail unit, not a synonym for one piece.
-    # Only herbs with an explicit per-bunch estimate may cross between bunches
-    # and mass; never reuse that estimate for loose pieces or other produce.
-    bunch_herbs = {
-        alias
-        for canonical in ("fresh cilantro", "parsley", "basil")
-        for alias in ingredient_aliases(canonical)
+    # Count units have different physical meanings. Never apply a generic
+    # per-piece estimate to cloves, slices or bunches.
+    normalized_ingredient = normalize_text(ingredient)
+    aliases = {
+        canonical: {normalize_text(value) for value in ingredient_aliases(canonical)}
+        for canonical in ("garlic", "fresh cilantro", "parsley", "basil", "cheese slices", "bacon")
     }
-    is_bunch_herb = normalize_text(ingredient) in bunch_herbs
-    if (source == "bunch" or target == "bunch") and not is_bunch_herb:
-        return None, None
+    count_weights = {}
+    piece_weight = _ingredient_count_weight(ingredient)
+    if piece_weight is not None and normalized_ingredient not in (
+        aliases["fresh cilantro"] | aliases["parsley"] | aliases["basil"]
+    ):
+        count_weights["piece"] = (piece_weight, "piece")
+    if normalized_ingredient in aliases["fresh cilantro"] | aliases["parsley"] | aliases["basil"]:
+        bunch_weight = _ingredient_count_weight(ingredient)
+        if bunch_weight is not None:
+            count_weights["bunch"] = (bunch_weight, "bunch")
+    if normalized_ingredient in aliases["garlic"]:
+        count_weights["cloves"] = (3, "clove")
+    if normalized_ingredient in aliases["cheese slices"]:
+        count_weights["slice"] = (20, "slice")
+    elif normalized_ingredient in aliases["bacon"]:
+        count_weights["slice"] = (15, "slice")
+
+    if source in count_weights and target in {"g", "kg"}:
+        grams_per_count, unit_label = count_weights[source]
+        grams = float(quantity) * grams_per_count
+        return (grams / 1000 if target == "kg" else grams), (
+            f"Estimated {grams_per_count} g per {unit_label} of {ingredient}."
+        )
+    if source in {"g", "kg"} and target in count_weights:
+        grams = float(quantity) * (1000 if source == "kg" else 1)
+        grams_per_count, unit_label = count_weights[target]
+        return grams / grams_per_count, (
+            f"Estimated {grams_per_count} g per {unit_label} of {ingredient}."
+        )
+    return None, None
     if (source == "piece" or target == "piece") and is_bunch_herb:
         return None, None
 
