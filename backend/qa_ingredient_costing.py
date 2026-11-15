@@ -612,6 +612,31 @@ def run():
     assert cilantro_pieces["quantity"] == 2
     assert len(herb_counts) == 2, "Bunches and loose pieces must not be silently merged"
 
+    # Same ingredient/form/preparation with conflicting substitution ratios
+    # must stay as separate basket requirements instead of inheriting the last recipe's ratio.
+    profile_ratio_a = {
+        "canonical": "neutral cooking fat", "form": "liquid",
+        "substitution_options": [{"name": "rapeseed oil", "quantity_ratio": 1.0}],
+    }
+    profile_ratio_b = {
+        "canonical": "neutral cooking fat", "form": "liquid",
+        "substitution_options": [{"name": "rapeseed oil", "quantity_ratio": 1.5}],
+    }
+    profile_separated = consolidate([
+        {"id": "ratio-a", "name": "Recipe A", "base_servings": 1,
+         "ingredients": [["neutral cooking fat", 10, "ml"]],
+         "ingredient_intelligence": {"neutral cooking fat": profile_ratio_a}},
+        {"id": "ratio-b", "name": "Recipe B", "base_servings": 1,
+         "ingredients": [["neutral cooking fat", 20, "ml"]],
+         "ingredient_intelligence": {"neutral cooking fat": profile_ratio_b}},
+    ], {"ratio-a": 1, "ratio-b": 1})
+    assert len(profile_separated) == 2
+    assert {row["quantity"] for row in profile_separated} == {10, 20}
+    assert {
+        row["ingredient_intelligence"]["substitution_options"][0]["quantity_ratio"]
+        for row in profile_separated
+    } == {1.0, 1.5}
+
     assert _convert_quantity(1, "bunch", "piece") is None
     assert _convert_quantity(1, "piece", "bunch") is None
     # Unit validation and shopping normalization must agree on all
