@@ -42,7 +42,7 @@ def consolidate(meals, servings_map):
         for ingredient_index, ingredient_row in enumerate(ingredient_rows):
             if (
                 not isinstance(ingredient_row, (list, tuple))
-                or len(ingredient_row) != 3
+                or len(ingredient_row) < 3
                 or not isinstance(ingredient_row[0], str)
                 or not ingredient_row[0].strip()
             ):
@@ -61,7 +61,8 @@ def consolidate(meals, servings_map):
         base_servings = _positive_finite(requested_base_servings)
         scaling_valid = servings is not None and base_servings is not None
         factor = servings / base_servings if scaling_valid else 0.0
-        for name, quantity, unit in ingredient_rows:
+        for ingredient_row in ingredient_rows:
+            name, quantity, unit = ingredient_row[:3]
             try:
                 raw_quantity = float(quantity)
             except (TypeError, ValueError, OverflowError):
