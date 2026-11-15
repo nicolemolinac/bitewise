@@ -32,15 +32,20 @@ def run():
             "id": 4, "name_original": "No price", "package_size": 100,
             "package_unit": "g", "price": None, "availability": "available",
         }],
+        "tiny-pack": [{
+            "id": 5, "name_original": "Implausibly tiny package", "package_size": 0.001,
+            "package_unit": "g", "price": 0.50, "availability": "available",
+        }],
     })
     requirements = [
         {"ingredient": "rice", "quantity": 0.25, "unit": "kg", "source_meals": ["Rice bowl"]},
         {"ingredient": "milk", "quantity": 500, "unit": "ml", "source_meals": ["Pancakes"]},
         {"ingredient": "unknown", "quantity": 2, "unit": "tbsp", "source_meals": ["Sauce"]},
         {"ingredient": "unpriced", "quantity": 50, "unit": "g", "source_meals": ["Soup"]},
+        {"ingredient": "tiny-pack", "quantity": 1, "unit": "g", "source_meals": ["Spice"]},
     ]
     basket = build_basket(requirements, catalog, mode="cheapest")
-    rice, milk, unknown, unpriced = basket
+    rice, milk, unknown, unpriced, tiny_pack = basket
 
     assert rice["match_status"] == "matched"
     assert rice["packs"] == 1 and rice["checkout_cost"] == 1.5
@@ -54,6 +59,8 @@ def run():
     assert unknown["checkout_cost"] == 0
     assert unpriced["match_status"] == "unmatched"
     assert unpriced["checkout_cost"] == 0
+    assert tiny_pack["match_status"] == "unmatched", "Do not recommend more than 99 packs"
+    assert tiny_pack["checkout_cost"] == 0
 
     pantry_basket = build_basket(
         [{"ingredient": "rice", "quantity": 1, "unit": "kg", "source_meals": ["Meal"]}],
