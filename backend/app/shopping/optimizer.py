@@ -271,3 +271,19 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
         output.append(base)
 
     return output
+
+
+
+def summarize_waste(items):
+    """Aggregate leftover quantities without mixing incompatible units."""
+    totals = defaultdict(float)
+    for item in items or []:
+        try:
+            quantity = float(item.get("waste", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(quantity) or quantity <= 0:
+            continue
+        unit = _normal_unit(item.get("package_unit") or "piece")
+        totals[unit] += quantity
+    return {unit: round(quantity, 2) for unit, quantity in totals.items()}
