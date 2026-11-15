@@ -55,10 +55,10 @@ def normalize(value: str) -> str:
 
 def package(text: str):
     """Parse package quantities, including multipacks, into base units."""
-    value = str(text or "").replace("\\u00a0", " ").replace("×", "x")
+    value = str(text or "").replace("\u00a0", " ").replace("×", "x")
     pattern = re.compile(
-        r"(?<![\\w,])(?:(\\d+(?:[.,]\\d+)?)\\s*x\\s*)?"
-        r"(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l|stk|st\\.|stück)(?![a-z])",
+        r"(?<![\w,])(?:(\d+(?:[.,]\d+)?)\s*x\s*)?"
+        r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)(?![a-z])",
         re.I,
     )
     matches = list(pattern.finditer(value))
