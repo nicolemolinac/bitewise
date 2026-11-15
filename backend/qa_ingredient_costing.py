@@ -255,6 +255,12 @@ def run():
     assert _snapshot_package_dimensions("Milk 1l", None, None) == (None, None)
     assert _snapshot_package_dimensions("Milk 1l", 0, "ml") == (None, None)
     assert _snapshot_package_dimensions("Milk 1l", 1000, "ml") == (1000, "ml")
+    assert _snapshot_package_dimensions(
+        "Hähnchenbrustfilet 1 Stück ca. 450g (1 kg = 16,90 €)", 1, "unit"
+    ) == (450.0, "g")
+    assert _snapshot_package_dimensions(
+        "Bifi 5 Stück 100g (1 kg = 29,90 €)", 5, "unit"
+    ) == (100.0, "g")
     assert _snapshot_package_size("Water 9" + "9" * 400 + "kg", 500, "g") == 500
     assert _snapshot_package_size("Water " + "9" * 5000 + "x500ml", 500, "ml") == 500
     assert _snapshot_package_size("Water 2x500ml", 1, "l") == 1
