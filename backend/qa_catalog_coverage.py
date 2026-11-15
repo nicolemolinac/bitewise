@@ -74,6 +74,15 @@ def main():
                 "exact": len(exact),
                 "substitutes": len(substitutes),
                 "priced_usable": len(usable),
+                "sample_candidates": [
+                    {
+                        "name": product.get("name_original"),
+                        "category": product.get("category"),
+                        "match_type": product.get("ingredient_match_type"),
+                        "price": product.get("price"),
+                    }
+                    for product in candidates[:5]
+                ],
                 "status": "exact" if exact and usable else (
                     "substitute" if substitutes and usable else "gap"
                 ),
@@ -89,10 +98,11 @@ def main():
             if row["status"] == "gap" and row["ingredient"] not in known_catalog_gaps
         ]
         for row in coverage:
-            print("INGREDIENT COVERAGE:", row)
+            print("INGREDIENT COVERAGE:", row, flush=True)
         assert not unexpected_gaps, (
             "Unexpected common-ingredient catalog gaps: "
             + ", ".join(row["ingredient"] for row in unexpected_gaps)
+            + f"; diagnostics={unexpected_gaps!r}"
         )
         print(f"REWE products: {total}")
         print(f"Distinct ingredient labels: {len(ingredients)}")
