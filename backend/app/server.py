@@ -213,6 +213,18 @@ def _adapt_recipe_to_catalog(recipe: dict, basket: list[dict]) -> list[dict]:
             # Always persist the canonical replacement name, even when the
             # matched catalog label was German or another declared alias.
             replacement = selected_option["name"].strip()
+        if selected_option is not None:
+            if (
+                selected_option.get("safe_to_auto_apply") is not True
+                or selected_option.get("role_preserved") is not True
+            ):
+                continue
+            try:
+                confidence = float(selected_option.get("confidence"))
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if not math.isfinite(confidence) or confidence < 0.85:
+                continue
         # The basket has already validated any executable substitution ratio.
         # Use that explicit value as fallback for curated substitutions, but
         # never manufacture a 1:1 ratio when metadata is absent.
