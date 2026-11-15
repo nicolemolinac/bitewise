@@ -59,6 +59,16 @@ _REFERENCE_PRICE_PATTERN = (
 )
 
 
+def _finite_float(value):
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(str(value).replace(",", "."))
+    except (OverflowError, TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
 def _strip_prepared_yield(text: str) -> str:
     return re.sub(
         r"\b(?:ergibt|reicht(?:\s+für)?|für)\s*(?:(?:\d+)\s*[x×]\s*)?"
@@ -157,9 +167,9 @@ def _displayed_unit_price(text: str):
     match = re.search(_REFERENCE_PRICE_PATTERN, str(text or ""), re.I)
     if not match:
         return None, None
-    quantity = _safe_float(match.group(1))
+    quantity = _finite_float(match.group(1))
     unit = match.group(2).lower()
-    amount = _safe_float(match.group(3))
+    amount = _finite_float(match.group(3))
     if (
         quantity is None or quantity <= 0
         or amount is None or amount <= 0
