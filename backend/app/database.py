@@ -399,13 +399,17 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         if reference_unit in {"kg", "g"} and package_unit == "g":
             quantity_in_base_units = reference_quantity * (1000 if reference_unit == "kg" else 1)
             per_unit = reference_price / quantity_in_base_units
-            return round(per_unit * package_size, 2), per_unit
-        if reference_unit in {"l", "ml"} and package_unit == "ml":
+        elif reference_unit in {"l", "ml"} and package_unit == "ml":
             quantity_in_base_units = reference_quantity * (1000 if reference_unit == "l" else 1)
             per_unit = reference_price / quantity_in_base_units
-            return round(per_unit * package_size, 2), per_unit
-        if reference_unit in {"stk", "stk.", "stück"} and package_unit == "unit" and reference_quantity == 1:
-            return round(reference_price * package_size, 2), reference_price
+        elif reference_unit in {"stk", "stk.", "stück"} and package_unit == "unit" and reference_quantity == 1:
+            per_unit = reference_price
+        else:
+            per_unit = None
+        if per_unit is not None:
+            pack_price = per_unit * package_size
+            if math.isfinite(per_unit) and per_unit > 0 and math.isfinite(pack_price) and pack_price > 0:
+                return round(pack_price, 2), per_unit
 
     fallback = _snapshot_float(raw_price)
     if fallback is not None and fallback <= 0:
@@ -415,6 +419,8 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         per_unit = None
     if per_unit is None and fallback is not None and math.isfinite(package_size) and package_size > 0:
         per_unit = fallback / package_size
+    if per_unit is not None and (not math.isfinite(per_unit) or per_unit <= 0):
+        per_unit = None
     return fallback, per_unit
 
 def _auto_import_rewe_csv_snapshot() -> None:
