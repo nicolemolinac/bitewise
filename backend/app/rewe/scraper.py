@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import json
 import os
 import re
@@ -53,11 +54,23 @@ def normalize(value: str) -> str:
 
 
 def package(text: str):
-    match = re.search(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|stk|st\.|stück)", text, re.I)
-    if not match:
+    """Parse package quantities, including multipacks, into base units."""
+    value = str(text or "").replace("\\u00a0", " ").replace("×", "x")
+    pattern = re.compile(
+        r"(?<![\\w,])(?:(\\d+(?:[.,]\\d+)?)\\s*x\\s*)?"
+        r"(\\d+(?:[.,]\\d+)?)\\s*(kg|g|ml|l|stk|st\\.|stück)\\b",
+        re.I,
+    )
+    matches = list(pattern.finditer(value))
+    if not matches:
         return None, None
-    amount = float(match.group(1).replace(",", "."))
-    unit = match.group(2).lower()
+    match = matches[-1]
+    multiplier = float((match.group(1) or "1").replace(",", "."))
+    amount = float(match.group(2).replace(",", "."))
+    if not (math.isfinite(multiplier) and math.isfinite(amount)) or multiplier <= 0 or amount <= 0:
+        return None, None
+    amount *= multiplier
+    unit = match.group(3).lower()
     if unit == "kg":
         return amount * 1000, "g"
     if unit == "l":
@@ -65,7 +78,6 @@ def package(text: str):
     if unit in ("stk", "st.", "stück"):
         return amount, "unit"
     return amount, unit
-
 
 def price(text: str):
     for pattern in (r"(?:€|EUR|Euro)\s*(\d+[,.]\d{2})", r"(\d+[,.]\d{2})\s*(?:€|EUR|Euro)"):
@@ -138,8 +150,8 @@ def _json_ld_products(soup: BeautifulSoup, base_url: str, category: str):
                     "ingredient": normalize(name),
                     "brand": brand,
                     "category": category,
-                    "package_size": size or 1,
-                    "package_unit": unit or "unit",
+                    "package_size": size if size is not None else 0,
+                    "package_unit": unit or "unknown",
                     "price": offer_price,
                     "price_per_unit": (offer_price / size) if offer_price is not None and size else None,
                     "product_url": product_url,
