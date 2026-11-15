@@ -30,6 +30,11 @@ def main():
     assert rows[0]["quantity"] == 0.004, rows
     assert _convert_quantity(1, "kg", "g") == 1000
     assert _convert_quantity(500, "ml", "l") == 0.5
+    assert _convert_quantity(250, "mg", "g") == 0.25
+    assert _convert_quantity(2, "cl", "ml") == 20
+    assert _convert_quantity(1, "oz", "g") == 28.349523125
+    assert _convert_quantity(1, "lb", "g") == 453.59237
+    assert _convert_quantity(1, "fl oz", "ml") == 29.5735295625
     assert _convert_quantity(float("nan"), "g", "g") is None
     print(f"INGREDIENT REGRESSIONS: PASS ({len(cases)} package cases + precision/unit checks)")
 
