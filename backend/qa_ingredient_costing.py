@@ -35,6 +35,17 @@ class FakePantryDB:
 
 
 def run():
+    for malformed_recipe in (
+        {"id": "bad-ingredients", "name": "Broken", "ingredients": [["rice", 1]]},
+        {"id": "missing-ingredients", "name": "Broken", "ingredients": None},
+        {"id": "blank-ingredient", "name": "Broken", "ingredients": [[" ", 1, "g"]]},
+    ):
+        try:
+            consolidate([malformed_recipe], {malformed_recipe["id"]: 2})
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Malformed recipe ingredient structure was silently accepted")
     assert _purchase_pantry_identity("pine nuts", "sunflower seeds", True) == (
         "pine nuts", "sunflower seeds"
     )
