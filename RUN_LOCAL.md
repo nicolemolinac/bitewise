@@ -59,7 +59,6 @@ cd ../frontend && npm run build
 The REWE browser fallback attaches to Chrome for Testing over CDP. If no browser is already listening on port 9222, Bitewise now tries to start an isolated local Chrome for Testing profile automatically.
 
 - Install Google Chrome for Testing for your operating system if it is not already installed. If it is not in a standard location, set `CHROME_FOR_TESTING_PATH` in `backend/.env` to its executable.
-- If Chrome for Testing is installed in a non-standard location, set `CHROME_FOR_TESTING_PATH` in `backend/.env` to its executable path.
 - The browser uses a separate profile in `backend/data/chrome-for-testing-profile`; it does not reuse or alter your personal Chrome profile.
 - REWE delivery postcode and consent are saved in `backend/data/rewe_storage_state.json`.
 - The first refresh may show REWE's consent and delivery-location prompts. Select Delivery / Lieferservice, not Pickup / Abholung.
