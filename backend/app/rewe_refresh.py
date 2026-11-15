@@ -24,6 +24,20 @@ def _setting(db, key: str, default: str) -> str:
     return item.value if item else default
 
 
+def _refresh_is_complete_healthy(report: dict) -> bool:
+    """Allow destructive reconciliation only for complete, high-quality snapshots."""
+    skipped = int(report.get("products_skipped", 0) or 0)
+    found = int(report.get("products_found", 0) or 0)
+    max_skips = max(5, int(found * 0.01))
+    return (
+        report.get("status") == "healthy"
+        and report.get("categories_failed", 0) == 0
+        and report.get("categories_processed", 0) == len(REWE_CATEGORY_URLS)
+        and report.get("categories_successful", 0) == len(REWE_CATEGORY_URLS)
+        and skipped <= max_skips
+    )
+
+
 def _remove_stale_rewe_products(db, seen_external_ids: set[str], before_count: int):
     """Remove only products proven absent from a complete, healthy catalog refresh.
 
@@ -188,16 +202,8 @@ def rewe_refresh_safe():
 
         skipped_observations = int(report.get("products_skipped", 0) or 0)
         found_observations = int(report.get("products_found", 0) or 0)
-        # A healthy HTTP response can still contain a material number of
-        # unusable product cards. Do not delete old rows based on that snapshot.
         max_skips_for_reconciliation = max(5, int(found_observations * 0.01))
-        complete_healthy = (
-            report.get("status") == "healthy"
-            and report.get("categories_failed", 0) == 0
-            and report.get("categories_processed", 0) == len(REWE_CATEGORY_URLS)
-            and report.get("categories_successful", 0) == len(REWE_CATEGORY_URLS)
-            and skipped_observations <= max_skips_for_reconciliation
-        )
+        complete_healthy = _refresh_is_complete_healthy(report)
 
         reconciliation = {
             "removed": 0,
