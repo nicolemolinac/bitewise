@@ -420,9 +420,13 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         "passata", "tomatenmark", "tomato paste", "tomato puree", "tomaten puree",
         "juice", "saft", "nectar", "smoothie", "puree", "püree", "mus",
         "chips", "snack", "knabberartikel", "dried fruit", "getrocknet",
-        "marmelade", "jam", "kompott",
+        "marmelade", "jam", "kompott", "powder", "pulver", "spice",
+        "seasoning", "dried", "dehydrated", "getrocknet", "gemahlen",
     )
-    if ingredient_tokens & fresh_produce_tokens and any(token in title for token in compound_product_terms):
+    if ingredient_tokens & fresh_produce_tokens and any(
+        _contains_phrase(title, token) and not _contains_phrase(ingredient, token)
+        for token in compound_product_terms
+    ):
         return False
     # Raw meat/fish ingredients must not match prepared meals, sauces or
     # processed products merely because their titles contain the animal name.
