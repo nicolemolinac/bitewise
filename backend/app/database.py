@@ -342,6 +342,12 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
         name or "",
         flags=re.I,
     )
+    clean_name = re.sub(
+        r"\b(?:ergibt|reicht(?:\s+für)?|für)\s*(?:(?:\d+)\s*[x×]\s*)?\d+(?:[,.]\d+)?\s*(?:kg|g|l|ml)(?:\s+(?:(?:\d+)\s*[x×]\s*)?\d+(?:[,.]\d+)?\s*(?:kg|g|l|ml))?",
+        " ",
+        clean_name,
+        flags=re.I,
+    )
     matches = list(re.finditer(
         r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
         clean_name,
@@ -380,9 +386,16 @@ def _snapshot_reference_pattern():
     )
 
 
-def _snapshot_physical_sizes(name: str):
+def _snapshot_physical_sizes(name: str, include_yield: bool = True):
     """Return the last explicit mass and volume quantities in a product title."""
     clean_name = re.sub(_snapshot_reference_pattern(), " ", name or "", flags=re.I)
+    if not include_yield:
+        clean_name = re.sub(
+            r"\b(?:ergibt|reicht(?:\s+für)?|für)\s*(?:(?:\d+)\s*[x×]\s*)?\d+(?:[,.]\d+)?\s*(?:kg|g|l|ml)(?:\s+(?:(?:\d+)\s*[x×]\s*)?\d+(?:[,.]\d+)?\s*(?:kg|g|l|ml))?",
+            " ",
+            clean_name,
+            flags=re.I,
+        )
     sizes = {}
     last_dimension = None
     for match in re.finditer(
@@ -432,7 +445,7 @@ def _snapshot_package_dimensions(name: str, raw_size, raw_unit: str):
     if size is None or not math.isfinite(size) or size <= 0 or not unit:
         return None, None
 
-    physical_sizes, last_dimension = _snapshot_physical_sizes(name)
+    physical_sizes, last_dimension = _snapshot_physical_sizes(name, include_yield=False)
     reference_dimension = _snapshot_reference_dimension(name)
     count_units = {"unit", "piece", "pcs", "pc", "st", "stk", "stk.", "stück"}
     unit_dimension = "g" if unit in {"g", "gram", "grams"} else (
