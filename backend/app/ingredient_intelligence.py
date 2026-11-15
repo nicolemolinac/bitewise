@@ -401,6 +401,15 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     elif any(term in form for term in ("whole", "ganz", "unground")):
         form = "whole"
     ingredient_tokens = set(normalize_text(ingredient).split())
+    identity_terms = {normalize_text(ingredient)}
+    identity_terms.update(
+        normalize_text(term) for term in ingredient_search_terms(ingredient)
+        if isinstance(term, str) and term.strip()
+    )
+
+    def marker_is_part_of_requested_ingredient(marker):
+        return any(_contains_phrase(term, marker) for term in identity_terms if term)
+
     fresh_produce_tokens = {
         "garlic", "onion", "onions", "potato", "potatoes", "tomato", "tomatoes",
         "lettuce", "cilantro", "coriander", "carrot", "carrots", "olive", "olives",
@@ -431,7 +440,7 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
     powder_markers = {"powder", "pulver", "gemahlen"}
     if ingredient_tokens & fresh_produce_tokens and any(
         _contains_phrase(title, token)
-        and not _contains_phrase(ingredient, token)
+        and not marker_is_part_of_requested_ingredient(token)
         and not (token in dried_markers and requested_form == "dried")
         and not (token in powder_markers and requested_form == "powder")
         for token in compound_product_terms
@@ -452,7 +461,7 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         "fish fingers", "fischstabchen", "fischstaebchen", "breaded", "paniert", "cocktail",
     )
     if ingredient_tokens & raw_protein_tokens and any(
-        _contains_phrase(title, term) and not _contains_phrase(ingredient, term)
+        _contains_phrase(title, term) and not marker_is_part_of_requested_ingredient(term)
         for term in prepared_protein_terms
     ):
         return False
