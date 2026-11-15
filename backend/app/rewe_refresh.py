@@ -24,6 +24,28 @@ def _setting(db, key: str, default: str) -> str:
     return item.value if item else default
 
 
+def _valid_rewe_package(data: dict) -> bool:
+    raw_size = data.get("package_size")
+    if isinstance(raw_size, bool):
+        return False
+    try:
+        size = float(raw_size)
+    except (OverflowError, TypeError, ValueError):
+        return False
+    return math.isfinite(size) and size > 0 and bool(str(data.get("package_unit") or "").strip())
+
+
+def _valid_rewe_checkout_price(data: dict) -> bool:
+    raw_price = data.get("price")
+    if isinstance(raw_price, bool):
+        return False
+    try:
+        price = float(raw_price)
+    except (OverflowError, TypeError, ValueError):
+        return False
+    return math.isfinite(price) and price > 0
+
+
 def _refresh_is_complete_healthy(report: dict) -> bool:
     """Allow destructive reconciliation only for complete, high-quality snapshots."""
     skipped = int(report.get("products_skipped", 0) or 0)
@@ -104,13 +126,15 @@ def rewe_refresh_safe():
     before_count = db.query(Product).filter(Product.supermarket == "REWE").count()
     seen_external_ids: set[str] = set()
     skipped_invalid_package = 0
+    skipped_invalid_price = 0
+    skipped_invalid_identity = 0
 
     try:
         def upsert(data, current_postcode):
-            nonlocal skipped_invalid_package
+            nonlocal skipped_invalid_package, skipped_invalid_price, skipped_invalid_identity
             external_id = str(data.get("external_id") or "").strip()
             if not external_id:
-                skipped_invalid_package += 1
+                skipped_invalid_identity += 1
                 return None
             existing = (
                 db.query(Product)
@@ -127,12 +151,12 @@ def rewe_refresh_safe():
             # Unknown package sizes are represented as None by the scraper.
             # Keep a known existing package instead of replacing it with a fake
             # 1-unit package; only brand-new rows need a harmless placeholder.
+            valid_package = _valid_rewe_package(incoming)
             try:
-                package_size = float(incoming.get("package_size"))
-                package_unit = str(incoming.get("package_unit") or "").strip()
-                valid_package = math.isfinite(package_size) and package_size > 0 and bool(package_unit)
+                package_size = float(incoming.get("package_size")) if valid_package else None
             except (OverflowError, TypeError, ValueError):
-                valid_package = False
+                package_size = None
+            package_unit = str(incoming.get("package_unit") or "").strip()
             if valid_package:
                 incoming["package_size"] = package_size
                 incoming["package_unit"] = package_unit
@@ -142,36 +166,37 @@ def rewe_refresh_safe():
 
             # A missing/invalid live price is not a price change. Preserve the
             # last usable checkout price and its unit price instead of erasing it.
+            valid_price = _valid_rewe_checkout_price(incoming)
             try:
-                incoming_price = float(incoming.get("price"))
-                valid_price = math.isfinite(incoming_price) and incoming_price > 0
+                incoming_price = float(incoming.get("price")) if valid_price else None
             except (OverflowError, TypeError, ValueError):
-                valid_price = False
+                incoming_price = None
             if valid_price:
                 incoming["price"] = incoming_price
-                # Derive unit price from the checkout price and verified
-                # package dimensions. A separately supplied reference price may
-                # be stale, differently normalized or attached to another size.
-                if valid_package:
-                    derived_unit_price = incoming_price / package_size
-                elif existing is not None:
-                    try:
-                        existing_size = float(existing.package_size)
-                        derived_unit_price = (
-                            incoming_price / existing_size
-                            if math.isfinite(existing_size) and existing_size > 0
-                            else None
-                        )
-                    except (OverflowError, TypeError, ValueError):
-                        derived_unit_price = None
-                else:
-                    derived_unit_price = None
-                if derived_unit_price is not None and math.isfinite(derived_unit_price) and derived_unit_price > 0:
-                    incoming["price_per_unit"] = derived_unit_price
-                else:
-                    incoming.pop("price_per_unit", None)
             else:
                 incoming.pop("price", None)
+
+            # Derive unit price from checkout price and verified package
+            # dimensions. Never trust a separately supplied reference price.
+            checkout_for_unit_price = incoming_price if valid_price else (
+                getattr(existing, "price", None) if existing is not None else None
+            )
+            package_for_unit_price = package_size if valid_package else (
+                getattr(existing, "package_size", None) if existing is not None else None
+            )
+            try:
+                checkout_for_unit_price = float(checkout_for_unit_price)
+                package_for_unit_price = float(package_for_unit_price)
+                derived_unit_price = checkout_for_unit_price / package_for_unit_price
+            except (OverflowError, TypeError, ValueError, ZeroDivisionError):
+                derived_unit_price = None
+            if (
+                derived_unit_price is not None
+                and math.isfinite(derived_unit_price)
+                and derived_unit_price > 0
+            ):
+                incoming["price_per_unit"] = derived_unit_price
+            else:
                 incoming.pop("price_per_unit", None)
 
             if existing:
@@ -192,9 +217,14 @@ def rewe_refresh_safe():
 
             if not valid_package:
                 # A new catalog row without a measurable package cannot be
-                # costed safely. Do not invent "1 unit" and expose it as purchasable.
-                # Crucially, do not count it as observed for stale-row deletion.
+                # costed safely. Do not invent a one-unit package and expose it as purchasable.
                 skipped_invalid_package += 1
+                return None
+            if not valid_price:
+                # A brand-new product without a real checkout price is not a
+                # usable basket candidate. Preserve existing rows, but never
+                # insert an unpriced product that can distort product ranking.
+                skipped_invalid_price += 1
                 return None
             seen_external_ids.add(external_id)
             incoming["package_size"] = package_size
@@ -247,6 +277,8 @@ def rewe_refresh_safe():
             "ok": report["status"] != "failed",
             **report,
             "products_skipped_invalid_package": skipped_invalid_package,
+            "products_skipped_invalid_price": skipped_invalid_price,
+            "products_skipped_invalid_identity": skipped_invalid_identity,
             **reconciliation,
             "semantic_index": semantic_index,
             "catalog_before": before_count,
