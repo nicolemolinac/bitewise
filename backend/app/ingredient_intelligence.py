@@ -131,7 +131,7 @@ _BASE_TERMS = {
     "shrimp": ("shrimp", "shrimps", "prawn", "prawns", "garnele", "garnelen", "crevetten"),
     "tuna": ("tuna", "thunfisch", "thunfischfilet", "thunfisch in eigenem saft"),
     "bacon": ("bacon", "fruhstucksspeck", "frühstücksspeck", "bauchspeck", "speck"),
-    "turkey": ("turkey", "putenfleisch", "pute", "putenbrust", "truthahn"),
+    "turkey": ("turkey", "puten", "putenfleisch", "pute", "putenbrust", "putenfilet", "puten filet", "puten filetstreifen", "puten innenfilet", "putenmedaillons", "putengeschnetzeltes", "putenschnitzel", "truthahn"),
     "bread": ("bread", "brot", "mischbrot", "vollkornbrot", "toastbrot", "toast"),
     "sugar": ("sugar", "zucker", "haushaltszucker", "rohrzucker"),
     "tofu": ("tofu", "naturtofu", "tofu natur", "seidentofu"),
