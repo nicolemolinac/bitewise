@@ -428,7 +428,7 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         reference_price = _snapshot_float(match.group(3))
         reference_quantity = _snapshot_float(match.group(1))
         reference_unit = match.group(2).lower()
-        if reference_price is not None and reference_price > 0:
+        if reference_price is not None and reference_price > 0 and reference_quantity is not None and reference_quantity > 0:
             if reference_unit in {"kg", "g"} and package_unit == "g":
                 quantity_in_base_units = reference_quantity * (1000 if reference_unit == "kg" else 1)
                 per_unit = reference_price / quantity_in_base_units
