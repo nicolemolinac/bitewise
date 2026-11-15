@@ -1,6 +1,8 @@
 """Regression QA for expanding multiple distinct meal concepts in sequence."""
 import json
 from datetime import datetime, timezone
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import call, patch
 
@@ -67,6 +69,17 @@ def main():
     assert first["id"] != second["id"], "Distinct concepts must never collide when Gemini reuses a generic recipe ID"
     assert first["source_concept_id"] == "pizza-concept-one"
     assert second["source_concept_id"] == "pizza-concept-two"
+
+    # The recipe object is also held in the in-memory meal catalogue. Its unique
+    # ID must survive a backend restart so a saved Pick remains shoppable.
+    with TemporaryDirectory() as temp_dir:
+        data_file = Path(temp_dir) / "ai_meals.json"
+        persisted_recipe = {"id": "generic-recipe-id", "name": "Persisted pizza", "source": "gemini"}
+        with patch("app.server.AI_MEALS", [persisted_recipe]), patch("app.server.AI_MEALS_DATA_FILE", data_file):
+            _assign_expanded_recipe_identity(persisted_recipe, "persisted-pizza-concept")
+        stored = json.loads(data_file.read_text(encoding="utf-8"))
+        assert stored[0]["id"] == persisted_recipe["id"]
+        assert stored[0]["source_concept_id"] == "persisted-pizza-concept"
 
     # Keep the datetime serialization regression on the same multi-expansion path.
     encoded = json.dumps(
