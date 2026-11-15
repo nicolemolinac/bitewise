@@ -435,7 +435,8 @@ def _form_compatible(form: str, title: str, ingredient: str = "") -> bool:
         "soup", "suppe", "sauce", "sossen", "broth", "brühe", "bruehe",
         "stock", "wurst", "sausage", "salami", "schnitzel", "nuggets",
         "ready meal", "fertiggericht", "auflauf", "pizza", "wrap",
-        "salad", "salat", "pesto", "dressing", "sandwich", "burger",
+        "salad", "salat", "pesto", "dressing", "sandwich", "burger", "sticks",
+        "fish fingers", "fischstabchen", "fischstaebchen", "breaded", "paniert", "cocktail",
     )
     if ingredient_tokens & raw_protein_tokens and any(
         _contains_phrase(title, term) and not _contains_phrase(ingredient, term)
