@@ -54,7 +54,7 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
             continue
         # Never turn a missing unit into "unit": that silently changes grams/ml
         # into count-based shopping requirements. Reject malformed amounts too.
-        if not ingredient or not unit:
+        if not ingredient or not unit or isinstance(quantity, bool):
             continue
         try:
             quantity = float(quantity)
