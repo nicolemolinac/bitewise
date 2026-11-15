@@ -822,6 +822,15 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "rauchlachs", "smoked", "gravlax", "graved", "beize",
             "mariniert", "marinade",
         ),
+        "bacon": (
+            "veganer bacon", "vegan bacon", "plant based bacon",
+            "vegetarian bacon", "bacon sandwich", "bacon ei",
+        ),
+        "turkey": (
+            "bifi", "wiener", "wurst", "sausage", "salami", "aufschnitt",
+            "hauchzart", "buffet", "snack", "sandwich", "salat", "suppe",
+            "fertiggericht", "gerauchert", "geräuchert", "smoked",
+        ),
         "shrimp": (
             "gekocht", "gekochte", "gegart", "gegarte",
             "boiled", "cooked", "mariniert",
@@ -866,7 +875,11 @@ def _ingredient_specific_exclusions(ingredient: str, title: str) -> bool:
             "auflauf", "pfannengericht", "walnuss",
         ),
     }
-    if any(_contains_phrase(t, normalize_text(term)) for term in exclusions.get(name, ())):
+    if any(
+        _contains_phrase(t, normalize_text(term))
+        and not _contains_phrase(normalize_text(ingredient), normalize_text(term))
+        for term in exclusions.get(name, ())
+    ):
         return True
     # German compound nouns often join a meal-type word to its main ingredient
     # (e.g. Kartoffelauflauf). Detect these prepared-meal suffixes without
