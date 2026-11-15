@@ -72,6 +72,11 @@ def _remove_stale_rewe_products(db, seen_external_ids: set[str], before_count: i
     db.query(ProductOverride).filter(ProductOverride.product_id.in_(stale_ids)).delete(
         synchronize_session=False
     )
+    # Embeddings are stored without a database FK; remove them in the same
+    # transaction so failed semantic re-indexing cannot leave orphan vectors.
+    db.query(ProductSemanticEmbedding).filter(
+        ProductSemanticEmbedding.product_id.in_(stale_ids)
+    ).delete(synchronize_session=False)
     for state in db.query(ShoppingState).filter(ShoppingState.product_id.in_(stale_ids)).all():
         state.product_id = None
 
