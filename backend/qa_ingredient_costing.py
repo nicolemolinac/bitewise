@@ -670,6 +670,8 @@ def run():
     assert _convert_quantity(2, "millilitres", "ml") == 2
     assert _convert_quantity(2, "centilitres", "ml") == 20
     assert _convert_quantity(2, "decilitres", "ml") == 200
+    assert _convert_quantity(1, "essloffel", "ml") == 15
+    assert _convert_quantity(1, "teeloffel", "ml") == 5
 
     substitute_catalog = FakeCatalog({
         "trofie pasta": [{
