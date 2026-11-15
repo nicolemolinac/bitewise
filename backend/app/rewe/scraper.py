@@ -119,13 +119,13 @@ def package(text: str):
 
     if reference_unit == "unit":
         count_matches = list(re.finditer(
-            r"(\d+(?:[.,]\d+)?)\s*(?:stk|st\.|stück)\b",
+            r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(?:stk|st\.|stück)\b",
             clean,
             re.I,
         ))
         if count_matches:
             try:
-                count = float(count_matches[-1].group(1).replace(",", "."))
+                count = float(count_matches[-1].group(2).replace(",", ".")) * int(count_matches[-1].group(1) or 1)
             except (OverflowError, TypeError, ValueError):
                 count = None
             if count is not None and math.isfinite(count) and count > 0:
@@ -150,13 +150,13 @@ def package(text: str):
         return sizes[last_dimension], last_dimension
 
     count_matches = list(re.finditer(
-        r"(\d+(?:[.,]\d+)?)\s*(?:stk|st\.|stück)\b",
+        r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(?:stk|st\.|stück)\b",
         clean,
         re.I,
     ))
     if count_matches:
         try:
-            count = float(count_matches[-1].group(1).replace(",", "."))
+            count = float(count_matches[-1].group(2).replace(",", ".")) * int(count_matches[-1].group(1) or 1)
         except (OverflowError, TypeError, ValueError):
             return None, None
         return (count, "unit") if math.isfinite(count) and count > 0 else (None, None)
