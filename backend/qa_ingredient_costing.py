@@ -6,7 +6,7 @@ from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quanti
 from app.database import _snapshot_float, _snapshot_package_dimensions, _snapshot_package_size, _snapshot_pack_pricing
 from app.rewe.scraper import _displayed_unit_price, _json_ld_products, _merge_duplicate_product, package, price_details, ReweCatalogScraper
 from app.rewe_refresh import _refresh_is_complete_healthy
-from app.main import consume_meal_from_pantry, pantry_snapshot
+from app.main import _purchase_pantry_identity, consume_meal_from_pantry, pantry_snapshot
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -35,6 +35,21 @@ class FakePantryDB:
 
 
 def run():
+    assert _purchase_pantry_identity("pine nuts", "sunflower seeds", True) == (
+        "pine nuts", "sunflower seeds"
+    )
+    try:
+        _purchase_pantry_identity("pine nuts", None, True)
+    except Exception as exc:
+        assert getattr(exc, "status_code", None) == 422
+    else:
+        raise AssertionError("Substitute purchase without replacement identity was accepted")
+    try:
+        _purchase_pantry_identity("pine nuts", "pine nuts", True)
+    except Exception as exc:
+        assert getattr(exc, "status_code", None) == 422
+    else:
+        raise AssertionError("Substitute purchase was stored under the original ingredient")
     _healthy_catalog_report = {
         "status": "healthy",
         "categories_failed": 0,
