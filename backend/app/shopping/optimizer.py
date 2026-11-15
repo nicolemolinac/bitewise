@@ -421,7 +421,7 @@ def _convert_ingredient_quantity(quantity, from_unit, to_unit, ingredient):
     count_weights = {}
     piece_weight = _ingredient_count_weight(ingredient)
     if piece_weight is not None and normalized_ingredient not in (
-        aliases["fresh cilantro"] | aliases["parsley"] | aliases["basil"]
+        aliases["fresh cilantro"] | aliases["parsley"] | aliases["basil"] | aliases["garlic"]
     ):
         count_weights["piece"] = (piece_weight, "piece")
     if normalized_ingredient in aliases["fresh cilantro"] | aliases["parsley"] | aliases["basil"]:
