@@ -22,7 +22,7 @@ from .recipes.seed import MEALS
 from .rewe.scraper import ReweCatalogScraper
 from .rewe.seed_products import PRODUCTS
 from .shopping.optimizer import STRATEGIES, _convert_ingredient_quantity, build_basket, consolidate
-from .ingredient_intelligence import normalize_text, validate_ingredient_unit
+from .ingredient_intelligence import _profile_lookup, normalize_text, validate_ingredient_unit
 from .catalog_intelligence import search_catalog_opportunities
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
@@ -185,13 +185,7 @@ def consume_meal_from_pantry(db, meal, servings=2):
    continue
   if not math.isfinite(amount) or amount <= 0:
    continue
-  profile = {}
-  if isinstance(intelligence, dict):
-   profile = next(
-    (value for key, value in intelligence.items()
-     if normalize_text(key) == normalize_text(ingredient) and isinstance(value, dict)),
-    {},
-   )
+  profile = _profile_lookup(intelligence, ingredient)
   if not validate_ingredient_unit(ingredient, unit, profile).get("valid", False):
    continue
   key = normalize_text(ingredient)
