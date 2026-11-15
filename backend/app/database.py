@@ -415,7 +415,7 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
             elif reference_unit in {"l", "ml"} and package_unit == "ml":
                 quantity_in_base_units = reference_quantity * (1000 if reference_unit == "l" else 1)
                 per_unit = reference_price / quantity_in_base_units
-            elif reference_unit in {"stk", "stk.", "st.", "stück"} and package_unit in {"unit", "piece"} and reference_quantity == 1:
+            elif reference_unit in {"stk", "stk.", "st", "st.", "stück"} and package_unit in {"unit", "piece"} and reference_quantity == 1:
                 per_unit = reference_price
             else:
                 per_unit = None
