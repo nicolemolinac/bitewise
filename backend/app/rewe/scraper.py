@@ -81,7 +81,23 @@ def _package_unit(amount, unit):
     if unit == "cl": return amount * 10, "ml"
     if unit == "ml": return amount, "ml"
     if unit in {"dutzend", "dozen"}: return amount * 12, "unit"
-    if unit in {"stk", "st", "stück", "stueck", "pcs", "pc", "eier", "beutel", "becher", "pack", "packung", "packungen", "flasche", "flaschen", "dose", "dosen", "glas", "gläser", "glaeser", "bund", "bünde", "buende", "kopf", "köpfe", "koepfe", "zehe", "zehen", "stange", "stangen", "knolle", "knollen", "netz", "netze", "rolle", "rollen", "schale", "schalen"}:
+    # Preserve ingredient-relevant count units rather than collapsing them
+    # into generic pieces (e.g. garlic cloves and herb bunches).
+    if unit in {"zehe", "zehen"}: return amount, "clove"
+    if unit in {"bund", "bünde", "buende"}: return amount, "bunch"
+    if unit in {"kopf", "köpfe", "koepfe"}: return amount, "head"
+    if unit in {"stange", "stangen"}: return amount, "stalk"
+    if unit in {"knolle", "knollen"}: return amount, "bulb"
+    if unit in {"flasche", "flaschen"}: return amount, "bottle"
+    if unit in {"dose", "dosen"}: return amount, "can"
+    if unit in {"glas", "gläser", "glaeser"}: return amount, "jar"
+    if unit == "beutel": return amount, "bag"
+    if unit == "becher": return amount, "cup_container"
+    if unit in {"pack", "packung", "packungen"}: return amount, "pack"
+    if unit in {"netz", "netze"}: return amount, "net"
+    if unit in {"rolle", "rollen"}: return amount, "roll"
+    if unit in {"schale", "schalen"}: return amount, "tray"
+    if unit in {"stk", "st", "stück", "stueck", "pcs", "pc", "eier"}:
         return amount, "unit"
     return None, None
 
@@ -114,7 +130,18 @@ def package(text: str):
         rf"(?<![\w.,+-])(?P<q>{_PACKAGE_NUMBER})\s*(?P<u>{_PACKAGE_UNIT})(?![\w])",
         re.I,
     )
-    for m in single.finditer(value):
+    single_matches = list(single.finditer(value))
+    # If a title includes both a container count and net contents (e.g.
+    # "1 Flasche Wasser 500 ml"), the measurable contents are authoritative.
+    physical_units = {"kg", "mg", "g", "l", "cl", "ml"}
+    ordered_matches = [
+        match for match in single_matches
+        if match.group("u").lower().rstrip(".") in physical_units
+    ] + [
+        match for match in single_matches
+        if match.group("u").lower().rstrip(".") not in physical_units
+    ]
+    for m in ordered_matches:
         q = _parse_de_number(m.group("q"))
         if q is None:
             continue
