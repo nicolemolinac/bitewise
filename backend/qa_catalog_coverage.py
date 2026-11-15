@@ -105,6 +105,7 @@ def main():
                 "exact": len(exact),
                 "substitutes": len(substitutes),
                 "priced_usable": len(usable),
+                "search_terms": aliases,
                 "raw_candidate_count": len(raw_rows),
                 "raw_candidate_samples": raw_samples,
                 "sample_candidates": [
