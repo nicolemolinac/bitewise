@@ -1,6 +1,8 @@
 import math
 from collections import defaultdict
 
+from ..ingredient_aliases import canonical_ingredient
+
 
 STRATEGIES = {
     "maximum-savings",
@@ -39,7 +41,7 @@ def consolidate(meals, servings_map):
             else:
                 # Keep semantically different units (e.g. cloves vs pieces) separate.
                 normalized_quantity = float(quantity)
-            key = (name.lower().strip(), normalized_unit)
+            key = (canonical_ingredient(name), normalized_unit)
             row = grouped[key]
             row["quantity"] += normalized_quantity * factor
             row["source_meals"].append(meal["name"])
@@ -168,25 +170,35 @@ def _badge(mode, waste_ratio, reuse_count, product, cheapest_total, total):
 
 
 def build_basket(requirements, adapter, mode="best-value", owned=None, overrides=None, pantry=None):
-    owned = {x.lower().strip() for x in (owned or [])}
-    overrides = overrides or {}
+    owned = {canonical_ingredient(x) for x in (owned or [])}
+    overrides = {
+        canonical_ingredient(key): value
+        for key, value in (overrides or {}).items()
+    }
     pantry = pantry or {}
     output = []
 
     for requirement in requirements:
-        ingredient = requirement["ingredient"].lower().strip()
+        ingredient = canonical_ingredient(requirement["ingredient"])
         requested = float(requirement["quantity"])
         unit = _normal_unit(requirement["unit"])
-        pantry_row = pantry.get(ingredient)
-        pantry_used = 0.0
-        if pantry_row:
-            converted_pantry = _convert_quantity(pantry_row.get("quantity", 0), pantry_row.get("unit"), unit)
+        pantry_available = 0.0
+        # Pantry labels may use a singular, plural, or German synonym of the
+        # recipe ingredient. Sum only compatible units; never infer mass from count.
+        for pantry_name, pantry_row in pantry.items():
+            if canonical_ingredient(pantry_name) != ingredient or not isinstance(pantry_row, dict):
+                continue
+            converted_pantry = _convert_quantity(
+                pantry_row.get("quantity", 0), pantry_row.get("unit"), unit
+            )
             if converted_pantry is not None:
-                pantry_used = min(requested, max(0.0, converted_pantry))
+                pantry_available += max(0.0, converted_pantry)
+        pantry_used = min(requested, pantry_available)
         needed = max(0.0, requested - pantry_used)
 
         base = {
             **requirement,
+            "ingredient": ingredient,
             "needed_quantity": round(needed, 6),
             "pantry_used": round(pantry_used, 6),
             "pantry_unit": unit,
