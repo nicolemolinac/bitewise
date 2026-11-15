@@ -336,9 +336,15 @@ def _snapshot_package_size(name: str, current_size: float, current_unit: str) ->
     the last mass/volume match, so the snapshot importer must do the same and
     apply that match's multipack count (if present).
     """
+    clean_name = re.sub(
+        r"\b(?:1\s*(?:kg|l|g|ml)|100\s*(?:g|ml))\s*=\s*(?:€\s*)?\d+[,.]\d{2}\s*(?:€|EUR|Euro)?",
+        " ",
+        name or "",
+        flags=re.I,
+    )
     matches = list(re.finditer(
         r"(?:(\d+)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b",
-        name or "",
+        clean_name,
         re.I,
     ))
     if not matches:
@@ -380,31 +386,27 @@ def _snapshot_package_dimensions(name: str, raw_size, raw_unit: str):
 
 
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
-    """Convert displayed €/kg or €/l unit prices into actual package checkout prices."""
+    """Convert displayed reference prices into actual package checkout prices."""
     match = re.search(
-        r"1\s*(kg|l|stück|stk\.?)\s*=\s*(\d+[,.]\d{2})\s*€",
+        r"\b(1|100)\s*(kg|g|l|ml|stück|stk\.?)\s*=\s*(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?",
         name or "",
         re.I,
     )
-    unit_price = _snapshot_float(match.group(2)) if match else None
-    if unit_price is not None and unit_price <= 0:
-        unit_price = None
-    standard_unit = match.group(1).lower() if match else ""
-    if (
-        unit_price is not None and math.isfinite(package_size) and package_size > 0
-        and standard_unit == "kg" and package_unit == "g"
-    ):
-        return round(unit_price * package_size / 1000, 2), unit_price / 1000
-    if (
-        unit_price is not None and math.isfinite(package_size) and package_size > 0
-        and standard_unit == "l" and package_unit == "ml"
-    ):
-        return round(unit_price * package_size / 1000, 2), unit_price / 1000
-    if (
-        unit_price is not None and math.isfinite(package_size) and package_size > 0
-        and standard_unit.startswith(("stk", "stück")) and package_unit == "unit"
-    ):
-        return round(unit_price * package_size, 2), unit_price
+    reference_price = _snapshot_float(match.group(3)) if match else None
+    reference_quantity = int(match.group(1)) if match else 0
+    reference_unit = match.group(2).lower() if match else ""
+    if reference_price is not None and reference_price > 0 and math.isfinite(package_size) and package_size > 0:
+        if reference_unit in {"kg", "g"} and package_unit == "g":
+            quantity_in_base_units = reference_quantity * (1000 if reference_unit == "kg" else 1)
+            per_unit = reference_price / quantity_in_base_units
+            return round(per_unit * package_size, 2), per_unit
+        if reference_unit in {"l", "ml"} and package_unit == "ml":
+            quantity_in_base_units = reference_quantity * (1000 if reference_unit == "l" else 1)
+            per_unit = reference_price / quantity_in_base_units
+            return round(per_unit * package_size, 2), per_unit
+        if reference_unit in {"stk", "stk.", "stück"} and package_unit == "unit" and reference_quantity == 1:
+            return round(reference_price * package_size, 2), reference_price
+
     fallback = _snapshot_float(raw_price)
     if fallback is not None and fallback <= 0:
         fallback = None
@@ -414,7 +416,6 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
     if per_unit is None and fallback is not None and math.isfinite(package_size) and package_size > 0:
         per_unit = fallback / package_size
     return fallback, per_unit
-
 
 def _auto_import_rewe_csv_snapshot() -> None:
     """Seed an empty product table from the committed REWE CSV snapshot exactly once.
