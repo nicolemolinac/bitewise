@@ -510,8 +510,20 @@ def _substitution_quantity_ratio(ingredient, product, intelligence):
         if isinstance(aliases, list):
             names.extend(aliases)
         if any(normalize_text(name) == replacement for name in names if isinstance(name, str)):
-            # A substitute is not quantity-equivalent by default. Require an
-            # explicit curated ratio instead of silently assuming 1:1.
+            # A substitute is executable only when the recipe metadata
+            # explicitly marks it safe, preserves the ingredient's culinary
+            # role and supplies sufficient confidence plus a finite ratio.
+            if (
+                option.get("safe_to_auto_apply") is not True
+                or option.get("role_preserved") is not True
+            ):
+                return None
+            try:
+                confidence = float(option.get("confidence"))
+            except (TypeError, ValueError, OverflowError):
+                return None
+            if not math.isfinite(confidence) or confidence < 0.85:
+                return None
             if "quantity_ratio" not in option:
                 return None
             raw_ratio = option.get("quantity_ratio")
@@ -755,7 +767,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                     semantic_suggestions.append({
                         **product,
                         "semantic_warning": (
-                            "This substitute has no explicit quantity ratio. "
+                            "This substitute lacks a validated safe quantity ratio. "
                             "It can be reviewed, but cannot safely replace the recipe ingredient automatically."
                         ),
                     })
