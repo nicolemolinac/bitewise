@@ -159,6 +159,9 @@ def run():
     assert _snapshot_pack_pricing(
         "Maggi soup 108g ergibt 6l (1 l = 0,38 €)", 108, "g", None, None
     ) == (2.28, 2.28 / 108)
+    assert _snapshot_pack_pricing(
+        "Knorr soup 52g ergibt 500ml (1 l = 3,18 €)", 52, "g", None, None
+    ) == (1.59, 1.59 / 52)
     assert _snapshot_pack_pricing("Product 1kg = 5,00 €", 500, "ml", 2.50, None) == (None, None)
     assert _snapshot_package_size("Alete biscuits 180g (1 kg = 11,06 €)", 180, "g") == 180
     # Duplicate SKU observations allow later valid values to replace invalid
