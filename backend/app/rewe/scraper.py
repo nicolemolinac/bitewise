@@ -54,7 +54,7 @@ def normalize(value: str) -> str:
 
 
 _PACKAGE_NUMBER = r"(?:\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)"
-_PACKAGE_UNIT = r"kg|mg|g|ml|cl|l|stk\.?|st\.?|stück|stueck|pcs?\.?|eier|beutel|becher|packungen?|flaschen?|dosen?"
+_PACKAGE_UNIT = r"glas|gläser|glaeser|bund|bünde|buende|kopf|köpfe|koepfe|zehe|zehen|stange|stangen|knolle|knollen|netz|netze|rolle|rollen|schale|schalen|packung(?:en)?|pack|flasche(?:n)?|dose(?:n)?|kg|mg|g|ml|cl|l|stk\.?|st\.?|stück|stueck|pcs?\.?|eier|beutel|becher"
 
 
 def _parse_de_number(raw):
@@ -80,7 +80,7 @@ def _package_unit(amount, unit):
     if unit == "l": return amount * 1000, "ml"
     if unit == "cl": return amount * 10, "ml"
     if unit == "ml": return amount, "ml"
-    if unit in {"stk", "st", "stück", "stueck", "pcs", "pc", "eier", "beutel", "becher", "packungen", "flaschen", "dosen"}:
+    if unit in {"stk", "st", "stück", "stueck", "pcs", "pc", "eier", "beutel", "becher", "pack", "packung", "packungen", "flasche", "flaschen", "dose", "dosen", "glas", "gläser", "glaeser", "bund", "bünde", "buende", "kopf", "köpfe", "koepfe", "zehe", "zehen", "stange", "stangen", "knolle", "knollen", "netz", "netze", "rolle", "rollen", "schale", "schalen"}:
         return amount, "unit"
     return None, None
 
