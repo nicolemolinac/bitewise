@@ -1073,6 +1073,15 @@ def run():
     ], {"four": 4})
     assert four_servings[0]["quantity"] == 300
 
+    # Malformed catalog observations must be ignored without crashing the basket.
+    malformed_catalog = FakeCatalog({"onion": [None, "not-a-product", 42]})
+    malformed_basket = build_basket([{
+        "ingredient": "onion", "quantity": 1, "unit": "piece",
+        "source_meals": ["Malformed catalog"],
+    }], malformed_catalog)
+    assert malformed_basket[0]["match_status"] == "unmatched"
+    assert malformed_basket[0]["product"] is None
+
     print("PASS: strict title matching, culinary substitutions, portion scaling, unit conversions, pantry deductions, checkout vs consumed cost, and unmatched handling")
 
 
