@@ -133,6 +133,12 @@ def _remove_stale_rewe_products(db, seen_external_ids: set[str], before_count: i
 @router.post("/rewe/refresh")
 def rewe_refresh_safe():
     """Merge a fresh REWE snapshot into the existing catalog without destructive resets.
+    # Serialize catalog refresh against semantic indexing. server.py removes
+    # main.py's compatibility route and registers this router, so the guard
+    # must live here rather than only in the legacy route wrapper.
+    from .main import _SEMANTIC_INDEX_GUARD
+    if not _SEMANTIC_INDEX_GUARD.acquire(blocking=False):
+        raise HTTPException(409, "REWE refresh and semantic indexing cannot run at the same time.")
 
     Existing products are updated in place, including prices. New products are inserted.
     Products missing from REWE are removed only after a complete healthy refresh and only
@@ -317,3 +323,4 @@ def rewe_refresh_safe():
         raise HTTPException(502, f"REWE refresh failed: {str(exc)[:180]}")
     finally:
         db.close()
+        _SEMANTIC_INDEX_GUARD.release()
