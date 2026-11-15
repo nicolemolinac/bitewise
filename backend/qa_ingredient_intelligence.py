@@ -1221,6 +1221,22 @@ def run():
     fresh_herb = {"fresh cilantro": {"canonical": "fresh cilantro", "name_de": "Frischer Koriander", "form": "fresh", "aliases": ["Koriander"]}}
     assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Gewürze") is None
     assert ingredient_product_match_type("fresh cilantro", "Koriander", fresh_herb, "Frische Kräuter") == "exact"
+    # Coriander seed is a spice, never an exact substitute for fresh leaves,
+    # even when catalog aisle metadata is missing or incorrectly says produce.
+    for seed_title, seed_category in (
+        ("REWE Koriandersamen ganz 30g", "oele-sossen-gewuerze"),
+        ("REWE Koriander gemahlen 40g", "oele-sossen-gewuerze"),
+        ("REWE Coriander Seeds 25g", ""),
+        ("REWE Koriander Saat 20g", "obst-gemuese"),
+        ("REWE Ground Coriander 30g", "frische-krauter"),
+    ):
+        assert ingredient_product_match_type(
+            "fresh cilantro", seed_title, fresh_herb, seed_category
+        ) is None, (seed_title, seed_category)
+    assert ingredient_product_match_type(
+        "fresh cilantro", "REWE Frischer Koriander im Bund", fresh_herb,
+        "frische-krauter"
+    ) == "exact"
     garlic_profile = {"garlic": {"canonical": "garlic", "name_de": "Knoblauch", "form": "whole", "aliases": ["Knoblauch"]}}
     assert ingredient_product_match_type("garlic", "REWE Bio Hähnchen Brustfilet Joghurt Knoblauch 320g", garlic_profile, "Fleisch") is None
     assert ingredient_product_match_type("garlic", "Knoblauch 1 Stück", garlic_profile, "obst-gemuese") == "exact"
