@@ -388,10 +388,15 @@ def _snapshot_package_dimensions(name: str, raw_size, raw_unit: str):
 def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, raw_price, raw_price_per_unit):
     """Prefer the actual checkout price; use reference price only as fallback."""
     checkout_price = _snapshot_float(raw_price)
-    if (
-        checkout_price is not None and checkout_price > 0
-        and math.isfinite(package_size) and package_size > 0
-    ):
+    try:
+        package_size = float(package_size)
+    except (OverflowError, TypeError, ValueError):
+        package_size = None
+    valid_package = (
+        package_size is not None and math.isfinite(package_size)
+        and package_size > 0 and bool(str(package_unit or "").strip())
+    )
+    if checkout_price is not None and checkout_price > 0 and valid_package:
         # Derive from the checkout price to keep pack and unit costs coherent.
         checkout_unit_price = checkout_price / package_size
         if math.isfinite(checkout_unit_price) and checkout_unit_price > 0:
@@ -405,7 +410,7 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
     reference_price = _snapshot_float(match.group(3)) if match else None
     reference_quantity = int(match.group(1)) if match else 0
     reference_unit = match.group(2).lower() if match else ""
-    if reference_price is not None and reference_price > 0 and math.isfinite(package_size) and package_size > 0:
+    if reference_price is not None and reference_price > 0 and valid_package:
         if reference_unit in {"kg", "g"} and package_unit == "g":
             quantity_in_base_units = reference_quantity * (1000 if reference_unit == "kg" else 1)
             per_unit = reference_price / quantity_in_base_units
