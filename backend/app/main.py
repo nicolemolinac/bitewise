@@ -506,6 +506,8 @@ def set_shopping_state(payload:ShoppingStateIn):
    raise HTTPException(422,'Partial purchase quantity must be finite and positive')
   if not isinstance(payload.purchased_unit,str) or not payload.purchased_unit.strip():
    raise HTTPException(422,'Partial purchase unit is required')
+  if not validate_ingredient_unit(ingredient,payload.purchased_unit).get('valid',False):
+   raise HTTPException(422,'Partial purchase unit is incompatible with this ingredient')
  db=SessionLocal()
  try:
   matches=[row for row in db.query(ShoppingState).all() if normalize_text(row.ingredient)==normalize_text(ingredient)]
