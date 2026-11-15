@@ -26,6 +26,10 @@ def run():
     assert _snapshot_pack_pricing("Product", 500, "g", "-1.00", "0")[0] is None
     assert _snapshot_pack_pricing("Product", 500, "g", "2.50", "-0.1") == (2.5, 0.005)
     assert _snapshot_pack_pricing("Product 1kg = 0,00 €", 500, "g", "2.50", None) == (2.5, 0.005)
+    assert _snapshot_pack_pricing("Product 100g = 1,20 €", 500, "g", 9.99, 0.0999) == (6.0, 0.012)
+    assert _snapshot_pack_pricing("Product 100ml = 0,50 €", 500, "ml", 9.99, 0.0999) == (2.5, 0.005)
+    assert _snapshot_pack_pricing("Product 1g = 0,02 €", 100, "g", 9.99, 0.0999) == (2.0, 0.02)
+    assert _snapshot_package_size("Alete biscuits 180g (1 kg = 11,06 €)", 180, "g") == 180
     # Duplicate SKU observations allow later valid values to replace invalid
     # earlier values, while preserving descriptive data from the first card.
     _merged_duplicate = _merge_duplicate_product(
@@ -95,6 +99,8 @@ def run():
     assert package("Product 0g") == (None, None)
     assert package("Product 999999999999999999999999999999999999999999999999kg") == (None, None)
     assert package("Product 2x500ml") == (1000, "ml")
+    assert package("Product 500g (1 kg = 11,06 €)") == (500, "g")
+    assert package("Product 500ml (100 ml = 0,50 €)") == (500, "ml")
     assert _displayed_unit_price("1 kg = 0,00 €") == (None, None)
     assert _displayed_unit_price("1 kg = 999999999999999999999999999999999999999999999999 €") == (None, None)
     assert _displayed_unit_price("1 g = 2,00 €") == (2.0, "g")
