@@ -10,9 +10,32 @@ from .database import (
     SessionLocal,
     ShoppingState,
 )
-from .rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper
+from .rewe.scraper import REWE_CATEGORY_URLS, ReweCatalogScraper, package
 
 router = APIRouter(prefix="/api")
+
+
+def _repair_existing_package_metadata(existing, product_name: str | None = None) -> str:
+    """Repair legacy package metadata created by the old implicit 1-unit default."""
+    parsed_size, parsed_unit = package(product_name or getattr(existing, "name_original", ""))
+    if parsed_size is not None and parsed_unit:
+        existing.package_size = parsed_size
+        existing.package_unit = parsed_unit
+        return "parsed-from-product-name"
+
+    try:
+        old_size = float(getattr(existing, "package_size", 0) or 0)
+    except (TypeError, ValueError):
+        old_size = 0.0
+    old_unit = str(getattr(existing, "package_unit", "") or "").strip().lower()
+    if old_size == 1 and old_unit in {"unit", "piece"}:
+        # Earlier ingestion stored 1 unit when no package quantity was found.
+        # That is not evidence of a real one-piece pack.
+        existing.package_size = 0
+        existing.package_unit = "unknown"
+        existing.price_per_unit = None
+        return "cleared-legacy-default"
+    return "unchanged"
 
 
 def _setting(db, key: str, default: str) -> str:
@@ -93,6 +116,7 @@ def rewe_refresh_safe():
             now = datetime.utcnow()
 
             if existing:
+                _repair_existing_package_metadata(existing, data.get("name_original"))
                 incoming_price = data.get("price")
                 if existing.price != incoming_price:
                     existing.last_price = existing.price
