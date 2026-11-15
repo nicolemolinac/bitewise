@@ -349,6 +349,13 @@ def ingredient_candidate_search_terms(ingredient: str, intelligence: Any = None)
         umlaut_variant = _german_umlaut_search_variant(term)
         if umlaut_variant != term:
             retrieval_terms.add(umlaut_variant)
+        # Database names are normalized by stripping umlauts (ä -> a),
+        # while some curated aliases use ae/oe/ue transliteration. Add the
+        # folded form for retrieval as well as the umlaut form.
+        if any(pair in term for pair in ("ae", "oe", "ue")):
+            folded_variant = _german_transliteration_fold(term)
+            if folded_variant and folded_variant != term:
+                retrieval_terms.add(folded_variant)
     return sorted((term for term in retrieval_terms if len(normalize_text(term)) >= 2),
                   key=lambda term: (-len(normalize_text(term)), term))
 
