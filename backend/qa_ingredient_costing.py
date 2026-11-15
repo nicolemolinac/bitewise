@@ -6,6 +6,7 @@ from app.shopping.optimizer import _convert_ingredient_quantity, _convert_quanti
 from app.database import _snapshot_float, _snapshot_package_dimensions, _snapshot_package_size, _snapshot_pack_pricing
 from app.rewe.scraper import _displayed_unit_price, _json_ld_products, _merge_duplicate_product, package, price_details, ReweCatalogScraper
 from app.rewe_refresh import _refresh_is_complete_healthy
+from app.main import consume_meal_from_pantry
 from app.ingredient_aliases import ingredient_name_matches, ingredient_product_match_type, ingredient_substitution_name, ingredient_search_terms
 
 
@@ -15,6 +16,22 @@ class FakeCatalog:
 
     def search(self, ingredient):
         return self.products.get(ingredient, [])
+
+
+class FakePantryQuery:
+    def __init__(self, items):
+        self.items = items
+
+    def all(self):
+        return self.items
+
+
+class FakePantryDB:
+    def __init__(self, items):
+        self.items = items
+
+    def query(self, model):
+        return FakePantryQuery(self.items)
 
 
 def run():
@@ -31,6 +48,40 @@ def run():
     assert _refresh_is_complete_healthy(_too_many_skips) is False
     _partial_catalog = {**_healthy_catalog_report, "categories_failed": 1}
     assert _refresh_is_complete_healthy(_partial_catalog) is False
+    # Pantry consumption uses compatible units, serving scaling and
+    # rejects missing/ambiguous or non-finite inventory records.
+    _rice_stock = type("PantryRow", (), {
+        "ingredient": "rice", "quantity": 500.0, "unit": "g"
+    })()
+    _rice_consumed = consume_meal_from_pantry(
+        FakePantryDB([_rice_stock]),
+        {"base_servings": 2, "ingredients": [["rice", 1, "kg"]]},
+        servings=2,
+    )
+    assert _rice_consumed == [{"ingredient": "rice", "quantity": 500.0, "unit": "kg"}]
+    assert _rice_stock.quantity == 0
+    _missing_unit_stock = type("PantryRow", (), {
+        "ingredient": "onion", "quantity": 4.0, "unit": ""
+    })()
+    assert consume_meal_from_pantry(
+        FakePantryDB([_missing_unit_stock]),
+        {"base_servings": 2, "ingredients": [["onion", 2, "piece"]]},
+        servings=2,
+    ) == []
+    assert _missing_unit_stock.quantity == 4.0
+    _duplicate_stock_a = type("PantryRow", (), {
+        "ingredient": "red onion", "quantity": 1.0, "unit": "piece"
+    })()
+    _duplicate_stock_b = type("PantryRow", (), {
+        "ingredient": "Red-onion", "quantity": 2.0, "unit": "piece"
+    })()
+    assert consume_meal_from_pantry(
+        FakePantryDB([_duplicate_stock_a, _duplicate_stock_b]),
+        {"base_servings": 2, "ingredients": [["red onion", 1, "piece"]]},
+        servings=2,
+    ) == []
+    assert _duplicate_stock_a.quantity == 1.0 and _duplicate_stock_b.quantity == 2.0
+
     # Snapshot numeric parsing must reject infinities/NaN and non-positive
     # checkout prices instead of persisting unusable catalog values.
     assert _snapshot_float("nan", 7) == 7
