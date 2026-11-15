@@ -400,7 +400,7 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
         return None, None
 
     reference_pattern = (
-        r"\b(1|100)\s*(kg|g|l|ml|stück|stk\.?|st\.?)\s*=\s*"
+        r"\b(\d+(?:[,.]\d+)?)\s*(kg|g|l|ml|stück|stk\.?|st\.?)\s*=\s*"
         r"(?:€\s*)?(\d+[,.]\d{2})\s*(?:€|EUR|Euro)?"
     )
     match = re.search(reference_pattern, name or "", re.I)
@@ -426,7 +426,7 @@ def _snapshot_pack_pricing(name: str, package_size: float, package_unit: str, ra
 
     if match:
         reference_price = _snapshot_float(match.group(3))
-        reference_quantity = int(match.group(1))
+        reference_quantity = _snapshot_float(match.group(1))
         reference_unit = match.group(2).lower()
         if reference_price is not None and reference_price > 0:
             if reference_unit in {"kg", "g"} and package_unit == "g":
