@@ -146,6 +146,29 @@ def main():
             elif unit == "can":
                 assert quantity <= 3, (name, ingredient, quantity, unit)
 
+    # Explicit diet promises in prompts must agree with the ingredient list.
+    animal_products = {
+        "beef", "beef steak", "chicken breast", "chicken thigh", "ground turkey",
+        "turkey breast", "pork", "pork tenderloin", "sausage", "salmon",
+        "smoked salmon", "cod", "shrimp", "tuna", "anchovy", "bacon",
+        "egg", "milk", "cream", "butter", "greek yogurt", "yogurt",
+        "feta", "parmesan", "mozzarella", "halloumi", "goat cheese",
+        "cheddar", "cheese", "ricotta", "cream cheese", "honey",
+    }
+    meat_or_fish = {
+        "beef", "beef steak", "chicken breast", "chicken thigh", "ground turkey",
+        "turkey breast", "pork", "pork tenderloin", "sausage", "salmon",
+        "smoked salmon", "cod", "shrimp", "tuna", "anchovy", "bacon",
+    }
+    for recipe_name, prompt, ingredients in CASES:
+        names = {canonical_ingredient(row[0]) for row in ingredients}
+        if "vegan" in prompt.lower():
+            conflicts = names & animal_products
+            assert not conflicts, (recipe_name, "vegan prompt conflicts with ingredients", conflicts)
+        if "vegetarian" in prompt.lower():
+            conflicts = names & meat_or_fish
+            assert not conflicts, (recipe_name, "vegetarian prompt conflicts with ingredients", conflicts)
+
     # Domain-specific checks mirror Bitewise's real Gemini ingredient contract.
     for recipe_name, prompt, ingredients in CASES:
         by_name = {canonical_ingredient(name): unit for name, quantity, unit in ingredients}
