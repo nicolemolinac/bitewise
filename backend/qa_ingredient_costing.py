@@ -151,7 +151,8 @@ def run():
         {"ingredient": "onion", "quantity": 2, "unit": "unit", "source_meals": ["Soup"]},
     ], produce_catalog, mode="cheapest")[0]
     assert produce_basket["match_status"] == "matched"
-    assert produce_basket["needed_quantity"] == 300
+    assert produce_basket["needed_quantity"] == 2 and produce_basket["unit"] == "unit"
+    assert produce_basket["packs"] == 1
     assert "1 onion ≈ 150 g" in produce_basket["match_reason"]
 
     produce_rows = consolidate([
