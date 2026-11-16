@@ -153,7 +153,7 @@ _ALIAS_GROUPS = [
     ("green curry paste", "grüne currypaste", "gruene currypaste", "thai curry paste grün", "thai curry paste gruen"),
     ("miso", "miso", "misopaste"),
     ("orzo", "orzo", "reisförmige nudeln", "reisfoermige nudeln"),
-    ("passata", "passata", "passierte tomaten"),
+    ("passata", "passata", "passierte tomaten", "tomato passata", "tomatenpassata"),
     ("rocket", "rucola", "rauke"),
     ("red wine vinegar", "rotweinessig"),
     ("ricotta", "ricotta"),
@@ -162,7 +162,6 @@ _ALIAS_GROUPS = [
     ("flatbread", "fladenbrot", "pita", "pita brot"),
     ("white bean", "white beans", "weiße bohne", "weiße bohnen", "weisse bohne", "weisse bohnen"),
     ("pesto", "pesto", "basilikumpesto"),
-    ("tomato passata", "passierte tomaten", "tomatenpassata"),
 
 ]
 
