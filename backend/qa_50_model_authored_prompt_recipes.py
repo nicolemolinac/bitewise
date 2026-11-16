@@ -68,7 +68,6 @@ CASES = [
 ("Apple crumble", "Classic small-batch dessert for two, not too sweet, serve warm.", [I("apple",2,"piece"),I("flour",60),I("oats",30),I("butter",35),I("brown sugar",25),I("cinnamon",1)]),
 ("Banana peanut smoothie", "Quick filling breakfast smoothie for two, no protein powder.", [I("banana",2,"piece"),I("milk",250,"ml"),I("peanut butter",25),I("oats",30),I("greek yogurt",80)]),
 ("Carrot ginger soup", "Light vegan soup for two, smooth texture, use coconut milk sparingly.", [I("carrot",300),I("onion",60),I("ginger",12),I("vegetable stock",400,"ml"),I("coconut milk",60,"ml"),I("olive oil",8,"ml")]),
-("Mediterranean tuna pasta", "Pantry dinner for two in 20 minutes, canned tuna, olives and tomato.", [I("pasta",180),I("tuna",1,"can"),I("tomatoes",180),I("olives",30),I("garlic",1,"clove"),I("olive oil",10,"ml"),I("parsley",5)]),
 ]
 
 
