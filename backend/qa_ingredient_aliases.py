@@ -58,6 +58,20 @@ def main():
         _product(14, "Balsamicoessig"),
         _product(15, "Rotweinessig"),
         _product(16, "Tagliatelle"),
+        _product(17, "Chiasamen"),
+        _product(18, "Reispapier"),
+        _product(19, "Zartbitterschokolade"),
+        _product(20, "Putenbrustfilet"),
+        _product(21, "Putenhackfleisch"),
+        _product(22, "Hähnchenschenkel"),
+        _product(23, "Schweinefilet"),
+        _product(24, "Räucherlachs"),
+        _product(25, "Kreuzkümmel gemahlen"),
+        _product(26, "Currypulver"),
+        _product(27, "Salbei frisch"),
+        _product(28, "Minze frisch"),
+        _product(29, "Cheddar gerieben"),
+        _product(30, "Beerenmischung"),
     ]
     adapter = type("Adapter", (), {"db": FakeSession(catalog_rows)})()
     milk_matches = _multilingual_catalog_search(adapter, "milk")
@@ -71,6 +85,11 @@ def main():
     for ingredient, product_id in [
         ("arborio rice", 5), ("goat cheese", 6), ("rocket", 8),
         ("passata", 9), ("green curry paste", 13), ("tagliatelle", 16),
+        ("chia seeds", 17), ("rice paper", 18), ("dark chocolate", 19),
+        ("turkey breast", 20), ("ground turkey", 21), ("chicken thighs", 22),
+        ("pork tenderloin", 23), ("smoked salmon", 24), ("cumin", 25),
+        ("curry powder", 26), ("sage", 27), ("mint", 28), ("cheddar", 29),
+        ("berries", 30),
     ]:
         results = _multilingual_catalog_search(adapter, ingredient)
         assert any(row["id"] == product_id for row in results), (ingredient, results)
@@ -187,6 +206,20 @@ def main():
     assert ingredient_matches_product("balsamic vinegar", "Balsamicoessig")
     assert ingredient_matches_product("red wine vinegar", "Rotweinessig")
     assert ingredient_matches_product("tagliatelle", "REWE Tagliatelle")
+    assert ingredient_matches_product("chia seeds", "Chiasamen")
+    assert ingredient_matches_product("rice paper", "Reispapier")
+    assert ingredient_matches_product("dark chocolate", "Zartbitterschokolade")
+    assert ingredient_matches_product("turkey breast", "Putenbrustfilet")
+    assert ingredient_matches_product("ground turkey", "Putenhackfleisch")
+    assert ingredient_matches_product("chicken thighs", "Hähnchenschenkel")
+    assert ingredient_matches_product("pork tenderloin", "Schweinefilet")
+    assert ingredient_matches_product("smoked salmon", "Räucherlachs")
+    assert ingredient_matches_product("cumin", "Kreuzkümmel gemahlen")
+    assert ingredient_matches_product("curry powder", "Currypulver")
+    assert ingredient_matches_product("sage", "Salbei frisch")
+    assert ingredient_matches_product("mint", "Minze frisch")
+    assert ingredient_matches_product("cheddar", "Cheddar gerieben")
+    assert ingredient_matches_product("berries", "Beerenmischung")
     assert canonical_ingredient("passierte tomaten") == "passata"
     assert ingredient_matches_product("red cabbage", "Rotkohl frisch")
     assert ingredient_matches_product("white cabbage", "Weißkohl")
