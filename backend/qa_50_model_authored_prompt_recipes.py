@@ -155,7 +155,7 @@ def main():
     unmatched = [r for r in basket if r["match_status"] == "unmatched"]
     for row in matched:
         product = row["product"]
-        needed_in_pack_unit = _convert_quantity(row["needed_quantity"], row["unit"], row["package_unit"])
+        needed_in_pack_unit = _convert_quantity(row["needed_quantity"], row["unit"], row["package_unit"], ingredient=row["ingredient"])
         assert product and needed_in_pack_unit is not None and needed_in_pack_unit > 0, row
         assert row["packs"] == max(1, math.ceil(needed_in_pack_unit / product["package_size"])), row
         assert row["package_quantity"] >= needed_in_pack_unit - 1e-6, row
