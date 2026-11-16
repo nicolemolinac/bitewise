@@ -158,7 +158,7 @@ def main():
             matched += 1
             product = row["product"]
             assert product and product["price"] >= 0
-            converted = _convert_quantity(needed, row["unit"], row["package_unit"])
+            converted = _convert_quantity(needed, row["unit"], row["package_unit"], ingredient=row["ingredient"])
             assert converted is not None and converted > 0, row
             assert row["packs"] == max(1, math.ceil(converted / product["package_size"])), row
             assert row["package_quantity"] >= converted - 1e-6, row
