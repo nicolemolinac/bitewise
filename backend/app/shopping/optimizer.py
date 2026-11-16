@@ -121,9 +121,9 @@ def _convert_quantity(quantity, from_unit, to_unit, ingredient=None):
         source = garlic_units.get(source, source)
         target = garlic_units.get(target, target)
         if source == "clove" and target == "bulb":
-            return _convert_quantity(quantity, "piece", "piece") / 10 if _valid_positive(quantity) else None
+            return float(quantity) / 10 if _valid_positive(quantity) else None
         if source == "bulb" and target == "clove":
-            return _convert_quantity(quantity, "piece", "piece") * 10 if _valid_positive(quantity) else None
+            return float(quantity) * 10 if _valid_positive(quantity) else None
     if isinstance(quantity, bool):
         return None
     try:
