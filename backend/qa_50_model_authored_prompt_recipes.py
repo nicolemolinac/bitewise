@@ -88,6 +88,18 @@ class Catalog:
 
 
 def main():
+    # Generated recipe sanitizer must enforce the exact shopping unit contract.
+    from app.ai.gemini import _sanitize_meal
+    sanitized = _sanitize_meal({
+        "name": "Unit normalization regression",
+        "ingredients": [["garlic", 2, "clove"], ["eggs", 2, "pieces"], ["milk", 100, "milliliters"]],
+    })
+    assert sanitized is not None
+    assert [row[2] for row in sanitized["ingredients"]] == ["cloves", "unit", "ml"]
+    assert _sanitize_meal({
+        "name": "Unsupported can unit",
+        "ingredients": [["tuna", 1, "can"]],
+    }) is None
     assert len(CASES) == 50, f"Expected 50 generated recipes, got {len(CASES)}"
     assert len({x[0] for x in CASES}) == 50, "Recipe names must be distinct"
     assert len({x[1] for x in CASES}) == 50, "Prompts must be distinct"
