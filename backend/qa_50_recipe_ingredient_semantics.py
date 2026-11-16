@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from app.ingredient_aliases import canonical_ingredient
 from app.rewe.seed_products import PRODUCTS
-from app.shopping.optimizer import _convert_quantity, build_basket, consolidate
+from app.shopping.optimizer import _PRODUCE_GRAMS_PER_UNIT, _convert_quantity, build_basket, consolidate
 
 
 # Each archetype is a realistic two-serving recipe. Five named variants per
@@ -134,9 +134,13 @@ def main():
             for name, qty, unit in meal["ingredients"]:
                 # Canonical mass/volume/count units are checked by consolidate;
                 # retain the same dimension in this independent expected total.
+                ingredient = canonical_ingredient(name)
                 normalized = {"kg": "g", "l": "ml", "unit": "piece", "cloves": "clove"}.get(unit, unit)
                 scale = {"kg": 1000, "l": 1000}.get(unit, 1)
-                key = (canonical_ingredient(name), normalized)
+                if normalized == "piece" and ingredient in _PRODUCE_GRAMS_PER_UNIT:
+                    scale *= _PRODUCE_GRAMS_PER_UNIT[ingredient]
+                    normalized = "g"
+                key = (ingredient, normalized)
                 expected[key] += qty * scale * servings / 2
                 expected_sources[key].add(meal["name"])
         actual = {(row["ingredient"], row["unit"]): row for row in requirements}
