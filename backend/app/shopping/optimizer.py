@@ -108,9 +108,22 @@ def _normal_unit(value):
     return _UNIT_ALIASES.get(raw, raw)
 
 
-def _convert_quantity(quantity, from_unit, to_unit):
-    """Convert only well-defined mass, volume and count units; otherwise return None."""
+def _convert_quantity(quantity, from_unit, to_unit, ingredient=None):
+    """Convert compatible units, plus narrowly defined ingredient-specific package equivalents.
+
+    Garlic bulbs vary in size; one bulb is treated as approximately ten cloves for
+    shopping estimates only. Never apply this equivalence to unrelated ingredients.
+    """
     source, target = _normal_unit(from_unit), _normal_unit(to_unit)
+    canonical = canonical_ingredient(ingredient or "")
+    if canonical == "garlic":
+        garlic_units = {"head": "bulb"}
+        source = garlic_units.get(source, source)
+        target = garlic_units.get(target, target)
+        if source == "clove" and target == "bulb":
+            return _convert_quantity(quantity, "piece", "piece") / 10 if _valid_positive(quantity) else None
+        if source == "bulb" and target == "clove":
+            return _convert_quantity(quantity, "piece", "piece") * 10 if _valid_positive(quantity) else None
     if isinstance(quantity, bool):
         return None
     try:
@@ -126,6 +139,16 @@ def _convert_quantity(quantity, from_unit, to_unit):
         return None
     converted = amount * source_info[1] / target_info[1]
     return converted if math.isfinite(converted) else None
+
+
+def _valid_positive(value):
+    if isinstance(value, bool):
+        return False
+    try:
+        number = float(value)
+        return math.isfinite(number) and number > 0
+    except (TypeError, ValueError):
+        return False
 
 
 def _number(product, *keys, default=0.0):
@@ -218,7 +241,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             if canonical_ingredient(pantry_name) != ingredient or not isinstance(pantry_row, dict):
                 continue
             converted_pantry = _convert_quantity(
-                pantry_row.get("quantity", 0), pantry_row.get("unit"), unit
+                pantry_row.get("quantity", 0), pantry_row.get("unit"), unit, ingredient=ingredient
             )
             if converted_pantry is not None:
                 pantry_available += max(0.0, converted_pantry)
@@ -278,7 +301,7 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
                 continue
             if not math.isfinite(numeric_price) or numeric_price < 0:
                 continue
-            needed_in_pack_unit = _convert_quantity(needed, unit, product_unit)
+            needed_in_pack_unit = _convert_quantity(needed, unit, product_unit, ingredient=ingredient)
             if needed_in_pack_unit is None or needed_in_pack_unit <= 0:
                 continue
             pack_ratio = needed_in_pack_unit / pack_qty
