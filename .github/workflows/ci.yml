@@ -72,6 +72,8 @@ jobs:
         run: python qa_cooking_preferences.py
       - name: 50-recipe ingredient semantics and shopping recommendation QA
         run: python qa_50_recipe_ingredient_semantics.py
+      - name: 50 model-authored prompt-to-recipe and ingredient quality QA
+        run: python qa_50_model_authored_prompt_recipes.py
       - name: REWE ingredient matching and cost QA
         run: python qa_ingredient_costing.py
       - name: Ingredient alias specificity QA
