@@ -119,9 +119,9 @@ def _normal_unit(value):
 # with gram-based recipes and supermarket packs. Actual item sizes vary.
 _PRODUCE_GRAMS_PER_UNIT = {
     "apple": 180.0, "avocado": 180.0, "banana": 120.0, "beetroot": 150.0,
-    "bell pepper": 160.0, "carrot": 80.0, "cucumber": 350.0, "eggplant": 300.0,
+    "bell pepper": 160.0, "broccoli": 300.0, "carrot": 80.0, "cherry tomato": 15.0, "cucumber": 350.0, "eggplant": 300.0,
     "lemon": 100.0, "lime": 70.0, "mango": 200.0, "onion": 150.0,
-    "orange": 180.0, "pear": 170.0, "potato": 180.0, "red onion": 150.0,
+    "lettuce": 300.0, "orange": 180.0, "pear": 170.0, "potato": 180.0, "red cabbage": 800.0, "red onion": 150.0,
     "spring onion": 15.0, "strawberry": 12.0, "sweet potato": 250.0,
     "tomato": 120.0, "zucchini": 200.0,
 }
