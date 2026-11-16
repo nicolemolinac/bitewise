@@ -116,6 +116,17 @@ def main():
             elif unit == "can":
                 assert quantity <= 3, (name, ingredient, quantity, unit)
 
+    # Domain-specific checks mirror Bitewise's real Gemini ingredient contract.
+    for recipe_name, prompt, ingredients in CASES:
+        by_name = {canonical_ingredient(name): unit for name, quantity, unit in ingredients}
+        for canned in ("tuna", "chickpea", "white bean", "black bean", "kidney bean", "lentil"):
+            if canned in by_name:
+                assert by_name[canned] == "g", (recipe_name, canned, by_name[canned])
+        if "garlic" in by_name:
+            assert by_name["garlic"] == "cloves", (recipe_name, by_name["garlic"])
+        if "egg" in by_name:
+            assert by_name["egg"] == "unit", (recipe_name, by_name["egg"])
+
     # Validate scaling and aggregation against independently calculated totals.
     expected = defaultdict(float)
     sources = defaultdict(set)
