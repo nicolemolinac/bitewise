@@ -46,6 +46,18 @@ def main():
         _product(2, "Alpro Kokosmilch"),
         _product(3, "REWE Bio Olivenöl Nativ Extra"),
         _product(4, "Hähnchenbrustfilet"),
+        _product(5, "REWE Risottoreis Arborio"),
+        _product(6, "Ziegenkäse mild"),
+        _product(7, "Halloumi Grillkäse"),
+        _product(8, "Rucola frisch"),
+        _product(9, "Passierte Tomaten"),
+        _product(10, "Schwarze Bohnen"),
+        _product(11, "Hühnerbrühe"),
+        _product(12, "Gemüsebrühe"),
+        _product(13, "Grüne Currypaste"),
+        _product(14, "Balsamicoessig"),
+        _product(15, "Rotweinessig"),
+        _product(16, "Tagliatelle"),
     ]
     adapter = type("Adapter", (), {"db": FakeSession(catalog_rows)})()
     milk_matches = _multilingual_catalog_search(adapter, "milk")
@@ -56,6 +68,15 @@ def main():
     assert [row["id"] for row in chicken_matches] == [4], chicken_matches
     chicken_generic_matches = _multilingual_catalog_search(adapter, "chicken")
     assert chicken_generic_matches == [], chicken_generic_matches
+    for ingredient, product_id in [
+        ("arborio rice", 5), ("goat cheese", 6), ("halloumi", 7),
+        ("rocket", 8), ("passata", 9), ("black beans", 10),
+        ("chicken stock", 11), ("vegetable stock", 12),
+        ("green curry paste", 13), ("balsamic vinegar", 14),
+        ("red wine vinegar", 15), ("tagliatelle", 16),
+    ]:
+        results = _multilingual_catalog_search(adapter, ingredient)
+        assert any(row["id"] == product_id for row in results), (ingredient, results)
 
     # Exercise the real SQLAlchemy candidate prefilter, not only the Python
     # semantic matcher. This catches SQL alias/ILIKE regressions.
