@@ -106,6 +106,7 @@ def run():
     assert [row["packs"] for row in semantic_basket] == [1, 1]
     assert [row["package_unit"] for row in semantic_basket] == ["bulb", "bunch"]
     assert semantic_basket[0]["packs"] == 1 and semantic_basket[0]["package_quantity"] == 1
+    assert "1 garlic bulb ≈ 10 cloves" in semantic_basket[0]["match_reason"]
 
     assert _convert_quantity(float("nan"), "g", "g") is None
     assert _convert_quantity(float("inf"), "g", "kg") is None
