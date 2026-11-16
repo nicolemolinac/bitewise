@@ -60,8 +60,15 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
         else:
             return None
 
+        # Normalize only safe spelling variants; never silently accept unknown
+        # culinary units that the shopping optimizer cannot interpret.
+        unit = {
+            "gram": "g", "grams": "g", "milliliter": "ml", "milliliters": "ml",
+            "millilitre": "ml", "millilitres": "ml", "piece": "unit",
+            "pieces": "unit", "units": "unit", "clove": "cloves",
+        }.get(unit, unit)
         # Reject the whole meal instead of hiding malformed shopping requirements.
-        if not ingredient or not unit or isinstance(quantity, bool):
+        if not ingredient or unit not in {"g", "ml", "unit", "cloves"} or isinstance(quantity, bool):
             return None
         try:
             quantity = float(quantity)
