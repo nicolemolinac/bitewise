@@ -90,8 +90,8 @@ def run():
 
     semantic_catalog = FakeCatalog({
         "garlic": [{
-            "id": 6, "name_original": "Knoblauch 2 Zehen", "package_size": 2,
-            "package_unit": "clove", "price": 0.99, "availability": "available",
+            "id": 6, "name_original": "Knoblauch 1 Knolle", "package_size": 1,
+            "package_unit": "bulb", "price": 0.99, "availability": "available",
         }],
         "parsley": [{
             "id": 7, "name_original": "Petersilie 1 Bund", "package_size": 1,
@@ -104,11 +104,16 @@ def run():
     ], semantic_catalog, mode="cheapest")
     assert all(row["match_status"] == "matched" for row in semantic_basket)
     assert [row["packs"] for row in semantic_basket] == [1, 1]
-    assert [row["package_unit"] for row in semantic_basket] == ["clove", "bunch"]
+    assert [row["package_unit"] for row in semantic_basket] == ["bulb", "bunch"]
+    assert semantic_basket[0]["packs"] == 1 and semantic_basket[0]["package_quantity"] == 1
 
     assert _convert_quantity(float("nan"), "g", "g") is None
     assert _convert_quantity(float("inf"), "g", "kg") is None
     assert _convert_quantity(100, "g", "ml") is None
+    assert _convert_quantity(2, "cloves", "bulb", ingredient="garlic") == 0.2
+    assert _convert_quantity(1, "bulb", "cloves", ingredient="garlic") == 10
+    assert _convert_quantity(2, "cloves", "bulb", ingredient="onion") is None
+    assert _convert_quantity(2, "cloves", "bulb") is None
     assert _convert_quantity(True, "g", "g") is None
 
     # Booleans are numeric subclasses in Python; they must never become quantities.
