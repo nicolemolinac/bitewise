@@ -29,6 +29,7 @@ def consolidate(meals, servings_map):
             raise ValueError(f"Invalid serving count for meal {meal.get('id')}")
         factor = servings / 2  # generated recipes are normalized to 2 servings
         for name, quantity, unit in meal["ingredients"]:
+            ingredient = canonical_ingredient(name)
             if isinstance(quantity, bool):
                 continue
             try:
@@ -38,15 +39,21 @@ def consolidate(meals, servings_map):
             if not name or not math.isfinite(quantity) or quantity <= 0:
                 continue
             normalized_unit = _normal_unit(unit)
-            unit_info = _UNIT_BASE.get(normalized_unit)
-            if unit_info:
-                dimension, multiplier = unit_info
-                normalized_unit = canonical_units[dimension]
-                normalized_quantity = float(quantity) * multiplier
+            # Whole produce expressed as pieces is normalized to an approximate
+            # edible weight so it can consolidate with the same ingredient in grams.
+            if normalized_unit == "piece" and ingredient in _PRODUCE_GRAMS_PER_UNIT:
+                normalized_quantity = _convert_quantity(quantity, "piece", "g", ingredient=ingredient)
+                normalized_unit = "g"
             else:
-                # Keep semantically different units (e.g. cloves vs pieces) separate.
-                normalized_quantity = float(quantity)
-            key = (canonical_ingredient(name), normalized_unit)
+                unit_info = _UNIT_BASE.get(normalized_unit)
+                if unit_info:
+                    dimension, multiplier = unit_info
+                    normalized_unit = canonical_units[dimension]
+                    normalized_quantity = float(quantity) * multiplier
+                else:
+                    # Keep semantically different units (e.g. cloves vs pieces) separate.
+                    normalized_quantity = float(quantity)
+            key = (ingredient, normalized_unit)
             row = grouped[key]
             row["quantity"] += normalized_quantity * factor
             row["source_meals"].append(meal["name"])
@@ -108,6 +115,18 @@ def _normal_unit(value):
     return _UNIT_ALIASES.get(raw, raw)
 
 
+# Approximate average edible weights used only to reconcile whole-produce counts
+# with gram-based recipes and supermarket packs. Actual item sizes vary.
+_PRODUCE_GRAMS_PER_UNIT = {
+    "apple": 180.0, "avocado": 180.0, "banana": 120.0, "beetroot": 150.0,
+    "bell pepper": 160.0, "carrot": 80.0, "cucumber": 350.0, "eggplant": 300.0,
+    "lemon": 100.0, "lime": 70.0, "mango": 200.0, "onion": 150.0,
+    "orange": 180.0, "pear": 170.0, "potato": 180.0, "red onion": 150.0,
+    "spring onion": 15.0, "strawberry": 12.0, "sweet potato": 250.0,
+    "tomato": 120.0, "zucchini": 200.0,
+}
+
+
 def _convert_quantity(quantity, from_unit, to_unit, ingredient=None):
     """Convert compatible units, plus narrowly defined ingredient-specific package equivalents.
 
@@ -124,6 +143,12 @@ def _convert_quantity(quantity, from_unit, to_unit, ingredient=None):
             return float(quantity) / 10 if _valid_positive(quantity) else None
         if source == "bulb" and target == "clove":
             return float(quantity) * 10 if _valid_positive(quantity) else None
+    if canonical in _PRODUCE_GRAMS_PER_UNIT:
+        grams_per_unit = _PRODUCE_GRAMS_PER_UNIT[canonical]
+        if source == "piece" and target == "g":
+            return float(quantity) * grams_per_unit if _valid_positive(quantity) else None
+        if source == "g" and target == "piece":
+            return float(quantity) / grams_per_unit if _valid_positive(quantity) else None
     if isinstance(quantity, bool):
         return None
     try:
@@ -331,6 +356,9 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             conversion_note = None
             if ingredient == "garlic" and unit == "clove" and product_unit == "bulb":
                 conversion_note = "Estimated using 1 garlic bulb ≈ 10 cloves; actual bulb size varies."
+            elif ingredient in _PRODUCE_GRAMS_PER_UNIT and {unit, product_unit} == {"g", "piece"}:
+                grams = _PRODUCE_GRAMS_PER_UNIT[ingredient]
+                conversion_note = f"Estimated using 1 {ingredient} ≈ {grams:g} g; actual size varies."
             candidates.append({
                 "score": score, "conversion_note": conversion_note, "packs": packs, "checkout_cost": checkout_cost,
                 "consumed_cost": consumed_cost, "waste": waste_in_pack_unit,
