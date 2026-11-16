@@ -141,6 +141,19 @@ def run():
     except ValueError:
         pass
 
+    produce_catalog = FakeCatalog({
+        "onion": [{
+            "id": 8, "name_original": "Speisezwiebeln 500g", "package_size": 500,
+            "package_unit": "g", "price": 1.49, "availability": "available",
+        }],
+    })
+    produce_basket = build_basket([
+        {"ingredient": "onion", "quantity": 2, "unit": "unit", "source_meals": ["Soup"]},
+    ], produce_catalog, mode="cheapest")[0]
+    assert produce_basket["match_status"] == "matched"
+    assert produce_basket["needed_quantity"] == 300
+    assert "1 onion ≈ 150 g" in produce_basket["match_reason"]
+
     produce_rows = consolidate([
         {"id": "piece-onion", "name": "Onion by piece", "ingredients": [["onion", 1, "unit"]]},
         {"id": "gram-onion", "name": "Onion by weight", "ingredients": [["onions", 150, "g"]]},
