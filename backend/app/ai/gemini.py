@@ -36,7 +36,7 @@ def _sanitize_steps(value):
     return steps[:10]
 
 
-def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
+def _sanitize_meal(raw: dict, index: int = 0, strict_units: bool = False) -> dict | None:
     if not isinstance(raw, dict): return None
     name = str(raw.get("name") or "").strip()
     if not name: return None
@@ -68,7 +68,7 @@ def _sanitize_meal(raw: dict, index: int = 0) -> dict | None:
             "pieces": "unit", "units": "unit", "clove": "cloves",
         }.get(unit, unit)
         # Reject the whole meal instead of hiding malformed shopping requirements.
-        if not ingredient or unit not in {"g", "ml", "unit", "cloves"} or isinstance(quantity, bool):
+        if not ingredient or not unit or (strict_units and unit not in {"g", "ml", "unit", "cloves"}) or isinstance(quantity, bool):
             return None
         try:
             quantity = float(quantity)
@@ -103,7 +103,7 @@ def _load_persisted() -> None:
 def _persist_generated(generated: list[dict]) -> list[dict]:
     clean = []; existing = {meal.get("id") for meal in MEALS}
     for index, raw in enumerate(generated):
-        meal = _sanitize_meal(raw, index)
+        meal = _sanitize_meal(raw, index, strict_units=True)
         if not meal: continue
         base = meal["id"]; suffix = 2
         while meal["id"] in existing:
