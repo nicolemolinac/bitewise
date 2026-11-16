@@ -139,6 +139,31 @@ _ALIAS_GROUPS = [
     ("coriander", "cilantro", "koriander"),
     ("chili", "chilli", "chilischote", "chilischoten"),
     ("wrap", "wraps", "tortilla", "tortillas", "weizentortilla"),
+    # Additional common German supermarket names for ingredients in real generated recipes.
+    ("arborio rice", "arborio reis", "risottoreis", "risotto reis"),
+    ("bagel", "bagel", "bagels"),
+    ("balsamic vinegar", "balsamico", "balsamessig", "balsamicoessig"),
+    ("black bean", "black beans", "schwarze bohne", "schwarze bohnen"),
+    ("beef steak", "rindersteak", "rinder steaks", "rinderhüftsteak", "rinderhueftsteak"),
+    ("chicken stock", "hühnerbrühe", "huehnerbruehe", "hühnerfond", "huehnerfond", "geflügelbrühe", "gefluegelbruehe"),
+    ("vegetable stock", "gemüsebrühe", "gemuesebruehe", "gemüsefond", "gemuesefond"),
+    ("goat cheese", "ziegenkäse", "ziegenkaese", "ziegenfrischkäse", "ziegenfrischkaese"),
+    ("halloumi", "halloumi", "grillkäse", "grillkaese"),
+    ("granola", "granola", "knuspermüsli", "knuspermuesli"),
+    ("green curry paste", "grüne currypaste", "gruene currypaste", "thai curry paste grün", "thai curry paste gruen"),
+    ("miso", "miso", "misopaste"),
+    ("orzo", "orzo", "reisförmige nudeln", "reisfoermige nudeln"),
+    ("passata", "passata", "passierte tomaten"),
+    ("rocket", "rucola", "rauke"),
+    ("red wine vinegar", "rotweinessig"),
+    ("ricotta", "ricotta"),
+    ("raisins", "rosinen"),
+    ("tagliatelle", "tagliatelle", "bandnudeln"),
+    ("flatbread", "fladenbrot", "pita", "pita brot"),
+    ("white bean", "white beans", "weiße bohne", "weiße bohnen", "weisse bohne", "weisse bohnen"),
+    ("pesto", "pesto", "basilikumpesto"),
+    ("tomato passata", "passierte tomaten", "tomatenpassata"),
+
 ]
 
 
