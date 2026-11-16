@@ -328,8 +328,11 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             selected_by_user = override_id is not None and str(product_id) == str(override_id)
             if selected_by_user:
                 score -= 1_000_000
+            conversion_note = None
+            if ingredient == "garlic" and unit == "clove" and product_unit == "bulb":
+                conversion_note = "Estimated using 1 garlic bulb ≈ 10 cloves; actual bulb size varies."
             candidates.append({
-                "score": score, "packs": packs, "checkout_cost": checkout_cost,
+                "score": score, "conversion_note": conversion_note, "packs": packs, "checkout_cost": checkout_cost,
                 "consumed_cost": consumed_cost, "waste": waste_in_pack_unit,
                 "waste_ratio": waste_ratio, "unit_price": unit_price,
                 "product": product, "selected_by_user": selected_by_user,
@@ -363,8 +366,8 @@ def build_basket(requirements, adapter, mode="best-value", owned=None, overrides
             "package_unit": chosen["package_unit"],
             "unit_cost": round(chosen["unit_price"], 6),
             "match_status": "matched",
-            "match_reason": "Matched against a priced, available catalog product using compatible units.",
-            "why": f"Used in {len(requirement.get('source_meals', []))} meal(s); {round(chosen['waste_ratio'] * 100)}% estimated package leftover.",
+            "match_reason": chosen["conversion_note"] or "Matched against a priced, available catalog product using compatible units.",
+            "why": f"Used in {len(requirement.get('source_meals', []))} meal(s); {round(chosen['waste_ratio'] * 100)}% estimated package leftover." + (f" {chosen['conversion_note']}" if chosen["conversion_note"] else ""),
             "badge": badge,
             "selected_by_user": chosen["selected_by_user"],
         })
