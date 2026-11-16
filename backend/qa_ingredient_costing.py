@@ -112,6 +112,9 @@ def run():
     assert _convert_quantity(float("inf"), "g", "kg") is None
     assert _convert_quantity(100, "g", "ml") is None
     assert _convert_quantity(2, "cloves", "bulb", ingredient="garlic") == 0.2
+    assert _convert_quantity(1, "unit", "g", ingredient="onion") == 150
+    assert _convert_quantity(300, "g", "unit", ingredient="onion") == 2
+    assert _convert_quantity(1, "unit", "g", ingredient="egg") is None
     assert _convert_quantity(1, "bulb", "cloves", ingredient="garlic") == 10
     assert _convert_quantity(2, "cloves", "bulb", ingredient="onion") is None
     assert _convert_quantity(2, "cloves", "bulb") is None
@@ -137,6 +140,13 @@ def run():
         raise AssertionError("Boolean basket quantity must be rejected")
     except ValueError:
         pass
+
+    produce_rows = consolidate([
+        {"id": "piece-onion", "name": "Onion by piece", "ingredients": [["onion", 1, "unit"]]},
+        {"id": "gram-onion", "name": "Onion by weight", "ingredients": [["onions", 150, "g"]]},
+    ], {"piece-onion": 2, "gram-onion": 2})
+    onion_total = next(row for row in produce_rows if row["ingredient"] == "onion")
+    assert onion_total["quantity"] == 300 and onion_total["unit"] == "g", onion_total
 
     canonical_rows = consolidate([
         {"id": "x", "name": "Tomato salad", "ingredients": [["tomato", 1, "piece"], ["tomatoes", 2, "piece"], ["cherry tomatoes", 3, "piece"]]},
