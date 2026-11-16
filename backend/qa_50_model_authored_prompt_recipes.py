@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from app.ingredient_aliases import canonical_ingredient
 from app.rewe.seed_products import PRODUCTS
-from app.shopping.optimizer import _convert_quantity, build_basket, consolidate
+from app.shopping.optimizer import _PRODUCE_GRAMS_PER_UNIT, _convert_quantity, build_basket, consolidate
 
 
 def I(name, qty, unit="g"):
@@ -149,8 +149,12 @@ def main():
     sources = defaultdict(set)
     for meal in meals:
         for ingredient, quantity, unit in meal["ingredients"]:
+            canonical_name = canonical_ingredient(ingredient)
             normalized_unit = {"cloves": "clove", "unit": "piece"}.get(unit, unit)
-            key = (canonical_ingredient(ingredient), normalized_unit)
+            if normalized_unit == "piece" and canonical_name in _PRODUCE_GRAMS_PER_UNIT:
+                quantity = _convert_quantity(quantity, "piece", "g", ingredient=canonical_name)
+                normalized_unit = "g"
+            key = (canonical_name, normalized_unit)
             expected[key] += quantity
             sources[key].add(meal["name"])
     requirements = consolidate(meals, {meal["id"]: 2 for meal in meals})
