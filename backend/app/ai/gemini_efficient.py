@@ -205,6 +205,15 @@ Rules:
 - Optimize for low effort and minimal cleanup, following the selected kitchen-equipment priority above.
 - Prefer affordable frozen or pre-cut ingredients when they reduce preparation without making the meal unnecessarily expensive.
 - Use generic, unambiguous ingredient names (e.g. "chicken breast", "Greek yogurt", "cherry tomatoes").
+- Ingredient quantities must be practical shopping quantities for exactly two servings, not vague pinches or implausibly tiny/large amounts.
+- Use g for dry pasta, rice, grains, meat, fish, cheese, legumes and canned-food drained solids; use ml for liquids.
+- For canned beans, chickpeas, tuna and lentils, give the edible drained weight in g, not "1 can" and not the can's gross weight.
+- Use unit for whole countable produce and eggs (e.g. 1 lemon, 1 onion, 2 bell peppers); do not alternate between g and unit for the same ingredient within one recipe.
+- Use cloves only for individual garlic cloves (normally 1-3 cloves for two servings). Never call a whole garlic bulb a clove or vice versa.
+- Use g for fresh herbs and leafy greens when weighing is realistic; avoid "bunch" because Bitewise's recipe schema supports only g|ml|unit|cloves.
+- Use small but realistic g amounts for spices and seasonings; do not output 0.1 g or 0.2 g quantities.
+- Keep ingredient identity specific: cherry tomatoes are not ordinary tomatoes; spring onions are not onions; black beans are not kidney beans; coconut milk is not dairy milk.
+- Do not include water, salt or pepper unless materially needed; avoid duplicate ingredients under singular/plural or alternate names.
 - Prefer ingredients commonly available at REWE, but never claim a specific product or price is available.
 - image must be exactly this existing URL if non-empty: {image}
 """.strip()
