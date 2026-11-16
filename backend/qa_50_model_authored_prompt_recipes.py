@@ -96,6 +96,11 @@ def main():
     })
     assert sanitized is not None
     assert [row[2] for row in sanitized["ingredients"]] == ["cloves", "unit", "ml"]
+    legacy_can = _sanitize_meal({
+        "name": "Legacy can unit",
+        "ingredients": [["tuna", 1, "can"]],
+    })
+    assert legacy_can is not None, "Existing saved recipes must remain loadable"
     assert _sanitize_meal({
         "name": "Unsupported can unit",
         "ingredients": [["tuna", 1, "can"]],
