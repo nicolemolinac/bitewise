@@ -120,7 +120,8 @@ def main():
     sources = defaultdict(set)
     for meal in meals:
         for ingredient, quantity, unit in meal["ingredients"]:
-            key = (canonical_ingredient(ingredient), unit)
+            normalized_unit = {"cloves": "clove", "units": "piece", "pieces": "piece"}.get(unit, unit)
+            key = (canonical_ingredient(ingredient), normalized_unit)
             expected[key] += quantity
             sources[key].add(meal["name"])
     requirements = consolidate(meals, {meal["id"]: 2 for meal in meals})
