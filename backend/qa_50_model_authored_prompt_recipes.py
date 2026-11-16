@@ -12,6 +12,8 @@ from app.shopping.optimizer import _convert_quantity, build_basket, consolidate
 
 
 def I(name, qty, unit="g"):
+    # Mirror the exact unit vocabulary requested by Bitewise Gemini prompts.
+    unit = {"piece": "unit", "clove": "cloves"}.get(unit, unit)
     return [name, qty, unit]
 
 
@@ -27,7 +29,7 @@ CASES = [
 ("Beef and broccoli stir-fry", "Takeaway-style beef broccoli stir-fry for two with rice, not too salty.", [I("beef",250),I("broccoli",200),I("rice",150),I("soy sauce",25,"ml"),I("cornstarch",8),I("garlic",2,"cloves"),I("sesame oil",5,"ml")]),
 ("Roasted tomato mozzarella gnocchi", "Easy vegetarian oven-style gnocchi for two with tomato and mozzarella.", [I("gnocchi",400),I("tomatoes",250),I("mozzarella",125),I("basil",10),I("olive oil",10,"ml"),I("garlic",1,"clove")]),
 ("Red lentil dal", "Low-cost vegan Indian-style dal for two, filling, with rice.", [I("red lentils",160),I("tomatoes",200),I("onion",1,"piece"),I("coconut milk",100,"ml"),I("rice",140),I("garlic",2,"cloves"),I("ginger",10)]),
-("Tuna white bean salad", "High-protein no-cook lunch for two, use canned tuna and white beans.", [I("tuna",1,"can"),I("white beans",240),I("cucumber",120),I("red onion",40),I("lemon",0.5,"piece"),I("olive oil",15,"ml"),I("parsley",8)]),
+("Tuna white bean salad", "High-protein no-cook lunch for two, use canned tuna and white beans.", [I("tuna",120),I("white beans",240),I("cucumber",120),I("red onion",40),I("lemon",0.5,"piece"),I("olive oil",15,"ml"),I("parsley",8)]),
 ("Pesto chicken pasta", "Simple high-protein pasta for two with pesto and chicken, 20 minutes.", [I("pasta",180),I("chicken breast",240),I("pesto",50),I("cherry tomatoes",120),I("parmesan",20)]),
 ("Sweet potato black bean tacos", "Vegetarian taco night for two, inexpensive, include a fresh topping.", [I("sweet potato",300),I("black beans",240),I("tortillas",4,"piece"),I("avocado",1,"piece"),I("lime",1,"piece"),I("red cabbage",100)]),
 ("Garlic shrimp noodles", "Quick Asian-inspired shrimp noodles for two, lots of vegetables, no deep frying.", [I("shrimp",220),I("noodles",160),I("carrot",100),I("spring onion",2,"piece"),I("soy sauce",25,"ml"),I("garlic",2,"cloves"),I("lime",0.5,"piece")]),
@@ -94,7 +96,7 @@ def main():
 
     # Semantic checks: ingredient/unit compatibility, realistic amounts for two servings,
     # coherent recipe size and no malformed/empty ingredients.
-    count_units = {"piece", "clove", "can"}
+    count_units = {"unit", "cloves"}
     volume_units = {"ml"}
     mass_units = {"g"}
     for name, prompt, ingredients in CASES:
@@ -107,9 +109,9 @@ def main():
                 assert 1 <= quantity <= 600, (name, ingredient, quantity, unit)
             elif unit == "ml":
                 assert 1 <= quantity <= 600, (name, ingredient, quantity, unit)
-            elif unit == "piece":
+            elif unit == "unit":
                 assert quantity <= 6, (name, ingredient, quantity, unit)
-            elif unit == "clove":
+            elif unit == "cloves":
                 assert quantity <= 6, (name, ingredient, quantity, unit)
             elif unit == "can":
                 assert quantity <= 3, (name, ingredient, quantity, unit)
@@ -119,7 +121,7 @@ def main():
     sources = defaultdict(set)
     for meal in meals:
         for ingredient, quantity, unit in meal["ingredients"]:
-            normalized_unit = {"cloves": "clove", "units": "piece", "pieces": "piece"}.get(unit, unit)
+            normalized_unit = {"cloves": "clove", "unit": "piece"}.get(unit, unit)
             key = (canonical_ingredient(ingredient), normalized_unit)
             expected[key] += quantity
             sources[key].add(meal["name"])
@@ -154,7 +156,7 @@ def main():
     # silently converted into grams/ml or conflated with one another.
     assert _convert_quantity(2, "cloves", "g") is None
     assert _convert_quantity(1, "can", "g") is None
-    assert _convert_quantity(1, "piece", "clove") is None
+    assert _convert_quantity(1, "unit", "cloves") is None
     print(
         f"MODEL-AUTHORED QA PASS: {len(CASES)} unique prompts and recipes; "
         f"{sum(len(x[2]) for x in CASES)} ingredient lines; {len(requirements)} "
