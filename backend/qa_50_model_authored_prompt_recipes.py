@@ -157,8 +157,8 @@ def main():
     assert _convert_quantity(2, "cloves", "g") is None
     assert _convert_quantity(1, "can", "g") is None
     assert _convert_quantity(1, "unit", "cloves") is None
-    print("MODEL-AUTHORED MATCHED INGREDIENTS: " + ", ".join(sorted({r["ingredient"] for r in matched})))
-    print("MODEL-AUTHORED UNMATCHED INGREDIENTS: " + ", ".join(sorted({r["ingredient"] for r in unmatched})))
+    print("MODEL-AUTHORED MATCHED INGREDIENTS: " + ", ".join(sorted({r["ingredient"] + " [" + r["unit"] + "]" for r in matched})))
+    print("MODEL-AUTHORED UNMATCHED INGREDIENTS: " + ", ".join(sorted({r["ingredient"] + " [" + r["unit"] + "]" for r in unmatched})))
     print(
         f"MODEL-AUTHORED QA PASS: {len(CASES)} unique prompts and recipes; "
         f"{sum(len(x[2]) for x in CASES)} ingredient lines; {len(requirements)} "
