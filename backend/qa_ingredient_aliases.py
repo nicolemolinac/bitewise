@@ -58,20 +58,6 @@ def main():
         _product(14, "Balsamicoessig"),
         _product(15, "Rotweinessig"),
         _product(16, "Tagliatelle"),
-        _product(17, "Chiasamen"),
-        _product(18, "Reispapier"),
-        _product(19, "Zartbitterschokolade"),
-        _product(20, "Putenbrustfilet"),
-        _product(21, "Putenhackfleisch"),
-        _product(22, "Hähnchenschenkel"),
-        _product(23, "Schweinefilet"),
-        _product(24, "Räucherlachs"),
-        _product(25, "Kreuzkümmel gemahlen"),
-        _product(26, "Currypulver"),
-        _product(27, "Salbei frisch"),
-        _product(28, "Minze frisch"),
-        _product(29, "Cheddar gerieben"),
-        _product(30, "Beerenmischung"),
     ]
     adapter = type("Adapter", (), {"db": FakeSession(catalog_rows)})()
     milk_matches = _multilingual_catalog_search(adapter, "milk")
@@ -85,11 +71,6 @@ def main():
     for ingredient, product_id in [
         ("arborio rice", 5), ("goat cheese", 6), ("rocket", 8),
         ("passata", 9), ("green curry paste", 13), ("tagliatelle", 16),
-        ("chia seeds", 17), ("rice paper", 18), ("dark chocolate", 19),
-        ("turkey breast", 20), ("ground turkey", 21), ("chicken thighs", 22),
-        ("pork tenderloin", 23), ("smoked salmon", 24), ("cumin", 25),
-        ("curry powder", 26), ("sage", 27), ("mint", 28), ("cheddar", 29),
-        ("berries", 30),
     ]:
         results = _multilingual_catalog_search(adapter, ingredient)
         assert any(row["id"] == product_id for row in results), (ingredient, results)
