@@ -166,8 +166,8 @@ def run():
     ], {"x": 2})
     regular_tomato = next(row for row in canonical_rows if row["ingredient"] == "tomato")
     cherry_tomato = next(row for row in canonical_rows if row["ingredient"] == "cherry tomato")
-    assert regular_tomato["quantity"] == 3
-    assert cherry_tomato["quantity"] == 3, "Specific tomato types must remain separate"
+    assert regular_tomato["quantity"] == 360 and regular_tomato["unit"] == "g"
+    assert cherry_tomato["quantity"] == 45 and cherry_tomato["unit"] == "g", "Specific tomato types must remain separate"
 
     synonym_pantry = build_basket(
         [{"ingredient": "tomato", "quantity": 3, "unit": "piece", "source_meals": ["Salad"]}],
