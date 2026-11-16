@@ -108,8 +108,21 @@ def main():
     assert len(CASES) == 50, f"Expected 50 generated recipes, got {len(CASES)}"
     assert len({x[0] for x in CASES}) == 50, "Recipe names must be distinct"
     assert len({x[1] for x in CASES}) == 50, "Prompts must be distinct"
-    meals = [{"id": f"model-qa-{i:02d}", "name": name, "ingredients": ingredients}
-             for i, (name, prompt, ingredients) in enumerate(CASES, 1)]
+    meals = []
+    for i, (name, prompt, ingredients) in enumerate(CASES, 1):
+        sanitized = _sanitize_meal({
+            "id": f"model-qa-{i:02d}",
+            "name": name,
+            "description": prompt,
+            "ingredients": ingredients,
+        }, index=i, strict_units=True)
+        assert sanitized is not None, f"Production Gemini sanitizer rejected authored recipe: {name}"
+        assert len(sanitized["ingredients"]) == len(ingredients), f"Sanitizer dropped ingredients: {name}"
+        meals.append({
+            "id": f"model-qa-{i:02d}",
+            "name": sanitized["name"],
+            "ingredients": sanitized["ingredients"],
+        })
 
     # Semantic checks: ingredient/unit compatibility, realistic amounts for two servings,
     # coherent recipe size and no malformed/empty ingredients.
