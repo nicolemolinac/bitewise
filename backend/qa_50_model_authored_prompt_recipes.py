@@ -99,7 +99,7 @@ def main():
     assert _sanitize_meal({
         "name": "Unsupported can unit",
         "ingredients": [["tuna", 1, "can"]],
-    }) is None
+    }, strict_units=True) is None
     assert len(CASES) == 50, f"Expected 50 generated recipes, got {len(CASES)}"
     assert len({x[0] for x in CASES}) == 50, "Recipe names must be distinct"
     assert len({x[1] for x in CASES}) == 50, "Prompts must be distinct"
